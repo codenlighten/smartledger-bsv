@@ -249,6 +249,8 @@
   </main>
 
   <script>
+    const bsvHash = bsv.crypto.Hash;
+    console.log('bsvHash:', bsvHash);
     // ---------- Helpers ----------
     const $ = (id) => document.getElementById(id);
     const qs = (sel) => document.querySelector(sel);
@@ -342,51 +344,67 @@
         return decoder.decode(decrypted);
       },
       hash: async (data, algo) => {
-        const encoder = new TextEncoder();
-        const dataBuffer = encoder.encode(data);
-        
-        switch(algo) {
-          case 'SHA256': {
-            const hash = await crypto.subtle.digest('SHA-256', dataBuffer);
-            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-          }
-          case 'SHA512': {
-            const hash = await crypto.subtle.digest('SHA-512', dataBuffer);
-            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-          }
-          case 'RIPEMD160': {
-            // RIPEMD160 not available in Web Crypto API, use BSV if available
-            if (window.bsv && bsv.crypto && bsv.crypto.Hash && bsv.crypto.Hash.ripemd160) {
-              try {
-                // Try to use BSV's hash function with proper buffer handling
-                let inputData;
-                
-                // First try with a simple string approach
-                if (typeof data === 'string') {
-                  // Convert string to bytes that BSV can handle
-                  const bytes = new TextEncoder().encode(data);
-                  // Create a buffer-like object
-                  inputData = Array.from(bytes);
-                }
-                
-                const hashResult = bsv.crypto.Hash.ripemd160(inputData);
-                
-                // Handle different return types
-                if (hashResult && typeof hashResult.toString === 'function') {
-                  return hashResult.toString('hex');
-                } else if (Array.isArray(hashResult)) {
-                  return hashResult.map(b => b.toString(16).padStart(2, '0')).join('');
-                } else {
-                  return hashResult;
-                }
-              } catch (e) {
-                console.warn('BSV RIPEMD160 failed:', e.message);
-                throw new Error('RIPEMD160 computation failed: ' + e.message);
-              }
+        // Use BSV crypto functions directly since they're available
+        if (window.bsv && bsv.crypto && bsv.crypto.Hash) {
+          try {
+            // Create a proper buffer using BSV's Buffer if available
+            let buffer;
+            if (typeof Buffer !== 'undefined' && Buffer.from) {
+              buffer = Buffer.from(data, 'utf8');
+            } else {
+              // Fallback: create Uint8Array
+              const encoder = new TextEncoder();
+              buffer = encoder.encode(data);
             }
-            throw new Error('RIPEMD160 not supported - BSV Hash module not available');
+            
+            let hashResult;
+            switch(algo) {
+              case 'SHA256':
+                hashResult = bsv.crypto.Hash.sha256(buffer);
+                break;
+              case 'SHA512':
+                hashResult = bsv.crypto.Hash.sha512(buffer);
+                break;
+              case 'RIPEMD160':
+                hashResult = bsv.crypto.Hash.ripemd160(buffer);
+                break;
+              default:
+                throw new Error('Unsupported hash algorithm: ' + algo);
+            }
+            
+            // Convert result to hex string
+            if (hashResult && typeof hashResult.toString === 'function') {
+              return hashResult.toString('hex');
+            } else if (hashResult && hashResult.length) {
+              // Handle array-like results
+              return Array.from(hashResult).map(b => b.toString(16).padStart(2, '0')).join('');
+            } else {
+              throw new Error('Unexpected hash result format');
+            }
+            
+          } catch (e) {
+            console.error('BSV hash failed:', e);
+            throw new Error(`${algo} hashing failed: ${e.message}`);
           }
-          default: throw new Error('Unsupported hash algorithm');
+        } else {
+          // Fallback to Web Crypto API for SHA algorithms only
+          const encoder = new TextEncoder();
+          const dataBuffer = encoder.encode(data);
+          
+          switch(algo) {
+            case 'SHA256': {
+              const hash = await crypto.subtle.digest('SHA-256', dataBuffer);
+              return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+            case 'SHA512': {
+              const hash = await crypto.subtle.digest('SHA-512', dataBuffer);
+              return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+            case 'RIPEMD160':
+              throw new Error('RIPEMD160 not supported - BSV library not available');
+            default:
+              throw new Error('Unsupported hash algorithm: ' + algo);
+          }
         }
       },
       signMessage: async (msg, wif) => {
