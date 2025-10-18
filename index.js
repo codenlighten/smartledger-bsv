@@ -2,6 +2,19 @@
 
 var bsv = module.exports
 
+// Initialize dependencies first to avoid circular dependency issues
+bsv.deps = bsv.deps || {}
+try {
+  bsv.deps.bnjs = require('bn.js')
+  bsv.deps.bs58 = require('bs58')
+  bsv.deps.Buffer = (typeof Buffer !== 'undefined') ? Buffer : null
+  bsv.deps.elliptic = require('elliptic')
+  bsv.deps._ = require('./lib/util/_')
+} catch (e) {
+  // Handle browser environment gracefully
+  console.warn('Some dependencies may not be available in browser environment:', e.message)
+}
+
 // module information
 bsv.version = 'v' + require('./package.json').version
 bsv.versionGuard = function (version) {
@@ -69,14 +82,20 @@ bsv.PrivateKey = require('./lib/privatekey')
 bsv.PublicKey = require('./lib/publickey')
 bsv.Script = require('./lib/script')
 bsv.Transaction = require('./lib/transaction')
+bsv.Message = require('./lib/message')
+bsv.Signature = require('./lib/crypto/signature')
 
-// dependencies, subject to change
-bsv.deps = {}
-bsv.deps.bnjs = require('bn.js')
-bsv.deps.bs58 = require('bs58')
-bsv.deps.Buffer = Buffer
-bsv.deps.elliptic = require('elliptic')
-bsv.deps._ = require('./lib/util/_')
+// SmartLedger security modules (top-level access)
+bsv.SmartLedger = {
+  version: bsv.version,
+  hardenedBy: bsv.hardenedBy,
+  baseVersion: bsv.baseVersion,
+  securityFeatures: bsv.securityFeatures,
+  SmartVerify: require('./lib/crypto/smartledger_verify'),
+  EllipticFixed: require('./lib/crypto/elliptic-fixed')
+}
+bsv.SmartVerify = require('./lib/crypto/smartledger_verify')
+bsv.EllipticFixed = require('./lib/crypto/elliptic-fixed')
 
 // Internal usage, exposed for testing/advanced tweaking
 bsv.Transaction.sighash = require('./lib/transaction/sighash')
