@@ -356,11 +356,35 @@
           }
           case 'RIPEMD160': {
             // RIPEMD160 not available in Web Crypto API, use BSV if available
-            if (window.bsv && bsv.crypto && bsv.crypto.Hash) {
-              const buffer = new Uint8Array(dataBuffer);
-              return bsv.crypto.Hash.ripemd160(buffer).toString('hex');
+            if (window.bsv && bsv.crypto && bsv.crypto.Hash && bsv.crypto.Hash.ripemd160) {
+              try {
+                // Try to use BSV's hash function with proper buffer handling
+                let inputData;
+                
+                // First try with a simple string approach
+                if (typeof data === 'string') {
+                  // Convert string to bytes that BSV can handle
+                  const bytes = new TextEncoder().encode(data);
+                  // Create a buffer-like object
+                  inputData = Array.from(bytes);
+                }
+                
+                const hashResult = bsv.crypto.Hash.ripemd160(inputData);
+                
+                // Handle different return types
+                if (hashResult && typeof hashResult.toString === 'function') {
+                  return hashResult.toString('hex');
+                } else if (Array.isArray(hashResult)) {
+                  return hashResult.map(b => b.toString(16).padStart(2, '0')).join('');
+                } else {
+                  return hashResult;
+                }
+              } catch (e) {
+                console.warn('BSV RIPEMD160 failed:', e.message);
+                throw new Error('RIPEMD160 computation failed: ' + e.message);
+              }
             }
-            throw new Error('RIPEMD160 not supported in this environment');
+            throw new Error('RIPEMD160 not supported - BSV Hash module not available');
           }
           default: throw new Error('Unsupported hash algorithm');
         }
