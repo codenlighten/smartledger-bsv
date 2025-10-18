@@ -3,6 +3,14 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+package-lock.json
+
+# Temporary files
+*.tmp
+*.temp
+*_temp.js
+*_test.js
+*_debug.js
 
 # Runtime data
 pids
