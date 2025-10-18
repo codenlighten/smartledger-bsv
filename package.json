@@ -1,6 +1,6 @@
 {
-  "name": "@smartledger/bsv",
-  "version": "1.5.6-fix1",
+  "name": "smartledger-bsv",
+  "version": "3.0.0",
   "description": "Security-hardened Bitcoin SV library - Complete drop-in replacement for bsv@1.5.6 with zero vulnerabilities",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
@@ -16,8 +16,8 @@
     "build-ecies": "webpack ecies/index.js --config webpack.subproject.config.js --output-library bsvEcies -o bsv-ecies.min.js",
     "build-message": "webpack message/index.js --config webpack.subproject.config.js --output-library bsvMessage -o bsv-message.min.js",
     "build-mnemonic": "webpack mnemonic/index.js --config webpack.subproject.config.js --output-library bsvMnemonic -o bsv-mnemonic.min.js",
-    "build": "yarn build-bsv && yarn build-ecies && yarn build-message && yarn build-mnemonic",
-    "prepublishOnly": "yarn build"
+    "build": "npm run build-bsv && npm run build-ecies && npm run build-message && npm run build-mnemonic",
+    "prepublishOnly": "NODE_OPTIONS=\"--openssl-legacy-provider\" npm run build"
   },
   "unpkg": "bsv.min.js",
   "keywords": [

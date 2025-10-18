@@ -1,7 +1,7 @@
-# SmartLedger BSV v1.5.6-fix1
+# SmartLedger BSV v3.0
 ### Security-Hardened Bitcoin SV Library
 
-[![npm version](https://img.shields.io/npm/v/@smartledger/bsv.svg)](https://www.npmjs.com/package/@smartledger/bsv)
+[![npm version](https://img.shields.io/npm/v/smartledger-bsv.svg)](https://www.npmjs.com/package/smartledger-bsv)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js CI](https://img.shields.io/badge/Node.js-✓-green.svg)]()
 [![Browser Compatible](https://img.shields.io/badge/Browser-✓-green.svg)]()
@@ -12,12 +12,12 @@ A **complete drop-in replacement** for BSV@1.5.6 with critical security vulnerab
 ## 🚀 Quick Start
 
 ```bash
-npm install @smartledger/bsv
+npm install smartledger-bsv
 ```
 
 ```javascript
 // Drop-in replacement - no code changes required
-const bsv = require('@smartledger/bsv');
+const bsv = require('smartledger-bsv');
 
 const privateKey = bsv.PrivateKey();
 const message = bsv.Message('hello world');
@@ -63,11 +63,11 @@ console.log(signature.validate());    // comprehensive validation
 ### CDN Usage
 ```html
 <!-- Security-hardened BSV library -->
-<script src="https://cdn.jsdelivr.net/npm/@smartledger/bsv@1.5.6-fix1/bsv.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv.min.js"></script>
 
 <!-- Optional modules -->
-<script src="https://cdn.jsdelivr.net/npm/@smartledger/bsv@1.5.6-fix1/bsv-message.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@smartledger/bsv@1.5.6-fix1/bsv-mnemonic.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv-message.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv-mnemonic.min.js"></script>
 ```
 
 ## 🧪 Validation & Testing
@@ -93,7 +93,7 @@ console.log(signature.validate());    // comprehensive validation
 const bsv = require('bsv');
 
 // After (security-hardened)  
-const bsv = require('@smartledger/bsv');
+const bsv = require('smartledger-bsv');
 
 // All existing code works unchanged
 const tx = new bsv.Transaction()
@@ -134,7 +134,7 @@ Full browser support with proper Buffer handling and crypto compatibility:
 <!DOCTYPE html>
 <html>
 <head>
-  <script src="https://cdn.jsdelivr.net/npm/@smartledger/bsv@1.5.6-fix1/bsv.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv.min.js"></script>
 </head>
 <body>
 <script>
