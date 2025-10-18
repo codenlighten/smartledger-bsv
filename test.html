@@ -404,7 +404,8 @@
                 // Test message verification compatibility
                 try {
                     const publicKey = privateKey.toPublicKey();
-                    const isVerified = bsv.Message(message).verify(publicKey.toAddress(), signature);
+                    const messageSignature = bsv.Message(message).sign(privateKey);
+                    const isVerified = bsv.Message(message).verify(publicKey.toAddress(), messageSignature);
                     addResult('signature-results', `✅ Message verification: ${isVerified}`, 
                         isVerified ? 'success' : 'error');
                 } catch (error) {
@@ -519,7 +520,7 @@
                 const keyGenTime = performance.now() - keyGenStart;
                 
                 addResult('performance-results', 
-                    `🔑 Key generation: ${(keyGenTime / iterations).toFixed(2)}ms per key`, 'info');
+                    `🔑 Key generation: ${(keyGenTime / iterations).toFixed(2)}ms per key`, 'success');
                 
                 // Benchmark signing
                 const privateKey = new bsv.PrivateKey();
@@ -532,7 +533,7 @@
                 const signingTime = performance.now() - signingStart;
                 
                 addResult('performance-results', 
-                    `✍️ Signing: ${(signingTime / iterations).toFixed(2)}ms per signature`, 'info');
+                    `✍️ Signing: ${(signingTime / iterations).toFixed(2)}ms per signature`, 'success');
                 
                 // Benchmark verification
                 const signature = bsv.Message(message).sign(privateKey);
@@ -545,7 +546,7 @@
                 const verifyTime = performance.now() - verifyStart;
                 
                 addResult('performance-results', 
-                    `✅ Verification: ${(verifyTime / iterations).toFixed(2)}ms per verification`, 'info');
+                    `✅ Verification: ${(verifyTime / iterations).toFixed(2)}ms per verification`, 'success');
                 
                 // Test security method performance
                 const securityStart = performance.now();
@@ -557,7 +558,7 @@
                 const securityTime = performance.now() - securityStart;
                 
                 addResult('performance-results', 
-                    `🛡️ Security validation: ${(securityTime / iterations).toFixed(2)}ms per check`, 'info');
+                    `🛡️ Security validation: ${(securityTime / iterations).toFixed(2)}ms per check`, 'success');
                 
                 addResult('performance-results', '🏁 Performance benchmark completed', 'success');
                 
