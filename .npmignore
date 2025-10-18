@@ -1,0 +1,29 @@
+# Development files
+test/
+docs/
+server.js
+test.html
+web3keys.html
+SECURITY_SUMMARY.md
+overview.md
+
+# Build artifacts (keep the dist files we want)
+node_modules/
+.git/
+.gitignore
+
+# Development tools
+webpack.config.js
+webpack.subproject.config.js
+
+# Coverage and testing
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
