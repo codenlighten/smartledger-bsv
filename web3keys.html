@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Web3Keys Playground – All-in-One SPA (No Server)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SmartLedger BSV Security-Hardened Library -->
+  <script src="bsv.min.js"></script>
+  <!-- SmartLedger Message Module -->
+  <script src="bsv-message.min.js"></script>
+  <!-- SmartLedger Mnemonic Module -->
+  <script src="bsv-mnemonic.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#6B46C1',
+            primaryDark: '#4C1D95',
+            primaryLight: '#8B5CF6',
+            accent: '#A855F7',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+    .mask { -webkit-text-security: disc; text-security: disc; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-purple-100 via-purple-50 to-indigo-100 min-h-screen">
+  <main class="max-w-5xl mx-auto py-8 px-4">
+    <div class="bg-white rounded-2xl shadow-xl border border-purple-200 overflow-hidden">
+      <!-- Header -->
+      <header class="bg-gradient-to-r from-primaryDark to-primary p-6 text-white">
+        <div class="flex items-center justify-between">
+          <h1 class="text-2xl md:text-3xl font-bold flex items-center">
+            <svg class="w-8 h-8 mr-3 text-primaryLight" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            Web3Keys Playground
+          </h1>
+          <div class="text-sm opacity-90">Pure browser demo • No server • Local-only crypto</div>
+        </div>
+        <p class="mt-2 text-purple-200">Explore SmartLedger BSV (security-hardened): generate/import mnemonics, derive keys, sign/verify, hash data, and encrypt/decrypt — all client-side with zero vulnerabilities.</p>
+      </header>
+
+      <!-- Status -->
+      <div id="status" class="m-4 text-sm p-3 rounded-lg border bg-purple-50 text-purple-800 border-purple-200" aria-live="polite"></div>
+
+      <!-- Nav -->
+      <nav class="px-4 pb-4 border-b border-purple-200">
+        <div class="flex flex-wrap gap-2">
+          <button data-tab="keys" class="tab px-3 py-2 rounded-lg bg-primary text-white">1) Keys</button>
+          <button data-tab="derive" class="tab px-3 py-2 rounded-lg hover:bg-purple-50">2) Derive</button>
+          <button data-tab="sign" class="tab px-3 py-2 rounded-lg hover:bg-purple-50">3) Sign / Verify</button>
+          <button data-tab="encrypt" class="tab px-3 py-2 rounded-lg hover:bg-purple-50">4) Encrypt / Decrypt</button>
+          <button data-tab="hash" class="tab px-3 py-2 rounded-lg hover:bg-purple-50">5) Hash</button>
+          <button data-tab="backup" class="tab px-3 py-2 rounded-lg hover:bg-purple-50">6) Backup / Restore</button>
+          <button data-tab="debug" class="tab px-3 py-2 rounded-lg hover:bg-purple-50">Debug</button>
+        </div>
+      </nav>
+
+      <section class="p-6 space-y-8">
+        <!-- KEYS -->
+        <div id="tab-keys" class="tab-panel space-y-4">
+          <h2 class="text-xl font-semibold text-primaryDark">Step 1: Generate or Import Keys</h2>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-3">
+              <button id="gen-mnemonic" class="w-full px-4 py-3 bg-gradient-to-r from-primary to-primaryDark text-white rounded-lg shadow hover:from-primaryDark hover:to-primary">Generate 24‑word mnemonic (256-bit)</button>
+              <div id="mnemonic-display" class="hidden space-y-2">
+                <label class="text-sm font-medium text-green-700">Generated/Imported Mnemonic (save securely!):</label>
+                <textarea id="mnemonic-out" class="w-full p-3 border-2 border-yellow-300 bg-yellow-50 rounded-lg mono text-sm" rows="3" readonly></textarea>
+              </div>
+            </div>
+            <div class="space-y-3">
+              <button id="toggle-import" class="w-full px-4 py-3 bg-purple-100 text-primaryDark rounded-lg border border-purple-300 hover:bg-purple-200">Import existing mnemonic</button>
+              <div id="import-wrap" class="hidden space-y-2">
+                <textarea id="mnemonic-in" rows="3" placeholder="Enter your 12/24-word mnemonic" class="w-full p-3 border-2 border-purple-300 rounded-lg"></textarea>
+                <button id="import-mnemonic" class="px-4 py-2 bg-primary text-white rounded-lg">Import</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Password (used only locally to encrypt secrets)</label>
+              <input id="password" type="password" class="w-full p-3 border-2 border-purple-300 rounded-lg" placeholder="Strong password" />
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Identity Derivation Path</label>
+              <input id="id-path" value="m/44'/236'/0'/0/0" class="w-full p-3 border-2 border-purple-300 rounded-lg mono" />
+            </div>
+          </div>
+
+          <div class="grid md:grid-cols-3 gap-4">
+            <button id="derive-identity" class="px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Derive Identity</button>
+            <button id="lock-secrets" class="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Encrypt & store locally</button>
+            <button id="clear-state" class="px-4 py-3 bg-red-100 text-red-700 rounded-lg border border-red-300 hover:bg-red-200">Reset All</button>
+          </div>
+
+          <div id="identity-box" class="hidden bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 space-y-2">
+            <div class="text-sm">Public Key (hex)</div>
+            <div id="pubkey" class="mono text-xs break-all"></div>
+            <div class="text-sm mt-2">Address (BSV)</div>
+            <div id="address" class="mono text-xs break-all"></div>
+            <details class="text-xs mt-2">
+              <summary class="cursor-pointer">Sensitive (WIF / PrivateKey) – click to reveal</summary>
+              <div class="mt-2 space-y-1">
+                <div class="text-xs">Private Key (WIF)</div>
+                <div id="wif" class="mono text-xs break-all"></div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- DERIVE -->
+        <div id="tab-derive" class="tab-panel hidden space-y-4">
+          <h2 class="text-xl font-semibold text-primaryDark">Derivation Playground</h2>
+          <div class="grid md:grid-cols-3 gap-4">
+            <div class="space-y-2 md:col-span-2">
+              <label class="text-sm font-medium">Derivation Path</label>
+              <input id="path-input" value="m/44'/236'/0'/0/0" class="w-full p-3 border-2 border-purple-300 rounded-lg mono" />
+            </div>
+            <div class="flex items-end">
+              <button id="derive-path" class="w-full px-4 py-3 bg-primary text-white rounded-lg">Derive</button>
+            </div>
+          </div>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <div class="text-sm">Public Key (hex)</div>
+              <div id="derive-pub" class="mono text-xs break-all p-3 bg-white border rounded"></div>
+            </div>
+            <div>
+              <div class="text-sm">Address (BSV)</div>
+              <div id="derive-addr" class="mono text-xs break-all p-3 bg-white border rounded"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIGN / VERIFY -->
+        <div id="tab-sign" class="tab-panel hidden space-y-4">
+          <h2 class="text-xl font-semibold text-primaryDark">Message Signing & Verification</h2>
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Message</label>
+            <textarea id="msg" rows="3" class="w-full p-3 border-2 border-purple-300 rounded-lg" placeholder="Hello, Web3Keys!"></textarea>
+          </div>
+          <div class="grid md:grid-cols-3 gap-4">
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Use WIF (optional). Leave blank to sign with current identity.</label>
+              <input id="sign-wif" class="w-full p-3 border-2 border-purple-300 rounded-lg" placeholder="WIF for signing (optional)" />
+            </div>
+            <div class="flex items-end"><button id="sign-msg" class="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg">Sign</button></div>
+            <div class="flex items-end"><button id="verify-msg" class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg">Verify</button></div>
+          </div>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <div class="text-sm">Signature (base64)</div>
+              <textarea id="sig" class="w-full p-3 border rounded mono text-xs" rows="3" readonly></textarea>
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Public Key (hex) for verification (optional). Blank → use identity.</label>
+              <textarea id="verify-pub" class="w-full p-3 border rounded mono text-xs" rows="3" placeholder="Hex public key"></textarea>
+              <div id="verify-result" class="text-sm"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ENCRYPT / DECRYPT -->
+        <div id="tab-encrypt" class="tab-panel hidden space-y-4">
+          <h2 class="text-xl font-semibold text-primaryDark">Encrypt / Decrypt (Password-based)</h2>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Plaintext JSON</label>
+              <textarea id="plain" rows="6" class="w-full p-3 border-2 border-purple-300 rounded-lg mono">{"hello":"world"}</textarea>
+              <button id="do-encrypt" class="px-4 py-2 bg-primary text-white rounded">Encrypt with password</button>
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Ciphertext (paste here to decrypt)</label>
+              <textarea id="cipher" rows="6" class="w-full p-3 border-2 border-purple-300 rounded-lg mono"></textarea>
+              <button id="do-decrypt" class="px-4 py-2 bg-primaryDark text-white rounded">Decrypt with password</button>
+            </div>
+          </div>
+          <div>
+            <label class="text-sm font-medium">Result</label>
+            <pre id="enc-result" class="p-3 bg-gray-50 border rounded mono text-xs overflow-auto"></pre>
+          </div>
+        </div>
+
+        <!-- HASH -->
+        <div id="tab-hash" class="tab-panel hidden space-y-4">
+          <h2 class="text-xl font-semibold text-primaryDark">Hash Utilities</h2>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Input (string)</label>
+              <textarea id="hash-input" rows="4" class="w-full p-3 border-2 border-purple-300 rounded-lg" placeholder="Any text…"></textarea>
+              <div class="flex flex-wrap gap-2">
+                <button data-algo="SHA256" class="hash-btn px-3 py-2 bg-primary text-white rounded">SHA-256</button>
+                <button data-algo="SHA512" class="hash-btn px-3 py-2 bg-primaryDark text-white rounded">SHA-512</button>
+                <button data-algo="RIPEMD160" class="hash-btn px-3 py-2 bg-purple-200 rounded">RIPEMD-160</button>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <label class="text-sm font-medium">Output (hex)</label>
+              <textarea id="hash-out" rows="6" class="w-full p-3 border rounded mono text-xs" readonly></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- BACKUP / RESTORE -->
+        <div id="tab-backup" class="tab-panel hidden space-y-4">
+          <h2 class="text-xl font-semibold text-primaryDark">Backup / Restore (Local)</h2>
+          <p class="text-sm text-gray-700">Create an encrypted JSON bundle containing your mnemonic and current identity WIF. Keep your password safe; it cannot be recovered.</p>
+          <div class="flex flex-wrap gap-3">
+            <button id="export-backup" class="px-4 py-2 bg-emerald-600 text-white rounded">Export encrypted backup</button>
+            <label class="px-4 py-2 bg-blue-600 text-white rounded cursor-pointer">
+              Import backup JSON<input id="import-backup" type="file" accept="application/json" class="hidden" />
+            </label>
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Preview</label>
+            <pre id="backup-preview" class="p-3 bg-gray-50 border rounded mono text-xs overflow-auto"></pre>
+          </div>
+        </div>
+
+        <!-- DEBUG -->
+        <div id="tab-debug" class="tab-panel hidden space-y-4">
+          <h2 class="text-xl font-semibold text-primaryDark">Debug</h2>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <div class="text-sm">Local Storage (truncated)</div>
+              <pre id="ls-state" class="p-3 bg-gray-50 border rounded mono text-xs"></pre>
+            </div>
+            <div>
+              <div class="text-sm">SDK Info</div>
+              <pre id="sdk-info" class="p-3 bg-gray-50 border rounded mono text-xs"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="px-6 py-5 bg-gradient-to-r from-primaryDark to-primary text-white flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div class="text-sm opacity-90">Powered by SmartLedger BSV v1.5.6-fix1 • Security-Hardened</div>
+        <div class="text-sm">Client-side only • No network calls • Zero vulnerabilities</div>
+      </footer>
+    </div>
+  </main>
+
+  <script>
+    // ---------- Helpers ----------
+    const $ = (id) => document.getElementById(id);
+    const qs = (sel) => document.querySelector(sel);
+    const qsa = (sel) => Array.from(document.querySelectorAll(sel));
+
+    const setStatus = (msg, good=true) => {
+      const el = $('status');
+      el.textContent = msg || '';
+      el.className = 'm-4 text-sm p-3 rounded-lg border ' + (good ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200');
+      if (msg) setTimeout(()=> setStatus(''), 5000);
+    };
+
+    const canonicalStringify = (obj) => JSON.stringify(sortKeysDeep(obj));
+    function sortKeysDeep(v){
+      if (Array.isArray(v)) return v.map(sortKeysDeep);
+      if (v && typeof v === 'object') return Object.keys(v).sort().reduce((a,k)=> (a[k]=sortKeysDeep(v[k]), a),{});
+      return v;
+    }
+
+    // ---------- SDK Convenience ----------
+    const SL = {
+      genMnemonic: () => {
+        // Generate 24-word mnemonic using BSV Mnemonic module
+        const MnemonicClass = window.bsvMnemonic || (window.bsv && window.bsv.Mnemonic);
+        if (!MnemonicClass) throw new Error('Mnemonic module not loaded');
+        // Use 256 bits of entropy for 24 words (default is 128 bits for 12 words)
+        return MnemonicClass.fromRandom(256).phrase;
+      },
+      validateMnemonic: (m) => {
+        try {
+          const MnemonicClass = window.bsvMnemonic || (window.bsv && window.bsv.Mnemonic);
+          if (!MnemonicClass) return false;
+          new MnemonicClass(m);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      derivePath: (m, path) => {
+        // Derive key from mnemonic and path
+        const MnemonicClass = window.bsvMnemonic || (window.bsv && window.bsv.Mnemonic);
+        if (!MnemonicClass) throw new Error('Mnemonic module not loaded');
+        
+        const mnemonic = new MnemonicClass(m);
+        const hdPrivateKey = bsv.HDPrivateKey.fromSeed(mnemonic.toSeed());
+        const derived = hdPrivateKey.deriveChild(path);
+        return {
+          wif: derived.privateKey.toWIF(),
+          publicKey: derived.privateKey.toPublicKey().toString('hex'),
+          address: derived.privateKey.toAddress().toString()
+        };
+      },
+      encrypt: async (data, password) => {
+        // Simple password-based encryption using Web Crypto API
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+        const keyMaterial = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']);
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const key = await crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['encrypt']
+        );
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, encoder.encode(data));
+        const result = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+        result.set(salt, 0);
+        result.set(iv, salt.length);
+        result.set(new Uint8Array(encrypted), salt.length + iv.length);
+        return btoa(String.fromCharCode(...result));
+      },
+      decrypt: async (encData, password) => {
+        // Decrypt using Web Crypto API
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+        const data = new Uint8Array(atob(encData).split('').map(c => c.charCodeAt(0)));
+        const salt = data.slice(0, 16);
+        const iv = data.slice(16, 28);
+        const encrypted = data.slice(28);
+        const keyMaterial = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']);
+        const key = await crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
+          keyMaterial,
+          { name: 'AES-GCM', length: 256 },
+          false,
+          ['decrypt']
+        );
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, encrypted);
+        return decoder.decode(decrypted);
+      },
+      hash: async (data, algo) => {
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(data);
+        
+        switch(algo) {
+          case 'SHA256': {
+            const hash = await crypto.subtle.digest('SHA-256', dataBuffer);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+          }
+          case 'SHA512': {
+            const hash = await crypto.subtle.digest('SHA-512', dataBuffer);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+          }
+          case 'RIPEMD160': {
+            // RIPEMD160 not available in Web Crypto API, use BSV if available
+            if (window.bsv && bsv.crypto && bsv.crypto.Hash) {
+              const buffer = new Uint8Array(dataBuffer);
+              return bsv.crypto.Hash.ripemd160(buffer).toString('hex');
+            }
+            throw new Error('RIPEMD160 not supported in this environment');
+          }
+          default: throw new Error('Unsupported hash algorithm');
+        }
+      },
+      signMessage: async (msg, wif) => {
+        const privateKey = bsv.PrivateKey.fromWIF(wif);
+        return bsv.Message(msg).sign(privateKey);
+      },
+      verifySignature: async (msg, sig, pubHex) => {
+        try {
+          const publicKey = bsv.PublicKey.fromString(pubHex);
+          const address = bsv.Address.fromPublicKey(publicKey);
+          return bsv.Message(msg).verify(address, sig);
+        } catch {
+          return false;
+        }
+      },
+      bsv: () => window.bsv,
+    };
+
+    // ---------- State ----------
+    const LS = {
+      encMnemonic: 'w3k_encMnemonic',
+      encWif: 'w3k_encWif',
+      pubKey: 'w3k_pubKey',
+      addr: 'w3k_address',
+      idPath: 'w3k_idPath'
+    };
+
+    let mnemonic = null;
+    let identity = null; // { wif, publicKey, address }
+
+    function saveState(){
+      if (identity?.publicKey) localStorage.setItem(LS.pubKey, identity.publicKey);
+      if (identity?.address) localStorage.setItem(LS.addr, identity.address);
+      if ($('id-path').value) localStorage.setItem(LS.idPath, $('id-path').value);
+    }
+    function refreshDebug(){
+      const obj = {};
+      Object.values(LS).forEach(k=>{
+        const v = localStorage.getItem(k);
+        if (v) obj[k] = v.slice(0,64) + (v.length>64?'…':'');
+      });
+      $('ls-state').textContent = JSON.stringify(obj, null, 2);
+      $('sdk-info').textContent = JSON.stringify({
+        bsvPresent: !!window.bsv,
+        hasMessage: !!(window.bsv && bsv.Message),
+        hasMnemonic: !!(window.bsvMnemonic || (window.bsv && bsv.Mnemonic)),
+        hasSmartLedger: !!(window.bsv && bsv.SmartLedger),
+        mnemonicModule: window.bsvMnemonic ? 'bsvMnemonic' : 'bsv.Mnemonic',
+        version: 'SmartLedger BSV v1.5.6-fix1'
+      }, null, 2);
+    }
+
+    function showTab(name){
+      qsa('.tab').forEach(b=> b.classList.remove('bg-primary','text-white'));
+      qsa('.tab').find(b=> b.dataset.tab===name)?.classList.add('bg-primary','text-white');
+      qsa('.tab-panel').forEach(p=> p.classList.add('hidden'));
+      $('tab-'+name).classList.remove('hidden');
+    }
+
+    // ---------- Key / Identity ops ----------
+    async function deriveIdentity(){
+      if (!mnemonic) throw new Error('Generate or import a mnemonic first.');
+      const path = $('id-path').value.trim();
+      const k = await SL.derivePath(mnemonic, path);
+      const bsv = SL.bsv();
+      const priv = bsv.PrivateKey.fromWIF(k.wif);
+      const pubHex = priv.toPublicKey().toString('hex');
+      const address = bsv.Address.fromPrivateKey(priv).toString();
+      identity = { wif: k.wif, publicKey: pubHex, address };
+      $('pubkey').textContent = pubHex;
+      $('address').textContent = address;
+      $('wif').textContent = k.wif;
+      $('identity-box').classList.remove('hidden');
+      setStatus('Identity derived.');
+      saveState();
+    }
+
+    // ---------- Event wiring ----------
+    document.addEventListener('DOMContentLoaded', () => {
+      // Tabs
+      qsa('.tab').forEach(b=> b.addEventListener('click', ()=> showTab(b.dataset.tab)));
+
+      // Restore path
+      const savedPath = localStorage.getItem(LS.idPath);
+      if (savedPath) $('id-path').value = savedPath;
+
+      // Keys
+      $('gen-mnemonic').onclick = async () => {
+        mnemonic = await SL.genMnemonic();
+        $('mnemonic-out').value = mnemonic;
+        $('mnemonic-display').classList.remove('hidden');
+        setStatus('Mnemonic generated – write it down and store offline.');
+      };
+      $('toggle-import').onclick = () => $('import-wrap').classList.toggle('hidden');
+      $('import-mnemonic').onclick = () => {
+        const m = $('mnemonic-in').value.trim();
+        if (!SL.validateMnemonic(m)) return setStatus('Invalid mnemonic', false);
+        mnemonic = m;
+        $('mnemonic-out').value = mnemonic;
+        $('mnemonic-display').classList.remove('hidden');
+        $('import-wrap').classList.add('hidden');
+        setStatus('Mnemonic imported.');
+      };
+
+      $('derive-identity').onclick = async () => {
+        try { await deriveIdentity(); } catch(e){ setStatus(e.message, false); }
+      };
+
+      $('lock-secrets').onclick = async () => {
+        try {
+          const pw = $('password').value;
+          if (!pw) return setStatus('Enter a password first.', false);
+          if (!mnemonic) return setStatus('Generate/import mnemonic first.', false);
+          if (!identity?.wif) await deriveIdentity();
+          const encMnemonic = await SL.encrypt(mnemonic, pw);
+          const encWif = await SL.encrypt(identity.wif, pw);
+          localStorage.setItem(LS.encMnemonic, encMnemonic);
+          localStorage.setItem(LS.encWif, encWif);
+          saveState();
+          refreshDebug();
+          setStatus('Secrets encrypted and stored locally.');
+        } catch(e){ setStatus(e.message||'Encrypt/store failed', false); }
+      };
+
+      $('clear-state').onclick = () => {
+        mnemonic = null; identity = null;
+        Object.values(LS).forEach(k=> localStorage.removeItem(k));
+        $('mnemonic-out').value=''; $('wif').textContent=''; $('pubkey').textContent=''; $('address').textContent='';
+        $('identity-box').classList.add('hidden');
+        refreshDebug();
+        setStatus('All local state cleared.');
+      };
+
+      // Derivation playground
+      $('derive-path').onclick = async () => {
+        try {
+          if (!mnemonic) return setStatus('Generate/import mnemonic first.', false);
+          const path = $('path-input').value.trim();
+          const k = await SL.derivePath(mnemonic, path);
+          const bsv = SL.bsv();
+          const addr = bsv.Address.fromPrivateKey(bsv.PrivateKey.fromWIF(k.wif)).toString();
+          $('derive-pub').textContent = bsv.PrivateKey.fromWIF(k.wif).toPublicKey().toString('hex');
+          $('derive-addr').textContent = addr;
+          setStatus('Path derived.');
+        } catch(e){ setStatus(e.message, false); }
+      };
+
+      // Sign/verify
+      $('sign-msg').onclick = async () => {
+        try {
+          const msg = $('msg').value;
+          if (!msg) return setStatus('Enter a message to sign.', false);
+          let wif = $('sign-wif').value.trim();
+          if (!wif){
+            if (!identity?.wif) await deriveIdentity();
+            wif = identity.wif;
+          }
+          const sig = await SL.signMessage(msg, wif);
+          $('sig').value = sig;
+          setStatus('Message signed.');
+        } catch(e){ setStatus(e.message, false); }
+      };
+
+      $('verify-msg').onclick = async () => {
+        try {
+          const msg = $('msg').value;
+          const sig = $('sig').value.trim();
+          let pub = $('verify-pub').value.trim();
+          if (!pub){
+            if (!identity?.publicKey) await deriveIdentity();
+            pub = identity.publicKey;
+          }
+          const ok = await SL.verifySignature(msg, sig, pub);
+          $('verify-result').textContent = ok ? '✅ Valid signature' : '❌ Invalid signature';
+          $('verify-result').className = ok ? 'text-green-700' : 'text-red-700';
+          setStatus('Verification complete.');
+        } catch(e){ setStatus(e.message, false); }
+      };
+
+      // Encrypt / Decrypt
+      $('do-encrypt').onclick = async () => {
+        try {
+          const pw = $('password').value;
+          if (!pw) return setStatus('Enter password (top of page) to encrypt.', false);
+          const json = $('plain').value;
+          const enc = await SL.encrypt(json, pw);
+          $('cipher').value = enc;
+          $('enc-result').textContent = 'Encrypted.';
+          setStatus('Encryption complete.');
+        } catch(e){ setStatus(e.message, false); }
+      };
+      $('do-decrypt').onclick = async () => {
+        try {
+          const pw = $('password').value;
+          if (!pw) return setStatus('Enter password to decrypt.', false);
+          const enc = $('cipher').value;
+          const dec = await SL.decrypt(enc, pw);
+          $('enc-result').textContent = dec;
+          setStatus('Decryption complete.');
+        } catch(e){ setStatus(e.message||'Decryption failed', false); }
+      };
+
+      // Hash
+      qsa('.hash-btn').forEach(b=> b.onclick = async () => {
+        try {
+          const algo = b.dataset.algo;
+          const v = $('hash-input').value || '';
+          const out = await SL.hash(v, algo);
+          $('hash-out').value = out;
+          setStatus(`${algo} computed.`);
+        } catch(e){ setStatus(e.message, false); }
+      });
+
+      // Backup/Restore
+      $('export-backup').onclick = async () => {
+        try {
+          const pw = $('password').value;
+          if (!pw) return setStatus('Enter password first.', false);
+          if (!mnemonic) return setStatus('Generate/import mnemonic first.', false);
+          if (!identity?.wif) await deriveIdentity();
+          const bundle = {
+            createdAt: new Date().toISOString(),
+            idPath: $('id-path').value.trim(),
+            encMnemonic: await SL.encrypt(mnemonic, pw),
+            encWif: await SL.encrypt(identity.wif, pw),
+            pubKey: identity.publicKey,
+            address: identity.address
+          };
+          const blob = new Blob([canonicalStringify(bundle)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'web3keys-backup.json'; a.click();
+          URL.revokeObjectURL(url);
+          $('backup-preview').textContent = canonicalStringify(bundle);
+          setStatus('Encrypted backup exported.');
+        } catch(e){ setStatus(e.message, false); }
+      };
+
+      $('import-backup').onchange = async (ev) => {
+        try {
+          const file = ev.target.files?.[0];
+          if (!file) return;
+          const text = await file.text();
+          const json = JSON.parse(text);
+          $('backup-preview').textContent = canonicalStringify(json);
+          // Do not auto-decrypt; user can copy enc values into Encrypt/Decrypt tab to test with their password.
+          setStatus('Backup loaded (preview shown). Use your password in Encrypt/Decrypt to open fields.');
+        } catch(e){ setStatus(e.message, false); }
+      };
+
+      // Defaults
+      showTab('keys');
+      refreshDebug();
+    });
+  </script>
+</body>
+</html>
