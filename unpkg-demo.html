@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartLedger BSV - unpkg CDN Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .demo-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 { color: #6B46C1; }
+    h2 { color: #4C1D95; }
+    .result {
+      background: #f8f9fa;
+      padding: 10px;
+      border-left: 4px solid #6B46C1;
+      margin: 10px 0;
+      font-family: monospace;
+    }
+    .button {
+      background: #6B46C1;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .button:hover { background: #4C1D95; }
+  </style>
+</head>
+<body>
+  <h1>🚀 SmartLedger BSV v3.0 - unpkg CDN Demo</h1>
+  
+  <div class="demo-section">
+    <h2>📦 Loaded from unpkg CDN</h2>
+    <p>This page demonstrates SmartLedger BSV loaded directly from unpkg:</p>
+    <div class="result">
+      <strong>CDN URL:</strong> https://unpkg.com/smartledger-bsv@3.0.0/bsv.min.js<br>
+      <strong>Package:</strong> smartledger-bsv@3.0.0<br>
+      <strong>Size:</strong> ~349KB (minified)
+    </div>
+  </div>
+
+  <div class="demo-section">
+    <h2>🔐 Security Information</h2>
+    <div id="security-info" class="result">Loading...</div>
+  </div>
+
+  <div class="demo-section">
+    <h2>🔑 Generate Bitcoin SV Keys</h2>
+    <button class="button" onclick="generateKeys()">Generate New Keys</button>
+    <div id="key-results" class="result">Click button to generate keys...</div>
+  </div>
+
+  <div class="demo-section">
+    <h2>💬 Message Signing (Requires Message Module)</h2>
+    <button class="button" onclick="loadMessageModule()">Load Message Module</button>
+    <button class="button" onclick="signMessage()">Sign Message</button>
+    <div id="message-results" class="result">Load message module first...</div>
+  </div>
+
+  <div class="demo-section">
+    <h2>🎲 HD Wallet & Mnemonic (Requires Mnemonic Module)</h2>
+    <button class="button" onclick="loadMnemonicModule()">Load Mnemonic Module</button>
+    <button class="button" onclick="generateMnemonic()">Generate Mnemonic</button>
+    <div id="mnemonic-results" class="result">Load mnemonic module first...</div>
+  </div>
+
+  <!-- Main BSV library from unpkg -->
+  <script src="https://unpkg.com/smartledger-bsv@3.0.0/bsv.min.js"></script>
+
+  <script>
+    // Display security information
+    function showSecurityInfo() {
+      const info = document.getElementById('security-info');
+      info.innerHTML = `
+        <strong>Library:</strong> ${bsv.hardenedBy} BSV ${bsv.version}<br>
+        <strong>Base Version:</strong> ${bsv.baseVersion}<br>
+        <strong>Security Features:</strong> ${bsv.securityFeatures.join(', ')}<br>
+        <strong>Hardened:</strong> ${bsv.isHardened ? 'Yes' : 'No'}<br>
+        <strong>SmartLedger Available:</strong> ${bsv.SmartLedger ? 'Yes' : 'No'}
+      `;
+    }
+
+    // Generate BSV keys
+    function generateKeys() {
+      try {
+        const privateKey = new bsv.PrivateKey();
+        const publicKey = privateKey.toPublicKey();
+        const address = privateKey.toAddress();
+        
+        document.getElementById('key-results').innerHTML = `
+          <strong>Private Key:</strong> ${privateKey.toString()}<br>
+          <strong>Public Key:</strong> ${publicKey.toString()}<br>
+          <strong>Address:</strong> ${address.toString()}<br>
+          <strong>Network:</strong> ${address.network.name}
+        `;
+      } catch (error) {
+        document.getElementById('key-results').innerHTML = `Error: ${error.message}`;
+      }
+    }
+
+    // Load message module dynamically
+    function loadMessageModule() {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/smartledger-bsv@3.0.0/bsv-message.min.js';
+      script.onload = () => {
+        document.getElementById('message-results').innerHTML = 'Message module loaded! Click "Sign Message" to test.';
+      };
+      script.onerror = () => {
+        document.getElementById('message-results').innerHTML = 'Failed to load message module.';
+      };
+      document.head.appendChild(script);
+    }
+
+    // Sign a message
+    function signMessage() {
+      try {
+        if (typeof bsvMessage === 'undefined') {
+          document.getElementById('message-results').innerHTML = 'Message module not loaded yet.';
+          return;
+        }
+        
+        const privateKey = new bsv.PrivateKey();
+        const message = new bsvMessage('Hello SmartLedger BSV from unpkg!');
+        const signature = message.sign(privateKey);
+        
+        document.getElementById('message-results').innerHTML = `
+          <strong>Message:</strong> "Hello SmartLedger BSV from unpkg!"<br>
+          <strong>Signature:</strong> ${signature}<br>
+          <strong>Address:</strong> ${privateKey.toAddress().toString()}<br>
+          <strong>Verified:</strong> ${message.verify(privateKey.toAddress(), signature) ? 'Yes' : 'No'}
+        `;
+      } catch (error) {
+        document.getElementById('message-results').innerHTML = `Error: ${error.message}`;
+      }
+    }
+
+    // Load mnemonic module dynamically
+    function loadMnemonicModule() {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/smartledger-bsv@3.0.0/bsv-mnemonic.min.js';
+      script.onload = () => {
+        document.getElementById('mnemonic-results').innerHTML = 'Mnemonic module loaded! Click "Generate Mnemonic" to test.';
+      };
+      script.onerror = () => {
+        document.getElementById('mnemonic-results').innerHTML = 'Failed to load mnemonic module.';
+      };
+      document.head.appendChild(script);
+    }
+
+    // Generate mnemonic
+    function generateMnemonic() {
+      try {
+        if (typeof bsvMnemonic === 'undefined') {
+          document.getElementById('mnemonic-results').innerHTML = 'Mnemonic module not loaded yet.';
+          return;
+        }
+        
+        const mnemonic = new bsvMnemonic();
+        const hdPrivateKey = mnemonic.toHDPrivateKey();
+        const firstAddress = hdPrivateKey.deriveChild(0).privateKey.toAddress();
+        
+        document.getElementById('mnemonic-results').innerHTML = `
+          <strong>Mnemonic:</strong> ${mnemonic.toString()}<br>
+          <strong>Word Count:</strong> ${mnemonic.toString().split(' ').length}<br>
+          <strong>HD Master Key:</strong> ${hdPrivateKey.toString().substring(0, 50)}...<br>
+          <strong>First Address:</strong> ${firstAddress.toString()}
+        `;
+      } catch (error) {
+        document.getElementById('mnemonic-results').innerHTML = `Error: ${error.message}`;
+      }
+    }
+
+    // Initialize on page load
+    window.addEventListener('load', () => {
+      showSecurityInfo();
+      console.log('SmartLedger BSV loaded from unpkg:', bsv);
+    });
+  </script>
+</body>
+</html>

@@ -61,13 +61,36 @@ console.log(signature.validate());    // comprehensive validation
 - `bsv-ecies.min.js` - Encryption support (71KB)
 
 ### CDN Usage
+
+#### unpkg CDN
 ```html
 <!-- Security-hardened BSV library -->
-<script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv.min.js"></script>
+<script src="https://unpkg.com/smartledger-bsv@3.0.0/bsv.min.js"></script>
 
 <!-- Optional modules -->
+<script src="https://unpkg.com/smartledger-bsv@3.0.0/bsv-message.min.js"></script>
+<script src="https://unpkg.com/smartledger-bsv@3.0.0/bsv-mnemonic.min.js"></script>
+<script src="https://unpkg.com/smartledger-bsv@3.0.0/bsv-ecies.min.js"></script>
+
+<!-- Always latest version -->
+<script src="https://unpkg.com/smartledger-bsv/bsv.min.js"></script>
+```
+
+#### jsDelivr CDN
+```html
+<script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv-message.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv-mnemonic.min.js"></script>
+```
+
+#### ES6 Module CDN
+```html
+<script type="module">
+  import bsv from 'https://unpkg.com/smartledger-bsv@3.0.0/bsv.min.js';
+  
+  const privateKey = new bsv.PrivateKey();
+  console.log('BSV Address:', privateKey.toAddress().toString());
+</script>
 ```
 
 ## 🧪 Validation & Testing
@@ -134,14 +157,19 @@ Full browser support with proper Buffer handling and crypto compatibility:
 <!DOCTYPE html>
 <html>
 <head>
-  <script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv.min.js"></script>
+  <!-- Using unpkg CDN -->
+  <script src="https://unpkg.com/smartledger-bsv@3.0.0/bsv.min.js"></script>
 </head>
 <body>
 <script>
   // Works in all modern browsers
-  const privateKey = bsv.PrivateKey();
+  const privateKey = new bsv.PrivateKey();
   const address = privateKey.toAddress().toString();
   console.log('BSV Address:', address);
+  
+  // SmartLedger security features available
+  console.log('Security Features:', bsv.SmartLedger.securityFeatures);
+  console.log('Hardened by:', bsv.SmartLedger.hardenedBy);
 </script>
 </body>
 </html>

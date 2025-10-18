@@ -1,6 +1,6 @@
 {
   "name": "smartledger-bsv",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Security-hardened Bitcoin SV library - Complete drop-in replacement for bsv@1.5.6 with zero vulnerabilities",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
@@ -20,6 +20,23 @@
     "prepublishOnly": "NODE_OPTIONS=\"--openssl-legacy-provider\" npm run build"
   },
   "unpkg": "bsv.min.js",
+  "jsdelivr": "bsv.min.js",
+  "cdn": "bsv.min.js",
+  "files": [
+    "index.js",
+    "lib/",
+    "ecies/",
+    "message/",
+    "mnemonic/",
+    "bsv.min.js",
+    "bsv-ecies.min.js",
+    "bsv-message.min.js",
+    "bsv-mnemonic.min.js",
+    "bsv.d.ts",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md"
+  ],
   "keywords": [
     "bitcoin",
     "bitcoin-sv",
