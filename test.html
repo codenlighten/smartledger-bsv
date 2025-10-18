@@ -198,6 +198,10 @@
     <script src="bsv.min.js"></script>
     
     <script>
+        console.log(bsv)
+        //look for interpreter
+        const interpreterAvailable = typeof bsv.Script.Interpreter !== 'undefined';
+        console.log('Interpreter available:', interpreterAvailable);
         // Browser-compatible buffer creation utility
         function createBuffer(message) {
             if (typeof Buffer !== 'undefined') {

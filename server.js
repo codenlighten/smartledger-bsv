@@ -1,8 +1,8 @@
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+const http = require('http')
+const fs = require('fs')
+const path = require('path')
 
-const port = 8080;
+const port = 8080
 
 // MIME types for different file extensions
 const mimeTypes = {
@@ -17,32 +17,32 @@ const mimeTypes = {
   '.svg': 'image/svg+xml',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2'
-};
+}
 
 const server = http.createServer((req, res) => {
-  console.log(`Request for ${req.url}`);
-  
+  console.log(`Request for ${req.url}`)
+
   // Parse URL and remove query string
-  let filePath = req.url.split('?')[0];
-  
+  let filePath = req.url.split('?')[0]
+
   // Default to index.html if no specific file requested
   if (filePath === '/') {
-    filePath = '/test.html';
+    filePath = '/test.html'
   }
-  
+
   // Build full file path
-  const fullPath = path.join(__dirname, filePath);
-  
+  const fullPath = path.join(__dirname, filePath)
+
   // Get file extension
-  const extname = path.extname(fullPath);
-  const contentType = mimeTypes[extname] || 'application/octet-stream';
-  
+  const extname = path.extname(fullPath)
+  const contentType = mimeTypes[extname] || 'application/octet-stream'
+
   // Check if file exists
   fs.readFile(fullPath, (err, content) => {
     if (err) {
-      if (err.code == 'ENOENT') {
+      if (err.code === 'ENOENT') {
         // File not found
-        res.writeHead(404, { 'Content-Type': 'text/html' });
+        res.writeHead(404, { 'Content-Type': 'text/html' })
         res.end(`
           <html>
             <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
@@ -51,22 +51,22 @@ const server = http.createServer((req, res) => {
               <p><a href="/test.html">Go to BSV Security Test</a></p>
             </body>
           </html>
-        `);
+        `)
       } else {
         // Server error
-        res.writeHead(500);
-        res.end(`Server Error: ${err.code}`);
+        res.writeHead(500)
+        res.end(`Server Error: ${err.code}`)
       }
     } else {
       // Success - serve the file
-      res.writeHead(200, { 
+      res.writeHead(200, {
         'Content-Type': contentType,
         'Cache-Control': 'no-cache' // Prevent caching for development
-      });
-      res.end(content);
+      })
+      res.end(content)
     }
-  });
-});
+  })
+})
 
 server.listen(port, () => {
   console.log(`
@@ -84,14 +84,14 @@ server.listen(port, () => {
 - bsv-mnemonic.min.js (${Math.round(fs.statSync('bsv-mnemonic.min.js').size / 1024)} KB)
 
 Press Ctrl+C to stop the server
-  `);
-});
+  `)
+})
 
 // Handle server shutdown gracefully
 process.on('SIGINT', () => {
-  console.log('\n👋 Shutting down server...');
+  console.log('\n👋 Shutting down server...')
   server.close(() => {
-    console.log('✅ Server stopped');
-    process.exit(0);
-  });
-});
+    console.log('✅ Server stopped')
+    process.exit(0)
+  })
+})

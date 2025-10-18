@@ -35,7 +35,7 @@ bsv.hardenedBy = 'SmartLedger'
 bsv.baseVersion = 'v1.5.6'
 bsv.securityFeatures = [
   'canonical-signatures',
-  'malleability-protection', 
+  'malleability-protection',
   'enhanced-validation',
   'elliptic-patches'
 ]
