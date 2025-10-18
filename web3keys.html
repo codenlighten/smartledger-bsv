@@ -249,8 +249,11 @@
   </main>
 
   <script>
+    // Define Buffer using BSV's implementation for cross-compatibility
+    const Buffer = bsv.deps.Buffer;
     const bsvHash = bsv.crypto.Hash;
     console.log('bsvHash:', bsvHash);
+    console.log('Buffer:', Buffer);
     // ---------- Helpers ----------
     const $ = (id) => document.getElementById(id);
     const qs = (sel) => document.querySelector(sel);
@@ -347,15 +350,8 @@
         // Use BSV crypto functions directly since they're available
         if (window.bsv && bsv.crypto && bsv.crypto.Hash) {
           try {
-            // Create a proper buffer using BSV's Buffer if available
-            let buffer;
-            if (typeof Buffer !== 'undefined' && Buffer.from) {
-              buffer = Buffer.from(data, 'utf8');
-            } else {
-              // Fallback: create Uint8Array
-              const encoder = new TextEncoder();
-              buffer = encoder.encode(data);
-            }
+            // Create a proper buffer using BSV's Buffer (defined at top of script)
+            const buffer = Buffer.from(data, 'utf8');
             
             let hashResult;
             switch(algo) {
