@@ -102,6 +102,7 @@ if (typeof window === 'undefined' && typeof require === 'function') {
   try {
     bsv.SmartUTXO = require('./lib/smartutxo')
     bsv.SmartMiner = require('./lib/smartminer')
+    bsv.CustomScriptHelper = require('./lib/custom-script-helper')
   } catch (e) {
     // Browser environment - these tools not available
   }
