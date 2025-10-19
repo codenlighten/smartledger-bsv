@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * 🌐 BSV Blockchain State Manager
  * 
@@ -7,12 +5,23 @@
  * Acts as the "blockchain database" for our miner simulator.
  */
 
-const bsv = require('../index.js');
-const fs = require('fs');
-const path = require('path');
+// Browser-compatible imports
+let bsv, fs, path, BLOCKCHAIN_STATE_PATH;
 
-// Path to the global blockchain state file
-const BLOCKCHAIN_STATE_PATH = path.join(__dirname, 'blockchain-state.json');
+// Only require Node.js modules in Node.js environment
+if (typeof window === 'undefined' && typeof require === 'function') {
+  try {
+    bsv = require('../index.js');
+    fs = require('fs');
+    path = require('path');
+    BLOCKCHAIN_STATE_PATH = path.join(__dirname, 'blockchain-state.json');
+  } catch (e) {
+    console.warn('BlockchainState: Running in browser mode - persistence disabled');
+  }
+} else {
+  // In browser, try to get bsv from global scope or fallback
+  bsv = (typeof window !== 'undefined' && window.bsv) || require('../index.js');
+}
 
 /**
  * Initialize empty blockchain state
@@ -39,6 +48,11 @@ function initializeBlockchainState() {
  */
 function loadBlockchainState() {
   try {
+    // In browser, use localStorage or return initial state
+    if (!fs || !BLOCKCHAIN_STATE_PATH) {
+      return initializeBlockchainState();
+    }
+    
     if (!fs.existsSync(BLOCKCHAIN_STATE_PATH)) {
       console.log('🆕 Creating new blockchain state...');
       const initialState = initializeBlockchainState();
@@ -61,8 +75,12 @@ function loadBlockchainState() {
 function saveBlockchainState(state) {
   try {
     state.metadata.lastUpdated = new Date().toISOString();
-    fs.writeFileSync(BLOCKCHAIN_STATE_PATH, JSON.stringify(state, null, 2));
-    console.log('💾 Blockchain state saved');
+    
+    // Only save to file in Node.js environment
+    if (fs && BLOCKCHAIN_STATE_PATH) {
+      fs.writeFileSync(BLOCKCHAIN_STATE_PATH, JSON.stringify(state, null, 2));
+      console.log('💾 Blockchain state saved');
+    }
   } catch (error) {
     console.error('❌ Error saving blockchain state:', error.message);
   }

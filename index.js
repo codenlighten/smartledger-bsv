@@ -97,9 +97,15 @@ bsv.SmartLedger = {
 bsv.SmartVerify = require('./lib/crypto/smartledger_verify')
 bsv.EllipticFixed = require('./lib/crypto/elliptic-fixed')
 
-// SmartLedger Development & Testing Tools
-bsv.SmartUTXO = require('./lib/smartutxo')
-bsv.SmartMiner = require('./lib/smartminer')
+// SmartLedger Development & Testing Tools (Node.js only)
+if (typeof window === 'undefined' && typeof require === 'function') {
+  try {
+    bsv.SmartUTXO = require('./lib/smartutxo')
+    bsv.SmartMiner = require('./lib/smartminer')
+  } catch (e) {
+    // Browser environment - these tools not available
+  }
+}
 
 // Internal usage, exposed for testing/advanced tweaking
 bsv.Transaction.sighash = require('./lib/transaction/sighash')
