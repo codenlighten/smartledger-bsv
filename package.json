@@ -1,7 +1,7 @@
 {
-  "name": "@smartledger/bsv",
-  "version": "3.0.2",
-  "description": "Security-hardened Bitcoin SV library - Complete drop-in replacement for bsv@1.5.6 with zero vulnerabilities",
+  "name": "smartledger-bsv",
+  "version": "3.1.0",
+  "description": "Security-hardened Bitcoin SV library with custom script framework - Complete drop-in replacement for bsv@1.5.6 with zero vulnerabilities",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
   "bugs": {
