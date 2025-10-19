@@ -1,6 +1,6 @@
 {
   "name": "smartledger-bsv",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Security-hardened Bitcoin SV library - Complete drop-in replacement for bsv@1.5.6 with zero vulnerabilities",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
@@ -11,12 +11,15 @@
   "scripts": {
     "lint": "standard",
     "test": "standard && mocha",
+    "test:signatures": "node validation_test.js",
     "coverage": "nyc --reporter=text npm run test",
     "build-bsv": "webpack index.js --config webpack.config.js",
     "build-ecies": "webpack ecies/index.js --config webpack.subproject.config.js --output-library bsvEcies -o bsv-ecies.min.js",
     "build-message": "webpack message/index.js --config webpack.subproject.config.js --output-library bsvMessage -o bsv-message.min.js",
     "build-mnemonic": "webpack mnemonic/index.js --config webpack.subproject.config.js --output-library bsvMnemonic -o bsv-mnemonic.min.js",
+    "build-bundle": "webpack bundle-entry.js --config webpack.bundle.config.js",
     "build": "npm run build-bsv && npm run build-ecies && npm run build-message && npm run build-mnemonic",
+    "build-all": "npm run build && npm run build-bundle",
     "prepublishOnly": "NODE_OPTIONS=\"--openssl-legacy-provider\" npm run build"
   },
   "unpkg": "bsv.min.js",
@@ -25,6 +28,7 @@
   "files": [
     "index.js",
     "lib/",
+    "utilities/",
     "ecies/",
     "message/",
     "mnemonic/",
@@ -33,9 +37,11 @@
     "bsv-message.min.js",
     "bsv-mnemonic.min.js",
     "bsv.d.ts",
+    "validation_test.js",
     "LICENSE",
     "README.md",
-    "SECURITY.md"
+    "SECURITY.md",
+    "CHANGELOG.md"
   ],
   "keywords": [
     "bitcoin",
@@ -49,6 +55,11 @@
     "hardened",
     "vulnerability-free",
     "drop-in-replacement",
+    "utxo-management",
+    "blockchain-simulator",
+    "miner-simulator",
+    "testing-tools",
+    "development-framework",
     "ecies",
     "p2p",
     "payment",

@@ -1,0 +1,30 @@
+{
+  "wallet": {
+    "privateKeyWIF": "KwbaQqFUpt9MYQRrkVWk7QC799nAfcqYRYKj4ZNeZBkut3YP45rJ",
+    "privateKeyHex": "KwbaQqFUpt9MYQRrkVWk7QC799nAfcqYRYKj4ZNeZBkut3YP45rJ",
+    "publicKey": "02330726b97010d7bb1f88b1213330e644916cedfd5fee9c57153592c6b5a44fe9",
+    "address": "15XJXD7CSMqHL2ivFCu8PZTACQQ8MPbWY9",
+    "pubkeyHash160": "319b9b8eef10d00cf84b5d4772dca69b5f5a7b5c"
+  },
+  "utxo": {
+    "txid": "d6625d13f3130360dea7ebe8ccf8ccdb5e40b3cd5ea51b2094983a3789354c3e",
+    "vout": 0,
+    "outputIndex": 0,
+    "script": "76a914319b9b8eef10d00cf84b5d4772dca69b5f5a7b5c88ac",
+    "scriptPubKey": "76a914319b9b8eef10d00cf84b5d4772dca69b5f5a7b5c88ac",
+    "satoshis": 50000,
+    "address": "15XJXD7CSMqHL2ivFCu8PZTACQQ8MPbWY9"
+  },
+  "testParams": {
+    "nLockTimeTarget": 1000,
+    "sighashType": 65,
+    "covenantAmount": 40000,
+    "fee": 1000,
+    "changeAmount": 9000
+  },
+  "metadata": {
+    "created": "2025-10-19T14:33:10.987Z",
+    "description": "Test wallet and UTXO for BSV preimage covenant testing",
+    "version": "1.0"
+  }
+}

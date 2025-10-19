@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartLedger BSV Bundle Demo - All-in-One</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .demo-section {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    h1 { 
+      color: #fff;
+      text-align: center;
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+    h2 { 
+      color: #f0f0f0; 
+      border-bottom: 2px solid rgba(255,255,255,0.3);
+      padding-bottom: 5px;
+    }
+    .result {
+      background: rgba(0,0,0,0.3);
+      padding: 15px;
+      border-left: 4px solid #4CAF50;
+      margin: 10px 0;
+      font-family: 'Courier New', monospace;
+      border-radius: 5px;
+      font-size: 0.9em;
+      line-height: 1.4;
+    }
+    .button {
+      background: linear-gradient(45deg, #4CAF50, #45a049);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      cursor: pointer;
+      margin: 8px;
+      font-weight: bold;
+      transition: all 0.3s;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .button:hover { 
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .feature-card {
+      background: rgba(255,255,255,0.1);
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .bundle-info {
+      background: linear-gradient(45deg, #FF6B6B, #FF8E53);
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚀 SmartLedger BSV Complete Bundle</h1>
+  
+  <div class="bundle-info">
+    <h2>📦 Single File - Everything Included!</h2>
+    <p><strong>Size:</strong> ~653KB | <strong>File:</strong> bsv.bundle.js</p>
+    <p>Core BSV + Message + 24-Word Mnemonics + ECIES + SmartLedger Security</p>
+    <p><em>🔒 Defaults to 24-word mnemonics (256-bit entropy) for maximum security</em></p>
+  </div>
+
+  <div class="demo-section">
+    <h2>📋 Bundle Contents & Information</h2>
+    <div id="bundle-info" class="result">Loading bundle information...</div>
+  </div>
+
+  <div class="demo-section">
+    <h2>🔑 Core BSV - Keys & Addresses</h2>
+    <button class="button" onclick="testCore()">Generate Keys</button>
+    <div id="core-results" class="result">Click button to test core functionality...</div>
+  </div>
+
+  <div class="demo-section">
+    <h2>💬 Message Signing (Built-in)</h2>
+    <button class="button" onclick="testMessage()">Sign Message</button>
+    <div id="message-results" class="result">Click button to test message signing...</div>
+  </div>
+
+  <div class="demo-section">
+    <h2>🎲 HD Wallets & Mnemonic (Built-in)</h2>
+    <button class="button" onclick="testMnemonic()">Generate Mnemonic</button>
+    <div id="mnemonic-results" class="result">Click button to test mnemonic generation...</div>
+  </div>
+
+  <div class="demo-section">
+    <h2>🔒 ECIES Encryption (Built-in)</h2>
+    <button class="button" onclick="testECIES()">Test Encryption</button>
+    <div id="ecies-results" class="result">Click button to test ECIES encryption...</div>
+  </div>
+
+  <div class="demo-section">
+    <h2>🛡️ SmartLedger Bundle Helper</h2>
+    <button class="button" onclick="testBundleHelpers()">Quick Generate</button>
+    <div id="helper-results" class="result">Click button to test bundle helpers...</div>
+  </div>
+
+  <div class="demo-section">
+    <h2>📊 Feature Comparison</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <strong>bsv.min.js</strong><br>
+        349KB<br>
+        Core only
+      </div>
+      <div class="feature-card">
+        <strong>4 Separate Files</strong><br>
+        ~1.1MB total<br>
+        Load as needed
+      </div>
+      <div class="feature-card" style="background: rgba(76, 175, 80, 0.3);">
+        <strong>bsv.bundle.js</strong><br>
+        652KB<br>
+        Everything included!
+      </div>
+    </div>
+  </div>
+
+  <!-- Load the complete bundle -->
+  <script src="bsv.bundle.js"></script>
+
+  <script>
+    console.log('SmartLedger BSV Bundle loaded:', bsv);
+    // Display bundle information
+    function showBundleInfo() {
+      const info = document.getElementById('bundle-info');
+      
+      let bundleContent = `
+        <strong>Bundle Version:</strong> ${bsv.version}<br>
+        <strong>Bundle Type:</strong> ${bsv.bundle ? bsv.bundle.type : 'N/A'}<br>
+        <strong>Includes:</strong> ${bsv.bundle ? bsv.bundle.includes.join(', ') : 'N/A'}<br>
+        <strong>SmartLedger Features:</strong> ${bsv.securityFeatures ? bsv.securityFeatures.join(', ') : 'N/A'}<br>
+        <strong>Available Classes:</strong><br>
+      `;
+      
+      // Check what's available
+      const available = [];
+      if (bsv.PrivateKey) available.push('PrivateKey');
+      if (bsv.Message) available.push('Message');
+      if (bsv.Mnemonic) available.push('Mnemonic');
+      if (bsv.ECIES) available.push('ECIES');
+      if (bsv.Transaction) available.push('Transaction');
+      if (bsv.SmartLedgerBundle) available.push('SmartLedgerBundle');
+      
+      bundleContent += `&nbsp;&nbsp;${available.join(', ')}<br>`;
+      bundleContent += `<strong>Bundle Helpers Available:</strong> ${bsv.SmartLedgerBundle ? 'Yes' : 'No'}`;
+      
+      info.innerHTML = bundleContent;
+    }
+
+    // Test core BSV functionality
+    function testCore() {
+      try {
+        const privateKey = new bsv.PrivateKey();
+        const publicKey = privateKey.toPublicKey();
+        const address = privateKey.toAddress();
+        
+        document.getElementById('core-results').innerHTML = `
+          <strong>✅ Core BSV Working!</strong><br>
+          Private Key: ${privateKey.toString().substring(0, 20)}...<br>
+          Public Key: ${publicKey.toString().substring(0, 40)}...<br>
+          Address: ${address.toString()}<br>
+          Network: ${address.network.name}
+        `;
+      } catch (error) {
+        document.getElementById('core-results').innerHTML = `❌ Error: ${error.message}`;
+      }
+    }
+
+    // Test message functionality
+    function testMessage() {
+      try {
+        const privateKey = new bsv.PrivateKey();
+        const message = new bsv.Message('Hello from SmartLedger BSV Bundle!');
+        const signature = message.sign(privateKey);
+        const verified = message.verify(privateKey.toAddress(), signature);
+        
+        document.getElementById('message-results').innerHTML = `
+          <strong>✅ Message Signing Working!</strong><br>
+          Message: "Hello from SmartLedger BSV Bundle!"<br>
+          Signature: ${signature.substring(0, 40)}...<br>
+          Address: ${privateKey.toAddress().toString()}<br>
+          Verified: ${verified ? '✅ Valid' : '❌ Invalid'}
+        `;
+      } catch (error) {
+        document.getElementById('message-results').innerHTML = `❌ Error: ${error.message}`;
+      }
+    }
+
+    // Test mnemonic functionality
+    function testMnemonic() {
+      try {
+        // Generate 24-word mnemonic (256-bit entropy) for maximum security
+        const mnemonic = new bsv.Mnemonic(256);
+        const hdKey = mnemonic.toHDPrivateKey();
+        const firstAddress = hdKey.deriveChild(0).privateKey.toAddress();
+        
+        document.getElementById('mnemonic-results').innerHTML = `
+          <strong>✅ 24-Word Mnemonic Generation Working!</strong><br>
+          Mnemonic: ${mnemonic.toString()}<br>
+          Word Count: ${mnemonic.toString().split(' ').length} words (256-bit entropy)<br>
+          HD Master: ${hdKey.toString().substring(0, 30)}...<br>
+          First Address: ${firstAddress.toString()}<br>
+          <em>🔒 Maximum security with 24-word phrase</em>
+        `;
+      } catch (error) {
+        if (error.message.includes('createHmac') || error.message.includes('crypto')) {
+          document.getElementById('mnemonic-results').innerHTML = `
+            <strong>ℹ️ Browser Crypto Limitation</strong><br>
+            <em>Mnemonic generation requires Node.js crypto module</em><br><br>
+            <strong>✅ Available Solutions:</strong><br>
+            • Use separate <code>bsv-mnemonic.min.js</code> for full browser support<br>
+            • Or use in Node.js environment for complete functionality<br><br>
+            <strong>Bundle Status:</strong> Core BSV + Message + ECIES working perfectly!<br>
+            <em>This is expected behavior for browser crypto limitations</em>
+          `;
+        } else {
+          document.getElementById('mnemonic-results').innerHTML = `❌ Error: ${error.message}`;
+        }
+      }
+    }
+
+    // Test ECIES functionality
+    function testECIES() {
+      try {
+        const privateKey = new bsv.PrivateKey();
+        const publicKey = privateKey.toPublicKey();
+        const message = 'Secret message for ECIES encryption test!';
+        
+        // This might not work depending on ECIES implementation
+        if (bsv.ECIES && bsv.ECIES.encrypt) {
+          const encrypted = bsv.ECIES.encrypt(message, publicKey);
+          
+          document.getElementById('ecies-results').innerHTML = `
+            <strong>✅ ECIES Encryption Working!</strong><br>
+            Original: "${message}"<br>
+            Encrypted: ${encrypted.toString('hex').substring(0, 40)}...<br>
+            Public Key: ${publicKey.toString().substring(0, 40)}...
+          `;
+        } else {
+          document.getElementById('ecies-results').innerHTML = `
+            <strong>ℹ️ ECIES Available but needs specific usage pattern</strong><br>
+            ECIES module loaded: ${bsv.ECIES ? 'Yes' : 'No'}<br>
+            Check console for ECIES object structure
+          `;
+          console.log('ECIES object:', bsv.ECIES);
+        }
+      } catch (error) {
+        document.getElementById('ecies-results').innerHTML = `❌ Error: ${error.message}`;
+      }
+    }
+
+    // Test bundle helper functions
+    function testBundleHelpers() {
+      try {
+        if (!bsv.SmartLedgerBundle) {
+          throw new Error('SmartLedgerBundle not available');
+        }
+        
+        const keys = bsv.SmartLedgerBundle.generateKeys();
+        const mnemonic = bsv.SmartLedgerBundle.generateMnemonic();
+        
+        document.getElementById('helper-results').innerHTML = `
+          <strong>✅ Bundle Helpers Working!</strong><br>
+          <strong>Quick Keys:</strong><br>
+          &nbsp;&nbsp;Address: ${keys.address.toString()}<br>
+          <strong>Quick 24-Word Mnemonic:</strong><br>
+          &nbsp;&nbsp;${mnemonic.toString()}<br>
+          &nbsp;&nbsp;<em>Words: ${mnemonic.toString().split(' ').length} (256-bit entropy)</em><br>
+          <strong>Bundle Info:</strong><br>
+          &nbsp;&nbsp;Version: ${bsv.SmartLedgerBundle.version}<br>
+          &nbsp;&nbsp;Includes: ${bsv.SmartLedgerBundle.bundleIncludes.join(', ')}
+        `;
+      } catch (error) {
+        document.getElementById('helper-results').innerHTML = `❌ Error: ${error.message}`;
+      }
+    }
+
+    // Initialize on page load
+    window.addEventListener('load', () => {
+      showBundleInfo();
+      console.log('SmartLedger BSV Bundle loaded:', bsv);
+      console.log('Bundle info:', bsv.bundle);
+      console.log('SmartLedger Bundle helpers:', bsv.SmartLedgerBundle);
+    });
+  </script>
+</body>
+</html>

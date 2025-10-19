@@ -1,0 +1,41 @@
+{
+  "metadata": {
+    "createdAt": "2025-10-19T16:31:36.266Z",
+    "lastUpdated": "2025-10-19T16:31:36.893Z",
+    "totalWallets": 0,
+    "totalUTXOs": 1,
+    "totalValue": 43425,
+    "blockHeight": 0
+  },
+  "wallets": {
+    "11gECtvDapMj5ZuwpvnP6Wv9MTRGxnFRs": {
+      "address": "11gECtvDapMj5ZuwpvnP6Wv9MTRGxnFRs",
+      "registeredAt": "2025-10-19T16:31:36.893Z",
+      "utxos": [
+        {
+          "txid": "44c099bee41c7ffe853e4310e413781e1f543f554bafb9e46cad44f89ce3447e",
+          "vout": 1,
+          "address": "11gECtvDapMj5ZuwpvnP6Wv9MTRGxnFRs",
+          "satoshis": 43425,
+          "script": "76a9140020bee080cfdeb430cf723d952dc88b6bb7424188ac",
+          "height": 0
+        }
+      ],
+      "totalValue": 43425
+    }
+  },
+  "globalUTXOSet": {
+    "44c099bee41c7ffe853e4310e413781e1f543f554bafb9e46cad44f89ce3447e:1": {
+      "txid": "44c099bee41c7ffe853e4310e413781e1f543f554bafb9e46cad44f89ce3447e",
+      "vout": 1,
+      "address": "11gECtvDapMj5ZuwpvnP6Wv9MTRGxnFRs",
+      "satoshis": 43425,
+      "script": "76a9140020bee080cfdeb430cf723d952dc88b6bb7424188ac",
+      "height": 0,
+      "ownerAddress": "11gECtvDapMj5ZuwpvnP6Wv9MTRGxnFRs",
+      "createdAt": "2025-10-19T16:31:36.893Z"
+    }
+  },
+  "spentUTXOs": {},
+  "transactionHistory": []
+}
