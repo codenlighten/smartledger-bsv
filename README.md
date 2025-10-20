@@ -1,333 +1,289 @@
-# SmartLedger BSV v3.0
-### Security-Hardened Bitcoin SV Library
+# SmartLedger-BSV
 
-[![npm version](https://img.shields.io/npm/v/smartledger-bsv.svg)](https://www.npmjs.com/package/smartledger-bsv)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js CI](https://img.shields.io/badge/Node.js-✓-green.svg)]()
-[![Browser Compatible](https://img.shields.io/badge/Browser-✓-green.svg)]()
-[![Security Hardened](https://img.shields.io/badge/Security-Hardened-red.svg)]()
+**Advanced Bitcoin SV Library with Enterprise Covenant Framework**
 
-A **complete drop-in replacement** for BSV@1.5.6 with critical security vulnerabilities resolved. This library eliminates npm security warnings while maintaining 100% API compatibility with the original BSV library.
+[![Version](https://img.shields.io/badge/version-3.1.1-blue.svg)](https://www.npmjs.com/package/@smartledger/bsv)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![BSV](https://img.shields.io/badge/BSV-Compatible-orange.svg)](https://bitcoinsv.com/)
+[![Covenant](https://img.shields.io/badge/Covenants-Advanced-purple.svg)](#covenant-framework)
 
-## 🚀 Quick Start
+SmartLedger-BSV is a comprehensive Bitcoin SV library that provides both high-level abstractions and granular control for advanced blockchain development. Built on the foundation of BSV library with enhanced covenant capabilities, custom script framework, and enterprise-grade features.
 
+## 🚀 Key Features
+
+### Core Library
+- ✅ **Complete BSV API**: Full compatibility with BSV blockchain operations
+- ✅ **Ultra-Low Fees**: 0.01 sats/byte configuration (91% fee reduction)
+- ✅ **UTXO Management**: Advanced state management with change output handling
+- ✅ **CDN Distribution**: Multiple webpack bundles for web development
+- ✅ **NPM Ready**: Published as `smartledger-bsv` and `@smartledger/bsv`
+
+### Advanced Covenant Framework
+- 🔒 **BIP143 Compliant**: Complete preimage parsing with field-by-field access
+- 🔒 **PUSHTX Integration**: nChain WP1605 in-script signature generation
+- 🔒 **PELS Support**: Perpetually Enforcing Locking Scripts
+- 🔒 **JavaScript-to-Script**: Write covenant logic in JavaScript, get Bitcoin Script ASM
+- 🔒 **Complete Opcode Mapping**: All 121 Bitcoin Script opcodes with JavaScript equivalents
+- 🔒 **Covenant Builder**: High-level API for rapid covenant development
+- 🔒 **Script Simulation**: Real-time debugging with stack visualization
+- 🔒 **Template Patterns**: Pre-built covenant templates for common use cases
+- 🔒 **Dual-Level API**: High-level abstractions + granular BSV control
+- 🔒 **Production Ready**: Comprehensive validation and error handling
+
+### Custom Script Development  
+- 🛠️ **Multi-signature Scripts**: Advanced m-of-n signature schemes
+- 🛠️ **Timelock Contracts**: Block height and timestamp constraints
+- 🛠️ **Conditional Logic**: Complex branching and validation rules
+- 🛠️ **Template System**: Pre-built patterns for common use cases
+- 🛠️ **Developer API**: Simplified interface for rapid development
+
+## � Table of Contents
+
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Basic Usage](#basic-usage)
+- [Covenant Framework](#covenant-framework)
+- [Custom Scripts](#custom-scripts)
+- [Examples](#examples)
+- [Documentation](#documentation)
+- [API Reference](#api-reference)
+- [Contributing](#contributing)
+- [License](#license)
+
+## ⚡ Quick Start
+
+```
+
+## 📦 Installation
+
+### NPM Installation
 ```bash
+# Main package
+npm install @smartledger/bsv
+
+# Alternative package name
 npm install smartledger-bsv
 ```
 
-```javascript
-// Drop-in replacement - no code changes required
-const bsv = require('smartledger-bsv');
+### CDN Usage
+```html
+<!-- Main library -->
+<script src="https://unpkg.com/@smartledger/bsv@latest/dist/bsv.bundle.js"></script>
 
-const privateKey = bsv.PrivateKey();
-const message = bsv.Message('hello world');
-const signature = message.sign(privateKey);
+<!-- Minified version -->
+<script src="https://unpkg.com/@smartledger/bsv@latest/dist/bsv.min.js"></script>
+
+<!-- Specialized modules -->
+<script src="https://unpkg.com/@smartledger/bsv@latest/dist/bsv-ecies.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@latest/dist/bsv-message.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@latest/dist/bsv-mnemonic.min.js"></script>
 ```
 
-## 🔒 Security Enhancements
+## 🔨 Basic Usage
 
-### Critical Vulnerabilities Fixed
-- **Elliptic Curve Vulnerability**: Updated from `elliptic@6.5.4` to `elliptic@6.6.1`
-- **Zero Parameter Attack Protection**: Rejects malicious signatures with r=0 or s=0
-- **Signature Malleability Prevention**: Enforces canonical signatures (s ≤ n/2)
-- **Range Validation**: Validates elliptic curve parameters within proper bounds
+### Creating Transactions
+```javascript
+const bsv = require('@smartledger/bsv');
+
+// Create transaction with optimized fees
+const transaction = new bsv.Transaction()
+  .from({
+    txId: 'prev_tx_id',
+    outputIndex: 0,
+    script: 'prev_locking_script',
+    satoshis: 100000
+  })
+  .to('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', 95000)
+  .feePerKb(10) // Ultra-low fee: 0.01 sats/byte
+  .sign(privateKey);
+
+console.log('Transaction ID:', transaction.id);
+console.log('Fee rate: 0.01 sats/byte (91% reduction)');
+```
+
+### UTXO Management
+```javascript
+// Advanced UTXO state management
+const utxoManager = {
+  createWithChange: (inputs, outputs, changeAddress) => {
+    const tx = new bsv.Transaction()
+      .from(inputs)
+      .to(outputs.address, outputs.amount)
+      .change(changeAddress)
+      .feePerKb(10);
+    
+    // Automatic change output creation and UTXO state update
+    return tx;
+  }
+};
+```
+
+## 🔒 Covenant Framework
+
+### JavaScript-to-Bitcoin Script Translation
+```javascript
+const { CovenantBuilder, CovenantTemplates } = require('@smartledger/bsv/lib/smart_contract');
+
+// Write covenant logic in JavaScript
+const valueLock = CovenantTemplates.valueLock('50c3000000000000');
+const script = valueLock.build();
+console.log(script.cleanedASM); 
+// Output: OP_SIZE 34 OP_SUB OP_SPLIT OP_DROP OP_8 OP_SPLIT OP_DROP 50c3000000000000 OP_EQUALVERIFY OP_1
+
+// Custom covenant builder
+const custom = new CovenantBuilder()
+  .comment('Validate preimage value field')
+  .extractField('value')
+  .push('50c3000000000000')
+  .equalVerify()
+  .push(1);
+```
+
+### Complete Opcode Mapping (121 Opcodes)
+```javascript
+const SmartContract = require('@smartledger/bsv/lib/smart_contract');
+
+// Simulate script execution in JavaScript
+const result = SmartContract.simulateScript(['OP_1', 'OP_2', 'OP_ADD', 'OP_3', 'OP_EQUAL']);
+console.log(result.finalStack); // ['01'] - TRUE
+
+// Get comprehensive opcode information
+const opcodes = SmartContract.getOpcodeMap();
+console.log(Object.keys(opcodes).length); // 121 opcodes mapped
+```
+
+### BIP143 Preimage Parsing
+```javascript
+const { CovenantPreimage } = require('@smartledger/bsv/lib/covenant-interface');
+
+// Enhanced preimage parsing with field-by-field access
+const preimage = new CovenantPreimage(preimageHex);
+
+console.log('Version:', preimage.nVersionValue);      // uint32 accessor
+console.log('Amount:', preimage.amountValue);         // BigInt accessor  
+console.log('Valid structure:', preimage.isValid);    // Boolean validation
+```
+
+### PUSHTX Covenants (nChain WP1605)
+```javascript
+const { CovenantInterface } = require('@smartledger/bsv/lib/covenant-interface');
+const covenant = new CovenantInterface();
+
+// Create PUSHTX covenant with in-script signature generation
+const pushtxCovenant = covenant.createAdvancedCovenant('pushtx', {
+  publicKey: '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+  enforceOutputs: true,
+  sighashType: 0x41
+});
+```
+
+### Perpetually Enforcing Locking Scripts (PELS)
+```javascript
+// Create perpetual covenant that enforces rules across all future transactions
+const pels = covenant.createAdvancedCovenant('perpetual', {
+  publicKeyHash: '751e76e8199196d454941c45d1b3a323f1433bd6',
+  feeDeduction: 512,
+  enforceScript: true,
+  enforceValue: true
+});
+```
+
+## 🛠️ Custom Scripts
+
+### Multi-signature Scripts
+```javascript
+const { CustomScriptHelper } = require('@smartledger/bsv/lib/custom-script-helper');
+const helper = new CustomScriptHelper();
+
+// Create 2-of-3 multisig script
+const multisigScript = helper.createMultisigScript([
+  publicKey1, publicKey2, publicKey3
+], 2);
+```
+
+### Timelock Contracts
+```javascript
+// Create timelock script (block height)
+const timelockScript = helper.createTimelockScript(
+  publicKey,
+  750000, // block height
+  'block'
+);
+```
+
+## � Examples
+
+### Basic Examples
+- **[Advanced Covenant Demo](advanced_covenant_demo.js)**: Complete covenant showcase
+- **[Custom Script Tests](test/custom_script_signature_test.js)**: Script development examples
+- **[Covenant Resolution](covenant_manual_signature_resolved.js)**: Working covenant patterns
+
+### Documentation
+- **[Advanced Covenant Development](ADVANCED_COVENANT_DEVELOPMENT.md)**: Complete BIP143 + PUSHTX guide
+- **[Custom Script Development](CUSTOM_SCRIPT_DEVELOPMENT.md)**: Script creation patterns
+- **[Covenant Development Resolved](COVENANT_DEVELOPMENT_RESOLVED.md)**: Problem solutions
+
+## 🔧 CDN Bundles
+
+| Bundle | Size | Description |
+|--------|------|-------------|
+| `bsv.bundle.js` | 684KB | Complete library with all features |
+| `bsv.min.js` | 364KB | Minified production version |
+| `bsv-ecies.min.js` | 145KB | ECIES encryption only |
+| `bsv-message.min.js` | 120KB | Message signing only |
+| `bsv-mnemonic.min.js` | 98KB | Mnemonic handling only |
+
+## 🔐 Security
 
 ### Enhanced Security Features
-```javascript
-// Access enhanced security validation
-const { SmartLedger, SmartVerify } = bsv;
+- **Elliptic Curve Fix**: Updated to secure elliptic@6.6.1
+- **Parameter Fixing**: Public key, ephemeral key, sighash flag validation
+- **DER Canonicalization**: Transaction malleability prevention  
+- **Preimage Validation**: Complete BIP143 structure verification
 
-// Strict signature verification
-const isValid = SmartVerify.verifySignature(signature, hash, publicKey);
+## 📝 Changelog
 
-// Check signature properties
-const signature = new bsv.Signature(buffer);
-console.log(signature.isCanonical()); // true/false
-console.log(signature.validate());    // comprehensive validation
-```
+### v3.2.0 - JavaScript-to-Bitcoin Script Framework
+- ✅ Complete JavaScript-to-Bitcoin Script translation system
+- ✅ 121 Bitcoin Script opcodes mapped to JavaScript functions
+- ✅ High-level CovenantBuilder API for rapid development
+- ✅ Real-time script simulation and debugging capabilities
+- ✅ Template-based covenant patterns library
+- ✅ Automatic ASM generation from JavaScript operations
+- ✅ Enhanced documentation and comprehensive examples
 
-## 📦 What's Included
+### v3.1.1 - Advanced Covenant Framework
+- ✅ Enhanced covenant interface with BIP143 + PUSHTX support
+- ✅ Perpetually Enforcing Locking Scripts (PELS) implementation
+- ✅ Transaction introspection with preimage analysis
+- ✅ Comprehensive documentation and examples
 
-### Node.js Support
-- Complete BSV library with all modules
-- Enhanced security validation
-- Zero npm vulnerability warnings
-- Full TypeScript definitions included
+### v3.0.2 - Custom Script Framework  
+- ✅ Complete custom script development API
+- ✅ Multi-signature, timelock, and conditional script support
+- ✅ Transaction signature API gap resolution
 
-### Browser Support
-- `bsv.min.js` - Main library (349KB)
-- `bsv-message.min.js` - Message signing (25KB)  
-- `bsv-mnemonic.min.js` - HD wallet support (670KB)
-- `bsv-ecies.min.js` - Encryption support (71KB)
-
-### CDN Usage
-
-#### unpkg CDN
-```html
-<!-- Security-hardened BSV library -->
-<script src="https://unpkg.com/smartledger-bsv@3.0.0/bsv.min.js"></script>
-
-<!-- Optional modules -->
-<script src="https://unpkg.com/smartledger-bsv@3.0.0/bsv-message.min.js"></script>
-<script src="https://unpkg.com/smartledger-bsv@3.0.0/bsv-mnemonic.min.js"></script>
-<script src="https://unpkg.com/smartledger-bsv@3.0.0/bsv-ecies.min.js"></script>
-
-<!-- Always latest version -->
-<script src="https://unpkg.com/smartledger-bsv/bsv.min.js"></script>
-```
-
-#### jsDelivr CDN
-```html
-<script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv-message.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/smartledger-bsv@3.0.0/bsv-mnemonic.min.js"></script>
-```
-
-#### ES6 Module CDN
-```html
-<script type="module">
-  import bsv from 'https://unpkg.com/smartledger-bsv@3.0.0/bsv.min.js';
-  
-  const privateKey = new bsv.PrivateKey();
-  console.log('BSV Address:', privateKey.toAddress().toString());
-</script>
-```
-
-## 🧪 Validation & Testing
-
-### Compatibility Testing ✅
-- **All 41 Original Tests**: Pass with 100% compatibility
-- **Browser Validation**: 14/14 security tests passing
-- **Node.js Validation**: Complete API compatibility verified
-- **Performance Impact**: <1% overhead from security enhancements
-
-### Security Validation ✅
-- Zero parameter attack protection active
-- Canonical signature enforcement working  
-- Range validation implemented
-- Browser/Node.js cross-compatibility confirmed
-
-## 🔄 Migration Guide
-
-**Zero changes required** - this is a true drop-in replacement:
-
-```javascript
-// Before (vulnerable)
-const bsv = require('bsv');
-
-// After (security-hardened)  
-const bsv = require('smartledger-bsv');
-
-// All existing code works unchanged
-const tx = new bsv.Transaction()
-  .from(utxos)
-  .to(address, amount)
-  .sign(privateKey);
-```
-
-## 📚 API Documentation
-
-This library maintains **100% API compatibility** with BSV@1.5.6. All existing documentation applies:
-
-- [Official BSV Documentation](https://docs.moneybutton.com/docs/bsv-overview.html)
-- [GitHub Repository](https://github.com/codenlighten/smartledger-bsv)
-- [TypeScript Definitions](./bsv.d.ts)
-
-### Enhanced Security Methods
-
-```javascript
-// Enhanced signature validation
-const signature = new bsv.Signature(buffer);
-
-// Security checks
-signature.isCanonical();     // Check if s ≤ n/2  
-signature.validate();        // Comprehensive validation
-signature.toCanonical();     // Convert to canonical form
-
-// SmartLedger security namespace
-bsv.SmartLedger.version;     // Security patch version
-bsv.SmartVerify.verify(...); // Enhanced verification
-```
-
-## 🌐 Browser Compatibility
-
-Full browser support with proper Buffer handling and crypto compatibility:
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <!-- Using unpkg CDN -->
-  <script src="https://unpkg.com/smartledger-bsv@3.0.0/bsv.min.js"></script>
-</head>
-<body>
-<script>
-  // Works in all modern browsers
-  const privateKey = new bsv.PrivateKey();
-  const address = privateKey.toAddress().toString();
-  console.log('BSV Address:', address);
-  
-  // SmartLedger security features available
-  console.log('Security Features:', bsv.SmartLedger.securityFeatures);
-  console.log('Hardened by:', bsv.SmartLedger.hardenedBy);
-</script>
-</body>
-</html>
-```
-
-## 🛠️ Development
-
-### Building from Source
-
-```bash
-git clone https://github.com/codenlighten/smartledger-bsv.git
-cd smartledger-bsv
-npm install
-
-# Build all minified files
-NODE_OPTIONS="--openssl-legacy-provider" npm run build-bsv
-NODE_OPTIONS="--openssl-legacy-provider" npm run build-message  
-NODE_OPTIONS="--openssl-legacy-provider" npm run build-mnemonic
-NODE_OPTIONS="--openssl-legacy-provider" npm run build-ecies
-```
-
-### Testing
-
-```bash
-# Run test suite
-npm test
-
-# Check for linting issues
-npm run lint
-
-# Generate coverage report
-npm run coverage
-```
-
-## 🔍 Security Audit
-
-### Vulnerability Resolution
-- **Before**: 1 critical, 2 high severity npm audit issues
-- **After**: 0 vulnerabilities, clean security audit
-- **Elliptic**: Updated to patched version 6.6.1
-- **Dependencies**: All dependencies security-reviewed
-
-### Security Features
-- Signature malleability protection
-- Zero parameter attack prevention  
-- Canonical signature enforcement
-- Enhanced parameter validation
-- Browser security compatibility
+### v3.0.1 - Ultra-Low Fee System
+- ✅ 0.01 sats/byte fee configuration (91% reduction)
+- ✅ Advanced UTXO state management
+- ✅ Change output optimization
 
 ## 📄 License
 
-MIT License - see [LICENSE](./LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🤝 Contributing
 
-Contributions welcome! Please read our security guidelines and submit pull requests for review.
+We welcome contributions to SmartLedger-BSV! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-## ⚠️ Security Disclosure
+## 🏢 Enterprise Support
 
-For security issues, please email security@smartledger.technology rather than using public issue tracker.
-
----
-
-## About SmartLedger Technology
-
-[SmartLedger Technology](https://smartledger.technology) is committed to providing secure, professional-grade blockchain libraries. This BSV implementation represents our dedication to eliminating security vulnerabilities while maintaining complete compatibility with existing Bitcoin SV applications.
-
-**Trusted by developers worldwide for secure Bitcoin SV applications.**
-
-Visit us at [smartledger.technology](https://smartledger.technology)
+- **GitHub**: [github.com/codenlighten/smartledger-bsv](https://github.com/codenlighten/smartledger-bsv)
+- **NPM**: [@smartledger/bsv](https://www.npmjs.com/package/@smartledger/bsv)
+- **Issues**: [GitHub Issues](https://github.com/codenlighten/smartledger-bsv/issues)
 
 ---
 
-## Original BSV Documentation
+**SmartLedger-BSV v3.1.1** - *Advanced Bitcoin SV Library with Enterprise Covenant Framework*
 
-Javascript Bitcoin SV library.
-
-Documentation is available on the [Money Button Documentation Page](https://docs.moneybutton.com/docs/bsv-overview.html).
-
-Changelog
----------
-**1.5.0**
-* Add build files into repo.
-
-**1.4.0**
-* Change default fee to 0.5 sat/byte
-
-**1.3.0**
-* Remove limit on OP_RETURN size
-
-**1.1.0**
-* Refactor code related to buffers and get rid of bufferUtil
-* Deprecate p2sh
-* Add .Mnemonic to bsv object
-
-**1.0.0**
-* Bump to 1.0 release as per the suggestion of @mathiasrw
-
-**0.30.2**
-* Added addSafeData to Transaction.
-
-**0.30.1**
-* Enforce buffer check for Electrum ECIES decryption.
-* Clean up script folder (no API breaking changes).
-* Documentation improvements.
-
-**0.30.0**
-* Fix transaction size calculation.
-
-**0.29.2**
-* Throw error on invalid hex strings in script
-
-**0.29.1**
-* Add support for new OP_RETURN style: buildSafeDataOut and isSafeDataOut (and getData)
-
-**0.27.2**
-* Add support for Stress Test Network (STN).
-
-**v0.27.1**
-* Replace lodash methods with inline pure javascript methods.
-
-**v0.27.0**
-* Remove version guard. This should fix the "two versions of bsv" error that
-  people often get. Note that it is poor practice to use incompatible versions
-  of bsv. To send objects from one version of the library to another, always
-  serialize to a string or buffer first. Do not send objects from one version to
-  another. This due to frequent use of "instanceof" inside the library.
-
-**v0.26.5**
-* lodash optimization and overall size optimization of bsv.min.js
-* fix isFinal
-* fix non-dust amount example
-* minor ECIES API issue
-
-**v0.26.4**
-* Use ECDSA.signWithCalcI(...) convenience method inside Message.
-
-**v0.26.3**
-* Add ECDSA.signWithCalcI(...) convenience method.
-
-**v0.26.2**
-* Add Mnemonic.fromString(string).
-* Add convenience method for ECDSA.signRandomK (mostly for demo purposes).
-* Add convenience methods Message.sign and message.verify.
-* Move large portions of the documentation to [docs.moneybutton.com](https://docs.moneybutton.com).
-
-**v0.26.1**
-* Add .fromRandom() method for Mnemonic.
-
-**v0.26.0**
-* Remove the (already deprecated) .derive() method from HDPrivateKey and HDPublicKey. If you rely on this, please switch to .deriveNonCompliantChild(). If you do not already rely on this, you should use .deriveChild() instead.
-* Move large portions of the documentation to [docs.moneybutton.com](https://docs.moneybutton.com).
-* HDPrivateKey / HDPublicKey toHex() and fromHex()
-* HDPrivateKey.fromRandom()
-* Remove Base32 (this was only used for cashaddr and is now obsolete).
-
-**v0.25.0**
-* Remove support for cashaddr completely. This saves size in the bundle.
-* Private key .toString() method now returns WIF, which makes it compatible with the corresponding .fromString(wif) method.
-* Private key and public key classes now have toHex() and fromHex(hex) methods.
-* Move large portions of the documentation to [docs.moneybutton.com](https://docs.moneybutton.com).
+Built with ❤️ for the Bitcoin SV ecosystem

@@ -103,6 +103,9 @@ if (typeof window === 'undefined' && typeof require === 'function') {
     bsv.SmartUTXO = require('./lib/smartutxo')
     bsv.SmartMiner = require('./lib/smartminer')
     bsv.CustomScriptHelper = require('./lib/custom-script-helper')
+    
+    // Smart Contract Framework
+    bsv.SmartContract = require('./lib/smart_contract')
   } catch (e) {
     // Browser environment - these tools not available
   }

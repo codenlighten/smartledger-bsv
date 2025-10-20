@@ -1,0 +1,28 @@
+[
+  {
+    "txid": "8e1ee45889ffe3795867f4aeaed210986ade118a1fd395f3a2236706dbee3423",
+    "vout": 0,
+    "satoshis": 916852,
+    "script": "76aa209888e1517445f2a81880d485cf008819d1cbd78c0a94163e8ac9ab2049606351887521024fbc086ee073b74ecca97e7f39245b268cc3594140fe561f2d4876ebc3631d2aac",
+    "scriptPubKey": "76aa209888e1517445f2a81880d485cf008819d1cbd78c0a94163e8ac9ab2049606351887521024fbc086ee073b74ecca97e7f39245b268cc3594140fe561f2d4876ebc3631d2aac",
+    "preimageHash": "9888e1517445f2a81880d485cf008819d1cbd78c0a94163e8ac9ab2049606351",
+    "originalPreimage": "af93d3d37a5050d450f75b6085a820aa123cafeeafedc01e1f70f4d19a0acbdd",
+    "status": "local",
+    "createdAt": "2025-10-20T00:30:10.836Z",
+    "type": "preimage_covenant"
+  },
+  {
+    "txid": "8e1ee45889ffe3795867f4aeaed210986ade118a1fd395f3a2236706dbee3423",
+    "vout": 0,
+    "satoshis": 916852,
+    "script": "76aa209888e1517445f2a81880d485cf008819d1cbd78c0a94163e8ac9ab2049606351887521024fbc086ee073b74ecca97e7f39245b268cc3594140fe561f2d4876ebc3631d2aac",
+    "scriptPubKey": "76aa209888e1517445f2a81880d485cf008819d1cbd78c0a94163e8ac9ab2049606351887521024fbc086ee073b74ecca97e7f39245b268cc3594140fe561f2d4876ebc3631d2aac",
+    "preimageHash": "9888e1517445f2a81880d485cf008819d1cbd78c0a94163e8ac9ab2049606351",
+    "originalPreimage": "af93d3d37a5050d450f75b6085a820aa123cafeeafedc01e1f70f4d19a0acbdd",
+    "status": "broadcast",
+    "createdAt": "2025-10-20T00:30:33.822Z",
+    "type": "preimage_covenant",
+    "broadcastTxid": "8e1ee45889ffe3795867f4aeaed210986ade118a1fd395f3a2236706dbee3423",
+    "broadcastAt": "2025-10-20T00:30:33.823Z"
+  }
+]
