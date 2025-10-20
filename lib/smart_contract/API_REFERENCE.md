@@ -6,12 +6,13 @@
 
 1. [Quick Start](#quick-start)
 2. [Core Classes](#core-classes)
-3. [Interface Functions (29 Total)](#interface-functions)
+3. [Interface Functions (52 Total)](#interface-functions)
 4. [JavaScript-to-Script Framework](#javascript-to-script-framework)
 5. [CovenantBuilder API (61 Methods)](#covenantbuilder-api)
 6. [Opcode Mapping System](#opcode-mapping-system)
-7. [Real-World Examples](#real-world-examples)
-8. [Error Handling](#error-handling)
+7. [Debug and Analysis Tools](#debug-and-analysis-tools)
+8. [Real-World Examples](#real-world-examples)
+9. [Error Handling](#error-handling)
 
 ---
 
@@ -594,6 +595,113 @@ console.log('OP_ADD:', opcodes.OP_ADD)
 const stack = ['02', '03']  // [2, 3]
 const newStack = opcodes.OP_ADD.action(stack)
 console.log('Result stack:', newStack)  // ['05'] (2 + 3 = 5)
+```
+
+---
+
+## Debug and Analysis Tools
+
+### Stack Examination
+
+**Examine stack states during script execution**
+
+```javascript
+// Examine stack evolution step-by-step
+const lockingScript = "76a914" + "89abcdef".repeat(5) + "88ac"  // P2PKH
+const unlockingScript = "47" + "30440220".repeat(4) + "01"      // Signature
+
+const success = SmartContract.examineStack(lockingScript, unlockingScript)
+// Outputs:
+// 🔍 STACK EXAMINATION TOOL
+// 🧩 Step 1: PUSH (signature)
+// Stack: ['30440220...']
+// 🧩 Step 2: OP_DUP
+// Stack: ['30440220...', '30440220...']
+// ... continues through all opcodes
+```
+
+### Script Debugging
+
+**Interactive script debugging with step-by-step execution**
+
+```javascript
+// Parse script from ASM or HEX
+const unlocking = SmartContract.parseScript("OP_1 OP_2")
+const locking = SmartContract.parseScript("OP_ADD OP_3 OP_EQUAL")
+
+// Debug with full verification
+SmartContract.debugScriptExecution(unlocking, locking, {
+  stepMode: false  // Set to true for interactive step-by-step
+})
+// Outputs:
+// 🔍 SCRIPT INTERPRETER DEBUGGER (FULL RUN)
+// 🔐 Locking Script: OP_ADD OP_3 OP_EQUAL
+// 🔓 Unlocking Script: OP_1 OP_2
+// ✅ Result: TRUE (Success)
+```
+
+### Stack State Analysis
+
+**Manual stack inspection and formatting**
+
+```javascript
+const stack = [Buffer.from('01', 'hex'), Buffer.from('02', 'hex')]
+const altstack = [Buffer.from('ff', 'hex')]
+
+SmartContract.printStack(stack, altstack)
+// Output:
+// Stack: ['01', '02']
+// AltStack: ['ff']
+```
+
+### Advanced Script Analysis
+
+**Comprehensive script analysis and optimization**
+
+```javascript
+// Analyze script complexity and find optimizations
+const script = bsv.Script.fromASM("OP_DUP OP_DUP OP_DROP OP_HASH160")
+
+const analysis = SmartContract.analyzeComplexity(script)
+console.log('Complexity score:', analysis.score)
+console.log('Optimization suggestions:', analysis.suggestions)
+
+const optimized = SmartContract.optimizeScript(script)
+console.log('Original ASM:', script.toASM())
+console.log('Optimized ASM:', optimized.toASM())
+
+// Explain script in human-readable format
+const explanation = SmartContract.explainScript(script)
+console.log('Script explanation:', explanation)
+```
+
+### Batch Testing
+
+**Test multiple scripts efficiently**
+
+```javascript
+const scripts = [
+  {
+    name: 'P2PKH Test',
+    unlocking: '47304402...',
+    locking: '76a914...88ac',
+    expectedResult: true
+  },
+  {
+    name: 'Multi-sig Test',
+    unlocking: '004730440...',
+    locking: '52210...53ae',
+    expectedResult: true
+  }
+]
+
+const results = SmartContract.batchTestScripts(scripts, {
+  verbose: true,
+  stopOnFailure: false
+})
+
+console.log('Batch test results:', results)
+// { passed: 2, failed: 0, results: [...] }
 ```
 
 ---

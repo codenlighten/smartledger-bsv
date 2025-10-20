@@ -1,7 +1,7 @@
 {
-  "name": "@smartledger/bsv",
-  "version": "3.2.0",
-  "description": "Advanced Bitcoin SV library with JavaScript-to-Bitcoin Script framework - Complete BSV API + BIP143 preimage parsing + 121 opcode mapping + covenant builder + nChain PUSHTX techniques + custom script development",
+  "name": "smartledger-bsv",
+  "version": "3.2.1",
+  "description": "Advanced Bitcoin SV library with JavaScript-to-Bitcoin Script framework - Complete BSV API + BIP143 preimage parsing + 121 opcode mapping + covenant builder + nChain PUSHTX techniques + custom script development + integrated debugging tools",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
   "bugs": {
