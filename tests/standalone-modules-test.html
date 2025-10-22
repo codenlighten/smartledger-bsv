@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BSV Standalone Modules Test</title>
+  <style>
+    body { font-family: Arial; margin: 20px; background: #f5f5f5; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .modules { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+    .module { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .success { color: #27ae60; }
+    .error { color: #e74c3c; }
+    .warning { color: #f39c12; }
+    .size { font-size: 12px; color: #666; }
+    .description { font-size: 14px; color: #555; margin: 10px 0; }
+    h1 { text-align: center; color: #2c3e50; }
+    h3 { color: #34495e; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
+    .loading-approach { background: #ecf0f1; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    .code { background: #2c3e50; color: #ecf0f1; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧩 BSV Standalone Modules Test Suite</h1>
+    <p style="text-align: center; color: #666;">Testing all specialized standalone modules for modular loading</p>
+    
+    <div id="loading-status">
+      <h2>📦 Loading Strategy</h2>
+      <div class="loading-approach">
+        <strong>Modular Loading Approach:</strong><br>
+        1. Load core BSV library first<br>
+        2. Load only the specialized modules you need<br>
+        3. Avoid large bundle for targeted functionality
+      </div>
+    </div>
+    
+    <div class="modules">
+      
+      <!-- Core BSV -->
+      <div class="module">
+        <h3>🔧 Core BSV Library</h3>
+        <div class="size">449KB - bsv.min.js</div>
+        <div class="description">Essential Bitcoin SV functionality with SmartContract included</div>
+        <div id="core-status">Loading...</div>
+        <div class="code">
+&lt;script src="bsv.min.js"&gt;&lt;/script&gt;<br>
+&lt;script&gt;<br>
+&nbsp;&nbsp;const key = new bsv.PrivateKey();<br>
+&nbsp;&nbsp;const tx = new bsv.Transaction();<br>
+&lt;/script&gt;
+        </div>
+      </div>
+      
+      <!-- Covenant Interface -->
+      <div class="module">
+        <h3>⚡ Covenant Interface</h3>
+        <div class="size">32KB - bsv-covenant.min.js</div>
+        <div class="description">Advanced covenant development framework for complex Bitcoin contracts</div>
+        <div id="covenant-status">Waiting for core...</div>
+        <div class="code">
+&lt;script src="bsv.min.js"&gt;&lt;/script&gt;<br>
+&lt;script src="bsv-covenant.min.js"&gt;&lt;/script&gt;<br>
+&lt;script&gt;<br>
+&nbsp;&nbsp;const covenant = new bsvCovenant.CovenantInterface();<br>
+&lt;/script&gt;
+        </div>
+      </div>
+      
+      <!-- Script Helper -->
+      <div class="module">
+        <h3>📝 Custom Script Helper</h3>
+        <div class="size">27KB - bsv-script-helper.min.js</div>
+        <div class="description">Simplified API for custom script development and signature creation</div>
+        <div id="script-helper-status">Waiting for core...</div>
+        <div class="code">
+&lt;script src="bsv.min.js"&gt;&lt;/script&gt;<br>
+&lt;script src="bsv-script-helper.min.js"&gt;&lt;/script&gt;<br>
+&lt;script&gt;<br>
+&nbsp;&nbsp;const sig = bsvScriptHelper.createSignature(...);<br>
+&lt;/script&gt;
+        </div>
+      </div>
+      
+      <!-- Security Module -->
+      <div class="module">
+        <h3>🛡️ Security Module</h3>
+        <div class="size">290KB - bsv-security.min.js</div>
+        <div class="description">SmartLedger security enhancements and elliptic curve fixes (standalone)</div>
+        <div id="security-status">Loading...</div>
+        <div class="code">
+&lt;script src="bsv-security.min.js"&gt;&lt;/script&gt;<br>
+&lt;script&gt;<br>
+&nbsp;&nbsp;const verified = bsvSecurity.SmartVerify.verify(...);<br>
+&lt;/script&gt;
+        </div>
+      </div>
+      
+      <!-- SmartContract -->
+      <div class="module">
+        <h3>🔬 SmartContract Debug</h3>
+        <div class="size">451KB - bsv-smartcontract.min.js</div>
+        <div class="description">Complete SmartContract interface with all debug tools</div>
+        <div id="smartcontract-status">Waiting for core...</div>
+        <div class="code">
+&lt;script src="bsv.min.js"&gt;&lt;/script&gt;<br>
+&lt;script src="bsv-smartcontract.min.js"&gt;&lt;/script&gt;<br>
+&lt;script&gt;<br>
+&nbsp;&nbsp;const metrics = SmartContract.getScriptMetrics(script);<br>
+&lt;/script&gt;
+        </div>
+      </div>
+      
+      <!-- Complete Bundle Alternative -->
+      <div class="module">
+        <h3>📦 Complete Bundle</h3>
+        <div class="size">764KB - bsv.bundle.js</div>
+        <div class="description">Everything in one file (alternative to modular approach)</div>
+        <div id="bundle-status">Not loaded (modular test)</div>
+        <div class="code">
+&lt;script src="bsv.bundle.js"&gt;&lt;/script&gt;<br>
+&lt;script&gt;<br>
+&nbsp;&nbsp;// Everything available immediately<br>
+&nbsp;&nbsp;const covenant = new bsv.CovenantInterface();<br>
+&lt;/script&gt;
+        </div>
+      </div>
+      
+    </div>
+    
+    <div id="summary" style="margin-top: 30px;">
+      <h2>📊 Loading Summary</h2>
+      <div id="summary-content">Testing in progress...</div>
+    </div>
+  </div>
+
+  <!-- Load core BSV first -->
+  <script src="bsv.min.js"></script>
+  <script>
+    document.getElementById('core-status').innerHTML = '<span class="success">✅ Core BSV loaded (' + (bsv.version || 'unknown') + ')</span>';
+    
+    // Track what's loaded
+    const loadedModules = ['core'];
+    const moduleTests = {};
+    
+    function updateStatus(moduleId, status, className = 'success') {
+      document.getElementById(moduleId + '-status').innerHTML = '<span class="' + className + '">' + status + '</span>';
+    }
+    
+    function updateSummary() {
+      const content = document.getElementById('summary-content');
+      content.innerHTML = `
+        <div><strong>Loaded Modules:</strong> ${loadedModules.length}/6</div>
+        <div><strong>Total Size:</strong> ${calculateTotalSize()}KB (modular) vs 764KB (bundle)</div>
+        <div><strong>Modules:</strong> ${loadedModules.join(', ')}</div>
+      `;
+    }
+    
+    function calculateTotalSize() {
+      const sizes = {
+        core: 449,
+        covenant: 32,
+        'script-helper': 27,
+        security: 290,
+        smartcontract: 451
+      };
+      return loadedModules.reduce((total, module) => total + (sizes[module] || 0), 0);
+    }
+    
+    // Test core functionality
+    try {
+      const testKey = new bsv.PrivateKey();
+      const testTx = new bsv.Transaction();
+      moduleTests.core = 'Core BSV functionality working';
+    } catch (e) {
+      updateStatus('core', '❌ Core BSV error: ' + e.message, 'error');
+    }
+  </script>
+  
+  <!-- Load security module (standalone) -->
+  <script src="bsv-security.min.js"></script>
+  <script>
+    try {
+      if (typeof bsvSecurity !== 'undefined' && bsvSecurity.SmartVerify) {
+        updateStatus('security', '✅ Security module loaded independently');
+        loadedModules.push('security');
+        moduleTests.security = 'SmartLedger security enhancements available';
+      }
+    } catch (e) {
+      updateStatus('security', '❌ Security module error: ' + e.message, 'error');
+    }
+    updateSummary();
+  </script>
+  
+  <!-- Load covenant interface -->
+  <script src="bsv-covenant.min.js"></script>
+  <script>
+    try {
+      if (typeof bsvCovenant !== 'undefined' && bsvCovenant.CovenantInterface) {
+        const covenantInterface = new bsvCovenant.CovenantInterface();
+        updateStatus('covenant', '✅ CovenantInterface loaded and instantiated');
+        loadedModules.push('covenant');
+        moduleTests.covenant = 'Advanced covenant development ready';
+      }
+    } catch (e) {
+      updateStatus('covenant', '❌ Covenant error: ' + e.message, 'error');
+    }
+    updateSummary();
+  </script>
+  
+  <!-- Load script helper -->
+  <script src="bsv-script-helper.min.js"></script>
+  <script>
+    try {
+      if (typeof bsvScriptHelper !== 'undefined' && bsvScriptHelper.CustomScriptHelper) {
+        updateStatus('script-helper', '✅ CustomScriptHelper loaded');
+        loadedModules.push('script-helper');
+        moduleTests.scriptHelper = 'Custom script development tools ready';
+      }
+    } catch (e) {
+      updateStatus('script-helper', '❌ Script helper error: ' + e.message, 'error');
+    }
+    updateSummary();
+  </script>
+  
+  <!-- Load SmartContract debug tools -->
+  <script src="bsv-smartcontract.min.js"></script>
+  <script>
+    try {
+      if (typeof SmartContract !== 'undefined' && SmartContract.interpretScript) {
+        // Test the debug methods
+        const testScript = bsv.Script.fromASM('OP_1 OP_2 OP_ADD');
+        const canDebug = typeof SmartContract.examineStack === 'function';
+        updateStatus('smartcontract', '✅ SmartContract debug tools loaded (' + Object.keys(SmartContract).length + ' methods)');
+        loadedModules.push('smartcontract');
+        moduleTests.smartcontract = 'Debug tools and script analysis ready';
+      }
+    } catch (e) {
+      updateStatus('smartcontract', '❌ SmartContract error: ' + e.message, 'error');
+    }
+    updateSummary();
+    
+    // Final summary
+    setTimeout(() => {
+      const summary = document.getElementById('summary-content');
+      summary.innerHTML += `
+        <h3>🎯 Modular Loading Benefits:</h3>
+        <div>✅ <strong>Targeted Loading:</strong> Only load what you need</div>
+        <div>✅ <strong>Reduced Bandwidth:</strong> Smaller initial downloads</div>
+        <div>✅ <strong>Flexible Architecture:</strong> Mix and match modules</div>
+        <div>✅ <strong>Independent Updates:</strong> Update modules separately</div>
+        <div>✅ <strong>Better Caching:</strong> Browser caches modules individually</div>
+        
+        <h3>📈 Size Comparison:</h3>
+        <div><strong>Modular (loaded):</strong> ${calculateTotalSize()}KB across ${loadedModules.length} modules</div>
+        <div><strong>Complete Bundle:</strong> 764KB in 1 file</div>
+        <div><strong>Savings:</strong> ${loadedModules.length < 6 ? (764 - calculateTotalSize()) + 'KB saved by not loading unused modules' : 'All modules loaded'}</div>
+      `;
+    }, 1000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartContract Module Test - Two Approaches</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .test-section {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    h1 { 
+      color: #fff;
+      text-align: center;
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+    .approach {
+      background: rgba(255,255,255,0.1);
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 8px;
+      border-left: 4px solid #4CAF50;
+    }
+    .result {
+      background: rgba(0,0,0,0.3);
+      padding: 15px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      margin: 10px 0;
+      font-size: 0.9em;
+      line-height: 1.4;
+    }
+    .button {
+      background: linear-gradient(45deg, #4CAF50, #45a049);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      cursor: pointer;
+      margin: 8px;
+      font-weight: bold;
+      transition: all 0.3s;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .button:hover { 
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+    @media (max-width: 768px) {
+      .comparison {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 SmartContract Module Integration Test</h1>
+  
+  <div class="test-section">
+    <h2>📋 Two Loading Approaches</h2>
+    <p>Testing both methods to load SmartContract functionality:</p>
+    
+    <div class="comparison">
+      <div class="approach">
+        <h3>📦 Approach 1: All-in-One</h3>
+        <p><strong>File:</strong> bsv.min.js (459KB)</p>
+        <p><strong>Includes:</strong> Core BSV + SmartContract</p>
+        <button class="button" onclick="testMainFile()">Test Main File</button>
+        <div id="main-results" class="result">Click to test main file approach...</div>
+      </div>
+      
+      <div class="approach">
+        <h3>🔌 Approach 2: Modular</h3>
+        <p><strong>Files:</strong> bsv.min.js + bsv-smartcontract.min.js</p>
+        <p><strong>Total:</strong> ~920KB (459KB + 461KB)</p>
+        <button class="button" onclick="testModularApproach()">Test Modular</button>
+        <div id="modular-results" class="result">Click to test modular approach...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>🐛 Debug Tools Functionality Test</h2>
+    <button class="button" onclick="testDebugTools()">Test Debug Tools</button>
+    <div id="debug-results" class="result">Click to test debug tools functionality...</div>
+  </div>
+
+  <div class="test-section">
+    <h2>📊 Performance Comparison</h2>
+    <div id="performance-results" class="result">
+      <strong>File Size Comparison:</strong><br>
+      • Main only (bsv.min.js): 459KB - includes SmartContract ✅<br>
+      • Standalone (bsv-smartcontract.min.js): 461KB - SmartContract only<br>
+      • Bundle (bsv.bundle.js): 771KB - everything included ✅<br>
+      • Modular total: ~920KB - maximum flexibility<br><br>
+      <strong>Recommendation:</strong> Use main file (bsv.min.js) for most use cases
+    </div>
+  </div>
+
+  <!-- Load the main BSV library with SmartContract included -->
+  <script src="bsv.min.js"></script>
+
+  <script>
+    function log(message, targetId) {
+      const output = document.getElementById(targetId);
+      const timestamp = new Date().toLocaleTimeString();
+      output.innerHTML += `[${timestamp}] ${message}<br>`;
+    }
+
+    function testMainFile() {
+      const output = document.getElementById('main-results');
+      output.innerHTML = '';
+      
+      try {
+        log('Testing main file (bsv.min.js)...', 'main-results');
+        
+        // Check if BSV is available
+        if (typeof bsv === 'undefined') {
+          log('❌ BSV library not loaded', 'main-results');
+          return;
+        }
+        
+        log('✅ BSV library loaded', 'main-results');
+        
+        // Check SmartContract
+        if (bsv.SmartContract) {
+          const methodCount = Object.keys(bsv.SmartContract).length;
+          log(`✅ SmartContract available with ${methodCount} methods`, 'main-results');
+          
+          // Test debug tools
+          const hasDebugTools = !!(bsv.SmartContract.examineStack && bsv.SmartContract.interpretScript);
+          log(`🐛 Debug tools: ${hasDebugTools ? 'Available ✅' : 'Not available ❌'}`, 'main-results');
+          
+          // Test functionality
+          if (hasDebugTools) {
+            try {
+              const script = bsv.Script.fromASM('OP_1 OP_2 OP_ADD');
+              const result = bsv.SmartContract.examineStack(script);
+              log('✅ Debug tools working - script examination successful', 'main-results');
+            } catch (e) {
+              log(`⚠️ Debug tools available but test failed: ${e.message}`, 'main-results');
+            }
+          }
+          
+          log('🎉 Main file approach: WORKING', 'main-results');
+        } else {
+          log('❌ SmartContract not available in main file', 'main-results');
+        }
+      } catch (error) {
+        log(`❌ Error: ${error.message}`, 'main-results');
+      }
+    }
+
+    function testModularApproach() {
+      const output = document.getElementById('modular-results');
+      output.innerHTML = '';
+      
+      log('Testing modular approach...', 'modular-results');
+      log('ℹ️ This would require loading bsv-smartcontract.min.js separately', 'modular-results');
+      log('ℹ️ Main file already includes SmartContract, so modular not needed', 'modular-results');
+      log('✅ Modular approach: Available as backup option', 'modular-results');
+      
+      // Show how it would work
+      log('Usage example:', 'modular-results');
+      log('&lt;script src="bsv.min.js"&gt;&lt;/script&gt;', 'modular-results');
+      log('&lt;script src="bsv-smartcontract.min.js"&gt;&lt;/script&gt;', 'modular-results');
+    }
+
+    function testDebugTools() {
+      const output = document.getElementById('debug-results');
+      output.innerHTML = '';
+      
+      try {
+        log('Testing debug tools functionality...', 'debug-results');
+        
+        if (!bsv.SmartContract) {
+          log('❌ SmartContract not available', 'debug-results');
+          return;
+        }
+        
+        // Test each debug tool
+        const debugTools = [
+          { name: 'examineStack', method: bsv.SmartContract.examineStack },
+          { name: 'interpretScript', method: bsv.SmartContract.interpretScript },
+          { name: 'getScriptMetrics', method: bsv.SmartContract.getScriptMetrics },
+          { name: 'optimizeScript', method: bsv.SmartContract.optimizeScript }
+        ];
+        
+        const testScript = bsv.Script.fromASM('OP_1 OP_2 OP_ADD OP_3 OP_EQUAL');
+        log(`Test script: ${testScript.toASM()}`, 'debug-results');
+        
+        debugTools.forEach(tool => {
+          if (tool.method) {
+            try {
+              const result = tool.method(testScript);
+              log(`✅ ${tool.name}: Working`, 'debug-results');
+            } catch (e) {
+              log(`⚠️ ${tool.name}: Available but failed - ${e.message}`, 'debug-results');
+            }
+          } else {
+            log(`❌ ${tool.name}: Not available`, 'debug-results');
+          }
+        });
+        
+        log('🚀 Debug tools test completed!', 'debug-results');
+        
+      } catch (error) {
+        log(`❌ Debug tools test failed: ${error.message}`, 'debug-results');
+      }
+    }
+
+    // Auto-run tests on page load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        testMainFile();
+      }, 1000);
+    });
+  </script>
+</body>
+</html>

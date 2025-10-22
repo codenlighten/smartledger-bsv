@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BSV Bundle Completeness Test</title>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    .success { color: green; }
+    .error { color: red; }
+    .warning { color: orange; }
+    .module-test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1>🔬 BSV Bundle Completeness Test</h1>
+  <p>Testing that our bundle includes all modules from the main library...</p>
+  
+  <div id="results"></div>
+  
+  <script src="bsv.bundle.js"></script>
+  <script>
+    const results = document.getElementById('results');
+    
+    function log(message, className = '') {
+      const div = document.createElement('div');
+      div.className = className;
+      div.innerHTML = message;
+      results.appendChild(div);
+      console.log(message);
+    }
+    
+    function testModule(name, accessor, required = true) {
+      const div = document.createElement('div');
+      div.className = 'module-test';
+      
+      try {
+        const module = accessor();
+        if (module) {
+          div.innerHTML = `<span class="success">✅ ${name}: Available</span>`;
+          if (typeof module === 'function') {
+            div.innerHTML += ` (Constructor)`;
+          } else if (typeof module === 'object') {
+            const keys = Object.keys(module);
+            div.innerHTML += ` (${keys.length} properties: ${keys.slice(0, 3).join(', ')}${keys.length > 3 ? '...' : ''})`;
+          }
+        } else {
+          div.innerHTML = `<span class="${required ? 'error' : 'warning'}">${required ? '❌' : '⚠️'} ${name}: Not available</span>`;
+        }
+      } catch (e) {
+        div.innerHTML = `<span class="${required ? 'error' : 'warning'}">${required ? '❌' : '⚠️'} ${name}: Error - ${e.message}</span>`;
+      }
+      
+      results.appendChild(div);
+    }
+    
+    // Test all modules that should be in the bundle
+    log('<h2>Core BSV Library</h2>');
+    testModule('bsv', () => bsv);
+    testModule('bsv.version', () => bsv.version);
+    testModule('bsv.PrivateKey', () => bsv.PrivateKey);
+    testModule('bsv.PublicKey', () => bsv.PublicKey);
+    testModule('bsv.Address', () => bsv.Address);
+    testModule('bsv.Transaction', () => bsv.Transaction);
+    testModule('bsv.Script', () => bsv.Script);
+    
+    log('<h2>Crypto Modules</h2>');
+    testModule('bsv.crypto.Hash', () => bsv.crypto.Hash);
+    testModule('bsv.crypto.ECDSA', () => bsv.crypto.ECDSA);
+    testModule('bsv.crypto.Signature', () => bsv.crypto.Signature);
+    testModule('bsv.crypto.SmartVerify', () => bsv.crypto.SmartVerify);
+    testModule('bsv.crypto.EllipticFixed', () => bsv.crypto.EllipticFixed);
+    
+    log('<h2>SmartLedger Security</h2>');
+    testModule('bsv.SmartLedger', () => bsv.SmartLedger);
+    testModule('bsv.SmartVerify', () => bsv.SmartVerify);
+    testModule('bsv.EllipticFixed', () => bsv.EllipticFixed);
+    
+    log('<h2>Additional Modules</h2>');
+    testModule('bsv.Message', () => bsv.Message);
+    testModule('bsv.Mnemonic', () => bsv.Mnemonic, false); // May not work in browser
+    testModule('bsv.ECIES', () => bsv.ECIES);
+    
+    log('<h2>SmartContract Framework</h2>');
+    testModule('bsv.SmartContract', () => bsv.SmartContract);
+    if (bsv.SmartContract) {
+      testModule('SmartContract.interpretScript', () => bsv.SmartContract.interpretScript);
+      testModule('SmartContract.getScriptMetrics', () => bsv.SmartContract.getScriptMetrics);
+      testModule('SmartContract.examineStack', () => bsv.SmartContract.examineStack);
+      testModule('SmartContract.optimizeScript', () => bsv.SmartContract.optimizeScript);
+    }
+    
+    log('<h2>NEW: Advanced Development Tools</h2>');
+    testModule('bsv.CovenantInterface', () => bsv.CovenantInterface);
+    testModule('bsv.CustomScriptHelper', () => bsv.CustomScriptHelper);
+    testModule('bsv.Transaction.sighash', () => bsv.Transaction.sighash);
+    
+    log('<h2>Bundle Information</h2>');
+    testModule('bsv.bundle', () => bsv.bundle);
+    testModule('bsv.SmartLedgerBundle', () => bsv.SmartLedgerBundle);
+    
+    // Test bundle convenience methods
+    log('<h2>Bundle Convenience Methods</h2>');
+    if (bsv.SmartLedgerBundle) {
+      testModule('generateKeys()', () => bsv.SmartLedgerBundle.generateKeys);
+      testModule('createMessage()', () => bsv.SmartLedgerBundle.createMessage);
+      testModule('encrypt()', () => bsv.SmartLedgerBundle.encrypt);
+      testModule('examineScript()', () => bsv.SmartLedgerBundle.examineScript);
+      testModule('createCovenant()', () => bsv.SmartLedgerBundle.createCovenant);
+      testModule('createCustomSignature()', () => bsv.SmartLedgerBundle.createCustomSignature);
+      testModule('calculateSighash()', () => bsv.SmartLedgerBundle.calculateSighash);
+    }
+    
+    // Show bundle info
+    if (bsv.bundle) {
+      log('<h2>Bundle Contents</h2>');
+      log(`<div>Version: ${bsv.bundle.version}</div>`);
+      log(`<div>Type: ${bsv.bundle.type}</div>`);
+      log(`<div>Includes: ${bsv.bundle.includes.join(', ')}</div>`);
+    }
+    
+    // Final summary
+    log('<h2>Summary</h2>');
+    const successCount = document.querySelectorAll('.success').length;
+    const errorCount = document.querySelectorAll('.error').length;
+    const warningCount = document.querySelectorAll('.warning').length;
+    
+    log(`<div><strong>✅ Successful: ${successCount}</strong></div>`);
+    if (errorCount > 0) log(`<div><strong>❌ Errors: ${errorCount}</strong></div>`);
+    if (warningCount > 0) log(`<div><strong>⚠️ Warnings: ${warningCount}</strong></div>`);
+  </script>
+</body>
+</html>

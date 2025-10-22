@@ -97,17 +97,25 @@ bsv.SmartLedger = {
 bsv.SmartVerify = require('./lib/crypto/smartledger_verify')
 bsv.EllipticFixed = require('./lib/crypto/elliptic-fixed')
 
-// SmartLedger Development & Testing Tools (Node.js only)
+// SmartLedger Development & Testing Tools
+try {
+  // SmartContract Framework - now available in both Node.js and browser
+  bsv.SmartContract = require('./lib/smart_contract')
+} catch (e) {
+  // SmartContract not available - use standalone bsv-smartcontract.min.js
+  if (typeof window === 'undefined') {
+    console.warn('SmartContract module not available:', e.message)
+  }
+}
+
+// Node.js specific tools (advanced development tools)
 if (typeof window === 'undefined' && typeof require === 'function') {
   try {
     bsv.SmartUTXO = require('./lib/smartutxo')
     bsv.SmartMiner = require('./lib/smartminer')
     bsv.CustomScriptHelper = require('./lib/custom-script-helper')
-    
-    // Smart Contract Framework
-    bsv.SmartContract = require('./lib/smart_contract')
   } catch (e) {
-    // Browser environment - these tools not available
+    // Advanced tools not available
   }
 }
 

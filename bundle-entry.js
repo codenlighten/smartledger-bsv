@@ -97,6 +97,54 @@ try {
   console.warn('ECIES module not available:', e.message)
 }
 
+// Include SmartContract interface with debug tools (forced for bundle)
+try {
+  const SmartContract = require('./lib/smart_contract')
+  bsv.SmartContract = SmartContract
+  console.log('SmartContract interface loaded in bundle with', Object.keys(SmartContract).length, 'methods')
+} catch (e) {
+  console.warn('SmartContract module not available:', e.message)
+}
+
+// Include CovenantInterface for advanced covenant development
+try {
+  const CovenantInterface = require('./lib/covenant-interface.js')
+  bsv.CovenantInterface = CovenantInterface
+  console.log('CovenantInterface loaded in bundle')
+} catch (e) {
+  console.warn('CovenantInterface module not available:', e.message)
+}
+
+// Include CustomScriptHelper for simplified script development
+try {
+  const CustomScriptHelper = require('./lib/custom-script-helper.js')
+  bsv.CustomScriptHelper = CustomScriptHelper
+  console.log('CustomScriptHelper loaded in bundle')
+} catch (e) {
+  console.warn('CustomScriptHelper module not available:', e.message)
+}
+
+// SmartLedger security modules (matching index.js structure)
+bsv.SmartLedger = {
+  version: bsv.version,
+  hardenedBy: bsv.hardenedBy,
+  baseVersion: bsv.baseVersion,
+  securityFeatures: bsv.securityFeatures,
+  SmartVerify: bsv.crypto.SmartVerify,
+  EllipticFixed: bsv.crypto.EllipticFixed
+}
+bsv.SmartVerify = bsv.crypto.SmartVerify
+bsv.EllipticFixed = bsv.crypto.EllipticFixed
+
+// Internal usage, exposed for testing/advanced tweaking (matching index.js)
+if (bsv.Transaction && bsv.Transaction.sighash === undefined) {
+  try {
+    bsv.Transaction.sighash = require('./lib/transaction/sighash')
+  } catch (e) {
+    console.warn('Transaction.sighash not available:', e.message)
+  }
+}
+
 // Enhanced bundle information
 bsv.bundle = {
   version: bsv.version,
@@ -106,7 +154,12 @@ bsv.bundle = {
     'hd-wallets',
     'mnemonic-generation',
     'ecies-encryption',
-    'smartledger-security'
+    'smartledger-security',
+    'smartcontract-interface',
+    'debug-tools',
+    'covenant-interface',
+    'custom-script-helper',
+    'advanced-sighash'
   ],
   size: 'complete',
   type: 'all-in-one'
@@ -148,6 +201,64 @@ bsv.SmartLedgerBundle = {
       throw new Error('ECIES functionality not available in bundle')
     }
     return bsv.ECIES.encrypt(data, publicKey)
+  },
+  
+  // SmartContract debug tools (NEW v3.2.1)
+  examineScript: function(scriptASM) {
+    if (!bsv.SmartContract || !bsv.SmartContract.examineStack) {
+      throw new Error('SmartContract debug tools not available in bundle')
+    }
+    const script = bsv.Script.fromASM(scriptASM)
+    return bsv.SmartContract.examineStack(script)
+  },
+  
+  interpretScript: function(scriptASM) {
+    if (!bsv.SmartContract || !bsv.SmartContract.interpretScript) {
+      throw new Error('SmartContract debug tools not available in bundle')
+    }
+    const script = bsv.Script.fromASM(scriptASM)
+    return bsv.SmartContract.interpretScript(script)
+  },
+  
+  getScriptMetrics: function(scriptASM) {
+    if (!bsv.SmartContract || !bsv.SmartContract.getScriptMetrics) {
+      throw new Error('SmartContract metrics not available in bundle')
+    }
+    const script = bsv.Script.fromASM(scriptASM)
+    return bsv.SmartContract.getScriptMetrics(script)
+  },
+  
+  optimizeScript: function(scriptASM) {
+    if (!bsv.SmartContract || !bsv.SmartContract.optimizeScript) {
+      throw new Error('SmartContract optimizer not available in bundle')
+    }
+    const script = bsv.Script.fromASM(scriptASM)
+    return bsv.SmartContract.optimizeScript(script)
+  },
+  
+  // Covenant development (NEW v3.2.1)
+  createCovenant: function(config) {
+    if (!bsv.CovenantInterface) {
+      throw new Error('CovenantInterface not available in bundle')
+    }
+    const covenantInterface = new bsv.CovenantInterface()
+    return covenantInterface.createCovenantTransaction(config)
+  },
+  
+  // Custom script development (NEW v3.2.1)
+  createCustomSignature: function(transaction, privateKey, inputIndex, lockingScript, satoshis, sighashType) {
+    if (!bsv.CustomScriptHelper) {
+      throw new Error('CustomScriptHelper not available in bundle')
+    }
+    return bsv.CustomScriptHelper.createSignature(transaction, privateKey, inputIndex, lockingScript, satoshis, sighashType)
+  },
+  
+  // Advanced sighash access (NEW v3.2.1)
+  calculateSighash: function(transaction, sighashType, inputNumber, subscript, satoshisBN) {
+    if (!bsv.Transaction || !bsv.Transaction.sighash) {
+      throw new Error('Advanced sighash functionality not available in bundle')
+    }
+    return bsv.Transaction.sighash.sighash(transaction, sighashType, inputNumber, subscript, satoshisBN)
   }
 }
 
