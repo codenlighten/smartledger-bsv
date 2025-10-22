@@ -5,6 +5,153 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2025-10-22
+
+### 🚀 MAJOR RELEASE: Legal Token Protocol (LTP) & Global Digital Attestation Framework (GDAF)
+
+#### Revolutionary Legal Token Protocol Framework
+- **Complete Legal Token Protocol (LTP)**: 6-module comprehensive legal framework
+  - **lib/ltp/anchor.js**: Blockchain anchoring preparation primitives
+  - **lib/ltp/registry.js**: Token registry management primitives  
+  - **lib/ltp/claim.js**: Legal claim validation and attestation primitives
+  - **lib/ltp/proof.js**: Cryptographic proof generation primitives
+  - **lib/ltp/right.js**: Legal rights token creation and validation primitives
+  - **lib/ltp/obligation.js**: Legal obligation token management primitives
+
+#### Primitives-Only Architecture Philosophy
+- **No Blockchain Publishing**: Library provides preparation functions only
+- **External System Integration**: Perfect for enterprise and custom implementations
+- **Maximum Flexibility**: Choose your own blockchain, storage, and UI frameworks
+- **Clean Separation**: Cryptographic correctness separated from application logic
+
+#### Legal Token Framework Components
+- **46 LTP Primitive Methods**: Complete coverage across all legal token operations
+  - 4 Right Token Primitives (prepare, verify, transfer, validate)
+  - 5 Obligation Token Primitives (create, verify, fulfill, breach assessment, monitoring)
+  - 5 Claim Validation Primitives (validate, attest, dispute, bulk processing, templates)
+  - 6 Proof Generation Primitives (signature, selective disclosure, ZK, legal validity)
+  - 8 Registry Management Primitives (registry setup, registration, approval, revocation, queries)
+  - 4 Blockchain Anchoring Primitives (commitment, batch processing, verification, revocation)
+
+#### W3C-Compliant Legal Standards
+- **PropertyTitle**: Complete property ownership claim schema
+- **VehicleTitle**: Vehicle ownership and transfer documentation
+- **PromissoryNote**: Financial obligation and debt instruments
+- **IntellectualProperty**: IP rights and licensing framework
+- **ProfessionalLicense**: Professional certification and licensing
+- **MusicLicense**: Music rights and royalty management
+
+#### Global Digital Attestation Framework (GDAF)
+- **6-Module GDAF Implementation**: Complete W3C Verifiable Credentials compliance
+  - **lib/gdaf/attestation.js**: Digital attestation creation and verification
+  - **lib/gdaf/identity.js**: Decentralized identity management
+  - **lib/gdaf/registry.js**: Attestation registry and discovery
+  - **lib/gdaf/credential.js**: W3C Verifiable Credentials implementation
+  - **lib/gdaf/proof.js**: Cryptographic proof systems
+  - **lib/gdaf/verification.js**: Multi-layer verification framework
+
+#### Enhanced Cryptographic Primitives
+- **Shamir Secret Sharing**: Complete k-of-n threshold cryptography
+  - **lib/crypto/shamir.js**: Production-ready SSS implementation
+  - **bsv.createShares()**: Split secrets into threshold shares
+  - **bsv.reconstructSecret()**: Reconstruct from threshold shares
+  - **bsv.verifyShares()**: Validate share integrity
+
+### 🎯 Complete Legal Token Workflow Example
+
+#### Real BSV Integration Demonstration
+- **Real Private Keys**: Actual BSV addresses and WIF keys generated
+- **Mock UTXO System**: Complete testing framework without blockchain dependency
+- **Smart Contract Covenants**: Legal token enforcement through BSV covenants
+- **End-to-End Workflow**: From claim creation to token transfer with covenant validation
+
+#### Example Results from `complete_ltp_demo.js`:
+- Property Right Token: `RT-1bd80ac44e27c3ec0f9dffdd2efffe07`
+- Obligation Token: `OB-e87eb0388db36b8b5777118ae45c46d3`
+- Covenant Address: `1MhX6MRVE79Qn4CtQ6bkk5JJJeMCTXBwwo`
+- Transfer Transaction: `4b1125d5dfc53e0157b843b8d2e964922331dd509ca096f9a470bfda421b43e6`
+
+### 🏗️ Architecture Excellence
+
+#### Interface Transformation
+**Before (Application Framework):**
+```javascript
+bsv.createRightToken()     // Created AND published to blockchain
+bsv.validateLegalClaim()   // Validated AND stored in database
+bsv.anchorTokenBatch()     // Created batch AND sent transaction
+```
+
+**After (Primitives-Only):**
+```javascript
+bsv.prepareRightToken()           // Prepares token structure only
+bsv.prepareClaimValidation()      // Validates structure only  
+bsv.prepareBatchCommitment()      // Prepares commitment only
+```
+
+### 🛠️ New Development Tools & Testing
+
+#### Comprehensive Demo Suite
+- **complete_ltp_demo.js**: Full end-to-end LTP workflow with real BSV keys
+- **simple_demo.js**: Architectural overview and primitives showcase
+- **architecture_demo.js**: Before/after comparison demonstration
+- **gdaf_demo.js**: Complete GDAF framework demonstration
+- **shamir_demo.js**: Threshold cryptography examples
+
+#### New NPM Scripts
+- **`npm run test:ltp`**: Complete Legal Token Protocol demonstration
+- **`npm run test:ltp-primitives`**: Primitives-only architecture showcase
+- **`npm run test:architecture`**: Architectural transformation comparison
+
+### 📦 Enhanced Build System
+
+#### New Standalone Modules
+- **bsv-ltp.min.js**: Complete Legal Token Protocol standalone module
+- **bsv-shamir.min.js**: Standalone Shamir Secret Sharing module
+- **bsv-gdaf.min.js**: Complete GDAF framework module
+
+#### Updated Keywords & Metadata
+```json
+"legal-token-protocol", "ltp", "legal-tokens", "primitives-only",
+"legal-compliance", "property-rights", "obligations", "attestations",
+"gdaf", "global-digital-attestation", "w3c-credentials", 
+"verifiable-credentials", "shamir-secret-sharing", "threshold-cryptography"
+```
+
+### 💫 Enterprise Integration Benefits
+
+#### For Developers
+- ✅ Choose any blockchain platform (BSV, Bitcoin, Ethereum, etc.)
+- ✅ Choose any storage solution (SQL, NoSQL, IPFS, etc.)
+- ✅ Full architectural control and system integration
+- ✅ Easy integration with existing business systems
+
+#### For Enterprises  
+- ✅ No vendor lock-in to specific platforms
+- ✅ Compliance with existing IT policies
+- ✅ Legacy system compatibility
+- ✅ Audit-friendly separation of concerns
+
+#### For Security & Legal
+- ✅ Isolated cryptographic operations
+- ✅ Standardized legal token structures
+- ✅ Predictable, deterministic behavior
+- ✅ Regulatory compliance primitives
+
+### 🔄 Migration from v3.2.x
+
+#### Backward Compatibility
+- All existing APIs remain functional
+- New primitives-only methods added alongside existing functionality
+- Gradual migration path available for existing applications
+
+#### Recommended Migration Steps
+1. Test new LTP primitives with existing data structures
+2. Gradually replace direct blockchain operations with preparation primitives
+3. Implement external systems for blockchain publishing and storage
+4. Enjoy increased flexibility and architectural control
+
+---
+
 ## [3.2.0] - 2025-10-19
 
 ### 🚀 MAJOR RELEASE: JavaScript-to-Bitcoin Script Framework

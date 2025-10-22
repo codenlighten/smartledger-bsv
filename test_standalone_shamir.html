@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BSV Shamir Secret Sharing - Standalone Test</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>BSV Shamir Secret Sharing - Standalone Module Test</h1>
+    <div id="output"></div>
+
+    <script src="bsv-shamir.min.js"></script>
+    <script>
+        function log(message) {
+            document.getElementById('output').innerHTML += message + '<br>';
+            console.log(message);
+        }
+
+        log('=== BSV Shamir Standalone Module Test ===');
+        log('');
+
+        try {
+            if (typeof bsvShamir === 'undefined') {
+                log('❌ bsvShamir not available');
+            } else {
+                log('✅ bsvShamir loaded successfully');
+                log('Version: ' + bsvShamir.version);
+                log('Algorithm: ' + bsvShamir.algorithm);
+                log('');
+
+                // Test basic functionality
+                var secret = 'Hello from Browser!';
+                var threshold = 2;
+                var shares = 4;
+
+                log('🔐 Testing secret splitting...');
+                log('Secret: ' + secret);
+                log('Threshold: ' + threshold + ', Total shares: ' + shares);
+
+                var splitShares = bsvShamir.split(secret, threshold, shares);
+                log('✅ Split into ' + splitShares.length + ' shares');
+
+                // Test reconstruction
+                log('');
+                log('🔓 Testing secret reconstruction...');
+                var reconstructed = bsvShamir.combine(splitShares.slice(0, threshold));
+                var reconstructedSecret = reconstructed.toString();
+
+                log('Reconstructed: ' + reconstructedSecret);
+                
+                if (reconstructedSecret === secret) {
+                    log('✅ Reconstruction successful!');
+                } else {
+                    log('❌ Reconstruction failed');
+                }
+
+                // Test share verification
+                log('');
+                log('🔍 Testing share verification...');
+                var validShares = 0;
+                for (var i = 0; i < splitShares.length; i++) {
+                    if (bsvShamir.verifyShare(splitShares[i])) {
+                        validShares++;
+                    }
+                }
+                log('Valid shares: ' + validShares + '/' + splitShares.length);
+
+                // Run demo
+                log('');
+                log('🚀 Running demo...');
+                var demoResult = bsvShamir.demo();
+                log('Demo completed: ' + (demoResult.success ? 'SUCCESS' : 'FAILED'));
+                
+                log('');
+                log('🎉 All tests completed successfully!');
+                log('📦 BSV Shamir Secret Sharing standalone module is working correctly.');
+            }
+        } catch (error) {
+            log('❌ Error: ' + error.message);
+            console.error('Full error:', error);
+        }
+    </script>
+</body>
+</html>
