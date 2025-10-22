@@ -1,6 +1,6 @@
 {
   "name": "smartledger-bsv",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "description": "🚀 Complete Bitcoin SV development framework with Legal Token Protocol (LTP), Global Digital Attestation Framework (GDAF), Shamir Secret Sharing, and 9 flexible loading options. Includes primitives-only architecture for maximum integration flexibility, SmartContract framework, covenant builder, and comprehensive Bitcoin SV API. Perfect for legal tokens, DeFi, smart contracts, and secure Bitcoin applications.",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
