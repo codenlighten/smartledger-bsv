@@ -23,7 +23,83 @@ The most comprehensive and flexible Bitcoin SV library available. Choose from 9 
 | **bsv-message.min.js** | 26KB | Message signing | `unpkg.com/@smartledger/bsv@3.2.1/bsv-message.min.js` |
 | **bsv-mnemonic.min.js** | 670KB | HD wallets | `unpkg.com/@smartledger/bsv@3.2.1/bsv-mnemonic.min.js` |
 
-## � **Quick Start Examples**
+## ⚡ **2-Minute Quick Start**
+
+Get started with Bitcoin SV development in under 2 minutes:
+
+```bash
+# Install via npm
+npm install @smartledger/bsv
+
+# Or include in HTML
+<script src="https://unpkg.com/@smartledger/bsv@3.2.1/bsv.min.js"></script>
+```
+
+**Basic Transaction (30 seconds):**
+```javascript
+const bsv = require('@smartledger/bsv'); // Node.js
+// const bsv = window.bsv; // Browser
+
+// 1. Generate keys
+const privateKey = new bsv.PrivateKey();
+const address = privateKey.toAddress();
+
+// 2. Create transaction
+const tx = new bsv.Transaction()
+  .from(utxo)                    // Add input
+  .to(targetAddress, 50000)      // Send 50,000 satoshis
+  .change(address)               // Send change back
+  .sign(privateKey);             // Sign transaction
+
+console.log('Transaction ID:', tx.id);
+```
+
+**Covenant Development (90 seconds):**
+```javascript
+// Load covenant interface
+const covenant = new bsv.CovenantInterface();
+
+// Create covenant transaction with preimage access
+const covenantTx = covenant.createCovenantTransaction({
+  inputs: [utxo],
+  outputs: [{ address: targetAddress, satoshis: 99000 }]
+});
+
+// Get BIP143 preimage for validation
+const preimage = covenantTx.getPreimage(0, lockingScript, satoshis);
+
+// Create manual signature
+const signature = covenant.createSignature(tx, privateKey, 0, script, satoshis);
+```
+
+**Next Steps:**
+- 📖 [Advanced Covenant Guide](docs/ADVANCED_COVENANT_DEVELOPMENT.md)
+- 🛠️ [Custom Script Development](docs/CUSTOM_SCRIPT_DEVELOPMENT.md)
+- 🔧 [API Reference](#api-reference)
+- 💡 [Examples Directory](examples/)
+
+## 🔧 **API Reference**
+
+| Component | Method | Purpose | Example |
+|-----------|--------|---------|---------|
+| **Core** | `new PrivateKey()` | Generate private key | `const key = new bsv.PrivateKey()` |
+| | `new Transaction()` | Create transaction | `const tx = new bsv.Transaction()` |
+| | `Script.fromASM()` | Parse script | `const script = bsv.Script.fromASM('OP_DUP')` |
+| **Covenant** | `CovenantInterface()` | Covenant development | `const covenant = new bsv.CovenantInterface()` |
+| | `createCovenantTransaction()` | Covenant transaction | `covenant.createCovenantTransaction(config)` |
+| | `getPreimage()` | BIP143 preimage | `covenant.getPreimage(tx, 0, script, sats)` |
+| **Custom Scripts** | `CustomScriptHelper()` | Script utilities | `const helper = new bsv.CustomScriptHelper()` |
+| | `createSignature()` | Manual signature | `helper.createSignature(tx, key, 0, script, sats)` |
+| | `createMultisigScript()` | Multi-signature | `helper.createMultisigScript([pk1, pk2], 2)` |
+| **Debug Tools** | `SmartContract.examineStack()` | Analyze script | `SmartContract.examineStack(script)` |
+| | `interpretScript()` | Execute script | `SmartContract.interpretScript(script)` |
+| | `getScriptMetrics()` | Performance data | `SmartContract.getScriptMetrics(script)` |
+| **Security** | `SmartVerify.verify()` | Enhanced verification | `SmartVerify.verify(sig, hash, pubkey)` |
+| | `EllipticFixed.sign()` | Secure signing | `EllipticFixed.sign(hash, privateKey)` |
+
+> 💡 **Tip:** All methods include comprehensive error handling and validation. See [documentation links](#documentation) for detailed guides.
+
+## 📚 **Quick Start Examples**
 
 ### Minimal Setup (476KB total)
 ```html
@@ -61,27 +137,29 @@ The most comprehensive and flexible Bitcoin SV library available. Choose from 9 
 ## 🎯 **Key Features**
 
 ### Core Library  
-- ✅ **Complete BSV API**: Full Bitcoin SV blockchain operations
-- ✅ **SmartContract Framework**: 59+ methods for script development and debugging
-- ✅ **Security Hardened**: SmartLedger elliptic curve fixes and enhanced validation
-- ✅ **Browser + Node.js**: Universal compatibility with proper polyfills
+- ✅ **Complete BSV API**: Full Bitcoin SV blockchain operations → [API Reference](#api-reference)
+- ✅ **SmartContract Framework**: 59+ methods for script development and debugging → [SmartContract Integration](SMARTCONTRACT_INTEGRATION.md)
+- ✅ **Security Hardened**: SmartLedger elliptic curve fixes and enhanced validation → [Security Features](#smart-security)
+- ✅ **Browser + Node.js**: Universal compatibility with proper polyfills → [Loading Options](#9-loading-options--choose-your-approach)
 - ✅ **TypeScript Ready**: Complete type definitions included
 
 ### Advanced Development Tools
-- � **Covenant Interface**: High-level covenant development framework
-- � **Custom Script Helper**: Simplified API for script creation and signing  
-- 🔒 **Debug Tools**: Script interpreter, stack examiner, metrics, and optimizer
-- 🔒 **BIP143 Compliant**: Complete preimage parsing and manipulation
-- 🔒 **PUSHTX Integration**: nChain techniques for advanced covenant patterns
+- � **Covenant Interface**: High-level covenant development framework → [Covenant Guide](docs/ADVANCED_COVENANT_DEVELOPMENT.md)
+- � **Custom Script Helper**: Simplified API for script creation and signing → [Script Development](docs/CUSTOM_SCRIPT_DEVELOPMENT.md)
+- 🔒 **Debug Tools**: Script interpreter, stack examiner, metrics, and optimizer → [Debug Examples](tests/smartcontract-test.html)
+- 🔒 **BIP143 Compliant**: Complete preimage parsing and manipulation → [Preimage Tools](examples/preimage/)
+- 🔒 **PUSHTX Integration**: nChain techniques for advanced covenant patterns → [PUSHTX Insights](docs/pushtx-key-insights.md)
 
 ### Flexible Architecture
-- 📦 **Modular Loading**: Load only what you need
-- 📦 **Standalone Modules**: Independent security and utility modules
-- 📦 **Complete Bundle**: Everything in one file for convenience
+- 📦 **Modular Loading**: Load only what you need → [Loading Strategy](#loading-strategy-examples)
+- 📦 **Standalone Modules**: Independent security and utility modules → [Standalone Test](tests/standalone-modules-test.html)
+- 📦 **Complete Bundle**: Everything in one file for convenience → [Bundle Demo](tests/bundle-demo.html)
 - 📦 **CDN Ready**: All modules available via unpkg and jsDelivr
 - 📦 **Webpack Optimized**: Tree-shakeable and build-tool friendly
 
 ## ⚡ **Installation & Usage**
+
+> 💡 **Quick Start**: Jump to [2-Minute Quick Start](#2-minute-quick-start) for instant setup examples
 
 ### NPM Installation
 ```bash
@@ -91,6 +169,8 @@ npm install @smartledger/bsv
 # Alternative package name (legacy)
 npm install smartledger-bsv
 ```
+
+> 📖 **Next Steps**: After installation, see [Loading Options](#9-loading-options--choose-your-approach) to choose your distribution method
 
 ### Node.js Usage
 ```javascript
@@ -362,20 +442,82 @@ const timelockScript = helper.createTimelockScript(
 
 ## 📄 License
 
+---
+
+## 📚 **Complete Documentation**
+
+### 🚀 **Getting Started**
+- **[2-Minute Quick Start](#2-minute-quick-start)** - Get up and running fast
+- **[Loading Options](#9-loading-options--choose-your-approach)** - Choose your distribution method
+- **[API Reference](#api-reference)** - Quick method lookup
+- **[Installation Guide](#installation)** - npm, CDN, and browser setup
+
+### 🎯 **Development Guides**
+- **[Advanced Covenant Development](docs/ADVANCED_COVENANT_DEVELOPMENT.md)** - Complete BIP143 + PUSHTX guide
+- **[Custom Script Development](docs/CUSTOM_SCRIPT_DEVELOPMENT.md)** - Multi-sig, timelock, and custom patterns
+- **[Covenant Development Resolved](docs/COVENANT_DEVELOPMENT_RESOLVED.md)** - Solutions to common issues
+- **[PUSHTX Key Insights](docs/pushtx-key-insights.md)** - nChain research implementation
+
+### 🔧 **Technical Resources**
+- **[SmartContract Integration](SMARTCONTRACT_INTEGRATION.md)** - Debug tools and analysis
+- **[Examples Directory](examples/)** - Working code samples
+- **[Test Suite](tests/)** - Comprehensive testing examples
+- **[Build System](build/)** - Webpack configurations
+
+### 🌐 **Loading Strategy Examples**
+
+| **Use Case** | **Recommended Load** | **Size** | **Features** |
+|--------------|---------------------|----------|--------------|
+| **Simple Transactions** | `bsv.min.js` | 449KB | Core BSV + SmartContract |
+| **DeFi Development** | Core + Covenant + Debug | 932KB | Advanced contracts + tools |
+| **Enterprise Apps** | `bsv.bundle.js` | 764KB | Everything included |
+| **Mobile/Lightweight** | Core + Script Helper | 476KB | Essential tools only |
+| **Research/Analysis** | Core + SmartContract | 900KB | Full debug capabilities |
+
+### 🔗 **Cross-References**
+
+**From Quick Start → Deep Dive:**
+- [Basic Transaction](#2-minute-quick-start) → [Transaction API](docs/transaction.md)
+- [Covenant Example](#2-minute-quick-start) → [Advanced Covenant Guide](docs/ADVANCED_COVENANT_DEVELOPMENT.md)
+- [API Reference](#api-reference) → [Method Documentation](docs/)
+
+**From Examples → Implementation:**
+- [Covenant Examples](examples/covenants/) → [Production Guide](docs/ADVANCED_COVENANT_DEVELOPMENT.md#production-guidelines)
+- [Script Examples](examples/scripts/) → [Custom Script Guide](docs/CUSTOM_SCRIPT_DEVELOPMENT.md)
+- [Test Files](tests/) → [Integration Examples](examples/)
+
+**From Concepts → Code:**
+- [PUSHTX Theory](docs/pushtx-key-insights.md) → [Covenant Implementation](examples/covenants/advanced_covenant_demo.js)
+- [Security Features](#smart-security) → [Implementation](lib/crypto/smartledger_verify.js)
+- [Debug Tools](#debug-tools) → [Usage Examples](tests/smartcontract-test.html)
+
+### 🎓 **Learning Path**
+
+1. **Start**: [2-Minute Quick Start](#2-minute-quick-start)
+2. **Practice**: [Examples Directory](examples/) 
+3. **Build**: [Custom Script Guide](docs/CUSTOM_SCRIPT_DEVELOPMENT.md)
+4. **Advanced**: [Covenant Development](docs/ADVANCED_COVENANT_DEVELOPMENT.md)
+5. **Deploy**: [Production Guidelines](docs/ADVANCED_COVENANT_DEVELOPMENT.md#production-guidelines)
+
+---
+
+## 📄 **License**
+
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
+## 🤝 **Contributing**
 
 We welcome contributions to SmartLedger-BSV! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-## 🏢 Enterprise Support
+## 🏢 **Enterprise Support**
 
 - **GitHub**: [github.com/codenlighten/smartledger-bsv](https://github.com/codenlighten/smartledger-bsv)
 - **NPM**: [@smartledger/bsv](https://www.npmjs.com/package/@smartledger/bsv)
 - **Issues**: [GitHub Issues](https://github.com/codenlighten/smartledger-bsv/issues)
+- **Documentation**: [Complete Docs](#complete-documentation)
 
 ---
 
-**SmartLedger-BSV v3.1.1** - *Advanced Bitcoin SV Library with Enterprise Covenant Framework*
+**SmartLedger-BSV v3.2.1** - *Complete Bitcoin SV Development Framework*
 
-Built with ❤️ for the Bitcoin SV ecosystem
+Built with ❤️ for the Bitcoin SV ecosystem • 9 Loading Options • Enterprise Ready
