@@ -124,6 +124,34 @@ try {
   console.warn('CustomScriptHelper module not available:', e.message)
 }
 
+// Include Legal Token Protocol (LTP) - NEW v3.3.0
+try {
+  const LTP = require('./lib/ltp')
+  bsv.LTP = LTP
+  console.log('Legal Token Protocol (LTP) loaded in bundle with', Object.keys(LTP).length, 'methods')
+} catch (e) {
+  console.warn('LTP module not available:', e.message)
+}
+
+// Include Global Digital Attestation Framework (GDAF) - NEW v3.3.0
+try {
+  const GDAF = require('./lib/gdaf')
+  bsv.GDAF = GDAF
+  console.log('Global Digital Attestation Framework (GDAF) loaded in bundle')
+} catch (e) {
+  console.warn('GDAF module not available:', e.message)
+}
+
+// Include Shamir Secret Sharing - NEW v3.3.0
+try {
+  const Shamir = require('./lib/crypto/shamir')
+  bsv.crypto.Shamir = Shamir
+  bsv.Shamir = Shamir
+  console.log('Shamir Secret Sharing loaded in bundle')
+} catch (e) {
+  console.warn('Shamir module not available:', e.message)
+}
+
 // SmartLedger security modules (matching index.js structure)
 bsv.SmartLedger = {
   version: bsv.version,
@@ -159,7 +187,10 @@ bsv.bundle = {
     'debug-tools',
     'covenant-interface',
     'custom-script-helper',
-    'advanced-sighash'
+    'advanced-sighash',
+    'legal-token-protocol-ltp',
+    'global-digital-attestation-gdaf',
+    'shamir-secret-sharing'
   ],
   size: 'complete',
   type: 'all-in-one'
@@ -259,6 +290,51 @@ bsv.SmartLedgerBundle = {
       throw new Error('Advanced sighash functionality not available in bundle')
     }
     return bsv.Transaction.sighash.sighash(transaction, sighashType, inputNumber, subscript, satoshisBN)
+  },
+  
+  // Legal Token Protocol methods (NEW v3.3.0)
+  createRightToken: function(type, issuerDID, subjectDID, claim, privateKey, options) {
+    if (!bsv.LTP) {
+      throw new Error('Legal Token Protocol (LTP) not available in bundle')
+    }
+    return bsv.LTP.prepareRightToken(type, issuerDID, subjectDID, claim, privateKey, options)
+  },
+  
+  verifyRightToken: function(token) {
+    if (!bsv.LTP) {
+      throw new Error('Legal Token Protocol (LTP) not available in bundle')
+    }
+    return bsv.LTP.prepareRightTokenVerification(token)
+  },
+  
+  // GDAF identity methods (NEW v3.3.0)
+  createDID: function(publicKey) {
+    if (!bsv.GDAF) {
+      throw new Error('Global Digital Attestation Framework (GDAF) not available in bundle')
+    }
+    return bsv.GDAF.createDID(publicKey)
+  },
+  
+  issueCredential: function(issuerWIF, payload) {
+    if (!bsv.GDAF) {
+      throw new Error('Global Digital Attestation Framework (GDAF) not available in bundle')
+    }
+    return bsv.GDAF.issueVC(issuerWIF, payload)
+  },
+  
+  // Shamir Secret Sharing methods (NEW v3.3.0)
+  splitSecret: function(secret, n, k) {
+    if (!bsv.Shamir) {
+      throw new Error('Shamir Secret Sharing not available in bundle')
+    }
+    return bsv.Shamir.split(secret, n, k)
+  },
+  
+  reconstructSecret: function(shares) {
+    if (!bsv.Shamir) {
+      throw new Error('Shamir Secret Sharing not available in bundle')
+    }
+    return bsv.Shamir.reconstruct(shares)
   }
 }
 
