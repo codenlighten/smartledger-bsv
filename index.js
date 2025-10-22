@@ -83,7 +83,12 @@ bsv.PrivateKey = require('./lib/privatekey')
 bsv.PublicKey = require('./lib/publickey')
 bsv.Script = require('./lib/script')
 bsv.Transaction = require('./lib/transaction')
+bsv.Input = require('./lib/transaction').Input
+bsv.Output = require('./lib/transaction').Output
+bsv.UnspentOutput = require('./lib/transaction').UnspentOutput
 bsv.Message = require('./lib/message')
+bsv.Mnemonic = require('./lib/mnemonic')
+bsv.ECIES = require('./lib/ecies')
 bsv.Signature = require('./lib/crypto/signature')
 bsv.Shamir = require('./lib/crypto/shamir')
 
