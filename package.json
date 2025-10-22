@@ -32,7 +32,7 @@
     "build-script-helper": "NODE_OPTIONS=\"--openssl-legacy-provider\" webpack script-helper-entry.js --config build/webpack.script-helper.config.js",
     "build-security": "NODE_OPTIONS=\"--openssl-legacy-provider\" webpack security-entry.js --config build/webpack.security.config.js",
     "build-bundle": "NODE_OPTIONS=\"--openssl-legacy-provider\" webpack bundle-entry.js --config build/webpack.bundle.config.js",
-    "build": "npm run build-bsv && npm run build-ecies && npm run build-message && npm run build-mnemonic && npm run build-shamir && npm run build-gdaf && npm run build-smartcontract",
+    "build": "npm run build-bsv && npm run build-ecies && npm run build-message && npm run build-mnemonic && npm run build-shamir && npm run build-smartcontract",
     "build-specialized": "npm run build-covenant && npm run build-script-helper && npm run build-security",
     "build-all": "npm run build && npm run build-bundle && npm run build-specialized",
     "test:browser": "echo 'Open tests/standalone-modules-test.html in browser for comprehensive testing'",
