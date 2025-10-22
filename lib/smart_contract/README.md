@@ -7,7 +7,7 @@ The SmartContract module provides enterprise-grade covenant functionality for Bi
 ## Installation & Usage
 
 ```javascript
-const bsv = require('bsv-elliptic-fix')
+const bsv = require('smartledger-bsv')
 
 // Access SmartContract module
 const SmartContract = bsv.SmartContract

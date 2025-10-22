@@ -17,7 +17,7 @@
 ### Example 1: Simple Value Check
 
 ```javascript
-const SmartContract = require('bsv-elliptic-fix').SmartContract
+const SmartContract = require('smartledger-bsv').SmartContract
 
 // Ensure transaction maintains minimum value
 function createValueGuard(minimumSatoshis) {
@@ -419,7 +419,7 @@ function createSubscriptionCovenant(serviceProvider, subscriptionFee, renewalPer
 ### Example 12: Complete Covenant Deployment
 
 ```javascript
-const bsv = require('bsv-elliptic-fix')
+const bsv = require('smartledger-bsv')
 const SmartContract = bsv.SmartContract
 
 async function deployValueLockCovenant(privateKey, minimumValue, utxo) {
