@@ -5,7 +5,7 @@
  * to foundation library with primitives-only approach.
  */
 
-const bsv = require('./index.js')
+const bsv = require('../index.js')
 
 console.log('🚀 SmartLedger-BSV LTP: Primitives-Only Architecture')
 console.log('==================================================\n')

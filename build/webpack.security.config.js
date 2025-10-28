@@ -2,9 +2,9 @@ const path = require('path');
 
 module.exports = {
   mode: 'production',
-  entry: './security-entry.js',
+  entry: '../security-entry.js',
   output: {
-    path: path.resolve(__dirname, '.'),
+    path: path.resolve(__dirname, '../'),
     filename: 'bsv-security.min.js',
     library: 'bsvSecurity',
     libraryTarget: 'var'

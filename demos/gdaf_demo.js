@@ -9,7 +9,7 @@
  * - Schema validation
  */
 
-const bsv = require('./index.js')
+const bsv = require('../index.js')
 
 console.log('🌐 SmartLedger BSV Global Digital Attestation Framework Demo')
 console.log('=========================================================\n')

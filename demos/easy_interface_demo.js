@@ -5,7 +5,7 @@
  * without needing to create separate GDAF instances.
  */
 
-const bsv = require('./index.js')
+const bsv = require('../index.js')
 
 console.log('🎯 SmartLedger BSV - Easy GDAF Developer Interface')
 console.log('=================================================\n')

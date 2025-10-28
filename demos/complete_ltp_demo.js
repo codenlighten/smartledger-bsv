@@ -8,7 +8,7 @@
  * - Complete end-to-end LTP workflow
  */
 
-const bsv = require('./index.js')
+const bsv = require('../index.js')
 const crypto = require('crypto')
 
 console.log('🚀 SmartLedger-BSV LTP: Complete Working Example')

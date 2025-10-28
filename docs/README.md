@@ -1,84 +1,112 @@
 # SmartLedger-BSV Documentation
 
-Comprehensive documentation for SmartLedger-BSV v3.1.1+ - Advanced Bitcoin SV Library with Enterprise Covenant Framework.
+**The Standard Bitcoin SV Library - Enhanced, Hardened, and Extended**
 
-## 📚 Documentation Structure
+SmartLedger-BSV is a fully backward-compatible extension of bsv@1.5.6 with elliptic curve hardening and comprehensive additional modules for modern Bitcoin SV development.
 
-### Core Guides
-- **[Getting Started](getting-started.md)** - Installation, setup, and first steps
-- **[API Reference](api-reference.md)** - Complete API documentation
-- **[Configuration Guide](configuration.md)** - Setup and optimization
+## 🎯 **What Makes SmartLedger-BSV the Standard**
 
-### Advanced Features
-- **[Advanced Covenant Development](ADVANCED_COVENANT_DEVELOPMENT.md)** - BIP143 + nChain PUSHTX techniques
-- **[Custom Script Development](CUSTOM_SCRIPT_DEVELOPMENT.md)** - Script creation patterns
-- **[Covenant Development Resolved](COVENANT_DEVELOPMENT_RESOLVED.md)** - Problem solutions and working examples
+- **✅ 100% Backward Compatible** with bsv@1.5.6 - Drop-in replacement
+- **🛡️ Security Hardened** - Enhanced elliptic curve implementations  
+- **📦 12 Modular Loading Options** - Use only what you need
+- **⚖️ Legal Compliance Ready** - Built-in Legal Token Protocol (LTP)
+- **🌐 Digital Identity Native** - W3C standard DIDs and Verifiable Credentials
+- **🔐 Enterprise Security** - Shamir Secret Sharing and advanced cryptography
+- **🔒 Smart Contract Framework** - Complete covenant development toolkit
+- **📚 Production Ready** - Comprehensive documentation and examples
 
-### Technical Specifications
-- **[BIP143 Preimage Format](preimage.md)** - Detailed preimage structure specification
-- **[nChain PUSHTX Paper](nchain.md)** - Academic research integration (WP1605)
-- **[Security Best Practices](security-best-practices.md)** - Production guidelines
+## 📚 **Documentation Structure**
 
-## 🎯 Quick Navigation
+### 🚀 **Getting Started**
+Perfect for developers new to Bitcoin SV or migrating from other libraries.
 
-### New to SmartLedger-BSV?
-1. **[Getting Started](getting-started.md)** - Begin here for installation and basic usage
-2. **[Examples Directory](../examples/)** - Hands-on code examples
-3. **[Basic Usage](#basic-usage)** - Common patterns and workflows
+- [**Quick Start Guide**](getting-started/QUICK_START.md) - Get running in 2 minutes
+- [**Installation & Setup**](getting-started/INSTALLATION.md) - All installation methods
+- [**Migration from bsv@1.5.6**](migration/FROM_BSV_1_5_6.md) - Seamless upgrade path
+- [**Migration from BitcoinJS**](migration/FROM_BITCOINJS.md) - Switch from BitcoinJS-lib
+- [**First Transaction**](getting-started/FIRST_TRANSACTION.md) - Hello World example
 
-### Building Custom Scripts?
-1. **[Custom Script Development](CUSTOM_SCRIPT_DEVELOPMENT.md)** - Complete guide to script creation
-2. **[Script Examples](../examples/scripts/)** - Working code examples
-3. **[API Reference](api-reference.md)** - CustomScriptHelper documentation
+### 📖 **Core API Guides** 
+Complete guides for standard Bitcoin SV operations.
 
-### Developing Covenants?
-1. **[Advanced Covenant Development](ADVANCED_COVENANT_DEVELOPMENT.md)** - Complete covenant framework
-2. **[Covenant Examples](../examples/covenants/)** - Working covenant patterns  
-3. **[BIP143 Specification](preimage.md)** - Preimage structure details
-4. **[nChain PUSHTX](nchain.md)** - Academic research foundation
+- [**Transactions**](api/TRANSACTIONS.md) - Create, sign, and broadcast transactions
+- [**Addresses & Keys**](api/ADDRESSES_KEYS.md) - Generate and manage Bitcoin addresses
+- [**Scripts**](api/SCRIPTS.md) - Bitcoin Script creation and execution
+- [**Networks**](api/NETWORKS.md) - Mainnet, testnet, and custom networks
+- [**ECIES Encryption**](api/ECIES.md) - Elliptic Curve encryption/decryption
+- [**Message Signing**](api/MESSAGE_SIGNING.md) - Sign and verify messages
+- [**HD Wallets**](api/HD_WALLETS.md) - Hierarchical Deterministic wallets
 
-### Production Deployment?
-1. **[Security Best Practices](security-best-practices.md)** - Production guidelines
-2. **[Configuration Guide](configuration.md)** - Optimization and setup
-3. **[API Reference](api-reference.md)** - Complete API documentation
+### � **Advanced Features**
+Unique capabilities that set SmartLedger-BSV apart.
 
-## 🚀 Key Features Overview
+- [**Legal Token Protocol (LTP)**](advanced/LEGAL_TOKEN_PROTOCOL.md) - Property rights & obligations
+- [**Global Digital Attestation (GDAF)**](advanced/DIGITAL_ATTESTATION.md) - DIDs & credentials
+- [**Shamir Secret Sharing**](advanced/SHAMIR_SECRET_SHARING.md) - Threshold cryptography
+- [**Smart Contract Framework**](advanced/SMART_CONTRACT_GUIDE.md) - Complete covenant development
+- [**UTXO Management**](advanced/UTXO_MANAGER_GUIDE.md) - Advanced UTXO operations
+- [**Custom Script Development**](advanced/CUSTOM_SCRIPT_DEVELOPMENT.md) - Build custom Bitcoin scripts
 
-### Core Library Capabilities
-- **Complete BSV API**: Full compatibility with Bitcoin SV operations
-- **Ultra-Low Fees**: 0.01 sats/byte configuration (91% fee reduction)  
-- **UTXO Management**: Advanced state management with change outputs
-- **CDN Distribution**: Multiple webpack bundles for web development
-- **Security Hardened**: Enhanced elliptic curve security fixes
+### 🎓 **Developer Guides**
+Step-by-step tutorials for common development patterns.
 
-### Advanced Covenant Framework
-- **BIP143 Compliant**: Complete preimage parsing with field-by-field access
-- **PUSHTX Integration**: nChain WP1605 in-script signature generation
-- **PELS Support**: Perpetually Enforcing Locking Scripts for ongoing rules
-- **Dual-Level API**: High-level abstractions with granular BSV control
-- **Production Ready**: Comprehensive validation and error handling
+- [**Building a Wallet**](guides/BUILDING_WALLET.md) - Complete wallet implementation
+- [**Payment Processing**](guides/PAYMENT_PROCESSING.md) - Accept Bitcoin payments
+- [**Multi-signature Transactions**](guides/MULTISIG_TRANSACTIONS.md) - Multi-party security
+- [**Atomic Swaps**](guides/ATOMIC_SWAPS.md) - Trustless exchanges
+- [**Micropayment Channels**](guides/MICROPAYMENT_CHANNELS.md) - Payment channels
+- [**Data Storage on BSV**](guides/DATA_STORAGE.md) - Store data on-chain
 
-### Custom Script Development
-- **Multi-signature Scripts**: Advanced m-of-n signature schemes
-- **Timelock Contracts**: Block height and timestamp constraints
-- **Conditional Logic**: Complex branching and validation rules
-- **Template System**: Pre-built patterns for common use cases
-- **Developer API**: Simplified interface for rapid development
+### 🔬 **Advanced Development**
+Production-ready patterns and advanced use cases.
 
-## 📖 Documentation Categories
+- [**Covenant Development**](advanced/ADVANCED_COVENANT_DEVELOPMENT.md) - Production covenant patterns
+- [**Smart Contract Security**](advanced/SMART_CONTRACT_SECURITY.md) - Security best practices  
+- [**Performance Optimization**](advanced/PERFORMANCE_OPTIMIZATION.md) - Scale your applications
+- [**Testing Strategies**](advanced/TESTING_STRATEGIES.md) - Comprehensive testing
+- [**Production Deployment**](advanced/PRODUCTION_DEPLOYMENT.md) - Deploy with confidence
 
-### 📦 Installation & Setup
-```javascript
-// NPM installation
-npm install @smartledger/bsv
+### 📋 **Examples & Templates**
+Ready-to-use code examples and project templates.
 
-// Basic usage
-const bsv = require('@smartledger/bsv');
-const tx = new bsv.Transaction()
-  .from(utxo)
-  .to(address, amount)
-  .feePerKb(10); // Ultra-low fees
-```
+- [**Basic Examples**](../examples/basic/) - Simple transaction examples
+- [**Smart Contract Examples**](../examples/covenants/) - Covenant patterns
+- [**Advanced Examples**](../examples/covenants2/) - Production patterns
+- [**Project Templates**](examples/TEMPLATES.md) - Starter projects
+
+### 🔧 **Troubleshooting & Support**
+Solutions to common issues and getting help.
+
+- [**Common Issues**](troubleshooting/COMMON_ISSUES.md) - Frequently encountered problems
+- [**Error Reference**](troubleshooting/ERROR_REFERENCE.md) - Complete error guide
+- [**Performance Issues**](troubleshooting/PERFORMANCE_ISSUES.md) - Optimization tips
+- [**Browser Compatibility**](troubleshooting/BROWSER_COMPATIBILITY.md) - Cross-browser support
+- [**Getting Support**](troubleshooting/GETTING_SUPPORT.md) - Community and help
+
+## 🔗 **Quick Navigation**
+
+**I want to...**
+- **Get started quickly** → [Quick Start Guide](getting-started/QUICK_START.md)
+- **Migrate from bsv@1.5.6** → [Migration Guide](migration/FROM_BSV_1_5_6.md)  
+- **Learn smart contracts** → [Smart Contract Guide](advanced/SMART_CONTRACT_GUIDE.md)
+- **Use legal tokens** → [Legal Token Protocol](advanced/LEGAL_TOKEN_PROTOCOL.md)
+- **Implement digital identity** → [Digital Attestation Guide](advanced/DIGITAL_ATTESTATION.md)
+- **Build a production app** → [Advanced Development](advanced/)
+- **See working examples** → [Examples Directory](../examples/)
+- **Get help** → [Troubleshooting](troubleshooting/)
+
+## � **Library Comparison**
+
+| Feature | SmartLedger-BSV | bsv@1.5.6 | BitcoinJS-lib |
+|---------|-----------------|-----------|---------------|
+| **Core BSV Support** | ✅ Full | ✅ Full | ❌ Bitcoin only |
+| **Backward Compatibility** | ✅ 100% | - | ❌ Different API |
+| **Security Hardening** | ✅ Yes | ❌ No | ❌ No |
+| **Legal Tokens** | ✅ Built-in | ❌ No | ❌ No |
+| **Digital Identity** | ✅ W3C Standard | ❌ No | ❌ No |
+| **Smart Contracts** | ✅ Complete Framework | ❌ Basic | ❌ No |
+| **Modular Loading** | ✅ 12 Options | ❌ Monolithic | ❌ Monolithic |
+| **Production Ready** | ✅ Yes | ⚠️ Limited | ⚠️ Bitcoin only |
 
 ### 🔒 Covenant Development
 ```javascript

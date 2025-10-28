@@ -12,7 +12,7 @@ const config = {
   feePerKb: 10 // 10 satoshis per kilobyte
 };
 
-const bsv = require('./index.js');
+const bsv = require('../index.js');
 
 console.log('💳 Simple P2PKH Self-Send Demo');
 console.log('===============================\n');

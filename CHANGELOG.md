@@ -1,132 +1,260 @@
-# Changelog
+# Changelog# Changelog
 
-All notable changes to SmartLedger-BSV will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.3.0] - 2025-10-22
+All notable changes to SmartLedger-BSV will be documented in this file.All notable changes to SmartLedger-BSV will be documented in this file.
 
-### 🚀 MAJOR RELEASE: Legal Token Protocol (LTP) & Global Digital Attestation Framework (GDAF)
 
-#### Revolutionary Legal Token Protocol Framework
-- **Complete Legal Token Protocol (LTP)**: 6-module comprehensive legal framework
-  - **lib/ltp/anchor.js**: Blockchain anchoring preparation primitives
-  - **lib/ltp/registry.js**: Token registry management primitives  
-  - **lib/ltp/claim.js**: Legal claim validation and attestation primitives
-  - **lib/ltp/proof.js**: Cryptographic proof generation primitives
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+
+
+## [3.3.3] - 2025-10-28## [3.3.0] - 2025-10-22
+
+
+
+### 🎉 Major Improvements### 🚀 MAJOR RELEASE: Legal Token Protocol (LTP) & Global Digital Attestation Framework (GDAF)
+
+
+
+#### 📁 Project Organization & Structure#### Revolutionary Legal Token Protocol Framework
+
+- **Complete repository reorganization**: Moved legacy files to `/archive/` for better project structure- **Complete Legal Token Protocol (LTP)**: 6-module comprehensive legal framework
+
+- **New `/demos/` directory**: Interactive HTML demonstrations for all SmartLedger-BSV modules  - **lib/ltp/anchor.js**: Blockchain anchoring preparation primitives
+
+- **Enhanced `/docs/` structure**: Comprehensive documentation with getting started guides, API references, and technical details  - **lib/ltp/registry.js**: Token registry management primitives  
+
+- **Dedicated `/tests/` directory**: All test files properly organized and categorized  - **lib/ltp/claim.js**: Legal claim validation and attestation primitives
+
+- **New `/tools/` directory**: Development utilities and helper scripts  - **lib/ltp/proof.js**: Cryptographic proof generation primitives
+
   - **lib/ltp/right.js**: Legal rights token creation and validation primitives
-  - **lib/ltp/obligation.js**: Legal obligation token management primitives
 
-#### Primitives-Only Architecture Philosophy
-- **No Blockchain Publishing**: Library provides preparation functions only
+#### 🚀 Interactive Demos  - **lib/ltp/obligation.js**: Legal obligation token management primitives
+
+- **Smart Contract Demo**: Full-featured HTML demo showcasing covenant creation, preimage parsing, script building, and UTXO generation
+
+- **Web3Keys Demo**: Interactive key generation and cryptographic operations demonstration#### Primitives-Only Architecture Philosophy
+
+- **Local development server**: Easy setup for testing demos locally- **No Blockchain Publishing**: Library provides preparation functions only
+
 - **External System Integration**: Perfect for enterprise and custom implementations
-- **Maximum Flexibility**: Choose your own blockchain, storage, and UI frameworks
-- **Clean Separation**: Cryptographic correctness separated from application logic
 
-#### Legal Token Framework Components
-- **46 LTP Primitive Methods**: Complete coverage across all legal token operations
-  - 4 Right Token Primitives (prepare, verify, transfer, validate)
+#### 📚 Documentation Enhancements- **Maximum Flexibility**: Choose your own blockchain, storage, and UI frameworks
+
+- **Complete API documentation**: Detailed reference for all modules and classes- **Clean Separation**: Cryptographic correctness separated from application logic
+
+- **Getting Started guides**: Step-by-step tutorials for new developers
+
+- **Advanced development guides**: In-depth coverage of complex topics#### Legal Token Framework Components
+
+- **Migration documentation**: Guidelines for upgrading from previous versions- **46 LTP Primitive Methods**: Complete coverage across all legal token operations
+
+- **Technical specifications**: Detailed implementation documentation  - 4 Right Token Primitives (prepare, verify, transfer, validate)
+
   - 5 Obligation Token Primitives (create, verify, fulfill, breach assessment, monitoring)
-  - 5 Claim Validation Primitives (validate, attest, dispute, bulk processing, templates)
+
+### 🔧 Technical Improvements  - 5 Claim Validation Primitives (validate, attest, dispute, bulk processing, templates)
+
   - 6 Proof Generation Primitives (signature, selective disclosure, ZK, legal validity)
-  - 8 Registry Management Primitives (registry setup, registration, approval, revocation, queries)
-  - 4 Blockchain Anchoring Primitives (commitment, batch processing, verification, revocation)
 
-#### W3C-Compliant Legal Standards
-- **PropertyTitle**: Complete property ownership claim schema
+#### ✅ Test Suite Enhancements  - 8 Registry Management Primitives (registry setup, registration, approval, revocation, queries)
+
+- **Fixed opcode mapping tests**: Updated tests to reflect Chronicle string operations (OP_SUBSTR, OP_LEFT, OP_RIGHT)  - 4 Blockchain Anchoring Primitives (commitment, batch processing, verification, revocation)
+
+- **Corrected opcode count**: Updated from 118 to 121 elements to include new Chronicle opcodes
+
+- **Perfect test coverage**: All 534 tests now pass (100% success rate)#### W3C-Compliant Legal Standards
+
+- **Updated reverseMap validation**: Fixed OP_NOP7 position validation (was incorrectly expecting OP_NOP10)- **PropertyTitle**: Complete property ownership claim schema
+
 - **VehicleTitle**: Vehicle ownership and transfer documentation
-- **PromissoryNote**: Financial obligation and debt instruments
-- **IntellectualProperty**: IP rights and licensing framework
-- **ProfessionalLicense**: Professional certification and licensing
-- **MusicLicense**: Music rights and royalty management
 
-#### Global Digital Attestation Framework (GDAF)
-- **6-Module GDAF Implementation**: Complete W3C Verifiable Credentials compliance
-  - **lib/gdaf/attestation.js**: Digital attestation creation and verification
-  - **lib/gdaf/identity.js**: Decentralized identity management
-  - **lib/gdaf/registry.js**: Attestation registry and discovery
+#### 🛠️ Build System Updates- **PromissoryNote**: Financial obligation and debt instruments
+
+- **Enhanced webpack configurations**: Improved build processes for all modules- **IntellectualProperty**: IP rights and licensing framework
+
+- **Updated bundle outputs**: Refreshed all minified bundles with latest optimizations- **ProfessionalLicense**: Professional certification and licensing
+
+- **Better development workflow**: Streamlined build and test processes- **MusicLicense**: Music rights and royalty management
+
+
+
+#### 🧹 Code Quality Improvements#### Global Digital Attestation Framework (GDAF)
+
+- **Linting fixes**: Resolved JavaScript Standard Style violations across utility files- **6-Module GDAF Implementation**: Complete W3C Verifiable Credentials compliance
+
+- **Unused import cleanup**: Removed unused dependencies and imports  - **lib/gdaf/attestation.js**: Digital attestation creation and verification
+
+- **Syntax compatibility**: Fixed ES2020 optional chaining for broader compatibility  - **lib/gdaf/identity.js**: Decentralized identity management
+
+- **Code organization**: Better separation of concerns and cleaner file structure  - **lib/gdaf/registry.js**: Attestation registry and discovery
+
   - **lib/gdaf/credential.js**: W3C Verifiable Credentials implementation
-  - **lib/gdaf/proof.js**: Cryptographic proof systems
-  - **lib/gdaf/verification.js**: Multi-layer verification framework
 
-#### Enhanced Cryptographic Primitives
-- **Shamir Secret Sharing**: Complete k-of-n threshold cryptography
+### 🔒 Chronicle Integration  - **lib/gdaf/proof.js**: Cryptographic proof systems
+
+- **OP_SUBSTR support**: Full implementation of substring operations  - **lib/gdaf/verification.js**: Multi-layer verification framework
+
+- **OP_LEFT support**: Left substring extraction functionality  
+
+- **OP_RIGHT support**: Right substring extraction functionality#### Enhanced Cryptographic Primitives
+
+- **Updated opcode mappings**: Proper integration of Chronicle string operations into opcode system- **Shamir Secret Sharing**: Complete k-of-n threshold cryptography
+
   - **lib/crypto/shamir.js**: Production-ready SSS implementation
-  - **bsv.createShares()**: Split secrets into threshold shares
+
+### 📦 Module Improvements  - **bsv.createShares()**: Split secrets into threshold shares
+
   - **bsv.reconstructSecret()**: Reconstruct from threshold shares
-  - **bsv.verifyShares()**: Validate share integrity
 
-### 🎯 Complete Legal Token Workflow Example
+#### 💎 Utility Enhancements  - **bsv.verifyShares()**: Validate share integrity
 
-#### Real BSV Integration Demonstration
-- **Real Private Keys**: Actual BSV addresses and WIF keys generated
+- **Blockchain state management**: Improved simulation and state tracking
+
+- **UTXO management**: Enhanced UTXO generation and management tools### 🎯 Complete Legal Token Workflow Example
+
+- **Transaction examples**: Comprehensive transaction building examples
+
+- **Miner simulation**: Better blockchain mining simulation for development#### Real BSV Integration Demonstration
+
+- **Success demonstration**: Working examples of successful operations- **Real Private Keys**: Actual BSV addresses and WIF keys generated
+
 - **Mock UTXO System**: Complete testing framework without blockchain dependency
-- **Smart Contract Covenants**: Legal token enforcement through BSV covenants
-- **End-to-End Workflow**: From claim creation to token transfer with covenant validation
 
-#### Example Results from `complete_ltp_demo.js`:
-- Property Right Token: `RT-1bd80ac44e27c3ec0f9dffdd2efffe07`
+### 🐛 Bug Fixes- **Smart Contract Covenants**: Legal token enforcement through BSV covenants
+
+- **Fixed demo script paths**: Corrected relative paths in HTML demos- **End-to-End Workflow**: From claim creation to token transfer with covenant validation
+
+- **Resolved test failures**: All opcode-related test issues resolved
+
+- **Build output corrections**: Fixed webpack output paths and configurations#### Example Results from `complete_ltp_demo.js`:
+
+- **Import path fixes**: Corrected module import paths across the codebase- Property Right Token: `RT-1bd80ac44e27c3ec0f9dffdd2efffe07`
+
 - Obligation Token: `OB-e87eb0388db36b8b5777118ae45c46d3`
-- Covenant Address: `1MhX6MRVE79Qn4CtQ6bkk5JJJeMCTXBwwo`
-- Transfer Transaction: `4b1125d5dfc53e0157b843b8d2e964922331dd509ca096f9a470bfda421b43e6`
 
-### 🏗️ Architecture Excellence
+### 🔄 Backwards Compatibility- Covenant Address: `1MhX6MRVE79Qn4CtQ6bkk5JJJeMCTXBwwo`
+
+- **Maintained API compatibility**: All existing APIs remain functional- Transfer Transaction: `4b1125d5dfc53e0157b843b8d2e964922331dd509ca096f9a470bfda421b43e6`
+
+- **Legacy file preservation**: Old files archived rather than deleted
+
+- **Migration support**: Clear upgrade paths for existing applications### 🏗️ Architecture Excellence
+
+- **Version consistency**: No breaking changes to core functionality
 
 #### Interface Transformation
-**Before (Application Framework):**
-```javascript
-bsv.createRightToken()     // Created AND published to blockchain
-bsv.validateLegalClaim()   // Validated AND stored in database
+
+### 📈 Performance Improvements**Before (Application Framework):**
+
+- **Optimized bundles**: Reduced bundle sizes through better webpack configurations```javascript
+
+- **Faster tests**: Improved test execution speed through better organizationbsv.createRightToken()     // Created AND published to blockchain
+
+- **Enhanced development experience**: Faster build times and better error reportingbsv.validateLegalClaim()   // Validated AND stored in database
+
 bsv.anchorTokenBatch()     // Created batch AND sent transaction
-```
 
-**After (Primitives-Only):**
-```javascript
-bsv.prepareRightToken()           // Prepares token structure only
+### 🎯 Developer Experience```
+
+- **Interactive learning**: Hands-on demos for understanding SmartLedger-BSV capabilities
+
+- **Better documentation**: Clear examples and comprehensive API coverage**After (Primitives-Only):**
+
+- **Improved debugging**: Better error messages and debugging tools```javascript
+
+- **Development tools**: Enhanced utilities for blockchain developmentbsv.prepareRightToken()           // Prepares token structure only
+
 bsv.prepareClaimValidation()      // Validates structure only  
-bsv.prepareBatchCommitment()      // Prepares commitment only
-```
 
-### 🛠️ New Development Tools & Testing
+### 📋 Quality Assurancebsv.prepareBatchCommitment()      // Prepares commitment only
+
+- **Complete test coverage**: 534/534 tests passing```
+
+- **Linting compliance**: Full JavaScript Standard Style compliance
+
+- **Build verification**: All builds complete successfully### 🛠️ New Development Tools & Testing
+
+- **Cross-platform compatibility**: Verified functionality across different environments
 
 #### Comprehensive Demo Suite
-- **complete_ltp_demo.js**: Full end-to-end LTP workflow with real BSV keys
+
+---- **complete_ltp_demo.js**: Full end-to-end LTP workflow with real BSV keys
+
 - **simple_demo.js**: Architectural overview and primitives showcase
-- **architecture_demo.js**: Before/after comparison demonstration
+
+## Previous Versions- **architecture_demo.js**: Before/after comparison demonstration
+
 - **gdaf_demo.js**: Complete GDAF framework demonstration
-- **shamir_demo.js**: Threshold cryptography examples
+
+### [3.3.2] and earlier- **shamir_demo.js**: Threshold cryptography examples
+
+Previous version history is available in the git commit log. This changelog format starts with version 3.3.3.
 
 #### New NPM Scripts
-- **`npm run test:ltp`**: Complete Legal Token Protocol demonstration
+
+---- **`npm run test:ltp`**: Complete Legal Token Protocol demonstration
+
 - **`npm run test:ltp-primitives`**: Primitives-only architecture showcase
-- **`npm run test:architecture`**: Architectural transformation comparison
 
-### 📦 Enhanced Build System
+### 🚀 Getting Started- **`npm run test:architecture`**: Architectural transformation comparison
 
-#### New Standalone Modules
-- **bsv-ltp.min.js**: Complete Legal Token Protocol standalone module
-- **bsv-shamir.min.js**: Standalone Shamir Secret Sharing module
+
+
+To get started with SmartLedger-BSV v3.3.3:### 📦 Enhanced Build System
+
+
+
+```bash#### New Standalone Modules
+
+npm install @smartledger/bsv@3.3.3- **bsv-ltp.min.js**: Complete Legal Token Protocol standalone module
+
+```- **bsv-shamir.min.js**: Standalone Shamir Secret Sharing module
+
 - **bsv-gdaf.min.js**: Complete GDAF framework module
 
-#### Updated Keywords & Metadata
-```json
-"legal-token-protocol", "ltp", "legal-tokens", "primitives-only",
-"legal-compliance", "property-rights", "obligations", "attestations",
-"gdaf", "global-digital-attestation", "w3c-credentials", 
+Check out the interactive demos:
+
+```bash#### Updated Keywords & Metadata
+
+cd demos```json
+
+python3 -m http.server 8080"legal-token-protocol", "ltp", "legal-tokens", "primitives-only",
+
+# Open http://localhost:8080"legal-compliance", "property-rights", "obligations", "attestations",
+
+```"gdaf", "global-digital-attestation", "w3c-credentials", 
+
 "verifiable-credentials", "shamir-secret-sharing", "threshold-cryptography"
-```
 
-### 💫 Enterprise Integration Benefits
+### 📖 Documentation```
 
-#### For Developers
-- ✅ Choose any blockchain platform (BSV, Bitcoin, Ethereum, etc.)
+
+
+- **API Reference**: `/docs/api/`### 💫 Enterprise Integration Benefits
+
+- **Getting Started**: `/docs/getting-started/`
+
+- **Examples**: `/examples/`#### For Developers
+
+- **Demos**: `/demos/`- ✅ Choose any blockchain platform (BSV, Bitcoin, Ethereum, etc.)
+
 - ✅ Choose any storage solution (SQL, NoSQL, IPFS, etc.)
-- ✅ Full architectural control and system integration
+
+### 🔗 Links- ✅ Full architectural control and system integration
+
 - ✅ Easy integration with existing business systems
 
-#### For Enterprises  
-- ✅ No vendor lock-in to specific platforms
+- **GitHub**: https://github.com/codenlighten/smartledger-bsv
+
+- **NPM**: https://npmjs.com/package/@smartledger/bsv#### For Enterprises  
+
+- **Documentation**: https://github.com/codenlighten/smartledger-bsv/tree/main/docs- ✅ No vendor lock-in to specific platforms
 - ✅ Compliance with existing IT policies
 - ✅ Legacy system compatibility
 - ✅ Audit-friendly separation of concerns

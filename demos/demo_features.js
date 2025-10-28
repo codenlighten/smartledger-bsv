@@ -6,7 +6,7 @@
  * This script demonstrates the new UTXO management and miner simulation features
  */
 
-const bsv = require('./index.js');
+const bsv = require('../index.js');
 
 console.log('🚀 SmartLedger-BSV v3.0.2 New Features Demo');
 console.log('============================================\n');

@@ -332,6 +332,38 @@ bsv.formatRevocation = function(tokenId, revocationData) {
   return bsv.LTP.Anchor.formatRevocation(tokenId, revocationData)
 }
 
+// Backward Compatibility: Direct LTP Functions (Wrapper Layer)
+// These functions provide the old-style direct API that demos expect
+
+bsv.createRightToken = function(rightData, privateKey, options) {
+  var ltp = new bsv.LTP()
+  return ltp.createRightToken(rightData, privateKey, options)
+}
+
+bsv.verifyLegalToken = function(token, publicKey) {
+  var ltp = new bsv.LTP()
+  return ltp.verifyToken(token, publicKey)
+}
+
+bsv.validateLegalClaim = function(claimData, schemaType) {
+  var ltp = new bsv.LTP()
+  return ltp.validateClaim(claimData, schemaType)
+}
+
+bsv.createSelectiveDisclosure = function(token, revealedFields, nonce) {
+  var ltp = new bsv.LTP()
+  return ltp.createSelectiveDisclosure(token, revealedFields, nonce)
+}
+
+bsv.createLegalRegistry = function(config) {
+  return bsv.LTP.Registry.prepareRegistry(config)
+}
+
+bsv.createLegalValidityProof = function(token, jurisdiction, nonce) {
+  var ltp = new bsv.LTP()
+  return ltp.createLegalValidityProof(token, jurisdiction, nonce)
+}
+
 // LTP Static Data Access (unchanged)
 bsv.getRightTypes = function() {
   return bsv.LTP.Right.getRightTypes()

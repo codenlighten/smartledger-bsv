@@ -6,7 +6,7 @@
  * AFTER: Library provides preparation primitives, external systems handle publishing
  */
 
-const bsv = require('./index.js')
+const bsv = require('../index.js')
 
 console.log('🚀 SmartLedger-BSV LTP: Primitives-Only Architecture')
 console.log('==================================================\n')
@@ -47,7 +47,7 @@ console.log('📚 Available claim schemas:', availableSchemas.join(', '))
 // Create claim template (utility function)
 const claimTemplate = bsv.createClaimTemplate('PropertyTitle')
 console.log('📋 Claim template structure:')
-console.log('   Required fields:', Object.keys(claimTemplate.properties).slice(0, 3).join(', '), '...')
+console.log('   Required fields:', Object.keys(claimTemplate).slice(0, 3).join(', '), '...')
 
 console.log('\n🔧 PRIMITIVES-ONLY APPROACH:')
 console.log('   ✅ Library validates claim structure')

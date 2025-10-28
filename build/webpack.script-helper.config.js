@@ -2,9 +2,9 @@ const path = require('path');
 
 module.exports = {
   mode: 'production',
-  entry: './script-helper-entry.js',
+  entry: '../script-helper-entry.js',
   output: {
-    path: path.resolve(__dirname, '.'),
+    path: path.resolve(__dirname, '../'),
     filename: 'bsv-script-helper.min.js',
     library: 'bsvScriptHelper',
     libraryTarget: 'var'

@@ -5,7 +5,8 @@
  * Demonstrates the newly integrated debugging tools in SmartContract interface
  */
 
-const SmartContract = require('./lib/smart_contract/index.js');
+const bsv = require('../bsv.min.js');
+const SmartContract = bsv.SmartContract;
 
 console.log("🎯 SmartContract Debug Tools Demo");
 console.log("==================================\n");

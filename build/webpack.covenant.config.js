@@ -2,9 +2,9 @@ const path = require('path');
 
 module.exports = {
   mode: 'production',
-  entry: './covenant-entry.js',
+  entry: '../covenant-entry.js',
   output: {
-    path: path.resolve(__dirname, '.'),
+    path: path.resolve(__dirname, '../'),
     filename: 'bsv-covenant.min.js',
     library: 'bsvCovenant',
     libraryTarget: 'var'

@@ -10,7 +10,7 @@
 
 'use strict'
 
-var bsv = require('./index.js')
+var bsv = require('../index.js')
 
 console.log('🔐 BSV Shamir Secret Sharing Demo')
 console.log('=====================================\n')

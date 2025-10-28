@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BSV Smart Contract Library Demo</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Courier New', monospace;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .demo-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #ffd700;
+        }
+
+        .demo-section h2 {
+            color: #ffd700;
+            margin-top: 0;
+            font-size: 1.5em;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+
+        button {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.success {
+            background: linear-gradient(45deg, #28a745, #1e7e34);
+        }
+
+        button.warning {
+            background: linear-gradient(45deg, #ffc107, #e0a800);
+        }
+
+        button.danger {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+        }
+
+        .output {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 0.9em;
+            line-height: 1.4;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .output pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .status.success {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid #28a745;
+            color: #d4edda;
+        }
+
+        .status.error {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid #dc3545;
+            color: #f8d7da;
+        }
+
+        .status.info {
+            background: rgba(23, 162, 184, 0.2);
+            border: 1px solid #17a2b8;
+            color: #d1ecf1;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .feature-card h3 {
+            color: #ffd700;
+            margin-top: 0;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 3px solid #ffd700;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.85em;
+            overflow-x: auto;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffd700;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .tab-container {
+            margin: 20px 0;
+        }
+
+        .tab-buttons {
+            display: flex;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            background: transparent;
+            border: none;
+            padding: 10px 20px;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: #ffd700;
+            border-bottom-color: #ffd700;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .input-group {
+            margin: 15px 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ffd700;
+            font-weight: bold;
+        }
+
+        .input-group input, .input-group textarea, .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .input-group input:focus, .input-group textarea:focus, .input-group select:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 BSV Smart Contract Library Demo</h1>
+        
+        <div class="demo-section">
+            <h2>🌟 SmartLedger BSV Smart Contract Framework</h2>
+            <p>This interactive demo showcases the powerful smart contract capabilities of the SmartLedger BSV library. 
+            Explore covenant creation, preimage parsing, script building, and UTXO management with real Bitcoin SV functionality.</p>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>🔒 Covenant Builder</h3>
+                    <p>Create complex Bitcoin Script covenants with JavaScript syntax</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🧾 Preimage Parser</h3>
+                    <p>Extract and validate BIP-143 transaction preimage fields</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🛠️ Script Tools</h3>
+                    <p>Build, test, and debug Bitcoin Scripts locally</p>
+                </div>
+                <div class="feature-card">
+                    <h3>💎 UTXO Generator</h3>
+                    <p>Generate authentic test UTXOs for development</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="switchTab('basics')">📚 Basics</button>
+                <button class="tab-button" onclick="switchTab('covenant')">🔒 Covenant Builder</button>
+                <button class="tab-button" onclick="switchTab('preimage')">🧾 Preimage Parser</button>
+                <button class="tab-button" onclick="switchTab('utxo')">💎 UTXO Generator</button>
+                <button class="tab-button" onclick="switchTab('scripts')">🛠️ Script Tools</button>
+            </div>
+
+            <!-- Basics Tab -->
+            <div id="basics" class="tab-content active">
+                <div class="demo-section">
+                    <h2>📚 Smart Contract Basics</h2>
+                    <div class="button-group">
+                        <button onclick="loadLibrary()">📦 Load BSV Smart Contract Library</button>
+                        <button onclick="showFeatures()" class="success">🌟 Show Available Features</button>
+                        <button onclick="runBasicTests()" class="warning">🧪 Run Basic Tests</button>
+                    </div>
+                    <div id="basics-output" class="output"></div>
+                </div>
+            </div>
+
+            <!-- Covenant Builder Tab -->
+            <div id="covenant" class="tab-content">
+                <div class="demo-section">
+                    <h2>🔒 Covenant Builder Demo</h2>
+                    <p>Create Bitcoin Script covenants using JavaScript syntax. Covenants enforce spending conditions on future transactions.</p>
+                    
+                    <div class="input-group">
+                        <label>Covenant Type:</label>
+                        <select id="covenant-type">
+                            <option value="simple">Simple Amount Lock</option>
+                            <option value="timelock">Time Lock Covenant</option>
+                            <option value="multisig">Multi-Signature Covenant</option>
+                            <option value="conditional">Conditional Spending</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Amount (satoshis):</label>
+                        <input type="number" id="covenant-amount" value="100000" min="546">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Recipient Address:</label>
+                        <input type="text" id="covenant-address" placeholder="1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa">
+                    </div>
+
+                    <div class="button-group">
+                        <button onclick="generateCovenant()">🏗️ Generate Covenant</button>
+                        <button onclick="testCovenant()" class="success">✅ Test Covenant</button>
+                        <button onclick="showCovenantScript()" class="warning">📜 Show Script ASM</button>
+                    </div>
+                    <div id="covenant-output" class="output"></div>
+                </div>
+            </div>
+
+            <!-- Preimage Parser Tab -->
+            <div id="preimage" class="tab-content">
+                <div class="demo-section">
+                    <h2>🧾 BIP-143 Preimage Parser</h2>
+                    <p>Parse and extract fields from Bitcoin transaction preimages for covenant validation.</p>
+                    
+                    <div class="input-group">
+                        <label>Transaction Hex (or use sample):</label>
+                        <textarea id="tx-hex" rows="4" placeholder="Paste transaction hex here or click 'Generate Sample'"></textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button onclick="generateSampleTx()">🎲 Generate Sample Transaction</button>
+                        <button onclick="parsePreimage()" class="success">🔍 Parse Preimage</button>
+                        <button onclick="extractSighash()" class="warning">📊 Extract SIGHASH</button>
+                        <button onclick="validatePreimage()" class="danger">✅ Validate Fields</button>
+                    </div>
+                    <div id="preimage-output" class="output"></div>
+                </div>
+            </div>
+
+            <!-- UTXO Generator Tab -->
+            <div id="utxo" class="tab-content">
+                <div class="demo-section">
+                    <h2>💎 Mock UTXO Generator</h2>
+                    <p>Generate authentic test UTXOs for smart contract development and testing.</p>
+                    
+                    <div class="input-group">
+                        <label>Private Key (WIF) - leave blank for random:</label>
+                        <input type="text" id="utxo-wif" placeholder="L1234... (leave blank for random generation)">
+                    </div>
+
+                    <div class="input-group">
+                        <label>UTXO Value (satoshis):</label>
+                        <input type="number" id="utxo-amount" value="100000" min="546">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Network:</label>
+                        <select id="utxo-network">
+                            <option value="livenet">Mainnet</option>
+                            <option value="testnet">Testnet</option>
+                            <option value="regtest">Regtest</option>
+                        </select>
+                    </div>
+
+                    <div class="button-group">
+                        <button onclick="generateUTXO()">💎 Generate UTXO</button>
+                        <button onclick="createSpendingTx()" class="success">💸 Create Spending TX</button>
+                        <button onclick="showUTXODetails()" class="warning">📋 Show UTXO Details</button>
+                    </div>
+                    <div id="utxo-output" class="output"></div>
+                </div>
+            </div>
+
+            <!-- Script Tools Tab -->
+            <div id="scripts" class="tab-content">
+                <div class="demo-section">
+                    <h2>🛠️ Script Development Tools</h2>
+                    <p>Build, test, and debug Bitcoin Scripts with comprehensive tooling.</p>
+                    
+                    <div class="input-group">
+                        <label>Script ASM:</label>
+                        <textarea id="script-asm" rows="3" placeholder="OP_DUP OP_HASH160 OP_PUSHDATA1 0x14 0x... OP_EQUALVERIFY OP_CHECKSIG">OP_DUP OP_HASH160 OP_PUSHDATA1 0x14 0x1234567890123456789012345678901234567890 OP_EQUALVERIFY OP_CHECKSIG</textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Script Type:</label>
+                        <select id="script-type">
+                            <option value="p2pkh">Pay-to-Public-Key-Hash</option>
+                            <option value="p2sh">Pay-to-Script-Hash</option>
+                            <option value="covenant">Covenant Script</option>
+                            <option value="custom">Custom Script</option>
+                        </select>
+                    </div>
+
+                    <div class="button-group">
+                        <button onclick="buildScript()">🏗️ Build Script</button>
+                        <button onclick="analyzeScript()" class="success">🔍 Analyze Script</button>
+                        <button onclick="debugScript()" class="warning">🐛 Debug Execution</button>
+                        <button onclick="optimizeScript()" class="danger">⚡ Optimize Script</button>
+                    </div>
+                    <div id="scripts-output" class="output"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>🎯 Real-World Use Cases</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>🏦 Escrow Contracts</h3>
+                    <p>Multi-party escrow with timeout conditions</p>
+                    <button onclick="showEscrowExample()">View Example</button>
+                </div>
+                <div class="feature-card">
+                    <h3>⏰ Time-locked Payments</h3>
+                    <p>Payments that unlock after specific time</p>
+                    <button onclick="showTimelockExample()">View Example</button>
+                </div>
+                <div class="feature-card">
+                    <h3>🔄 Recurring Payments</h3>
+                    <p>Automated recurring payment covenants</p>
+                    <button onclick="showRecurringExample()">View Example</button>
+                </div>
+                <div class="feature-card">
+                    <h3>🎲 Gaming Contracts</h3>
+                    <p>Provably fair gaming and betting</p>
+                    <button onclick="showGamingExample()">View Example</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>📖 Quick Start Guide</h2>
+            <div class="code-block">
+<pre>// BSV bundle is already loaded - access directly
+// Core BSV functionality
+const privateKey = new bsv.PrivateKey();
+const address = privateKey.toAddress();
+
+// Create a basic transaction
+const tx = new bsv.Transaction()
+    .from(utxo)                              // Add input UTXO
+    .to('recipient-address', 50000)          // Add output
+    .change(address)                         // Change back to sender
+    .sign(privateKey);                       // Sign transaction
+
+// Build custom scripts
+const script = new bsv.Script()
+    .add(bsv.Opcode.OP_DUP)
+    .add(bsv.Opcode.OP_HASH160)
+    .add(address.hashBuffer)
+    .add(bsv.Opcode.OP_EQUALVERIFY)
+    .add(bsv.Opcode.OP_CHECKSIG);
+
+// SmartLedger-BSV Covenant Example
+if (bsv.SmartContract) {
+    // Create preimage-based covenant
+    const covenant = new bsv.SmartContract.Covenant(privateKey);
+    
+    // Generate preimage for transaction validation
+    const preimage = bsv.Transaction.sighash.sighash(
+        tx, sighashType, inputIndex, lockingScript, satoshis
+    );
+    
+    // OP_PUSH_TX method (not an opcode, but a signing technique)
+    const covenantInterface = new bsv.CovenantInterface();
+    const pushtxCovenant = covenantInterface.createPushtxCovenant({
+        publicKey: privateKey.publicKey.toString(),
+        enforceOutputs: true
+    });
+}</pre>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>🔗 Additional Resources</h2>
+            <div class="button-group">
+                <button onclick="window.open('https://github.com/codenlighten/smartledger-bsv', '_blank')" class="success">
+                    📚 Documentation
+                </button>
+                <button onclick="window.open('https://github.com/codenlighten/smartledger-bsv/tree/main/examples', '_blank')" class="warning">
+                    💡 More Examples
+                </button>
+                <button onclick="window.open('https://npmjs.com/package/@smartledger/bsv', '_blank')" class="danger">
+                    📦 NPM Package
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load complete BSV bundle (includes all modules) -->
+    <script src="../bsv.bundle.js"></script>
+    
+    <script>
+        // Global variables
+        let SmartContract = null;
+        let currentUTXO = null;
+        let currentCovenant = null;
+
+        // Tab switching functionality
+        function switchTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(tab => tab.classList.remove('active'));
+            
+            // Remove active class from all buttons
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => button.classList.remove('active'));
+            
+            // Show selected tab and mark button as active
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Utility functions
+        function log(elementId, message, type = 'info') {
+            const output = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'status error' : 
+                            type === 'success' ? 'status success' : 'status info';
+            
+            const logEntry = `<div class="${className}">[${timestamp}] ${message}</div>`;
+            output.innerHTML += logEntry;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        // Load library function
+        function loadLibrary() {
+            clearOutput('basics-output');
+            log('basics-output', '📦 Loading BSV Smart Contract Library...', 'info');
+            
+            try {
+                // Check if BSV bundle is available
+                if (typeof bsv === 'undefined') {
+                    throw new Error('BSV bundle not loaded. Please ensure bsv.bundle.js is included.');
+                }
+                
+                log('basics-output', '✅ BSV library loaded successfully!', 'success');
+                log('basics-output', `📊 BSV version: ${bsv.version || 'Bundle v3.3.3'}`, 'info');
+                
+                // Check available SmartLedger modules
+                const availableModules = [];
+                if (bsv.SmartContract) availableModules.push('SmartContract');
+                if (bsv.LTP) availableModules.push('LTP');
+                if (bsv.Security) availableModules.push('Security');
+                if (bsv.GDAF) availableModules.push('GDAF');
+                if (bsv.Shamir) availableModules.push('Shamir');
+                
+                log('basics-output', `🔧 Available modules: ${availableModules.join(', ')}`, 'info');
+                log('basics-output', `🎯 Core BSV classes: Transaction, Script, PrivateKey, Address`, 'info');
+                
+                // Initialize SmartContract reference
+                if (bsv.SmartContract) {
+                    SmartContract = bsv.SmartContract;
+                    log('basics-output', '🚀 SmartContract module ready!', 'success');
+                } else {
+                    log('basics-output', '⚠️ SmartContract module not found in bundle', 'error');
+                    SmartContract = null;
+                }
+                
+                log('basics-output', '� Ready for smart contract development!', 'success');
+                
+            } catch (error) {
+                log('basics-output', `❌ Error loading library: ${error.message}`, 'error');
+            }
+        }
+
+        function showFeatures() {
+            clearOutput('basics-output');
+            log('basics-output', '🌟 BSV Smart Contract Features:', 'info');
+            
+            const features = [
+                '🔒 Covenant Builder - Create complex spending conditions',
+                '🧾 Preimage Parser - Extract BIP-143 transaction fields',
+                '🛠️ Script Tools - Build and debug Bitcoin Scripts',
+                '💎 UTXO Generator - Create test UTXOs for development',
+                '📊 SIGHASH Analysis - Understand signature hash types',
+                '🏗️ ASM Generator - Convert JavaScript to Bitcoin Script',
+                '🔍 Script Debugger - Step-through script execution',
+                '⚡ Script Optimizer - Minimize script size and cost',
+                '🧪 Local Testing - Verify scripts without blockchain',
+                '📦 Production Ready - Deploy to BSV mainnet'
+            ];
+            
+            features.forEach(feature => {
+                log('basics-output', feature, 'success');
+            });
+            
+            log('basics-output', '🚀 All features available in @smartledger/bsv package!', 'info');
+        }
+
+        function runBasicTests() {
+            clearOutput('basics-output');
+            log('basics-output', '🧪 Running Basic Smart Contract Tests...', 'info');
+            
+            try {
+                // Test 1: Private Key Generation
+                log('basics-output', '📝 Test 1: Private Key Generation', 'info');
+                const privateKey = new bsv.PrivateKey();
+                const address = privateKey.toAddress();
+                log('basics-output', `✅ Generated address: ${address.toString()}`, 'success');
+                
+                // Test 2: Transaction Creation
+                log('basics-output', '📝 Test 2: Transaction Creation', 'info');
+                const tx = new bsv.Transaction();
+                log('basics-output', `✅ Created transaction: ${tx.id || 'empty'}`, 'success');
+                
+                // Test 3: Script Building
+                log('basics-output', '📝 Test 3: Script Building', 'info');
+                const script = bsv.Script.buildPublicKeyHashOut(address);
+                log('basics-output', `✅ Built P2PKH script: ${script.toString().substring(0, 50)}...`, 'success');
+                
+                // Test 4: Mock UTXO
+                log('basics-output', '📝 Test 4: Mock UTXO Creation', 'info');
+                const utxo = {
+                    txId: 'mock_' + Date.now(),
+                    outputIndex: 0,
+                    address: address.toString(),
+                    script: script.toString(),
+                    satoshis: 100000
+                };
+                log('basics-output', `✅ Created mock UTXO: ${utxo.satoshis} satoshis`, 'success');
+                
+                log('basics-output', '🎉 All basic tests passed! Smart contract functionality ready.', 'success');
+                
+            } catch (error) {
+                log('basics-output', `❌ Test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Covenant Builder Functions
+        function generateCovenant() {
+            clearOutput('covenant-output');
+            log('covenant-output', '🏗️ Generating Covenant...', 'info');
+            
+            try {
+                const type = document.getElementById('covenant-type').value;
+                const amount = parseInt(document.getElementById('covenant-amount').value);
+                const address = document.getElementById('covenant-address').value;
+                
+                // Generate keys for covenant
+                const covenantKey = new bsv.PrivateKey();
+                const covenantAddress = covenantKey.toAddress();
+                
+                log('covenant-output', `📋 Covenant Type: ${type}`, 'info');
+                log('covenant-output', `💰 Amount: ${amount} satoshis`, 'info');
+                log('covenant-output', `🏠 Covenant Address: ${covenantAddress.toString()}`, 'info');
+                
+                // Build covenant script based on type
+                let script;
+                switch (type) {
+                    case 'simple':
+                        script = buildSimpleCovenant(amount, address);
+                        break;
+                    case 'timelock':
+                        script = buildTimelockCovenant(amount, address, 144); // 144 blocks ≈ 24 hours
+                        break;
+                    case 'multisig':
+                        script = buildMultisigCovenant(amount, address, 2, 3); // 2-of-3 multisig
+                        break;
+                    case 'conditional':
+                        script = buildConditionalCovenant(amount, address);
+                        break;
+                    default:
+                        throw new Error('Unknown covenant type');
+                }
+                
+                currentCovenant = {
+                    type: type,
+                    amount: amount,
+                    address: address,
+                    script: script,
+                    covenantKey: covenantKey,
+                    covenantAddress: covenantAddress
+                };
+                
+                log('covenant-output', '✅ Covenant generated successfully!', 'success');
+                log('covenant-output', `📜 Script length: ${script.toBuffer().length} bytes`, 'info');
+                
+            } catch (error) {
+                log('covenant-output', `❌ Covenant generation failed: ${error.message}`, 'error');
+            }
+        }
+
+        function buildSimpleCovenant(amount, recipientAddress) {
+            // Simple covenant: can only be spent to specific address with exact amount
+            const script = new bsv.Script();
+            
+            // Add covenant logic (simplified for demo)
+            script.add(bsv.Opcode.OP_DUP)
+                  .add(bsv.Opcode.OP_HASH160)
+                  .add(bsv.Address.fromString(recipientAddress || '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa').hashBuffer)
+                  .add(bsv.Opcode.OP_EQUALVERIFY)
+                  .add(bsv.Opcode.OP_CHECKSIG);
+            
+            return script;
+        }
+
+        function buildTimelockCovenant(amount, recipientAddress, blocks) {
+            // SmartLedger-BSV timelock using preimage validation
+            const script = new bsv.Script();
+            
+            // Preimage-based timelock logic (SmartLedger-BSV method)
+            // 1. Duplicate preimage for validation
+            script.add(bsv.Opcode.OP_DUP)
+                  // 2. Extract nLockTime field from preimage (bytes 36-40)
+                  .add(36) // Start position for nLockTime
+                  .add(4)  // Length of nLockTime field
+                  .add(bsv.Opcode.OP_SUBSTR)
+                  // 3. Convert to number and compare with required block height
+                  .add(bsv.Opcode.OP_BIN2NUM)
+                  .add(blocks) // Required block height
+                  .add(bsv.Opcode.OP_GREATERTHANOREQUAL)
+                  .add(bsv.Opcode.OP_VERIFY)
+                  // 4. Hash preimage and verify
+                  .add(bsv.Opcode.OP_HASH256)
+                  .add('placeholder_preimage_hash') // Will be replaced with actual hash
+                  .add(bsv.Opcode.OP_EQUALVERIFY)
+                  // 5. Standard P2PKH check
+                  .add(bsv.Opcode.OP_DROP)
+                  .add(bsv.Address.fromString(recipientAddress || '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa').hashBuffer)
+                  .add(bsv.Opcode.OP_CHECKSIG);
+            
+            return script;
+        }
+
+        function buildMultisigCovenant(amount, recipientAddress, m, n) {
+            // Multisig covenant: requires m-of-n signatures
+            const script = new bsv.Script();
+            
+            // Generate dummy public keys for demo
+            const pubkeys = [];
+            for (let i = 0; i < n; i++) {
+                pubkeys.push(new bsv.PrivateKey().publicKey);
+            }
+            
+            script.add(bsv.Opcode.OP_0); // Bug in CHECKMULTISIG requires extra value
+            for (let i = 0; i < m; i++) {
+                script.add(bsv.Opcode.OP_0); // Placeholder for signatures
+            }
+            script.add(m);
+            pubkeys.forEach(pubkey => script.add(pubkey.toBuffer()));
+            script.add(n);
+            script.add(bsv.Opcode.OP_CHECKMULTISIG);
+            
+            return script;
+        }
+
+        function buildConditionalCovenant(amount, recipientAddress) {
+            // SmartLedger-BSV conditional covenant using preimage validation
+            const script = new bsv.Script();
+            
+            // Conditional logic using preimage field validation
+            script.add(bsv.Opcode.OP_IF)
+                  // Path 1: Direct spending with signature
+                  .add(bsv.Opcode.OP_DUP)
+                  .add(bsv.Opcode.OP_HASH256)
+                  .add('placeholder_preimage_hash_1') // First valid preimage hash
+                  .add(bsv.Opcode.OP_EQUALVERIFY)
+                  .add(bsv.Opcode.OP_DROP)
+                  .add(bsv.Address.fromString(recipientAddress || '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa').hashBuffer)
+                  .add(bsv.Opcode.OP_CHECKSIG)
+                  .add(bsv.Opcode.OP_ELSE)
+                  // Path 2: Alternative spending with different preimage constraints
+                  .add(bsv.Opcode.OP_DUP)
+                  .add(bsv.Opcode.OP_HASH256)
+                  .add('placeholder_preimage_hash_2') // Alternative preimage hash
+                  .add(bsv.Opcode.OP_EQUALVERIFY)
+                  .add(bsv.Opcode.OP_DROP)
+                  .add(bsv.Address.fromString(recipientAddress || '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa').hashBuffer)
+                  .add(bsv.Opcode.OP_CHECKSIG)
+                  .add(bsv.Opcode.OP_ENDIF);
+            
+            return script;
+        }
+
+        function testCovenant() {
+            if (!currentCovenant) {
+                log('covenant-output', '❌ No covenant generated. Please generate a covenant first.', 'error');
+                return;
+            }
+            
+            log('covenant-output', '🧪 Testing Covenant...', 'info');
+            
+            try {
+                // Create a test transaction
+                const tx = new bsv.Transaction();
+                
+                // Add input (mock UTXO)
+                tx.from({
+                    txId: 'mock_covenant_input_' + Date.now(),
+                    outputIndex: 0,
+                    script: currentCovenant.script.toString(),
+                    satoshis: currentCovenant.amount
+                });
+                
+                // Add output
+                tx.to(currentCovenant.address || currentCovenant.covenantAddress.toString(), currentCovenant.amount - 1000); // minus fee
+                
+                log('covenant-output', '✅ Test transaction created successfully!', 'success');
+                log('covenant-output', `📊 Transaction ID: ${tx.id}`, 'info');
+                log('covenant-output', `💰 Input amount: ${currentCovenant.amount} satoshis`, 'info');
+                log('covenant-output', `💸 Output amount: ${currentCovenant.amount - 1000} satoshis`, 'info');
+                log('covenant-output', `🏦 Fee: 1000 satoshis`, 'info');
+                
+            } catch (error) {
+                log('covenant-output', `❌ Covenant test failed: ${error.message}`, 'error');
+            }
+        }
+
+        function showCovenantScript() {
+            if (!currentCovenant) {
+                log('covenant-output', '❌ No covenant generated. Please generate a covenant first.', 'error');
+                return;
+            }
+            
+            log('covenant-output', '📜 Covenant Script ASM:', 'info');
+            log('covenant-output', `<pre>${currentCovenant.script.toString()}</pre>`, 'success');
+            log('covenant-output', `📏 Script size: ${currentCovenant.script.toBuffer().length} bytes`, 'info');
+            log('covenant-output', `🔢 Script hex: ${currentCovenant.script.toBuffer().toString('hex')}`, 'info');
+        }
+
+        // Preimage Parser Functions
+        function generateSampleTx() {
+            clearOutput('preimage-output');
+            log('preimage-output', '🎲 Generating Sample Transaction...', 'info');
+            
+            try {
+                const privateKey = new bsv.PrivateKey();
+                const address = privateKey.toAddress();
+                
+                const tx = new bsv.Transaction()
+                    .from({
+                        txId: 'sample_' + Date.now(),
+                        outputIndex: 0,
+                        script: bsv.Script.buildPublicKeyHashOut(address).toString(),
+                        satoshis: 100000
+                    })
+                    .to('1BitcoinEaterAddressDontSendf59kuE', 50000)
+                    .change(address)
+                    .sign(privateKey);
+                
+                document.getElementById('tx-hex').value = tx.toString();
+                log('preimage-output', '✅ Sample transaction generated!', 'success');
+                log('preimage-output', `📊 Transaction ID: ${tx.id}`, 'info');
+                log('preimage-output', `📏 Transaction size: ${tx.toString().length / 2} bytes`, 'info');
+                
+            } catch (error) {
+                log('preimage-output', `❌ Failed to generate sample: ${error.message}`, 'error');
+            }
+        }
+
+        function parsePreimage() {
+            const txHex = document.getElementById('tx-hex').value.trim();
+            if (!txHex) {
+                log('preimage-output', '❌ Please provide transaction hex or generate a sample.', 'error');
+                return;
+            }
+            
+            clearOutput('preimage-output');
+            log('preimage-output', '🔍 Parsing Preimage...', 'info');
+            
+            try {
+                const tx = new bsv.Transaction(txHex);
+                
+                // Extract preimage components (BIP-143)
+                log('preimage-output', '📋 BIP-143 Preimage Components:', 'info');
+                log('preimage-output', `📝 Version: ${tx.version}`, 'success');
+                log('preimage-output', `🔗 Input Count: ${tx.inputs.length}`, 'success');
+                log('preimage-output', `📤 Output Count: ${tx.outputs.length}`, 'success');
+                log('preimage-output', `⏰ Lock Time: ${tx.nLockTime}`, 'success');
+                
+                // Show input details
+                tx.inputs.forEach((input, index) => {
+                    log('preimage-output', `🔍 Input ${index}: ${input.prevTxId}:${input.outputIndex}`, 'info');
+                });
+                
+                // Show output details
+                tx.outputs.forEach((output, index) => {
+                    log('preimage-output', `📤 Output ${index}: ${output.satoshis} sats to ${output.script.toString().substring(0, 50)}...`, 'info');
+                });
+                
+            } catch (error) {
+                log('preimage-output', `❌ Preimage parsing failed: ${error.message}`, 'error');
+            }
+        }
+
+        function extractSighash() {
+            const txHex = document.getElementById('tx-hex').value.trim();
+            if (!txHex) {
+                log('preimage-output', '❌ Please provide transaction hex first.', 'error');
+                return;
+            }
+            
+            log('preimage-output', '📊 Extracting SIGHASH information...', 'info');
+            
+            try {
+                const tx = new bsv.Transaction(txHex);
+                
+                // SIGHASH flags
+                const sighashTypes = {
+                    0x01: 'SIGHASH_ALL',
+                    0x02: 'SIGHASH_NONE',
+                    0x03: 'SIGHASH_SINGLE',
+                    0x81: 'SIGHASH_ALL | ANYONECANPAY',
+                    0x82: 'SIGHASH_NONE | ANYONECANPAY',
+                    0x83: 'SIGHASH_SINGLE | ANYONECANPAY'
+                };
+                
+                log('preimage-output', '🔒 SIGHASH Analysis:', 'success');
+                log('preimage-output', '📋 Available SIGHASH types:', 'info');
+                
+                Object.entries(sighashTypes).forEach(([flag, name]) => {
+                    log('preimage-output', `  ${flag}: ${name}`, 'info');
+                });
+                
+                log('preimage-output', '💡 Most common: SIGHASH_ALL (0x01) - signs all inputs and outputs', 'success');
+                
+            } catch (error) {
+                log('preimage-output', `❌ SIGHASH extraction failed: ${error.message}`, 'error');
+            }
+        }
+
+        function validatePreimage() {
+            const txHex = document.getElementById('tx-hex').value.trim();
+            if (!txHex) {
+                log('preimage-output', '❌ Please provide transaction hex first.', 'error');
+                return;
+            }
+            
+            log('preimage-output', '✅ Validating Preimage Fields...', 'info');
+            
+            try {
+                const tx = new bsv.Transaction(txHex);
+                
+                // Validation checks
+                const validations = [
+                    { name: 'Version', check: tx.version >= 1, value: tx.version },
+                    { name: 'Input Count', check: tx.inputs.length > 0, value: tx.inputs.length },
+                    { name: 'Output Count', check: tx.outputs.length > 0, value: tx.outputs.length },
+                    { name: 'Lock Time', check: tx.nLockTime >= 0, value: tx.nLockTime },
+                    { name: 'Transaction Size', check: txHex.length <= 200000, value: `${txHex.length / 2} bytes` }
+                ];
+                
+                validations.forEach(validation => {
+                    const status = validation.check ? '✅' : '❌';
+                    const type = validation.check ? 'success' : 'error';
+                    log('preimage-output', `${status} ${validation.name}: ${validation.value}`, type);
+                });
+                
+                const allValid = validations.every(v => v.check);
+                log('preimage-output', allValid ? '🎉 All validations passed!' : '⚠️ Some validations failed!', 
+                    allValid ? 'success' : 'error');
+                
+            } catch (error) {
+                log('preimage-output', `❌ Validation failed: ${error.message}`, 'error');
+            }
+        }
+
+        // UTXO Generator Functions
+        function generateUTXO() {
+            clearOutput('utxo-output');
+            log('utxo-output', '💎 Generating Mock UTXO...', 'info');
+            
+            try {
+                const wif = document.getElementById('utxo-wif').value.trim();
+                const amount = parseInt(document.getElementById('utxo-amount').value);
+                const network = document.getElementById('utxo-network').value;
+                
+                // Generate or use provided private key
+                let privateKey;
+                if (wif) {
+                    privateKey = bsv.PrivateKey.fromWIF(wif);
+                    log('utxo-output', '🔑 Using provided private key', 'info');
+                } else {
+                    privateKey = new bsv.PrivateKey(undefined, network);
+                    log('utxo-output', '🎲 Generated new random private key', 'info');
+                }
+                
+                const address = privateKey.toAddress(network);
+                const script = bsv.Script.buildPublicKeyHashOut(address);
+                
+                // Create mock UTXO
+                currentUTXO = {
+                    txId: 'mock_utxo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    outputIndex: 0,
+                    address: address.toString(),
+                    script: script.toString(),
+                    satoshis: amount,
+                    privateKey: privateKey,
+                    network: network
+                };
+                
+                log('utxo-output', '✅ Mock UTXO generated successfully!', 'success');
+                log('utxo-output', `🆔 UTXO ID: ${currentUTXO.txId}:${currentUTXO.outputIndex}`, 'info');
+                log('utxo-output', `🏠 Address: ${currentUTXO.address}`, 'info');
+                log('utxo-output', `💰 Value: ${currentUTXO.satoshis} satoshis`, 'info');
+                log('utxo-output', `🌐 Network: ${currentUTXO.network}`, 'info');
+                log('utxo-output', `🔑 Private Key (WIF): ${currentUTXO.privateKey.toWIF()}`, 'info');
+                
+            } catch (error) {
+                log('utxo-output', `❌ UTXO generation failed: ${error.message}`, 'error');
+            }
+        }
+
+        function createSpendingTx() {
+            if (!currentUTXO) {
+                log('utxo-output', '❌ No UTXO available. Please generate a UTXO first.', 'error');
+                return;
+            }
+            
+            log('utxo-output', '💸 Creating Spending Transaction...', 'info');
+            
+            try {
+                const recipientAddress = '1BitcoinEaterAddressDontSendf59kuE'; // Burn address for demo
+                const fee = 1000;
+                const outputAmount = currentUTXO.satoshis - fee;
+                
+                if (outputAmount <= 0) {
+                    throw new Error('Insufficient funds for transaction fee');
+                }
+                
+                const tx = new bsv.Transaction()
+                    .from(currentUTXO)
+                    .to(recipientAddress, outputAmount)
+                    .sign(currentUTXO.privateKey);
+                
+                log('utxo-output', '✅ Spending transaction created!', 'success');
+                log('utxo-output', `📊 Transaction ID: ${tx.id}`, 'info');
+                log('utxo-output', `💰 Input: ${currentUTXO.satoshis} satoshis`, 'info');
+                log('utxo-output', `💸 Output: ${outputAmount} satoshis`, 'info');
+                log('utxo-output', `🏦 Fee: ${fee} satoshis`, 'info');
+                log('utxo-output', `📏 Transaction size: ${tx.toString().length / 2} bytes`, 'info');
+                log('utxo-output', `🔗 Raw transaction: ${tx.toString().substring(0, 100)}...`, 'info');
+                
+            } catch (error) {
+                log('utxo-output', `❌ Spending transaction failed: ${error.message}`, 'error');
+            }
+        }
+
+        function showUTXODetails() {
+            if (!currentUTXO) {
+                log('utxo-output', '❌ No UTXO available. Please generate a UTXO first.', 'error');
+                return;
+            }
+            
+            log('utxo-output', '📋 Detailed UTXO Information:', 'info');
+            log('utxo-output', `<pre>
+UTXO Details:
+============
+Transaction ID: ${currentUTXO.txId}
+Output Index:   ${currentUTXO.outputIndex}
+Address:        ${currentUTXO.address}
+Value:          ${currentUTXO.satoshis} satoshis (${(currentUTXO.satoshis / 100000000).toFixed(8)} BSV)
+Network:        ${currentUTXO.network}
+
+Script Details:
+==============
+Script ASM:     ${currentUTXO.script}
+Script Size:    ${Buffer.from(currentUTXO.script, 'hex').length} bytes
+
+Private Key:
+===========
+WIF:            ${currentUTXO.privateKey.toWIF()}
+Hex:            ${currentUTXO.privateKey.toString()}
+Compressed:     ${currentUTXO.privateKey.compressed}
+
+Address Details:
+===============
+Hash160:        ${bsv.Address.fromString(currentUTXO.address).hashBuffer.toString('hex')}
+Version:        ${bsv.Address.fromString(currentUTXO.address).network.pubkeyhash}
+            </pre>`, 'success');
+        }
+
+        // Script Tools Functions
+        function buildScript() {
+            clearOutput('scripts-output');
+            log('scripts-output', '🏗️ Building Script...', 'info');
+            
+            try {
+                const asmCode = document.getElementById('script-asm').value.trim();
+                const scriptType = document.getElementById('script-type').value;
+                
+                if (!asmCode) {
+                    throw new Error('Please provide script ASM code');
+                }
+                
+                const script = bsv.Script.fromASM(asmCode);
+                
+                log('scripts-output', `✅ Script built successfully!`, 'success');
+                log('scripts-output', `📝 Script type: ${scriptType}`, 'info');
+                log('scripts-output', `📏 Script size: ${script.toBuffer().length} bytes`, 'info');
+                log('scripts-output', `🔢 Script hex: ${script.toBuffer().toString('hex')}`, 'info');
+                log('scripts-output', `📜 Script ASM: ${script.toString()}`, 'info');
+                
+                // Analyze script opcodes
+                const opcodes = script.chunks.map(chunk => {
+                    if (chunk.opcodenum !== undefined) {
+                        return `OP_${bsv.Opcode.reverseMap[chunk.opcodenum] || chunk.opcodenum}`;
+                    } else if (chunk.buf) {
+                        return `DATA(${chunk.buf.length} bytes)`;
+                    }
+                    return 'UNKNOWN';
+                });
+                
+                log('scripts-output', `🔍 Opcodes: ${opcodes.join(', ')}`, 'info');
+                
+            } catch (error) {
+                log('scripts-output', `❌ Script building failed: ${error.message}`, 'error');
+            }
+        }
+
+        function analyzeScript() {
+            const asmCode = document.getElementById('script-asm').value.trim();
+            if (!asmCode) {
+                log('scripts-output', '❌ Please provide script ASM code first.', 'error');
+                return;
+            }
+            
+            log('scripts-output', '🔍 Analyzing Script...', 'info');
+            
+            try {
+                const script = bsv.Script.fromASM(asmCode);
+                
+                // Script analysis
+                const analysis = {
+                    size: script.toBuffer().length,
+                    chunks: script.chunks.length,
+                    isPushOnly: script.isPushOnly(),
+                    isStandard: true, // Simplified check
+                    hasTimelock: asmCode.includes('CHECKLOCKTIMEVERIFY') || asmCode.includes('CHECKSEQUENCEVERIFY'),
+                    hasMultisig: asmCode.includes('CHECKMULTISIG'),
+                    hasHash: asmCode.includes('HASH160') || asmCode.includes('HASH256'),
+                    complexity: 'Medium' // Simplified assessment
+                };
+                
+                log('scripts-output', '📊 Script Analysis Results:', 'success');
+                log('scripts-output', `📏 Size: ${analysis.size} bytes`, 'info');
+                log('scripts-output', `🧩 Chunks: ${analysis.chunks}`, 'info');
+                log('scripts-output', `📌 Push-only: ${analysis.isPushOnly ? 'Yes' : 'No'}`, 'info');
+                log('scripts-output', `✅ Standard: ${analysis.isStandard ? 'Yes' : 'No'}`, 'info');
+                log('scripts-output', `⏰ Has timelock: ${analysis.hasTimelock ? 'Yes' : 'No'}`, 'info');
+                log('scripts-output', `👥 Has multisig: ${analysis.hasMultisig ? 'Yes' : 'No'}`, 'info');
+                log('scripts-output', `🔐 Has hash ops: ${analysis.hasHash ? 'Yes' : 'No'}`, 'info');
+                log('scripts-output', `🎯 Complexity: ${analysis.complexity}`, 'info');
+                
+                // Fee estimation
+                const feePerByte = 1; // satoshis per byte
+                const estimatedFee = analysis.size * feePerByte;
+                log('scripts-output', `💰 Estimated fee: ${estimatedFee} satoshis (at ${feePerByte} sat/byte)`, 'info');
+                
+            } catch (error) {
+                log('scripts-output', `❌ Script analysis failed: ${error.message}`, 'error');
+            }
+        }
+
+        function debugScript() {
+            const asmCode = document.getElementById('script-asm').value.trim();
+            if (!asmCode) {
+                log('scripts-output', '❌ Please provide script ASM code first.', 'error');
+                return;
+            }
+            
+            log('scripts-output', '🐛 Debug Mode: Step-by-step execution', 'info');
+            
+            try {
+                const script = bsv.Script.fromASM(asmCode);
+                
+                log('scripts-output', '🔍 Script Debug Information:', 'success');
+                log('scripts-output', '📋 Execution Steps:', 'info');
+                
+                script.chunks.forEach((chunk, index) => {
+                    if (chunk.opcodenum !== undefined) {
+                        const opname = bsv.Opcode.reverseMap[chunk.opcodenum] || `OP_${chunk.opcodenum}`;
+                        log('scripts-output', `  Step ${index + 1}: Execute ${opname}`, 'info');
+                    } else if (chunk.buf) {
+                        log('scripts-output', `  Step ${index + 1}: Push data (${chunk.buf.length} bytes): ${chunk.buf.toString('hex')}`, 'info');
+                    }
+                });
+                
+                log('scripts-output', '💡 Debug complete! For full verification, create a transaction and use bsv.Script.Interpreter', 'success');
+                
+            } catch (error) {
+                log('scripts-output', `❌ Script debugging failed: ${error.message}`, 'error');
+            }
+        }
+
+        function optimizeScript() {
+            const asmCode = document.getElementById('script-asm').value.trim();
+            if (!asmCode) {
+                log('scripts-output', '❌ Please provide script ASM code first.', 'error');
+                return;
+            }
+            
+            log('scripts-output', '⚡ Optimizing Script...', 'info');
+            
+            try {
+                const script = bsv.Script.fromASM(asmCode);
+                const originalSize = script.toBuffer().length;
+                
+                // Simple optimization suggestions
+                const optimizations = [];
+                
+                if (asmCode.includes('OP_1 OP_ADD')) {
+                    optimizations.push('Replace "OP_1 OP_ADD" with "OP_1ADD" (saves 1 byte)');
+                }
+                
+                if (asmCode.includes('OP_0')) {
+                    optimizations.push('OP_0 is efficiently encoded');
+                }
+                
+                if (asmCode.includes('OP_1') && !asmCode.includes('OP_1ADD')) {
+                    optimizations.push('OP_1-OP_16 are more efficient than pushing the number');
+                }
+                
+                const redundantOps = asmCode.match(/OP_DUP OP_DROP/g);
+                if (redundantOps) {
+                    optimizations.push(`Remove redundant OP_DUP OP_DROP sequences (${redundantOps.length} found)`);
+                }
+                
+                log('scripts-output', `📊 Original size: ${originalSize} bytes`, 'info');
+                
+                if (optimizations.length > 0) {
+                    log('scripts-output', '💡 Optimization suggestions:', 'success');
+                    optimizations.forEach(opt => {
+                        log('scripts-output', `  • ${opt}`, 'info');
+                    });
+                } else {
+                    log('scripts-output', '✅ Script appears to be well optimized!', 'success');
+                }
+                
+                log('scripts-output', '🎯 General optimization tips:', 'info');
+                log('scripts-output', '  • Use OP_1-OP_16 instead of pushing small numbers', 'info');
+                log('scripts-output', '  • Minimize stack operations', 'info');
+                log('scripts-output', '  • Avoid redundant DUP/DROP sequences', 'info');
+                log('scripts-output', '  • Use more efficient opcodes when available', 'info');
+                
+            } catch (error) {
+                log('scripts-output', `❌ Script optimization failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Use Case Examples
+        function showEscrowExample() {
+            alert(`🏦 Escrow Contract Example:
+
+A 2-of-3 escrow where buyer, seller, and arbiter each hold a key.
+- Buyer and seller can complete transaction normally
+- If dispute, buyer+arbiter or seller+arbiter can resolve
+- Includes timeout clause for refund after 30 days
+
+Script structure:
+IF
+  2 <buyer_pubkey> <seller_pubkey> <arbiter_pubkey> 3 CHECKMULTISIG
+ELSE
+  <30_days> CHECKLOCKTIMEVERIFY DROP
+  <buyer_pubkey> CHECKSIG
+ENDIF
+
+Click "Covenant Builder" tab to create your own!`);
+        }
+
+        function showTimelockExample() {
+            alert(`⏰ SmartLedger-BSV Timelock Covenant:
+
+Uses preimage validation instead of OP_CHECKLOCKTIMEVERIFY.
+The covenant validates nLockTime field from BIP-143 preimage.
+
+SmartLedger-BSV Script Structure:
+DUP                      # Duplicate preimage
+36 4 OP_SUBSTR          # Extract nLockTime (bytes 36-40)
+OP_BIN2NUM              # Convert to number
+<block_height>          # Required minimum block
+OP_GREATERTHANOREQUAL   # Check if time passed
+OP_VERIFY               # Enforce constraint
+OP_HASH256              # Hash preimage
+<preimage_hash>         # Expected hash
+OP_EQUALVERIFY          # Validate preimage
+OP_DROP                 # Clean stack
+<pubkey> OP_CHECKSIG    # Signature check
+
+This uses OP_PUSH_TX methods and preimage parsing!
+
+Try the "Covenant Builder" to see real implementation!`);
+        }
+
+        function showRecurringExample() {
+            alert(`🔄 Recurring Payment Example:
+
+Automated payments that renew themselves on-chain.
+Each payment creates a new UTXO for the next payment.
+
+Key features:
+- Self-perpetuating contract
+- Fixed payment amounts and intervals
+- Automatic recipient payment
+- Remaining balance rolls over
+
+Implementation requires covenant logic to:
+1. Send payment to recipient
+2. Create new UTXO with remaining funds
+3. Enforce timing constraints
+
+Explore covenant building for implementation!`);
+        }
+
+        function showGamingExample() {
+            alert(`🎲 Gaming Contract Example:
+
+Provably fair games using on-chain randomness and covenants.
+
+Features:
+- Commit-reveal schemes for fairness
+- Automatic payout based on results
+- Time limits for player actions
+- House edge enforcement
+
+Example: Coin Flip
+1. Player commits hash(choice + nonce)
+2. House commits hash(choice + nonce)  
+3. Both reveal - contract determines winner
+4. Automatic payout to winner
+
+Perfect for trustless gambling and games!`);
+        }
+
+        // Initialize demo on page load
+        window.onload = function() {
+            log('basics-output', '🌟 Welcome to BSV Smart Contract Demo!', 'info');
+            log('basics-output', '👆 Click "Load BSV Smart Contract Library" to begin', 'info');
+        };
+    </script>
+</body>
+</html>

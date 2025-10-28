@@ -6,7 +6,7 @@
  * This demonstrates the comprehensive validation that happens before broadcasting
  */
 
-const bsv = require('./index.js');
+const bsv = require('../index.js');
 
 console.log('🛡️  SmartLedger Enhanced Validation Pipeline Demo');
 console.log('================================================\n');

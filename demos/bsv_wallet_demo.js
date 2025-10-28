@@ -13,7 +13,7 @@
  * - Optionally broadcast transactions to BSV network
  */
 
-const bsv = require('./index.js');
+const bsv = require('../index.js');
 
 // Demo configuration - replace with your own for real use
 const DEMO_CONFIG = {
@@ -56,12 +56,8 @@ console.log(`Public Key: ${privateKey.publicKey.toString()}\n`);
 async function demonstrateRealBSV() {
   console.log('🌍 Real BSV Blockchain Integration:');
   console.log('==================================');
-  
-  // Create SmartUTXO manager with real blockchain integration
-  const { RealUTXOManager } = require('./real_utxo_test.js');
-  
-  // Note: We're using the same RealUTXOManager class from real_utxo_test.js
-  // In production, you'd extract this to a separate module
+  console.log('');
+  console.log('📚 Real BSV integration available via separate modules');
   
   console.log('1. ✅ SmartLedger signature verification works');
   console.log('2. ✅ Real UTXO fetching via WhatsOnChain API');

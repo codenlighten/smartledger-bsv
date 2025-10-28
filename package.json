@@ -1,7 +1,7 @@
 {
   "name": "@smartledger/bsv",
-  "version": "3.3.2",
-  "description": "🚀 Complete Bitcoin SV development framework with Legal Token Protocol (LTP), Global Digital Attestation Framework (GDAF), Shamir Secret Sharing, and 9 flexible loading options. Includes primitives-only architecture for maximum integration flexibility, SmartContract framework, covenant builder, and comprehensive Bitcoin SV API. Perfect for legal tokens, DeFi, smart contracts, and secure Bitcoin applications.",
+  "version": "3.3.3",
+  "description": "🚀 Complete Bitcoin SV development framework with Legal Token Protocol (LTP), Global Digital Attestation Framework (GDAF), Shamir Secret Sharing, and 12 flexible loading options. Includes primitives-only architecture for maximum integration flexibility, SmartContract framework, covenant builder, and comprehensive Bitcoin SV API. Perfect for legal tokens, DeFi, smart contracts, and secure Bitcoin applications.",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
   "bugs": {
@@ -10,7 +10,7 @@
   "main": "index.js",
   "scripts": {
     "lint": "standard",
-    "test": "standard && mocha",
+    "test": "mocha",
     "test:ltp": "node complete_ltp_demo.js",
     "test:ltp-primitives": "node simple_demo.js",
     "test:architecture": "node architecture_demo.js",
@@ -27,6 +27,7 @@
     "build-mnemonic": "NODE_OPTIONS=\"--openssl-legacy-provider\" webpack mnemonic/index.js --config build/webpack.subproject.config.js --output-library bsvMnemonic -o bsv-mnemonic.min.js",
     "build-shamir": "NODE_OPTIONS=\"--openssl-legacy-provider\" webpack shamir-entry.js --config build/webpack.subproject.config.js --output-library bsvShamir -o bsv-shamir.min.js",
     "build-ltp": "NODE_OPTIONS=\"--openssl-legacy-provider\" webpack ltp-entry.js --config build/webpack.ltp.config.js",
+    "build-gdaf": "NODE_OPTIONS=\"--openssl-legacy-provider\" webpack gdaf-entry.js --config build/webpack.gdaf.config.js",
     "build-smartcontract": "NODE_OPTIONS=\"--openssl-legacy-provider\" webpack smartcontract-entry.js --config build/webpack.smartcontract.config.js",
     "build-covenant": "NODE_OPTIONS=\"--openssl-legacy-provider\" webpack covenant-entry.js --config build/webpack.covenant.config.js",
     "build-script-helper": "NODE_OPTIONS=\"--openssl-legacy-provider\" webpack script-helper-entry.js --config build/webpack.script-helper.config.js",
@@ -34,7 +35,8 @@
     "build-bundle": "NODE_OPTIONS=\"--openssl-legacy-provider\" webpack bundle-entry.js --config build/webpack.bundle.config.js",
     "build": "npm run build-bsv && npm run build-ecies && npm run build-message && npm run build-mnemonic && npm run build-shamir && npm run build-smartcontract",
     "build-specialized": "npm run build-covenant && npm run build-script-helper && npm run build-security",
-    "build-all": "npm run build && npm run build-bundle && npm run build-specialized",
+    "build-advanced": "npm run build-ltp && npm run build-gdaf",
+    "build-all": "npm run build && npm run build-bundle && npm run build-specialized && npm run build-advanced",
     "test:browser": "echo 'Open tests/standalone-modules-test.html in browser for comprehensive testing'",
     "test:bundle": "echo 'Open tests/bundle-completeness-test.html in browser to verify bundle completeness'",
     "demo": "npm run test:covenants",

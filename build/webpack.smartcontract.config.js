@@ -1,12 +1,12 @@
 const path = require('path')
 
 module.exports = {
-  entry: path.join(__dirname, '/smartcontract-entry.js'),
+  entry: path.join(__dirname, '../smartcontract-entry.js'),
   output: {
     library: 'bsvSmartContract',
     libraryTarget: 'umd',
     globalObject: 'typeof self !== \'undefined\' ? self : this',
-    path: path.join(__dirname, '/'),
+    path: path.resolve(__dirname, '../'),
     filename: 'bsv-smartcontract.min.js'
   },
   externals: {

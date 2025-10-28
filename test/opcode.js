@@ -83,15 +83,15 @@ describe('Opcode', function () {
   })
 
   describe('@map', function () {
-    it('should have a map containing 118 elements', function () {
-      Object.keys(Opcode.map).length.should.equal(118)
+    it('should have a map containing 121 elements', function () {
+      Object.keys(Opcode.map).length.should.equal(121)
     })
   })
 
   describe('@reverseMap', function () {
     it('should exist and have op 185', function () {
       should.exist(Opcode.reverseMap)
-      Opcode.reverseMap[185].should.equal('OP_NOP10')
+      Opcode.reverseMap[185].should.equal('OP_NOP7')
     })
   })
   var smallints = [
