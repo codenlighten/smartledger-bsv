@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>CDN vs Local PBKDF2 Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>SmartLedger BSV: CDN vs Local PBKDF2 Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: CDN Version (Expected to fail with createHmac error)</h2>
+        <button onclick="testCDN()">Test CDN Version</button>
+        <div id="cdn-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Local Fixed Version (Should work)</h2>
+        <button onclick="testLocal()">Test Local Version</button>
+        <div id="local-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Summary</h2>
+        <div id="summary"></div>
+    </div>
+
+    <script>
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            element.innerHTML += `<div class="${className}">${message}</div>`;
+        }
+        
+        function clearResults(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        function testCDN() {
+            clearResults('cdn-results');
+            log('cdn-results', 'Loading CDN version...');
+            
+            // Remove any existing scripts
+            const existingScripts = document.querySelectorAll('script[src*="bsv"]');
+            existingScripts.forEach(script => script.remove());
+            
+            // Clear global variables
+            if (window.bsv) delete window.bsv;
+            if (window.bsvMnemonic) delete window.bsvMnemonic;
+            if (window.Mnemonic) delete window.Mnemonic;
+            
+            // Load CDN scripts
+            const bsvScript = document.createElement('script');
+            bsvScript.src = 'https://cdn.jsdelivr.net/npm/smartledger-bsv@3.3.3/bsv.min.js';
+            bsvScript.onload = () => {
+                const mnemonicScript = document.createElement('script');
+                mnemonicScript.src = 'https://cdn.jsdelivr.net/npm/smartledger-bsv@3.3.3/bsv-mnemonic.min.js';
+                mnemonicScript.onload = () => {
+                    testMnemonicGeneration('cdn-results', 'CDN');
+                };
+                mnemonicScript.onerror = () => {
+                    log('cdn-results', '❌ Failed to load CDN mnemonic script', 'error');
+                };
+                document.head.appendChild(mnemonicScript);
+            };
+            bsvScript.onerror = () => {
+                log('cdn-results', '❌ Failed to load CDN BSV script', 'error');
+            };
+            document.head.appendChild(bsvScript);
+        }
+
+        function testLocal() {
+            clearResults('local-results');
+            log('local-results', 'Loading local fixed version...');
+            
+            // Remove any existing scripts
+            const existingScripts = document.querySelectorAll('script[src*="bsv"]');
+            existingScripts.forEach(script => script.remove());
+            
+            // Clear global variables
+            if (window.bsv) delete window.bsv;
+            if (window.bsvMnemonic) delete window.bsvMnemonic;
+            if (window.Mnemonic) delete window.Mnemonic;
+            
+            // Load local scripts
+            const bsvScript = document.createElement('script');
+            bsvScript.src = '../bsv.min.js';
+            bsvScript.onload = () => {
+                const mnemonicScript = document.createElement('script');
+                mnemonicScript.src = '../bsv-mnemonic.min.js';
+                mnemonicScript.onload = () => {
+                    testMnemonicGeneration('local-results', 'Local');
+                };
+                mnemonicScript.onerror = () => {
+                    log('local-results', '❌ Failed to load local mnemonic script', 'error');
+                };
+                document.head.appendChild(mnemonicScript);
+            };
+            bsvScript.onerror = () => {
+                log('local-results', '❌ Failed to load local BSV script', 'error');
+            };
+            document.head.appendChild(bsvScript);
+        }
+
+        function testMnemonicGeneration(resultElementId, version) {
+            try {
+                log(resultElementId, `${version} scripts loaded successfully`, 'info');
+                
+                // Check what's available
+                const MnemonicClass = window.bsvMnemonic || window.Mnemonic || (window.bsv && window.bsv.Mnemonic);
+                log(resultElementId, `Mnemonic class available: ${!!MnemonicClass}`, 'info');
+                
+                if (MnemonicClass) {
+                    // Test mnemonic generation
+                    log(resultElementId, 'Attempting to generate mnemonic...', 'info');
+                    const mnemonic = MnemonicClass.fromRandom(256);
+                    log(resultElementId, `✅ ${version} mnemonic generation successful!`, 'success');
+                    log(resultElementId, `Sample words: ${mnemonic.phrase.split(' ').slice(0, 4).join(' ')}...`, 'info');
+                    
+                    // Test key derivation
+                    log(resultElementId, 'Testing key derivation...', 'info');
+                    const hdPrivateKey = bsv.HDPrivateKey.fromSeed(mnemonic.toSeed());
+                    const derived = hdPrivateKey.deriveChild("m/44'/236'/0'/0/0");
+                    const address = derived.privateKey.toAddress().toString();
+                    log(resultElementId, `✅ ${version} key derivation successful!`, 'success');
+                    log(resultElementId, `Address: ${address}`, 'info');
+                    
+                    updateSummary(version, 'SUCCESS');
+                } else {
+                    log(resultElementId, `❌ ${version} mnemonic class not available`, 'error');
+                    updateSummary(version, 'NO_MNEMONIC_CLASS');
+                }
+                
+            } catch (error) {
+                log(resultElementId, `❌ ${version} error: ${error.message}`, 'error');
+                if (error.message.includes('createHmac')) {
+                    log(resultElementId, '🔍 This is the createHmac error we are fixing!', 'error');
+                    updateSummary(version, 'CREATEHMAC_ERROR');
+                } else {
+                    updateSummary(version, 'OTHER_ERROR');
+                }
+            }
+        }
+        
+        let testResults = {};
+        
+        function updateSummary(version, result) {
+            testResults[version] = result;
+            
+            let summary = '<h3>Test Results Summary:</h3>';
+            
+            if (testResults['CDN']) {
+                const cdnStatus = testResults['CDN'] === 'SUCCESS' ? '✅ Working' : 
+                                 testResults['CDN'] === 'CREATEHMAC_ERROR' ? '❌ createHmac error' : 
+                                 '❌ Failed';
+                summary += `<div><strong>CDN Version:</strong> ${cdnStatus}</div>`;
+            }
+            
+            if (testResults['Local']) {
+                const localStatus = testResults['Local'] === 'SUCCESS' ? '✅ Working' : '❌ Failed';
+                summary += `<div><strong>Local Fixed Version:</strong> ${localStatus}</div>`;
+            }
+            
+            if (testResults['CDN'] && testResults['Local']) {
+                if (testResults['CDN'] === 'CREATEHMAC_ERROR' && testResults['Local'] === 'SUCCESS') {
+                    summary += '<div class="success"><strong>✅ Fix confirmed!</strong> The local version resolves the CDN createHmac issue.</div>';
+                    summary += '<div class="info"><strong>Solution:</strong> The CDN bundle needs browser-compatible PBKDF2 implementation that uses BSV crypto instead of Node.js crypto.</div>';
+                } else if (testResults['CDN'] === 'SUCCESS' && testResults['Local'] === 'SUCCESS') {
+                    summary += '<div class="success"><strong>Both versions working!</strong></div>';
+                } else {
+                    summary += '<div class="error"><strong>Unexpected results.</strong> Please check the implementation.</div>';
+                }
+            }
+            
+            document.getElementById('summary').innerHTML = summary;
+        }
+    </script>
+</body>
+</html>

@@ -5,7 +5,7 @@
   <title>Web3Keys Playground – All-in-One SPA (No Server)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SmartLedger BSV Security-Hardened Library - Local v3.3.3 -->
+  <!-- SmartLedger BSV Security-Hardened Library - Local Fixed v3.3.3 -->
   <script src="../bsv.min.js"></script>
   <script src="../bsv-mnemonic.min.js"></script>
   <script>
@@ -225,14 +225,26 @@
         <!-- DEBUG -->
         <div id="tab-debug" class="tab-panel hidden space-y-4">
           <h2 class="text-xl font-semibold text-primaryDark">Debug</h2>
-          <div class="grid md:grid-cols-2 gap-4">
-            <div>
-              <div class="text-sm">Local Storage (truncated)</div>
-              <pre id="ls-state" class="p-3 bg-gray-50 border rounded mono text-xs"></pre>
+          <div class="space-y-4">
+            <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <h3 class="font-semibold text-yellow-800">CDN createHmac Issue Information</h3>
+              <p class="text-sm text-yellow-700 mt-2">If you're seeing "createHmac is not a function" errors, this is because the CDN version uses Node.js crypto modules that don't exist in browsers.</p>
+              <p class="text-sm text-yellow-700 mt-1"><strong>Solution:</strong> The CDN bundles need browser-compatible PBKDF2 implementation using BSV's crypto modules instead of Node.js crypto.</p>
+            </div>
+            <div class="grid md:grid-cols-2 gap-4">
+              <div>
+                <div class="text-sm">Local Storage (truncated)</div>
+                <pre id="ls-state" class="p-3 bg-gray-50 border rounded mono text-xs"></pre>
+              </div>
+              <div>
+                <div class="text-sm">SDK Info</div>
+                <pre id="sdk-info" class="p-3 bg-gray-50 border rounded mono text-xs"></pre>
+              </div>
             </div>
             <div>
-              <div class="text-sm">SDK Info</div>
-              <pre id="sdk-info" class="p-3 bg-gray-50 border rounded mono text-xs"></pre>
+              <div class="text-sm">Crypto Availability Test</div>
+              <button id="test-crypto" class="px-3 py-2 bg-blue-600 text-white rounded">Test Crypto Functions</button>
+              <pre id="crypto-test" class="p-3 bg-gray-50 border rounded mono text-xs mt-2"></pre>
             </div>
           </div>
         </div>
@@ -274,14 +286,14 @@
     const SL = {
       genMnemonic: () => {
         // Generate 24-word mnemonic using BSV Mnemonic module
-        const MnemonicClass = window.bsvMnemonic || (window.bsv && window.bsv.Mnemonic);
+        const MnemonicClass = window.bsvMnemonic || window.Mnemonic || (window.bsv && window.bsv.Mnemonic);
         if (!MnemonicClass) throw new Error('Mnemonic module not loaded');
         // Use 256 bits of entropy for 24 words (default is 128 bits for 12 words)
         return MnemonicClass.fromRandom(256).phrase;
       },
       validateMnemonic: (m) => {
         try {
-          const MnemonicClass = window.bsvMnemonic || (window.bsv && window.bsv.Mnemonic);
+          const MnemonicClass = window.bsvMnemonic || window.Mnemonic || (window.bsv && window.bsv.Mnemonic);
           if (!MnemonicClass) return false;
           new MnemonicClass(m);
           return true;
@@ -291,7 +303,7 @@
       },
       derivePath: (m, path) => {
         // Derive key from mnemonic and path
-        const MnemonicClass = window.bsvMnemonic || (window.bsv && window.bsv.Mnemonic);
+        const MnemonicClass = window.bsvMnemonic || window.Mnemonic || (window.bsv && window.bsv.Mnemonic);
         if (!MnemonicClass) throw new Error('Mnemonic module not loaded');
         
         const mnemonic = new MnemonicClass(m);
@@ -443,9 +455,14 @@
       $('sdk-info').textContent = JSON.stringify({
         bsvPresent: !!window.bsv,
         hasMessage: !!(window.bsv && bsv.Message),
-        hasMnemonic: !!(window.bsvMnemonic || (window.bsv && bsv.Mnemonic)),
+        hasMnemonic: !!(window.bsvMnemonic || window.Mnemonic || (window.bsv && bsv.Mnemonic)),
         hasSmartLedger: !!(window.bsv && bsv.SmartLedger),
-        mnemonicModule: window.bsvMnemonic ? 'bsvMnemonic' : 'bsv.Mnemonic',
+        mnemonicModule: window.bsvMnemonic ? 'bsvMnemonic' : window.Mnemonic ? 'Mnemonic' : 'bsv.Mnemonic',
+        mnemonicAvailable: {
+          bsvMnemonic: !!window.bsvMnemonic,
+          globalMnemonic: !!window.Mnemonic, 
+          bsvInternal: !!(window.bsv && bsv.Mnemonic)
+        },
         version: window.bsv ? `SmartLedger BSV v${bsv.version || '3.3.3'}` : 'SmartLedger BSV v3.3.3'
       }, null, 2);
     }
@@ -646,6 +663,72 @@
           // Do not auto-decrypt; user can copy enc values into Encrypt/Decrypt tab to test with their password.
           setStatus('Backup loaded (preview shown). Use your password in Encrypt/Decrypt to open fields.');
         } catch(e){ setStatus(e.message, false); }
+      };
+
+      // Crypto test
+      $('test-crypto').onclick = () => {
+        let result = 'Testing crypto availability...\n\n';
+        
+        try {
+          // Test Node.js crypto
+          result += 'Node.js crypto module: ';
+          if (typeof require !== 'undefined') {
+            try {
+              const crypto = require('crypto');
+              result += crypto ? 'Available\n' : 'Not available\n';
+              result += `  createHmac: ${typeof crypto.createHmac}\n`;
+            } catch (e) {
+              result += `Error: ${e.message}\n`;
+            }
+          } else {
+            result += 'require() not available (browser environment)\n';
+          }
+          
+          // Test BSV crypto
+          result += '\nBSV crypto module: ';
+          if (window.bsv && bsv.crypto && bsv.crypto.Hash) {
+            result += 'Available\n';
+            result += `  Hash.sha256: ${typeof bsv.crypto.Hash.sha256}\n`;
+            result += `  Hash.sha512: ${typeof bsv.crypto.Hash.sha512}\n`;
+            result += `  Hash.sha256hmac: ${typeof bsv.crypto.Hash.sha256hmac}\n`;
+            result += `  Hash.sha512hmac: ${typeof bsv.crypto.Hash.sha512hmac}\n`;
+            
+            // Test HMAC functionality
+            try {
+              const testData = Buffer.from('test');
+              const testKey = Buffer.from('key');
+              const hmacResult = bsv.crypto.Hash.sha512hmac(testData, testKey);
+              result += `  HMAC test: Success (${hmacResult.length} bytes)\n`;
+            } catch (e) {
+              result += `  HMAC test: Error - ${e.message}\n`;
+            }
+          } else {
+            result += 'Not available\n';
+          }
+          
+          // Test mnemonic PBKDF2
+          result += '\nMnemonic PBKDF2 test: ';
+          try {
+            const MnemonicClass = window.bsvMnemonic || window.Mnemonic || (window.bsv && window.bsv.Mnemonic);
+            if (MnemonicClass) {
+              const mnemonic = MnemonicClass.fromRandom(128); // Use 128 for faster test
+              result += 'Success\n';
+              result += `  Generated: ${mnemonic.phrase.split(' ').slice(0, 3).join(' ')}...\n`;
+            } else {
+              result += 'Mnemonic class not available\n';
+            }
+          } catch (e) {
+            result += `Error - ${e.message}\n`;
+            if (e.message.includes('createHmac')) {
+              result += '  ^ This is the createHmac issue!\n';
+            }
+          }
+          
+        } catch (e) {
+          result += `\nUnexpected error: ${e.message}\n`;
+        }
+        
+        $('crypto-test').textContent = result;
       };
 
       // Defaults

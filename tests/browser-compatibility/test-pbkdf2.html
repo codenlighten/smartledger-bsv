@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PBKDF2 Test</title>
+</head>
+<body>
+    <h1>Testing PBKDF2 Browser Compatibility</h1>
+    <div id="results"></div>
+    
+    <script src="../bsv.min.js"></script>
+    <script src="../bsv-mnemonic.min.js"></script>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function log(message) {
+            results.innerHTML += '<div>' + message + '</div>';
+            console.log(message);
+        }
+        
+        // Test mnemonic generation
+        try {
+            log('Testing mnemonic generation...');
+            
+            // Check if modules are available
+            const MnemonicClass = window.bsvMnemonic || window.Mnemonic || (window.bsv && window.bsv.Mnemonic);
+            log('Mnemonic class available: ' + !!MnemonicClass);
+            
+            if (MnemonicClass) {
+                // Generate a mnemonic
+                const mnemonic = MnemonicClass.fromRandom(256);
+                log('✅ Mnemonic generated successfully: ' + mnemonic.phrase.split(' ').slice(0, 4).join(' ') + '...');
+                
+                // Test derivation
+                const hdPrivateKey = bsv.HDPrivateKey.fromSeed(mnemonic.toSeed());
+                const derived = hdPrivateKey.deriveChild("m/44'/236'/0'/0/0");
+                log('✅ Key derivation successful');
+                log('✅ Address: ' + derived.privateKey.toAddress().toString());
+            } else {
+                log('❌ Mnemonic class not available');
+            }
+            
+        } catch (error) {
+            log('❌ Error: ' + error.message);
+            if (error.message.includes('createHmac')) {
+                log('🔍 This is the createHmac error we are fixing!');
+            }
+        }
+    </script>
+</body>
+</html>
