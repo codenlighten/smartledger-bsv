@@ -114,6 +114,10 @@ Thumbs.db
 *.swo
 *~
 
+# Backup files
+*.backup
+package.json.backup
+
 # Test outputs
 test-results/
 coverage/
