@@ -1,0 +1,14 @@
+{
+  "type": "escrow",
+  "params": {
+    "amount": 1000000,
+    "timeoutBlocks": 600000
+  },
+  "address": "3NPhfnJcA2PsEWu65YnNtp1LoHnomRSWHT",
+  "script": {
+    "asm": "OP_SIZE 947f75587f7540420fa2698258947f75547f75c027099f69",
+    "hex": "8222947f75587f7540420fa2698258947f75547f75c027099f69"
+  },
+  "createdAt": "2025-10-30T12:10:38.843Z",
+  "network": "testnet"
+}

@@ -1,0 +1,14 @@
+{
+  "type": "subscription",
+  "params": {
+    "monthlyAmount": 10000000,
+    "maxPayments": 12
+  },
+  "address": "3LNwsdZJj9NUPg48BKdvAsNtKHtAKHLSXY",
+  "script": {
+    "asm": "OP_SIZE 947f75587f754880d3049c69",
+    "hex": "8222947f75587f754880d3049c69"
+  },
+  "createdAt": "2025-10-30T12:10:38.886Z",
+  "network": "testnet"
+}

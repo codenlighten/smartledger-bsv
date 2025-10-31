@@ -682,10 +682,27 @@ const timelockScript = helper.createTimelockScript(
 - [🔧 **Integration Guide**](SMARTCONTRACT_INTEGRATION.md) - Smart contract integration
 
 ### 📋 **Examples & Demos**
-- [📁 **Examples Directory**](examples/) - Working code examples
+- [� **Interactive Demos**](demos/) - **NEW!** HTML & Node.js smart contract demos
+- [�📁 **Examples Directory**](examples/) - Working code examples
 - [🎯 **Basic Examples**](examples/basic/) - Simple transactions & addresses
 - [🔒 **Covenant Examples**](examples/covenants/) - Smart contract patterns  
 - [📊 **Advanced Examples**](examples/covenants2/) - Production patterns
+
+**🎮 Try the Interactive Demos:**
+```bash
+# Terminal-based interactive demo
+npm run demo
+
+# Or run specific features
+npm run demo:basics     # Library basics & tests
+npm run demo:covenant   # Covenant builder
+npm run demo:preimage   # BIP-143 preimage parser
+npm run demo:utxo      # UTXO generator
+npm run demo:scripts   # Script tools
+
+# Web-based demo (open in browser)
+npm run demo:web
+```
 
 ### 🔍 **Troubleshooting & Support**
 - [📚 **Complete Documentation**](docs/README.md) - Organized documentation hub

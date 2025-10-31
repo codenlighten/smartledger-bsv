@@ -1,0 +1,14 @@
+{
+  "type": "payment_validation",
+  "params": {
+    "minAmount": 100000,
+    "maxAmount": 500000
+  },
+  "address": "3JvQScCuKfHq6mN9BpGBBkQnXTWs6XrWGh",
+  "script": {
+    "asm": "OP_SIZE 947f75587f75a08601a269",
+    "hex": "8222947f75587f75a08601a269"
+  },
+  "createdAt": "2025-10-30T12:10:38.842Z",
+  "network": "testnet"
+}

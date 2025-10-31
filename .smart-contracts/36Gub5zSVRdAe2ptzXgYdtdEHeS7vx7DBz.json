@@ -1,0 +1,22 @@
+{
+  "type": "multi_condition",
+  "params": {
+    "conditions": [
+      {
+        "type": "amount",
+        "value": 100000
+      },
+      {
+        "type": "locktime",
+        "value": 700000
+      }
+    ]
+  },
+  "address": "36Gub5zSVRdAe2ptzXgYdtdEHeS7vx7DBz",
+  "script": {
+    "asm": "OP_SIZE 947f75587f75a08601a2698258947f75547f7560ae0aa069",
+    "hex": "8222947f75587f75a08601a2698258947f75547f7560ae0aa069"
+  },
+  "createdAt": "2025-10-30T12:10:38.885Z",
+  "network": "testnet"
+}
