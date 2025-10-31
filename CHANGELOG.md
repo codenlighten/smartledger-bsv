@@ -1,16 +1,29 @@
-# Changelog# Changelog
+# Changelog
 
+All notable changes to SmartLedger-BSV will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-All notable changes to SmartLedger-BSV will be documented in this file.All notable changes to SmartLedger-BSV will be documented in this file.
+## [3.3.4] - 2025-10-31
 
+### Fixed
+- **Critical Browser Compatibility Fix**: Resolved `createHmac is not a function` error affecting CDN users
+- **PBKDF2 Implementation**: Added browser-compatible PBKDF2 using BSV crypto instead of Node.js crypto
+- **Mnemonic Generation**: Fixed mnemonic generation and HD wallet derivation in browser environments
+- **Bundle Updates**: Rebuilt all bundles with browser-compatible crypto implementations
 
+### Added
+- Browser-specific PBKDF2 implementation (`lib/mnemonic/pbkdf2.browser.js`)
+- Node.js-specific PBKDF2 implementation (`lib/mnemonic/pbkdf2.node.js`)
+- Automatic browser/Node.js detection for crypto modules
+- Comprehensive browser compatibility test suite
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-
+### Technical Details
+- Uses BSV's `Hash.sha512hmac()` instead of Node.js `crypto.createHmac()`
+- Maintains full cryptographic security and API compatibility
+- Zero breaking changes for existing users
+- All 12 bundle variants updated with the fix
 
 ## [3.3.3] - 2025-10-28## [3.3.0] - 2025-10-22
 
