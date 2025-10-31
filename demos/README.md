@@ -182,7 +182,7 @@ Both demos showcase the complete SmartLedger-BSV functionality:
 ---
 
 **Created by:** SmartLedger-BSV Development Team  
-**Version:** v3.3.3  
+**Version:** v3.3.4  
 **Last Updated:** October 30, 2025
 
 *Both demos provide identical functionality - choose the interface that works best for your workflow!* 🎉
