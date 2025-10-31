@@ -115,6 +115,13 @@ try {
   }
 }
 
+// Browser-compatible UTXO Manager (always available)
+try {
+  bsv.BrowserUTXOManager = require('./lib/browser-utxo-manager-es5')
+} catch (e) {
+  // BrowserUTXOManager not available
+}
+
 // Node.js specific tools (advanced development tools)
 if (typeof window === 'undefined' && typeof require === 'function') {
   try {

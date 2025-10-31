@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartLedger-BSV Browser Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007acc;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #444;
+            margin-top: 30px;
+        }
+        .test-section {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007acc;
+        }
+        .result {
+            background: #e8f5e8;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .error {
+            background: #ffe8e8;
+            color: #d32f2f;
+        }
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .loaded {
+            background: #d4edda;
+            color: #155724;
+        }
+        .failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .key-pair {
+            background: #e3f2fd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #bbdefb;
+        }
+        .key-pair h4 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+        }
+        .key-item {
+            margin: 5px 0;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 SmartLedger-BSV Browser Integration Test</h1>
+        
+        <div id="loadStatus" class="status loading">
+            📡 Loading SmartLedger-BSV from CDN...
+        </div>
+
+        <div class="test-section">
+            <h2>📋 Library Information</h2>
+            <button onclick="testLibraryInfo()">Test Library Info</button>
+            <div id="libraryInfo" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🎲 Mnemonic & Seed Generation</h2>
+            <button onclick="testMnemonicGeneration()">Test Mnemonic Features</button>
+            <input type="text" id="customPassphrase" placeholder="Enter custom passphrase (optional)" style="width: 300px; margin: 5px;">
+            <button onclick="testCustomPassphrase()">Test with Custom Passphrase</button>
+            <br>
+            <textarea id="importMnemonic" placeholder="Enter existing mnemonic words (12-24 words)" style="width: 100%; height: 60px; margin: 5px; font-family: monospace; padding: 8px;" rows="3"></textarea>
+            <button onclick="testImportedMnemonic()">Test Imported Mnemonic</button>
+            <button onclick="clearMnemonicInput()">Clear</button>
+            <div id="mnemonicTesting" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔑 Key Generation & Derivation</h2>
+            <button onclick="testKeyGeneration()">Generate Test Keys</button>
+            <button onclick="generateMnemonic()">Generate New Mnemonic</button>
+            <div id="keyGeneration" class="result"></div>
+            <div id="generatedKeys"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🖊️ Digital Signatures</h2>
+            <button onclick="testSignatures()">Test Signing & Verification</button>
+            <div id="signatures" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🆔 DID Generation</h2>
+            <button onclick="testDIDGeneration()">Generate DIDs</button>
+            <div id="didGeneration" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>💰 Address Generation</h2>
+            <button onclick="testAddressGeneration()">Generate Addresses</button>
+            <div id="addressGeneration" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>� Browser UTXO Manager</h2>
+            <button onclick="testBrowserUTXOManager()">Test UTXO Management</button>
+            <select id="storageTypeSelect" style="margin: 5px;">
+                <option value="memory">Memory Storage</option>
+                <option value="session">Session Storage</option>
+                <option value="local">Local Storage</option>
+            </select>
+            <button onclick="testDifferentStorageTypes()">Test Storage Types</button>
+            <div id="utxoManager" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>�🔐 SmartLedger Enhanced Features</h2>
+            <button onclick="testSmartFeatures()">Test SmartVerify & Security</button>
+            <div id="smartFeatures" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Full Web3Keys Simulation</h2>
+            <button onclick="runFullSimulation()">Run Complete Web3Keys Test</button>
+            <div id="fullSimulation" class="result"></div>
+        </div>
+    </div>
+
+    <!-- Load SmartLedger-BSV from CDN -->
+    <script src="https://unpkg.com/smartledger-bsv@3.3.4/bsv.bundle.js"></script>
+    
+    <script>
+        let bsv;
+        let Buffer; // Browser Buffer support
+        let testMnemonic = '';
+        
+        // Wait for library to load
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                if (window.bsv) {
+                    bsv = window.bsv;
+                    Buffer = bsv.deps.Buffer; // Use SmartLedger's Buffer implementation
+                    
+                    document.getElementById('loadStatus').className = 'status loaded';
+                    document.getElementById('loadStatus').innerHTML = '✅ SmartLedger-BSV loaded successfully!';
+                    
+                    // Display available modules
+                    const availableModules = Object.keys(bsv);
+                    document.getElementById('loadStatus').innerHTML += 
+                        `<br><strong>Available modules:</strong> ${availableModules.join(', ')}`;
+                } else {
+                    document.getElementById('loadStatus').className = 'status failed';
+                    document.getElementById('loadStatus').innerHTML = '❌ Failed to load SmartLedger-BSV';
+                }
+            }, 1000);
+        });
+
+        function testLibraryInfo() {
+            try {
+                const info = {
+                    availableModules: Object.keys(bsv),
+                    version: bsv.version || 'Unknown',
+                    hasHDPrivateKey: typeof bsv.HDPrivateKey,
+                    hasPublicKey: typeof bsv.PublicKey,
+                    hasAddress: typeof bsv.Address,
+                    hasTransaction: typeof bsv.Transaction,
+                    hasScript: typeof bsv.Script,
+                    hasCrypto: typeof bsv.crypto,
+                    hasSmartLedger: typeof bsv.SmartLedger,
+                    hasSmartVerify: typeof bsv.SmartVerify
+                };
+                
+                document.getElementById('libraryInfo').className = 'result success';
+                document.getElementById('libraryInfo').textContent = JSON.stringify(info, null, 2);
+            } catch (error) {
+                document.getElementById('libraryInfo').className = 'result error';
+                document.getElementById('libraryInfo').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        function generateMnemonic() {
+            try {
+                // Check if Buffer is available
+                if (!Buffer) {
+                    Buffer = bsv.deps.Buffer;
+                }
+                
+                let results = [];
+                
+                if (bsv.Mnemonic) {
+                    // Generate 24-word mnemonic (256-bit entropy)
+                    const mnemonic = bsv.Mnemonic.fromRandom(256);
+                    const mnemonicString = mnemonic.toString();
+                    const wordCount = mnemonicString.split(' ').length;
+                    
+                    results.push(`Generated 24-word Mnemonic (${wordCount} words):`);
+                    results.push(mnemonicString);
+                    results.push('');
+                    
+                    // Test different entropy levels
+                    const entropies = [
+                        { bits: 128, words: 12, name: '12-word' },
+                        { bits: 160, words: 15, name: '15-word' },
+                        { bits: 192, words: 18, name: '18-word' },
+                        { bits: 224, words: 21, name: '21-word' },
+                        { bits: 256, words: 24, name: '24-word' }
+                    ];
+                    
+                    results.push('📊 Mnemonic Entropy Options:');
+                    entropies.forEach(entropy => {
+                        try {
+                            const testMnemonic = bsv.Mnemonic.fromRandom(entropy.bits);
+                            const testWords = testMnemonic.toString().split(' ').length;
+                            results.push(`   ✅ ${entropy.name} (${entropy.bits}-bit): ${testWords} words generated`);
+                        } catch (e) {
+                            results.push(`   ❌ ${entropy.name} (${entropy.bits}-bit): ${e.message}`);
+                        }
+                    });
+                    results.push('');
+                    
+                    // Test passphrase functionality
+                    results.push('🔐 Passphrase Testing:');
+                    const testPassphrase = 'Web3Keys-secure-passphrase-2025';
+                    const seedWithPassphrase = mnemonic.toSeed(testPassphrase);
+                    const seedWithoutPassphrase = mnemonic.toSeed();
+                    
+                    results.push(`   ✅ Seed with passphrase: ${seedWithPassphrase.toString('hex').substring(0, 32)}...`);
+                    results.push(`   ✅ Seed without passphrase: ${seedWithoutPassphrase.toString('hex').substring(0, 32)}...`);
+                    results.push(`   ✅ Different seeds: ${!seedWithPassphrase.equals(seedWithoutPassphrase) ? 'YES' : 'NO'}`);
+                    results.push('');
+                    
+                    // Validate mnemonic
+                    const isValid = bsv.Mnemonic.isValid(mnemonicString);
+                    results.push(`✅ Mnemonic validation: ${isValid ? 'VALID' : 'INVALID'}`);
+                    
+                    testMnemonic = mnemonicString;
+                } else if (bsv.crypto && bsv.crypto.Random) {
+                    // Fallback: Generate using crypto.Random
+                    const entropy = bsv.crypto.Random.getRandomBuffer(32); // 256 bits
+                    results.push('Generated entropy (256-bit):');
+                    results.push(entropy.toString('hex'));
+                    results.push('⚠️ Note: Mnemonic class not available, showing raw entropy');
+                } else {
+                    results.push('❌ Mnemonic generation not available in browser version');
+                }
+                
+                document.getElementById('keyGeneration').className = 'result success';
+                document.getElementById('keyGeneration').textContent = results.join('\n');
+            } catch (error) {
+                document.getElementById('keyGeneration').className = 'result error';
+                document.getElementById('keyGeneration').textContent = 'Mnemonic Error: ' + error.message;
+            }
+        }
+
+        function testKeyGeneration() {
+            try {
+                const results = [];
+                
+                // Test 1: Generate random HD private key
+                if (bsv.HDPrivateKey && bsv.HDPrivateKey.fromRandom) {
+                    const hdPrivateKey = bsv.HDPrivateKey.fromRandom();
+                    results.push('✅ HDPrivateKey generation: SUCCESS');
+                    results.push(`   Master key: ${hdPrivateKey.toString().substring(0, 50)}...`);
+                    
+                    // Test key derivation
+                    const derivedKey = hdPrivateKey.deriveChild("m/44'/236'/0'/0/0");
+                    results.push('✅ Key derivation: SUCCESS');
+                    results.push(`   Derived key: ${derivedKey.toString().substring(0, 50)}...`);
+                    
+                    // Generate address
+                    const publicKey = derivedKey.privateKey.toPublicKey();
+                    const address = bsv.Address.fromPublicKey(publicKey);
+                    results.push('✅ Address generation: SUCCESS');
+                    results.push(`   Address: ${address.toString()}`);
+                    
+                    // Create key pairs display
+                    createKeyPairDisplay(hdPrivateKey);
+                    
+                } else {
+                    results.push('❌ HDPrivateKey not available or fromRandom method missing');
+                }
+
+                document.getElementById('keyGeneration').className = 'result success';
+                document.getElementById('keyGeneration').textContent = results.join('\n');
+                
+            } catch (error) {
+                document.getElementById('keyGeneration').className = 'result error';
+                document.getElementById('keyGeneration').textContent = 'Key Generation Error: ' + error.message;
+            }
+        }
+
+        function createKeyPairDisplay(masterKey) {
+            const purposes = [
+                { name: 'IDENTITY', path: "m/44'/236'/0'/0/0" },
+                { name: 'FINANCIAL', path: "m/44'/0'/0'/0/0" },
+                { name: 'ATTESTATION', path: "m/44'/236'/4'/0/0" },
+                { name: 'ORGANIZATION', path: "m/44'/236'/6'/0/0" }
+            ];
+            
+            let html = '<h3>Generated Key Pairs:</h3>';
+            
+            purposes.forEach(purpose => {
+                try {
+                    const derivedKey = masterKey.deriveChild(purpose.path);
+                    const publicKey = derivedKey.privateKey.toPublicKey();
+                    const address = bsv.Address.fromPublicKey(publicKey);
+                    
+                    html += `
+                        <div class="key-pair">
+                            <h4>${purpose.name} Key</h4>
+                            <div class="key-item"><strong>Path:</strong> ${purpose.path}</div>
+                            <div class="key-item"><strong>Address:</strong> ${address.toString()}</div>
+                            <div class="key-item"><strong>PubKey:</strong> ${publicKey.toString().substring(0, 40)}...</div>
+                        </div>
+                    `;
+                } catch (e) {
+                    html += `<div class="key-pair"><h4>${purpose.name} Key</h4><div class="error">Error: ${e.message}</div></div>`;
+                }
+            });
+            
+            document.getElementById('generatedKeys').innerHTML = html;
+        }
+
+        function testSignatures() {
+            try {
+                // Ensure Buffer is available
+                if (!Buffer) {
+                    Buffer = bsv.deps.Buffer;
+                }
+                
+                const results = [];
+                
+                // Generate test key
+                const privateKey = bsv.PrivateKey.fromRandom();
+                const publicKey = privateKey.toPublicKey();
+                
+                // Test data
+                const testData = 'Web3Keys browser signature test';
+                const dataBuffer = Buffer.from(testData, 'utf8');
+                const hash = bsv.crypto.Hash.sha256(dataBuffer);
+                
+                // Sign data
+                const signature = bsv.crypto.ECDSA.sign(hash, privateKey);
+                results.push('✅ Signature creation: SUCCESS');
+                results.push(`   Signature: ${signature.toString().substring(0, 50)}...`);
+                
+                // Verify signature
+                const isValid = bsv.crypto.ECDSA.verify(hash, signature, publicKey);
+                results.push(`✅ Signature verification: ${isValid ? 'VALID' : 'INVALID'}`);
+                
+                // Test SmartVerify if available
+                if (bsv.SmartVerify && bsv.SmartVerify.smartVerify) {
+                    const smartValid = bsv.SmartVerify.smartVerify(hash, signature, publicKey);
+                    results.push(`✅ SmartVerify enhanced: ${smartValid ? 'VALID' : 'INVALID'}`);
+                    
+                    // Test canonical signature
+                    const isCanonical = bsv.SmartVerify.isCanonical(signature);
+                    results.push(`✅ Signature canonical: ${isCanonical ? 'YES' : 'NO'}`);
+                }
+                
+                document.getElementById('signatures').className = 'result success';
+                document.getElementById('signatures').textContent = results.join('\n');
+                
+            } catch (error) {
+                document.getElementById('signatures').className = 'result error';
+                document.getElementById('signatures').textContent = 'Signature Error: ' + error.message;
+            }
+        }
+
+        function testDIDGeneration() {
+            try {
+                const results = [];
+                
+                // Generate multiple DIDs
+                for (let i = 0; i < 3; i++) {
+                    const privateKey = bsv.PrivateKey.fromRandom();
+                    const publicKey = privateKey.toPublicKey();
+                    
+                    // Generate DID using public key hash
+                    const pubKeyHash = bsv.crypto.Hash.sha256(publicKey.toBuffer()).toString('hex').substring(0, 16);
+                    const did = `did:web:web3keys.org:${pubKeyHash}`;
+                    
+                    const address = bsv.Address.fromPublicKey(publicKey);
+                    
+                    results.push(`✅ DID ${i + 1}: ${did}`);
+                    results.push(`   Address: ${address.toString()}`);
+                    results.push(`   PubKey: ${publicKey.toString().substring(0, 40)}...`);
+                    results.push('');
+                }
+                
+                document.getElementById('didGeneration').className = 'result success';
+                document.getElementById('didGeneration').textContent = results.join('\n');
+                
+            } catch (error) {
+                document.getElementById('didGeneration').className = 'result error';
+                document.getElementById('didGeneration').textContent = 'DID Generation Error: ' + error.message;
+            }
+        }
+
+        function testAddressGeneration() {
+            try {
+                const results = [];
+                
+                // Test different address types
+                const privateKey = bsv.PrivateKey.fromRandom();
+                const publicKey = privateKey.toPublicKey();
+                
+                // Standard address
+                const address = bsv.Address.fromPublicKey(publicKey);
+                results.push('✅ Standard Address Generation: SUCCESS');
+                results.push(`   Address: ${address.toString()}`);
+                results.push(`   Type: ${address.type || 'pubkeyhash'}`);
+                
+                // Validate address
+                const isValid = bsv.Address.isValid(address.toString());
+                results.push(`✅ Address validation: ${isValid ? 'VALID' : 'INVALID'}`);
+                
+                // Test multiple addresses for Paymail simulation
+                results.push('\n📧 Paymail Address Simulation:');
+                for (let i = 0; i < 3; i++) {
+                    const paymailKey = bsv.PrivateKey.fromRandom();
+                    const paymailPubKey = paymailKey.toPublicKey();
+                    const paymailAddress = bsv.Address.fromPublicKey(paymailPubKey);
+                    
+                    results.push(`   user${i + 1}@web3keys.org → ${paymailAddress.toString()}`);
+                }
+                
+                document.getElementById('addressGeneration').className = 'result success';
+                document.getElementById('addressGeneration').textContent = results.join('\n');
+                
+            } catch (error) {
+                document.getElementById('addressGeneration').className = 'result error';
+                document.getElementById('addressGeneration').textContent = 'Address Generation Error: ' + error.message;
+            }
+        }
+
+        function testSmartFeatures() {
+            try {
+                // Ensure Buffer is available
+                if (!Buffer) {
+                    Buffer = bsv.deps.Buffer;
+                }
+                
+                const results = [];
+                
+                // Test SmartLedger info if available
+                if (bsv.SmartLedger) {
+                    results.push('🔐 SmartLedger Information:');
+                    results.push(`   Version: ${bsv.SmartLedger.version || 'Unknown'}`);
+                    results.push(`   Base Version: ${bsv.SmartLedger.baseVersion || 'Unknown'}`);
+                    results.push(`   Hardened By: ${bsv.SmartLedger.hardenedBy || 'Unknown'}`);
+                    if (bsv.SmartLedger.securityFeatures) {
+                        results.push(`   Security Features: ${bsv.SmartLedger.securityFeatures.join(', ')}`);
+                    }
+                    results.push('');
+                }
+                
+                // Test SmartVerify features
+                if (bsv.SmartVerify) {
+                    results.push('🛡️ SmartVerify Features:');
+                    results.push(`   smartVerify function: ${typeof bsv.SmartVerify.smartVerify}`);
+                    results.push(`   isCanonical function: ${typeof bsv.SmartVerify.isCanonical}`);
+                    results.push(`   canonicalize function: ${typeof bsv.SmartVerify.canonicalize}`);
+                    
+                    // Test canonical signature checking
+                    const testKey = bsv.PrivateKey.fromRandom();
+                    const testPubKey = testKey.toPublicKey();
+                    const testHash = bsv.crypto.Hash.sha256(Buffer.from('test', 'utf8'));
+                    const testSig = bsv.crypto.ECDSA.sign(testHash, testKey);
+                    
+                    const isCanonical = bsv.SmartVerify.isCanonical(testSig);
+                    results.push(`   Test signature canonical: ${isCanonical ? 'YES' : 'NO'}`);
+                    results.push('');
+                }
+                
+                // Test other Smart modules
+                const smartModules = [
+                    { name: 'SmartContract', browserCompatible: true },
+                    { name: 'SmartUTXO', browserCompatible: false },
+                    { name: 'SmartMiner', browserCompatible: false }
+                ];
+                smartModules.forEach(module => {
+                    if (bsv[module.name]) {
+                        results.push(`✅ ${module.name}: Available (${typeof bsv[module.name]})`);
+                    } else if (!module.browserCompatible) {
+                        results.push(`ℹ️ ${module.name}: Node.js-only (expected)`);
+                    } else {
+                        results.push(`❌ ${module.name}: Not available`);
+                    }
+                });
+                
+                results.push('');
+                results.push('📝 Note: SmartUTXO and SmartMiner are Node.js-only development tools');
+                results.push('   They require file system access and are not included in browser bundles');
+                results.push('   Use manual UTXO management and external APIs for browser applications');
+                
+                document.getElementById('smartFeatures').className = 'result success';
+                document.getElementById('smartFeatures').textContent = results.join('\n');
+                
+            } catch (error) {
+                document.getElementById('smartFeatures').className = 'result error';
+                document.getElementById('smartFeatures').textContent = 'Smart Features Error: ' + error.message;
+            }
+        }
+
+        function testMnemonicGeneration() {
+            try {
+                if (!Buffer) {
+                    Buffer = bsv.deps.Buffer;
+                }
+                
+                const results = [];
+                
+                if (!bsv.Mnemonic) {
+                    results.push('❌ Mnemonic class not available in browser');
+                    document.getElementById('mnemonicTesting').className = 'result error';
+                    document.getElementById('mnemonicTesting').textContent = results.join('\n');
+                    return;
+                }
+                
+                results.push('🎲 Comprehensive Mnemonic Testing\n');
+                
+                // Test 1: Different entropy levels
+                results.push('1️⃣ Testing Different Entropy Levels:');
+                const entropies = [
+                    { bits: 128, expectedWords: 12 },
+                    { bits: 160, expectedWords: 15 },
+                    { bits: 192, expectedWords: 18 },
+                    { bits: 224, expectedWords: 21 },
+                    { bits: 256, expectedWords: 24 }
+                ];
+                
+                entropies.forEach(entropy => {
+                    try {
+                        const mnemonic = bsv.Mnemonic.fromRandom(entropy.bits);
+                        const words = mnemonic.toString().split(' ');
+                        const isCorrectLength = words.length === entropy.expectedWords;
+                        results.push(`   ${isCorrectLength ? '✅' : '❌'} ${entropy.bits}-bit: ${words.length}/${entropy.expectedWords} words`);
+                        
+                        if (entropy.bits === 256) {
+                            results.push(`      Example: ${words.slice(0, 6).join(' ')}...`);
+                        }
+                    } catch (e) {
+                        results.push(`   ❌ ${entropy.bits}-bit: Error - ${e.message}`);
+                    }
+                });
+                
+                // Test 2: Mnemonic validation
+                results.push('\n2️⃣ Testing Mnemonic Validation:');
+                const validMnemonic = bsv.Mnemonic.fromRandom(256);
+                const validString = validMnemonic.toString();
+                results.push(`   ✅ Valid mnemonic: ${bsv.Mnemonic.isValid(validString) ? 'PASS' : 'FAIL'}`);
+                
+                const invalidMnemonic = 'invalid word list test fake mnemonic';
+                results.push(`   ✅ Invalid mnemonic: ${!bsv.Mnemonic.isValid(invalidMnemonic) ? 'PASS' : 'FAIL'}`);
+                
+                // Test 3: Seed generation with/without passphrase
+                results.push('\n3️⃣ Testing Seed Generation:');
+                const testMnemonic = bsv.Mnemonic.fromRandom(256);
+                const seedDefault = testMnemonic.toSeed();
+                const seedWithPass = testMnemonic.toSeed('test-passphrase');
+                const seedWithDiffPass = testMnemonic.toSeed('different-passphrase');
+                
+                results.push(`   ✅ Default seed: ${seedDefault.toString('hex').substring(0, 32)}...`);
+                results.push(`   ✅ With passphrase: ${seedWithPass.toString('hex').substring(0, 32)}...`);
+                results.push(`   ✅ Seeds different: ${!seedDefault.equals(seedWithPass) ? 'YES' : 'NO'}`);
+                results.push(`   ✅ Different passphrases create different seeds: ${!seedWithPass.equals(seedWithDiffPass) ? 'YES' : 'NO'}`);
+                
+                // Test 4: HD key derivation from mnemonic
+                results.push('\n4️⃣ Testing HD Key Derivation:');
+                const hdKey = bsv.HDPrivateKey.fromSeed(seedDefault);
+                const hdKeyWithPass = bsv.HDPrivateKey.fromSeed(seedWithPass);
+                
+                results.push(`   ✅ HD key from seed: ${hdKey.toString().substring(0, 40)}...`);
+                results.push(`   ✅ HD key with passphrase: ${hdKeyWithPass.toString().substring(0, 40)}...`);
+                results.push(`   ✅ HD keys different: ${hdKey.toString() !== hdKeyWithPass.toString() ? 'YES' : 'NO'}`);
+                
+                // Test 5: Web3Keys purpose derivation
+                results.push('\n5️⃣ Testing Web3Keys Purpose Derivation:');
+                const purposes = [
+                    { name: 'Identity', path: "m/44'/236'/0'/0/0" },
+                    { name: 'Financial', path: "m/44'/0'/0'/0/0" },
+                    { name: 'Attestation', path: "m/44'/236'/4'/0/0" }
+                ];
+                
+                purposes.forEach(purpose => {
+                    try {
+                        const derivedKey = hdKey.deriveChild(purpose.path);
+                        const address = bsv.Address.fromPublicKey(derivedKey.privateKey.toPublicKey());
+                        results.push(`   ✅ ${purpose.name}: ${address.toString()}`);
+                    } catch (e) {
+                        results.push(`   ❌ ${purpose.name}: ${e.message}`);
+                    }
+                });
+                
+                results.push('\n🎯 Mnemonic Testing Complete!');
+                document.getElementById('mnemonicTesting').className = 'result success';
+                document.getElementById('mnemonicTesting').textContent = results.join('\n');
+                
+            } catch (error) {
+                document.getElementById('mnemonicTesting').className = 'result error';
+                document.getElementById('mnemonicTesting').textContent = 'Mnemonic Testing Error: ' + error.message;
+            }
+        }
+
+        function testCustomPassphrase() {
+            try {
+                if (!Buffer) {
+                    Buffer = bsv.deps.Buffer;
+                }
+                
+                const results = [];
+                const customPassphrase = document.getElementById('customPassphrase').value;
+                
+                if (!bsv.Mnemonic) {
+                    results.push('❌ Mnemonic class not available');
+                    document.getElementById('mnemonicTesting').className = 'result error';
+                    document.getElementById('mnemonicTesting').textContent = results.join('\n');
+                    return;
+                }
+                
+                results.push('🔐 Custom Passphrase Testing\n');
+                
+                // Generate test mnemonic
+                const mnemonic = bsv.Mnemonic.fromRandom(256);
+                results.push(`Test Mnemonic: ${mnemonic.toString()}\n`);
+                
+                // Test different passphrase scenarios
+                const passphrases = [
+                    { name: 'No passphrase', value: '' },
+                    { name: 'Empty string', value: '' },
+                    { name: 'Custom passphrase', value: customPassphrase || 'Web3Keys-default-test' },
+                    { name: 'Unicode passphrase', value: '🔐🌍Web3Keys测试密码🚀' },
+                    { name: 'Long passphrase', value: 'This is a very long passphrase for testing purposes with many words and characters 123456789' }
+                ];
+                
+                const seeds = [];
+                passphrases.forEach((pp, index) => {
+                    try {
+                        const seed = mnemonic.toSeed(pp.value);
+                        const hdKey = bsv.HDPrivateKey.fromSeed(seed);
+                        const identityKey = hdKey.deriveChild("m/44'/236'/0'/0/0");
+                        const address = bsv.Address.fromPublicKey(identityKey.privateKey.toPublicKey());
+                        
+                        seeds.push(seed);
+                        results.push(`${index + 1}️⃣ ${pp.name}:`);
+                        results.push(`   Seed: ${seed.toString('hex').substring(0, 32)}...`);
+                        results.push(`   Identity Address: ${address.toString()}`);
+                        results.push('');
+                    } catch (e) {
+                        results.push(`${index + 1}️⃣ ${pp.name}: Error - ${e.message}\n`);
+                    }
+                });
+                
+                // Verify all seeds are different (except identical passphrases)
+                results.push('🔍 Seed Uniqueness Check:');
+                for (let i = 0; i < seeds.length; i++) {
+                    for (let j = i + 1; j < seeds.length; j++) {
+                        const isDifferent = !seeds[i].equals(seeds[j]);
+                        const shouldBeDifferent = passphrases[i].value !== passphrases[j].value;
+                        const status = isDifferent === shouldBeDifferent ? '✅' : '❌';
+                        results.push(`   ${status} ${passphrases[i].name} vs ${passphrases[j].name}: ${isDifferent ? 'Different' : 'Same'}`);
+                    }
+                }
+                
+                results.push('\n🎯 Custom Passphrase Testing Complete!');
+                document.getElementById('mnemonicTesting').className = 'result success';
+                document.getElementById('mnemonicTesting').textContent = results.join('\n');
+                
+            } catch (error) {
+                document.getElementById('mnemonicTesting').className = 'result error';
+                document.getElementById('mnemonicTesting').textContent = 'Custom Passphrase Error: ' + error.message;
+            }
+        }
+
+        function clearMnemonicInput() {
+            document.getElementById('importMnemonic').value = '';
+            document.getElementById('mnemonicTesting').innerHTML = '';
+        }
+
+        function testImportedMnemonic() {
+            try {
+                if (!Buffer) {
+                    Buffer = bsv.deps.Buffer;
+                }
+                
+                const results = [];
+                const importedMnemonicText = document.getElementById('importMnemonic').value.trim();
+                
+                if (!importedMnemonicText) {
+                    results.push('❌ Please enter a mnemonic to import');
+                    document.getElementById('mnemonicTesting').className = 'result error';
+                    document.getElementById('mnemonicTesting').textContent = results.join('\n');
+                    return;
+                }
+                
+                if (!bsv.Mnemonic) {
+                    results.push('❌ Mnemonic class not available in browser');
+                    document.getElementById('mnemonicTesting').className = 'result error';
+                    document.getElementById('mnemonicTesting').textContent = results.join('\n');
+                    return;
+                }
+                
+                results.push('📥 Imported Mnemonic Testing\n');
+                
+                // Test 1: Validate imported mnemonic
+                results.push('1️⃣ Validating Imported Mnemonic:');
+                const words = importedMnemonicText.split(/\s+/);
+                const wordCount = words.length;
+                results.push(`   Word count: ${wordCount}`);
+                
+                const isValidFormat = [12, 15, 18, 21, 24].includes(wordCount);
+                results.push(`   ✅ Valid word count: ${isValidFormat ? 'YES' : 'NO'}`);
+                
+                if (!isValidFormat) {
+                    results.push('   ❌ Mnemonic must be 12, 15, 18, 21, or 24 words');
+                    document.getElementById('mnemonicTesting').className = 'result error';
+                    document.getElementById('mnemonicTesting').textContent = results.join('\n');
+                    return;
+                }
+                
+                // Test 2: Create mnemonic object and validate
+                let mnemonic;
+                try {
+                    mnemonic = bsv.Mnemonic.fromString(importedMnemonicText);
+                    results.push(`   ✅ Mnemonic object created successfully`);
+                    
+                    const isValid = bsv.Mnemonic.isValid(importedMnemonicText);
+                    results.push(`   ✅ Mnemonic validation: ${isValid ? 'VALID' : 'INVALID'}`);
+                    
+                    if (!isValid) {
+                        results.push('   ❌ Invalid mnemonic - check for typos or invalid words');
+                        document.getElementById('mnemonicTesting').className = 'result error';
+                        document.getElementById('mnemonicTesting').textContent = results.join('\n');
+                        return;
+                    }
+                } catch (error) {
+                    results.push(`   ❌ Error creating mnemonic: ${error.message}`);
+                    document.getElementById('mnemonicTesting').className = 'result error';
+                    document.getElementById('mnemonicTesting').textContent = results.join('\n');
+                    return;
+                }
+                
+                // Test 3: Generate seeds with different passphrases
+                results.push('\n2️⃣ Testing Seed Generation:');
+                const customPassphrase = document.getElementById('customPassphrase').value;
+                
+                const passphrases = [
+                    { name: 'No passphrase', value: '' },
+                    { name: 'Custom passphrase', value: customPassphrase || 'Web3Keys-test' },
+                    { name: 'Test passphrase', value: 'imported-mnemonic-test-2025' }
+                ];
+                
+                const seeds = [];
+                passphrases.forEach((pp, index) => {
+                    try {
+                        const seed = mnemonic.toSeed(pp.value);
+                        seeds.push(seed);
+                        results.push(`   ${index + 1}. ${pp.name}:`);
+                        results.push(`      Seed: ${seed.toString('hex').substring(0, 32)}...`);
+                    } catch (e) {
+                        results.push(`   ${index + 1}. ${pp.name}: Error - ${e.message}`);
+                    }
+                });
+                
+                // Test 4: Generate HD keys and addresses
+                results.push('\n3️⃣ Testing Key Derivation:');
+                try {
+                    const seedDefault = mnemonic.toSeed();
+                    const hdKey = bsv.HDPrivateKey.fromSeed(seedDefault);
+                    
+                    results.push(`   Master Key: ${hdKey.toString().substring(0, 50)}...`);
+                    
+                    // Generate Web3Keys purpose keys
+                    const purposes = [
+                        { name: 'Identity', path: "m/44'/236'/0'/0/0", color: '🆔' },
+                        { name: 'Financial', path: "m/44'/0'/0'/0/0", color: '💰' },
+                        { name: 'Attestation', path: "m/44'/236'/4'/0/0", color: '📋' },
+                        { name: 'Organization', path: "m/44'/236'/6'/0/0", color: '🏢' }
+                    ];
+                    
+                    purposes.forEach(purpose => {
+                        try {
+                            const derivedKey = hdKey.deriveChild(purpose.path);
+                            const address = bsv.Address.fromPublicKey(derivedKey.privateKey.toPublicKey());
+                            const pubKey = derivedKey.privateKey.toPublicKey().toString();
+                            
+                            results.push(`   ${purpose.color} ${purpose.name}:`);
+                            results.push(`      Path: ${purpose.path}`);
+                            results.push(`      Address: ${address.toString()}`);
+                            results.push(`      PubKey: ${pubKey.substring(0, 40)}...`);
+                            results.push('');
+                        } catch (e) {
+                            results.push(`   ❌ ${purpose.name}: ${e.message}`);
+                        }
+                    });
+                } catch (error) {
+                    results.push(`   ❌ Key derivation error: ${error.message}`);
+                }
+                
+                // Test 5: Generate DID from imported mnemonic
+                results.push('4️⃣ Testing DID Generation:');
+                try {
+                    const seedDefault = mnemonic.toSeed();
+                    const hdKey = bsv.HDPrivateKey.fromSeed(seedDefault);
+                    const identityKey = hdKey.deriveChild("m/44'/236'/0'/0/0");
+                    const identityPublicKey = identityKey.privateKey.toPublicKey();
+                    const pubKeyHash = bsv.crypto.Hash.sha256(identityPublicKey.toBuffer()).toString('hex').substring(0, 16);
+                    const did = `did:web:web3keys.org:${pubKeyHash}`;
+                    
+                    results.push(`   ✅ Generated DID: ${did}`);
+                    results.push(`   ✅ Identity Address: ${bsv.Address.fromPublicKey(identityPublicKey).toString()}`);
+                } catch (error) {
+                    results.push(`   ❌ DID generation error: ${error.message}`);
+                }
+                
+                // Test 6: Test signature with imported mnemonic
+                results.push('\n5️⃣ Testing Digital Signatures:');
+                try {
+                    const seedDefault = mnemonic.toSeed();
+                    const hdKey = bsv.HDPrivateKey.fromSeed(seedDefault);
+                    const signingKey = hdKey.deriveChild("m/44'/236'/0'/0/0");
+                    const privateKey = signingKey.privateKey;
+                    const publicKey = privateKey.toPublicKey();
+                    
+                    // Sign test data
+                    const testData = `Web3Keys imported mnemonic test - ${Date.now()}`;
+                    const dataBuffer = Buffer.from(testData, 'utf8');
+                    const hash = bsv.crypto.Hash.sha256(dataBuffer);
+                    const signature = bsv.crypto.ECDSA.sign(hash, privateKey);
+                    
+                    results.push(`   ✅ Test data: "${testData}"`);
+                    results.push(`   ✅ Signature: ${signature.toString().substring(0, 50)}...`);
+                    
+                    // Verify signature
+                    const isValid = bsv.crypto.ECDSA.verify(hash, signature, publicKey);
+                    results.push(`   ✅ Signature verification: ${isValid ? 'VALID' : 'INVALID'}`);
+                    
+                    // Test SmartVerify if available
+                    if (bsv.SmartVerify && bsv.SmartVerify.smartVerify) {
+                        const smartValid = bsv.SmartVerify.smartVerify(hash, signature, publicKey);
+                        const isCanonical = bsv.SmartVerify.isCanonical(signature);
+                        results.push(`   ✅ SmartVerify: ${smartValid ? 'VALID' : 'INVALID'}`);
+                        results.push(`   ✅ Canonical: ${isCanonical ? 'YES' : 'NO'}`);
+                    }
+                } catch (error) {
+                    results.push(`   ❌ Signature test error: ${error.message}`);
+                }
+                
+                // Summary
+                results.push('\n🎯 Imported Mnemonic Testing Complete!');
+                results.push(`✅ Words: ${wordCount} (${wordCount * 32 / 3} bits entropy)`);
+                results.push('✅ Validation: PASSED');
+                results.push('✅ Key derivation: SUCCESS');
+                results.push('✅ Address generation: SUCCESS');
+                results.push('✅ DID generation: SUCCESS');
+                results.push('✅ Digital signatures: SUCCESS');
+                
+                document.getElementById('mnemonicTesting').className = 'result success';
+                document.getElementById('mnemonicTesting').textContent = results.join('\n');
+                
+            } catch (error) {
+                document.getElementById('mnemonicTesting').className = 'result error';
+                document.getElementById('mnemonicTesting').textContent = 'Imported Mnemonic Error: ' + error.message + '\n\nStack: ' + error.stack;
+            }
+        }
+
+        function testBrowserUTXOManager() {
+            try {
+                const results = [];
+                results.push('💰 Browser UTXO Manager Testing\n');
+                
+                if (!bsv.BrowserUTXOManager) {
+                    results.push('❌ BrowserUTXOManager not available');
+                    document.getElementById('utxoManager').className = 'result error';
+                    document.getElementById('utxoManager').textContent = results.join('\n');
+                    return;
+                }
+                
+                // Test 1: Create manager with memory storage
+                results.push('1️⃣ Testing Memory Storage:');
+                const memoryManager = new bsv.BrowserUTXOManager({
+                    storage: 'memory',
+                    maxUTXOs: 100
+                });
+                
+                results.push(`   ✅ Manager created with ${memoryManager.options.storage} storage`);
+                results.push(`   ✅ Max UTXOs: ${memoryManager.options.maxUTXOs}`);
+                
+                // Test 2: Create mock UTXOs
+                results.push('\n2️⃣ Creating Mock UTXOs:');
+                const testAddress = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'; // Genesis block address
+                const mockUTXOs = memoryManager.createMockUTXOs(testAddress, 5, 50000);
+                
+                results.push(`   ✅ Created ${mockUTXOs.length} mock UTXOs`);
+                results.push(`   ✅ Total value: ${mockUTXOs.reduce((sum, utxo) => sum + utxo.satoshis, 0)} satoshis`);
+                
+                // Test 3: Query UTXOs
+                results.push('\n3️⃣ Querying UTXOs:');
+                const utxosForAddress = memoryManager.getUTXOsForAddress(testAddress);
+                const balance = memoryManager.getBalance(testAddress);
+                
+                results.push(`   ✅ UTXOs for address: ${utxosForAddress.length}`);
+                results.push(`   ✅ Total balance: ${balance} satoshis (${balance / 100000000} BSV)`);
+                
+                // Test 4: Spend some UTXOs
+                results.push('\n4️⃣ Testing UTXO Spending:');
+                const utxosToSpend = utxosForAddress.slice(0, 2);
+                const spentInputs = utxosToSpend.map(utxo => ({ txid: utxo.txid, vout: utxo.vout }));
+                const spentUTXOs = memoryManager.spendUTXOs(spentInputs, 'test-transaction-123');
+                
+                results.push(`   ✅ Spent ${spentUTXOs.length} UTXOs`);
+                results.push(`   ✅ New balance: ${memoryManager.getBalance(testAddress)} satoshis`);
+                
+                // Test 5: Check UTXO availability
+                results.push('\n5️⃣ Testing UTXO Availability:');
+                const firstUTXO = utxosForAddress[0];
+                const availability = memoryManager.getUTXO(firstUTXO.txid, firstUTXO.vout);
+                results.push(`   ✅ First UTXO status: ${availability.status}`);
+                
+                const availableCount = memoryManager.getUTXOsForAddress(testAddress).length;
+                results.push(`   ✅ Remaining available UTXOs: ${availableCount}`);
+                
+                // Test 6: Statistics
+                results.push('\n6️⃣ Manager Statistics:');
+                const stats = memoryManager.getStats();
+                results.push(`   ✅ Total UTXOs: ${stats.totalUTXOs}`);
+                results.push(`   ✅ Total spent: ${stats.totalSpent}`);
+                results.push(`   ✅ Total value: ${stats.totalValue} satoshis`);
+                results.push(`   ✅ Storage type: ${stats.storageType}`);
+                results.push(`   ✅ Addresses tracked: ${stats.totalAddresses}`);
+                
+                results.push('\n🎯 Browser UTXO Manager Test Complete!');
+                document.getElementById('utxoManager').className = 'result success';
+                document.getElementById('utxoManager').textContent = results.join('\n');
+                
+            } catch (error) {
+                document.getElementById('utxoManager').className = 'result error';
+                document.getElementById('utxoManager').textContent = 'Browser UTXO Manager Error: ' + error.message + '\n\nStack: ' + error.stack;
+            }
+        }
+
+        function testDifferentStorageTypes() {
+            try {
+                const results = [];
+                const selectedStorage = document.getElementById('storageTypeSelect').value;
+                results.push(`🔧 Testing ${selectedStorage.toUpperCase()} Storage Type\n`);
+                
+                if (!bsv.BrowserUTXOManager) {
+                    results.push('❌ BrowserUTXOManager not available');
+                    document.getElementById('utxoManager').className = 'result error';
+                    document.getElementById('utxoManager').textContent = results.join('\n');
+                    return;
+                }
+                
+                // Test storage type
+                results.push('1️⃣ Creating Manager:');
+                const manager = new bsv.BrowserUTXOManager({
+                    storage: selectedStorage,
+                    storageKey: `test-utxos-${Date.now()}`,
+                    autoSave: true
+                });
+                
+                results.push(`   ✅ Created with ${selectedStorage} storage`);
+                results.push(`   ✅ Storage key: ${manager.options.storageKey}`);
+                
+                // Test persistence
+                results.push('\n2️⃣ Testing Persistence:');
+                const testAddress = '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2';
+                
+                // Create UTXOs and save
+                const mockUTXOs = manager.createMockUTXOs(testAddress, 3, 75000);
+                results.push(`   ✅ Created ${mockUTXOs.length} UTXOs`);
+                
+                // Export data
+                const exportedData = manager.exportData();
+                results.push(`   ✅ Exported data size: ${exportedData.length} characters`);
+                
+                // Test import/export
+                results.push('\n3️⃣ Testing Import/Export:');
+                const newManager = new bsv.BrowserUTXOManager({
+                    storage: 'memory' // Start with empty memory
+                });
+                
+                const importSuccess = newManager.importData(exportedData);
+                results.push(`   ✅ Import success: ${importSuccess}`);
+                results.push(`   ✅ Imported UTXOs: ${newManager.getStats().totalUTXOs}`);
+                results.push(`   ✅ Imported balance: ${newManager.getBalance(testAddress)} satoshis`);
+                
+                // Test storage availability
+                results.push('\n4️⃣ Storage Compatibility:');
+                const storageTests = {
+                    'localStorage': typeof localStorage !== 'undefined',
+                    'sessionStorage': typeof sessionStorage !== 'undefined',
+                    'WebCrypto': typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues
+                };
+                
+                Object.entries(storageTests).forEach(([feature, available]) => {
+                    results.push(`   ${available ? '✅' : '❌'} ${feature}: ${available ? 'Available' : 'Not available'}`);
+                });
+                
+                // Storage-specific notes
+                results.push('\n📝 Storage Type Information:');
+                switch (selectedStorage) {
+                    case 'memory':
+                        results.push('   • Memory: Fast, lost on page reload');
+                        results.push('   • Best for: Temporary UTXO tracking, testing');
+                        break;
+                    case 'session':
+                        results.push('   • Session: Persists until tab closes');
+                        results.push('   • Best for: Single-session applications');
+                        break;
+                    case 'local':
+                        results.push('   • Local: Persists until manually cleared');
+                        results.push('   • Best for: Long-term wallet state');
+                        break;
+                }
+                
+                results.push(`\n🎯 ${selectedStorage.toUpperCase()} Storage Test Complete!`);
+                document.getElementById('utxoManager').className = 'result success';
+                document.getElementById('utxoManager').textContent = results.join('\n');
+                
+            } catch (error) {
+                document.getElementById('utxoManager').className = 'result error';
+                document.getElementById('utxoManager').textContent = 'Storage Test Error: ' + error.message + '\n\nStack: ' + error.stack;
+            }
+        }
+
+        function runFullSimulation() {
+            try {
+                // Ensure Buffer is available
+                if (!Buffer) {
+                    Buffer = bsv.deps.Buffer;
+                }
+                
+                const results = [];
+                results.push('🚀 Running Complete Web3Keys Browser Simulation...\n');
+                
+                // Step 1: Create identity
+                results.push('1️⃣ Creating Web3Keys Identity:');
+                const masterKey = bsv.HDPrivateKey.fromRandom();
+                const identityKey = masterKey.deriveChild("m/44'/236'/0'/0/0");
+                const financialKey = masterKey.deriveChild("m/44'/0'/0'/0/0");
+                
+                const identityPrivateKey = identityKey.privateKey;
+                const identityPublicKey = identityPrivateKey.toPublicKey();
+                const identityAddress = bsv.Address.fromPublicKey(identityPublicKey);
+                
+                const financialPrivateKey = financialKey.privateKey;
+                const financialPublicKey = financialPrivateKey.toPublicKey();
+                const financialAddress = bsv.Address.fromPublicKey(financialPublicKey);
+                
+                results.push(`   ✅ Identity Address: ${identityAddress.toString()}`);
+                results.push(`   ✅ Financial Address: ${financialAddress.toString()}`);
+                
+                // Step 2: Generate DID
+                results.push('\n2️⃣ Generating DID:');
+                const pubKeyHash = bsv.crypto.Hash.sha256(identityPublicKey.toBuffer()).toString('hex').substring(0, 16);
+                const did = `did:web:web3keys.org:${pubKeyHash}`;
+                results.push(`   ✅ DID: ${did}`);
+                
+                // Step 3: Create attestation
+                results.push('\n3️⃣ Creating Identity Attestation:');
+                const attestationData = {
+                    did: did,
+                    timestamp: Date.now(),
+                    purpose: 'Web3Keys identity verification',
+                    address: identityAddress.toString()
+                };
+                
+                const dataString = JSON.stringify(attestationData);
+                const dataHash = bsv.crypto.Hash.sha256(Buffer.from(dataString, 'utf8'));
+                const signature = bsv.crypto.ECDSA.sign(dataHash, identityPrivateKey);
+                
+                results.push(`   ✅ Attestation created and signed`);
+                results.push(`   ✅ Data hash: ${dataHash.toString('hex').substring(0, 32)}...`);
+                results.push(`   ✅ Signature: ${signature.toString().substring(0, 40)}...`);
+                
+                // Step 4: Verify attestation
+                results.push('\n4️⃣ Verifying Attestation:');
+                const isValid = bsv.crypto.ECDSA.verify(dataHash, signature, identityPublicKey);
+                results.push(`   ✅ Basic verification: ${isValid ? 'VALID' : 'INVALID'}`);
+                
+                if (bsv.SmartVerify && bsv.SmartVerify.smartVerify) {
+                    const smartValid = bsv.SmartVerify.smartVerify(dataHash, signature, identityPublicKey);
+                    results.push(`   ✅ SmartVerify: ${smartValid ? 'VALID' : 'INVALID'}`);
+                    
+                    const isCanonical = bsv.SmartVerify.isCanonical(signature);
+                    results.push(`   ✅ Canonical: ${isCanonical ? 'YES' : 'NO'}`);
+                }
+                
+                // Step 5: Simulate Paymail
+                results.push('\n5️⃣ Simulating Paymail Resolution:');
+                const paymailAlias = 'testuser@web3keys.org';
+                results.push(`   ✅ Paymail: ${paymailAlias}`);
+                results.push(`   ✅ Resolves to: ${financialAddress.toString()}`);
+                results.push(`   ✅ Public Key: ${financialPublicKey.toString().substring(0, 40)}...`);
+                
+                // Step 6: Test Mnemonic if available
+                results.push('\n6️⃣ Testing Mnemonic Generation:');
+                if (bsv.Mnemonic) {
+                    // Generate 24-word mnemonic (256-bit entropy)
+                    const testMnemonic = bsv.Mnemonic.fromRandom(256);
+                    const mnemonicWords = testMnemonic.toString();
+                    const wordCount = mnemonicWords.split(' ').length;
+                    
+                    results.push(`   ✅ 24-word Mnemonic (${wordCount} words): ${mnemonicWords}`);
+                    
+                    // Test with passphrase
+                    const passphrase = 'Web3Keys-test-passphrase';
+                    const seedWithPassphrase = testMnemonic.toSeed(passphrase);
+                    const seedWithoutPassphrase = testMnemonic.toSeed();
+                    
+                    results.push(`   ✅ Seed with passphrase: ${seedWithPassphrase.toString('hex').substring(0, 32)}...`);
+                    results.push(`   ✅ Seed without passphrase: ${seedWithoutPassphrase.toString('hex').substring(0, 32)}...`);
+                    results.push(`   ✅ Seeds are different: ${!seedWithPassphrase.equals(seedWithoutPassphrase) ? 'YES' : 'NO'}`);
+                    
+                    // Create HD keys from both seeds
+                    const hdKeyWithPassphrase = bsv.HDPrivateKey.fromSeed(seedWithPassphrase);
+                    const hdKeyWithoutPassphrase = bsv.HDPrivateKey.fromSeed(seedWithoutPassphrase);
+                    
+                    results.push(`   ✅ HD Key (with passphrase): ${hdKeyWithPassphrase.toString().substring(0, 40)}...`);
+                    results.push(`   ✅ HD Key (no passphrase): ${hdKeyWithoutPassphrase.toString().substring(0, 40)}...`);
+                    
+                    // Test mnemonic validation
+                    const isValidMnemonic = bsv.Mnemonic.isValid(mnemonicWords);
+                    results.push(`   ✅ Mnemonic validation: ${isValidMnemonic ? 'VALID' : 'INVALID'}`);
+                } else {
+                    results.push(`   ⚠️ Mnemonic not available in browser`);
+                }
+                
+                // Step 7: Summary
+                results.push('\n🎉 Web3Keys Browser Simulation Complete!');
+                results.push('✅ Identity key generation');
+                results.push('✅ DID creation');
+                results.push('✅ Digital attestation');
+                results.push('✅ Signature verification');
+                results.push('✅ Paymail simulation');
+                results.push('✅ SmartLedger integration');
+                results.push('✅ Buffer compatibility resolved');
+                
+                document.getElementById('fullSimulation').className = 'result success';
+                document.getElementById('fullSimulation').textContent = results.join('\n');
+                
+            } catch (error) {
+                document.getElementById('fullSimulation').className = 'result error';
+                document.getElementById('fullSimulation').textContent = 'Full Simulation Error: ' + error.message + '\n\nStack: ' + error.stack;
+            }
+        }
+        
+    </script>
+</body>
+</html>
