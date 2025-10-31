@@ -115,7 +115,7 @@ function loadLibrary() {
         }
         
         log('BSV library loaded successfully!', 'success');
-        log(`BSV version: ${bsv.version || 'v3.3.3'}`, 'info');
+        log(`BSV version: ${bsv.version || 'v3.3.4'}`, 'info');
         
         // Check available SmartLedger modules
         const availableModules = [];

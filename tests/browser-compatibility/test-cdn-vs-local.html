@@ -58,10 +58,10 @@
             
             // Load CDN scripts
             const bsvScript = document.createElement('script');
-            bsvScript.src = 'https://cdn.jsdelivr.net/npm/smartledger-bsv@3.3.3/bsv.min.js';
+            bsvScript.src = 'https://cdn.jsdelivr.net/npm/smartledger-bsv@3.3.4/bsv.min.js';
             bsvScript.onload = () => {
                 const mnemonicScript = document.createElement('script');
-                mnemonicScript.src = 'https://cdn.jsdelivr.net/npm/smartledger-bsv@3.3.3/bsv-mnemonic.min.js';
+                mnemonicScript.src = 'https://cdn.jsdelivr.net/npm/smartledger-bsv@3.3.4/bsv-mnemonic.min.js';
                 mnemonicScript.onload = () => {
                     testMnemonicGeneration('cdn-results', 'CDN');
                 };

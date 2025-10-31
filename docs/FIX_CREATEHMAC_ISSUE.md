@@ -50,7 +50,7 @@ Created test files to verify the fix:
 
 ## What CDN Users Will Experience
 
-### Before Fix (Current CDN v3.3.3):
+### Before Fix (Current CDN v3.3.4):
 - ❌ `createHmac is not a function` errors
 - ❌ Cannot generate mnemonics
 - ❌ Cannot derive HD wallet keys

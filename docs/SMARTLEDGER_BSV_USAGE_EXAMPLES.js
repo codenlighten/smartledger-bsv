@@ -3,7 +3,7 @@
  * ==============================
  * 
  * Practical examples demonstrating solutions to common usage questions
- * Based on smartledger-bsv v3.3.3 analysis
+ * Based on smartledger-bsv v3.3.4 analysis
  */
 
 const bsv = require('../index');
@@ -330,7 +330,7 @@ OP_TRUE
  * Main demonstration function
  */
 function runAllExamples() {
-    console.log('🚀 SmartLedger-BSV v3.3.3 Usage Examples');
+    console.log('🚀 SmartLedger-BSV v3.3.4 Usage Examples');
     console.log('=' .repeat(50));
     
     try {

@@ -1,7 +1,7 @@
 # 🚀 **SmartLedger-BSV Smart Contract Development Guide**
 
 **Complete Guide to Building Smart Contracts with Preimage Validation**  
-**Library:** smartledger-bsv v3.3.3  
+**Library:** smartledger-bsv v3.3.4  
 **Date:** October 30, 2025
 
 ---

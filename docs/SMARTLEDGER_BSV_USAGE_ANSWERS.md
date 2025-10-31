@@ -1,8 +1,8 @@
-# 🎯 **SmartLedger-BSV v3.3.3 Usage Questions - ANSWERS**
+# 🎯 **SmartLedger-BSV v3.3.4 Usage Questions - ANSWERS**
 
 **Date:** October 30, 2025  
 **Status:** ✅ **COMPREHENSIVE ANSWERS PROVIDED**  
-**Library:** smartledger-bsv v3.3.3  
+**Library:** smartledger-bsv v3.3.4  
 
 ---
 
@@ -326,7 +326,7 @@ const sighash = bsv.SmartContract.testFieldExtraction(preimageHex, 'sighashType'
 
 **Current status and future outlook:**
 
-- **✅ Stable API:** Field names and core functions are stable in v3.3.3
+- **✅ Stable API:** Field names and core functions are stable in v3.3.4
 - **✅ Backward compatibility:** Dual naming conventions will be maintained
 - **✅ No breaking changes planned:** Current usage patterns will continue working
 - **✅ Enhanced error handling:** Future versions will have better error messages
@@ -468,7 +468,7 @@ Your comprehensive testing revealed the exact usage patterns. The library is **f
 - **Robust error handling** with fallbacks
 - **Appropriate method** for your use case
 
-All your questions have definitive answers. **SmartLedger-BSV v3.3.3 is production-ready** with the patterns documented above.
+All your questions have definitive answers. **SmartLedger-BSV v3.3.4 is production-ready** with the patterns documented above.
 
 ---
 

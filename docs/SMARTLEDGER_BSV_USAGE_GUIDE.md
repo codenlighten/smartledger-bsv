@@ -1,8 +1,8 @@
-# 📖 SmartLedger-BSV v3.3.3 Usage Guide
+# 📖 SmartLedger-BSV v3.3.4 Usage Guide
 
 **Comprehensive answers to BIP-143 preimage extraction questions**  
 **Date:** October 30, 2025  
-**Library:** smartledger-bsv v3.3.3  
+**Library:** smartledger-bsv v3.3.4  
 
 ---
 
@@ -551,5 +551,5 @@ const demo = completeFieldExtractionDemo();
 ---
 
 **Created by:** SmartLedger-BSV Development Team  
-**Version:** v3.3.3  
+**Version:** v3.3.4  
 **Last Updated:** October 30, 2025

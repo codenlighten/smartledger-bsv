@@ -722,7 +722,7 @@ interface UTXO {
 <html>
 <head>
     <title>UTXO Manager Demo</title>
-    <script src="https://cdn.jsdelivr.net/npm/@smartledger/bsv@3.3.3/bsv.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@smartledger/bsv@3.3.4/bsv.min.js"></script>
 </head>
 <body>
     <script>
@@ -835,7 +835,7 @@ The SmartLedger BSV UTXO Manager provides a comprehensive solution for Bitcoin S
 - **🌐 Network Flexible** - Support for mainnet, testnet, and regtest
 
 ### Tested Examples:
-All examples in this guide have been tested and verified to work with SmartLedger BSV v3.3.3. The documentation reflects the actual API and behavior of the library modules.
+All examples in this guide have been tested and verified to work with SmartLedger BSV v3.3.4. The documentation reflects the actual API and behavior of the library modules.
 
 For more examples and advanced usage, see the `/examples` directory in the repository.
 

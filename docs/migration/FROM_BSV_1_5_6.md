@@ -153,17 +153,17 @@ const recovered = bsv.reconstructSecret([shares[0], shares[2], shares[4]]);
 ### **New Modular Options** 
 ```html
 <!-- Core compatibility (same size as bsv@1.5.6) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.3.3/bsv.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv.min.js"></script>
 
 <!-- Add smart contracts when ready -->
-<script src="https://unpkg.com/@smartledger/bsv@3.3.3/bsv-smartcontract.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv-smartcontract.min.js"></script>
 
 <!-- Add advanced features as needed -->
-<script src="https://unpkg.com/@smartledger/bsv@3.3.3/bsv-ltp.min.js"></script>
-<script src="https://unpkg.com/@smartledger/bsv@3.3.3/bsv-gdaf.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv-ltp.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv-gdaf.min.js"></script>
 
 <!-- Everything in one file -->
-<script src="https://unpkg.com/@smartledger/bsv@3.3.3/bsv.bundle.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv.bundle.js"></script>
 ```
 
 ## 🔍 **Testing Your Migration**

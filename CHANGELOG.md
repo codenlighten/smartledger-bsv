@@ -25,36 +25,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Zero breaking changes for existing users
 - All 12 bundle variants updated with the fix
 
-## [3.3.3] - 2025-10-28## [3.3.0] - 2025-10-22
+## [3.3.3] - 2025-10-28
 
+### 🎉 Major Improvements
 
+#### 📁 Project Organization & Structure
 
-### 🎉 Major Improvements### 🚀 MAJOR RELEASE: Legal Token Protocol (LTP) & Global Digital Attestation Framework (GDAF)
+- **Complete repository reorganization**: Moved legacy files to `/archive/` for better project structure
+- **New `/demos/` directory**: Interactive HTML demonstrations for all SmartLedger-BSV modules  
+- **Enhanced `/docs/` structure**: Comprehensive documentation with getting started guides, API references, and technical details  
+- **Dedicated `/tests/` directory**: All test files properly organized and categorized  
+- **New `/tools/` directory**: Development utilities and helper scripts  
 
-
-
-#### 📁 Project Organization & Structure#### Revolutionary Legal Token Protocol Framework
-
-- **Complete repository reorganization**: Moved legacy files to `/archive/` for better project structure- **Complete Legal Token Protocol (LTP)**: 6-module comprehensive legal framework
-
-- **New `/demos/` directory**: Interactive HTML demonstrations for all SmartLedger-BSV modules  - **lib/ltp/anchor.js**: Blockchain anchoring preparation primitives
-
-- **Enhanced `/docs/` structure**: Comprehensive documentation with getting started guides, API references, and technical details  - **lib/ltp/registry.js**: Token registry management primitives  
-
-- **Dedicated `/tests/` directory**: All test files properly organized and categorized  - **lib/ltp/claim.js**: Legal claim validation and attestation primitives
-
-- **New `/tools/` directory**: Development utilities and helper scripts  - **lib/ltp/proof.js**: Cryptographic proof generation primitives
-
-  - **lib/ltp/right.js**: Legal rights token creation and validation primitives
-
-#### 🚀 Interactive Demos  - **lib/ltp/obligation.js**: Legal obligation token management primitives
+#### 🚀 Interactive Demos  
 
 - **Smart Contract Demo**: Full-featured HTML demo showcasing covenant creation, preimage parsing, script building, and UTXO generation
+- **Web3Keys Demo**: Interactive key generation and cryptographic operations demonstration
+- **Local development server**: Easy setup for testing demos locally
 
-- **Web3Keys Demo**: Interactive key generation and cryptographic operations demonstration#### Primitives-Only Architecture Philosophy
+## [3.3.0] - 2025-10-22
 
-- **Local development server**: Easy setup for testing demos locally- **No Blockchain Publishing**: Library provides preparation functions only
+### 🚀 MAJOR RELEASE: Legal Token Protocol (LTP) & Global Digital Attestation Framework (GDAF)
 
+#### Revolutionary Legal Token Protocol Framework
+
+- **Complete Legal Token Protocol (LTP)**: 6-module comprehensive legal framework
+  - **lib/ltp/anchor.js**: Blockchain anchoring preparation primitives
+  - **lib/ltp/registry.js**: Token registry management primitives  
+  - **lib/ltp/claim.js**: Legal claim validation and attestation primitives
+  - **lib/ltp/proof.js**: Cryptographic proof generation primitives
+  - **lib/ltp/right.js**: Legal rights token creation and validation primitives
+  - **lib/ltp/obligation.js**: Legal obligation token management primitives
+
+#### Primitives-Only Architecture Philosophy
+
+- **No Blockchain Publishing**: Library provides preparation functions only
 - **External System Integration**: Perfect for enterprise and custom implementations
 
 #### 📚 Documentation Enhancements- **Maximum Flexibility**: Choose your own blockchain, storage, and UI frameworks
@@ -219,13 +224,17 @@ Previous version history is available in the git commit log. This changelog form
 
 
 
-To get started with SmartLedger-BSV v3.3.3:### 📦 Enhanced Build System
+To get started with SmartLedger-BSV v3.3.4:
 
+### 📦 Enhanced Build System
 
+```bash
+npm install @smartledger/bsv@3.3.4
+```
 
-```bash#### New Standalone Modules
+#### New Standalone Modules
 
-npm install @smartledger/bsv@3.3.3- **bsv-ltp.min.js**: Complete Legal Token Protocol standalone module
+- **bsv-ltp.min.js**: Complete Legal Token Protocol standalone module
 
 ```- **bsv-shamir.min.js**: Standalone Shamir Secret Sharing module
 
