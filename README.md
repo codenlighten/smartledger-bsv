@@ -1,47 +1,174 @@
 # SmartLedger-BSV
 
-**🚀 Complete Bitcoin SV Development Framework with Legal Compliance, Digital Identity, and 12 Flexible Loading Options**
+**🚀 Complete Bitcoin SV Development Framework with W3C Verifiable Credentials, DID:web, Legal Compliance, and 16 Flexible Loading Options**
 
-[![Version](https://img.shields.io/badge/version-3.3.4-blue.svg)](https://www.npmjs.com/package/@smartledger/bsv)
+[![Version](https://img.shields.io/badge/version-3.4.0-blue.svg)](https://www.npmjs.com/package/@smartledger/bsv)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![BSV](https://img.shields.io/badge/BSV-Compatible-orange.svg)](https://bitcoinsv.com/)
 [![Modular](https://img.shields.io/badge/Loading-Modular-purple.svg)](#loading-options)
+[![W3C](https://img.shields.io/badge/W3C-Compliant-blueviolet.svg)](#verifiable-credentials)
 
-The most comprehensive and flexible Bitcoin SV library available. Choose from 12 different distribution methods: standalone modules, complete bundle, or mix-and-match approach. Perfect for everything from simple transactions to complex DeFi protocols, smart contracts, legal tokenization, digital identity, and threshold cryptography.
+The most comprehensive and flexible Bitcoin SV library available. **NEW in v3.4.0**: Legally-recognizable DID:web + VC-JWT toolkit with ES256/ES256K support, StatusList2021 revocation, and BSV anchoring. Choose from 16 different distribution methods: standalone modules, complete bundle, or mix-and-match approach.
 
-## 🎯 **12 Loading Options - Choose Your Approach**
+## 🆕 **v3.4.0 - Legally-Recognizable Credentials**
+
+### **Why This Matters**
+- ✅ **W3C Standards**: Full VC-JWT and DID:web compliance for legal recognition
+- ✅ **Enterprise Ready**: ES256 (P-256 NIST curve) for regulated industries
+- ✅ **Blockchain Native**: ES256K (secp256k1) for BSV integration
+- ✅ **Revocation Built-in**: StatusList2021 standard for credential management
+- ✅ **Privacy Preserving**: Hash-only BSV anchoring (no PII on-chain)
+- ✅ **CLI Tools**: Complete command-line interface for credential operations
+
+### **Quick Start - Issue Your First Verifiable Credential**
+
+```bash
+# Install SmartLedger BSV v3.4.0
+npm install @smartledger/bsv@3.4.0
+
+# Initialize DID:web issuer (generates ES256 keys)
+npx smartledger-bsv didweb init --domain example.com --alg ES256
+
+# Issue a credential
+npx smartledger-bsv vc issue \
+  --issuer did:web:example.com \
+  --subject did:example:alice \
+  --types "VerifiableCredential,DriversLicense" \
+  --claims '{"licenseNumber":"DL123456","class":"C"}' \
+  > credential.jwt
+
+# Verify the credential
+npx smartledger-bsv vc verify credential.jwt
+
+# Anchor hash to BSV (privacy-preserving)
+npx smartledger-bsv anchor hash credential.jwt
+
+# Create revocation list
+npx smartledger-bsv status create --issuer did:web:example.com > status-list.jwt
+
+# Revoke a credential
+npx smartledger-bsv status set --list status-list.jwt --index 42 --status revoked
+```
+
+### **Programmatic Usage**
+
+```javascript
+const bsv = require('@smartledger/bsv')
+
+// Generate DID:web issuer keys
+const keys = await bsv.DIDWeb.generateIssuerKeys({ alg: 'ES256' })
+
+// Build DID documents (.well-known/did.json and jwks.json)
+const docs = bsv.DIDWeb.buildDidWebDocuments({
+  domain: 'example.com',
+  p256: { jwk: keys.publicJwk, kid: keys.kid },
+  controllerName: 'Example Corp'
+})
+// Deploy docs.didDocument to https://example.com/.well-known/did.json
+// Deploy docs.jwks to https://example.com/.well-known/jwks.json
+
+// Issue a Verifiable Credential as JWT
+const result = await bsv.VcJwt.issueVcJwt({
+  issuerDid: docs.did,
+  subjectId: 'did:example:alice',
+  types: ['VerifiableCredential', 'AgeCredential'],
+  credentialSubject: {
+    ageOver: 18,
+    country: 'US'
+  },
+  privateJwk: keys.privateJwk,
+  alg: 'ES256',
+  kid: keys.kid
+})
+
+console.log('VC-JWT:', result.jwt)
+
+// Verify the credential
+const verification = await bsv.VcJwt.verifyVcJwt(result.jwt, {
+  didResolver: async (did) => {
+    // In production, fetch https://example.com/.well-known/jwks.json
+    return { jwks: docs.jwks }
+  },
+  expectedIssuerDid: docs.did
+})
+
+console.log('Valid:', verification.valid)
+
+// Anchor hash to BSV (no PII on-chain)
+const hash = bsv.Anchor.sha256Hex(result.jwt)
+const anchorPayload = bsv.Anchor.buildAnchorPayload({
+  kind: 'VC_ANCHOR_SHA256',
+  hash: hash,
+  issuerDid: docs.did
+})
+
+// Include anchorPayload.json in OP_RETURN
+// Later: verify with bsv.Anchor.verifyAnchorHash(originalData, anchorHash)
+
+// Create revocation list (100k credentials)
+const statusList = await bsv.StatusList.createStatusList({
+  issuerDid: docs.did,
+  privateJwk: keys.privateJwk
+})
+
+// Revoke a credential
+const updated = await bsv.StatusList.updateStatusList({
+  listVcJwt: statusList.listVcJwt,
+  index: 42,
+  status: 'revoked',
+  privateJwk: keys.privateJwk
+})
+
+// Check revocation status
+const status = bsv.StatusList.getCredentialStatusEntry({
+  listVcJwt: updated.listVcJwt,
+  index: 42
+})
+
+console.log('Status:', status) // 'revoked'
+```
+
+## 🎯 **16 Loading Options - Choose Your Approach**
 
 ### **Core Modules**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv.min.js** | 449KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@3.3.4/bsv.min.js` |
-| **bsv.bundle.js** | 885KB | Everything in one file | `unpkg.com/@smartledger/bsv@3.3.4/bsv.bundle.js` |
+| **bsv.min.js** | 449KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@3.4.0/bsv.min.js` |
+| **bsv.bundle.js** | 885KB | Everything in one file | `unpkg.com/@smartledger/bsv@3.4.0/bsv.bundle.js` |
+
+### **🆕 W3C Verifiable Credentials (v3.4.0)**
+| Module | Size | Use Case | CDN |
+|--------|------|----------|-----|
+| **🟢 bsv-didweb.min.js** | 418KB | **DID:web generation** | `unpkg.com/@smartledger/bsv@3.4.0/bsv-didweb.min.js` |
+| **🟢 bsv-vcjwt.min.js** | 418KB | **VC-JWT issue/verify** | `unpkg.com/@smartledger/bsv@3.4.0/bsv-vcjwt.min.js` |
+| **🟢 bsv-statuslist.min.js** | 486KB | **StatusList2021 revocation** | `unpkg.com/@smartledger/bsv@3.4.0/bsv-statuslist.min.js` |
+| **🟢 bsv-anchor.min.js** | 417KB | **BSV anchoring (hash-only)** | `unpkg.com/@smartledger/bsv@3.4.0/bsv-anchor.min.js` |
 
 ### **Smart Contract & Development**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-smartcontract.min.js** | 451KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@3.3.4/bsv-smartcontract.min.js` |
-| **bsv-covenant.min.js** | 32KB | Covenant operations | `unpkg.com/@smartledger/bsv@3.3.4/bsv-covenant.min.js` |
-| **bsv-script-helper.min.js** | 27KB | Custom script tools | `unpkg.com/@smartledger/bsv@3.3.4/bsv-script-helper.min.js` |
-| **bsv-security.min.js** | 290KB | Security enhancements | `unpkg.com/@smartledger/bsv@3.3.4/bsv-security.min.js` |
+| **bsv-smartcontract.min.js** | 451KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@3.4.0/bsv-smartcontract.min.js` |
+| **bsv-covenant.min.js** | 32KB | Covenant operations | `unpkg.com/@smartledger/bsv@3.4.0/bsv-covenant.min.js` |
+| **bsv-script-helper.min.js** | 27KB | Custom script tools | `unpkg.com/@smartledger/bsv@3.4.0/bsv-script-helper.min.js` |
+| **bsv-security.min.js** | 290KB | Security enhancements | `unpkg.com/@smartledger/bsv@3.4.0/bsv-security.min.js` |
 
-### **🆕 Legal & Compliance**
+### **Legal & Compliance**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **🟢 bsv-ltp.min.js** | 817KB | **Legal Token Protocol** | `unpkg.com/@smartledger/bsv@3.3.4/bsv-ltp.min.js` |
-| **🟢 bsv-gdaf.min.js** | 604KB | **Digital Identity & Attestation** | `unpkg.com/@smartledger/bsv@3.3.4/bsv-gdaf.min.js` |
+| **bsv-ltp.min.js** | 817KB | Legal Token Protocol | `unpkg.com/@smartledger/bsv@3.4.0/bsv-ltp.min.js` |
+| **bsv-gdaf.min.js** | 604KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@3.4.0/bsv-gdaf.min.js` |
 
-### **🆕 Advanced Cryptography**
+### **Advanced Cryptography**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **🟢 bsv-shamir.min.js** | 433KB | **Threshold Cryptography** | `unpkg.com/@smartledger/bsv@3.3.4/bsv-shamir.min.js` |
+| **bsv-shamir.min.js** | 433KB | Threshold Cryptography | `unpkg.com/@smartledger/bsv@3.4.0/bsv-shamir.min.js` |
 
 ### **Utilities**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-ecies.min.js** | 71KB | Encryption | `unpkg.com/@smartledger/bsv@3.3.4/bsv-ecies.min.js` |
-| **bsv-message.min.js** | 26KB | Message signing | `unpkg.com/@smartledger/bsv@3.3.4/bsv-message.min.js` |
-| **bsv-mnemonic.min.js** | 670KB | HD wallets | `unpkg.com/@smartledger/bsv@3.3.4/bsv-mnemonic.min.js` |
+| **bsv-ecies.min.js** | 71KB | Encryption | `unpkg.com/@smartledger/bsv@3.4.0/bsv-ecies.min.js` |
+| **bsv-message.min.js** | 26KB | Message signing | `unpkg.com/@smartledger/bsv@3.4.0/bsv-message.min.js` |
+| **bsv-mnemonic.min.js** | 670KB | HD wallets | `unpkg.com/@smartledger/bsv@3.4.0/bsv-mnemonic.min.js` |
 
 ## ⚡ **2-Minute Quick Start**
 
@@ -52,10 +179,10 @@ Get started with Bitcoin SV development in under 2 minutes:
 npm install @smartledger/bsv
 
 # Or include in HTML
-<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.0/bsv.min.js"></script>
 ```
 
-> **🔧 v3.3.4 Update:** Fixed critical browser compatibility issue with mnemonic generation. CDN users can now use HD wallet and mnemonic functionality without `createHmac` errors!
+> **🔧 v3.4.0 Update:** Added legally-recognizable W3C Verifiable Credentials with DID:web + VC-JWT toolkit. ES256/ES256K support, StatusList2021 revocation, and privacy-preserving BSV anchoring. Complete CLI tooling included!
 
 **Basic Transaction (30 seconds):**
 ```javascript

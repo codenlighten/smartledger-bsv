@@ -606,11 +606,11 @@ Provides hardened Bitcoin SV primitives + SmartLedger security modules.
 
 - **GitHub Repository** - https://github.com/codenlighten/smartledger-bsv🔒 *“Verified cryptographic fabric + transaction interpreter.”*
 
-- **Developer Documentation** - https://docs.smartledger.io
+- **Developer Documentation** - https://docs.smartledger.technology
 
 - **Community Discord** - https://discord.gg/smartledger---
 
-- **Standards Working Group** - https://standards.smartledger.io
+- **Standards Working Group** - https://standards.smartledger.technology
 
 ## 2️⃣ Identity Layer: GDAF (Global Digital Attestation Framework)
 
@@ -903,7 +903,7 @@ SmartLedger-BSV/
 
 ### 🔹 **Minified CDN Build**
 
-`https://cdn.smartledger.io/smartledger-bsv.min.js`
+`https://cdn.smartledger.technology/smartledger-bsv.min.js`
 Provides browser-side access to the same hardened primitives used in Node:
 
 ```js

@@ -136,6 +136,34 @@ if (typeof window === 'undefined' && typeof require === 'function') {
 // Global Digital Attestation Framework (GDAF)
 bsv.GDAF = require('./lib/gdaf')
 
+// DID:web Module (W3C standards-based DIDs)
+try {
+  bsv.DIDWeb = require('./lib/didweb')
+} catch (e) {
+  // DIDWeb module not available - use standalone bsv-didweb.min.js
+}
+
+// VC-JWT Module (W3C Verifiable Credentials)
+try {
+  bsv.VcJwt = require('./lib/vcjwt')
+} catch (e) {
+  // VcJwt module not available - use standalone bsv-vcjwt.min.js
+}
+
+// StatusList2021 Module (Credential revocation)
+try {
+  bsv.StatusList = require('./lib/statuslist')
+} catch (e) {
+  // StatusList module not available - use standalone bsv-statuslist.min.js
+}
+
+// Anchor Module (BSV hash anchoring)
+try {
+  bsv.Anchor = require('./lib/anchor')
+} catch (e) {
+  // Anchor module not available - use standalone bsv-anchor.min.js
+}
+
 // GDAF Direct Access Methods (for easier developer experience)
 bsv.createDID = function(publicKey) {
   var gdaf = new bsv.GDAF()
