@@ -165,7 +165,7 @@ LTP is built on top of SmartLedger-BSV's modular architecture and integrates sea
 
 #### **Foundation Layer (Required)**
 - **Core BSV (`bsv.min.js`)**: Provides Bitcoin SV primitives (keys, transactions, addresses)
-- **Cryptographic Functions**: Uses hardened elliptic curve implementations for all signatures
+- **Cryptographic Functions**: Token signing uses BSV's standard ECDSA path (the same one used by Bitcoin transaction signing). For stricter verification of incoming tokens from untrusted sources, callers can route verification through `bsv.SmartVerify.smartVerify(...)` explicitly — it is not on by default. See [README › Security](../../README.md#-security).
 
 #### **Identity Layer (Recommended)**  
 - **GDAF Module (`bsv-gdaf.min.js`)**: Provides DID creation and Verifiable Credential standards
@@ -242,7 +242,7 @@ const propertyToken = bsv.createRightToken({
   type: 'PropertyTitle',              // LTP: Legal structure
   owner: ownerDID,                    // GDAF: Digital identity  
   jurisdiction: 'US-CA',              // LTP: Legal compliance
-  // Signed with hardened crypto     // Core: Enhanced security
+  // Signed with BSV's standard ECDSA // Core: Bitcoin SV signature
   // Can be covenant-protected       // SmartContract: Enforcement
   // Keys can use Shamir sharing     // Shamir: Distributed control
 });
@@ -301,7 +301,7 @@ const anchor = bsv.LTP.Anchor.prepareCommitment(rightToken);            // 6. Pr
 
 ## 🔐 Security & Trust Features
 
-- **🔒 Cryptographic Signatures** - All tokens signed with enhanced elliptic curves
+- **🔒 Cryptographic Signatures** - Tokens signed with BSV's standard secp256k1 ECDSA path. Opt-in `bsv.SmartVerify` available for stricter verification of incoming tokens.
 - **🎭 Selective Disclosure** - Privacy-preserving proof generation with zero-knowledge
 - **⚖️ Legal Validity Proofs** - Jurisdiction-specific compliance verification
 - **⛓️ Blockchain Anchoring** - Immutable commitment proofs on BSV blockchain

@@ -14,10 +14,10 @@ npm install @smartledger/bsv
 ### Browser CDN (Instant)
 ```html
 <!-- Core library (449KB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.min.js"></script>
 
 <!-- Everything included (885KB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv.bundle.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.bundle.js"></script>
 ```
 
 ## 💰 **Your First Transaction (60 seconds)**
@@ -127,27 +127,27 @@ SmartLedger-BSV offers 12 different loading options - use only what you need:
 
 ```html
 <!-- Core BSV only (449KB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.min.js"></script>
 
 <!-- Smart contracts (873KB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv-smartcontract.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-smartcontract.min.js"></script>
 
 <!-- Legal tokens (1.1MB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv-ltp.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-ltp.min.js"></script>
 
 <!-- Digital identity (1.1MB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv-gdaf.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-gdaf.min.js"></script>
 
 <!-- Everything (885KB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.3.4/bsv.bundle.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.bundle.js"></script>
 ```
 
 ## ⚡ **Key Advantages**
 
-### **Security First**
-- ✅ **Elliptic curve hardening** - Enhanced cryptographic security
-- ✅ **Production tested** - Battle-tested in real applications  
-- ✅ **Comprehensive validation** - Built-in error checking
+### **Security helpers (opt-in)**
+- ✅ **`bsv.SmartVerify` / `bsv.EllipticFixed`** - hardened verify with strict input validation and low-`s` canonicalization. Call explicitly; the default `signature.verify()` does **not** route through them. See [README › Security](../../README.md#-security).
+- ✅ **Pinned dependencies** - `elliptic@6.6.1` (upstream-patched), `bn.js@4.11.9`, `bs58@4.0.1`
+- ✅ **Comprehensive validation** - Built-in error checking and 534+ mocha tests
 
 ### **Developer Experience**  
 - ✅ **Zero breaking changes** - Drop-in replacement for bsv@1.5.6

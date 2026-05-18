@@ -2,7 +2,7 @@
 
 **Seamless upgrade path with zero breaking changes**
 
-SmartLedger-BSV is designed as a **100% backward-compatible** drop-in replacement for bsv@1.5.6. Your existing code will work unchanged while gaining access to enhanced security and powerful new features.
+SmartLedger-BSV is designed as a **100% backward-compatible** drop-in replacement for bsv@1.5.6. Your existing code will work unchanged while gaining access to optional hardening helpers and powerful new features.
 
 ## 🔄 **Instant Migration (30 seconds)**
 
@@ -73,12 +73,18 @@ const hdKey = bsv.HDPrivateKey.fromSeed(mnemonic.toSeed());
 
 ## 🚀 **What You Gain (No Code Changes Required)**
 
-### **Enhanced Security**
+### **Optional hardening helpers (opt-in)**
 ```javascript
-// Same API, enhanced security under the hood
-const privateKey = new bsv.PrivateKey();  // Now with hardened elliptic curves
-const signature = privateKey.sign(hash);   // Enhanced cryptographic operations
+// Standard API behaves identically to bsv@1.5.6
+const privateKey = new bsv.PrivateKey();
+const signature = privateKey.sign(hash);
+
+// Opt-in: stricter verification helpers that reject malformed signatures
+// (r=0, s=0, r>=n, s>=n) and canonicalize s to the low half. Call explicitly.
+const ok = bsv.SmartVerify.smartVerify(msgHashBuffer, derSigBuffer, publicKey);
 ```
+
+> **Note:** the standard `signature.verify()` / `transaction.verify()` / `Message().verify()` paths in this library use BSV's own pure-JS ECDSA and are **not** routed through `SmartVerify` or `EllipticFixed` by default. See the [Security section in the README](../../README.md#-security) for details on what's opt-in vs. on by default.
 
 ### **Improved Performance**  
 - ✅ **Optimized operations** - Faster transaction creation and signing

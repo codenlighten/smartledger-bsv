@@ -5,6 +5,21 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.3] - 2026-05-18
+
+### Changed (documentation honesty, continued)
+
+Companion to 3.4.2. The README was corrected in 3.4.2 but several shipped docs in `docs/` still contained the same overclaims and stale `@3.3.4` CDN URLs that would 404 for users upgrading from 3.4.0+.
+
+- **`docs/migration/FROM_BSV_1_5_6.md`**: replaced "Now with hardened elliptic curves" comment on `new bsv.PrivateKey()` and the "Enhanced Security under the hood" framing with accurate "standard API behaves identically; opt-in hardening helpers available — call `bsv.SmartVerify.smartVerify()` explicitly" wording.
+- **`docs/getting-started/QUICK_START.md`**: replaced "Elliptic curve hardening - Enhanced cryptographic security" bullet with accurate description of the opt-in helpers + pinned-dependency facts.
+- **`docs/advanced/LEGAL_TOKEN_PROTOCOL.md`**: corrected three places that claimed LTP tokens are "signed with hardened crypto" / "enhanced elliptic curves". Token signing uses BSV's standard ECDSA path; `SmartVerify` is opt-in for verification.
+- **`docs/MODULE_REFERENCE_COMPLETE.md`** and **`docs/getting-started/INSTALLATION.md`**: bumped 15+ stale `unpkg.com/@smartledger/bsv@3.3.4/...` URLs to `@3.4.2` (those URLs were 404'ing for anyone copy-pasting from these guides); corrected `bsv-security.min.js` size from `290KB` to `26KB` (10× off); labeled "opt-in helpers" with link to the canonical Security section in README.
+
+### Notes
+
+- No code or bundle behavior changes. This is a docs-only correction; bundles are rebuilt purely because the version string is embedded.
+
 ## [3.4.2] - 2026-05-18
 
 ### Changed (documentation honesty)
