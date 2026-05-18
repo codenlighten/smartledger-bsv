@@ -276,6 +276,13 @@ describe('Transaction', function () {
       tx.inputs.length.should.equal(1)
     })
 
+    it('rejects unsupported script type when given multisig pubkeys', function () {
+      var tx = new Transaction()
+      expect(function () {
+        tx.from(simpleUtxoWith1BSV, [p2shPublicKey1, p2shPublicKey2, p2shPublicKey3], 2)
+      }).to.throw(errors.Transaction.Input.UnsupportedScript)
+    })
+
     it('adds OP_FALSE in front of OP_RETURN', function () {
       var transaction = new Transaction()
         .from(simpleUtxoWith100000Satoshis)

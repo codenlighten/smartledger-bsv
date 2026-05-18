@@ -5,6 +5,54 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.1] - 2026-05-18
+
+### Fixed
+
+- **Credential bundles now actually ship.** `bsv-didweb.min.js`, `bsv-vcjwt.min.js`, `bsv-statuslist.min.js`, and `bsv-anchor.min.js` were missing from the `files:` allowlist in 3.4.0, so they were never included in the published npm tarball even though the README advertised them.
+- **`prepublishOnly` now builds every advertised bundle.** Previously it ran `npm run build`, which only produced 6 of the ~16 bundles. It now runs `npm run build-all`, so credential, covenant, ltp, gdaf, and other specialized bundles can't go out of sync with source at publish time.
+- **CSPRNG-backed `Transaction.shuffleOutputs()`.** `lib/util/_.js` `_.shuffle` now draws entropy from `bsv.crypto.Random` (Node `crypto.randomBytes` / `window.crypto.getRandomValues`) instead of `Math.random`. Output ordering is a privacy primitive; a predictable PRNG defeated the purpose.
+- **`Transaction._fromMultisigUtxo` returns a real error.** A reachable `throw new Error('@TODO')` for unsupported script types now throws `errors.Transaction.Input.UnsupportedScript` with the offending script in the message.
+- **Module load failures surface in Node.** The `try/catch` blocks around optional modules (`DIDWeb`, `VcJwt`, `StatusList`, `Anchor`, `BrowserUTXOManager`) in `index.js` previously swallowed all errors. They now `console.warn` in Node and stay silent in the browser, so upgrade breakage is visible.
+
+### Changed
+
+- **`tests/` no longer ships to npm consumers.** The directory of HTML demo pages and 5 orphan standalone scripts is removed from `package.json` `files:` and added to `.npmignore`.
+- **`utilities/blockchain-state.json` (3.2MB) no longer ships.** Mock blockchain data added to `.npmignore`; not needed at install time.
+- **Browser UTXO manager logs are gated.** `lib/browser-utxo-manager.js` and `lib/browser-utxo-manager-es5.js` info-level `console.log` calls now require `BSV_DEBUG=1` (Node) or `window.BSV_DEBUG = true` (browser). `console.warn`/`console.error` unchanged.
+- **Orphan scripts moved out of `lib/` and `tests/`.** `lib/smart_contract/test_integration.js` (an integration script that called `process.exit`) plus 5 pre-mocha scripts from `tests/` moved to `examples/legacy/`.
+- **`package-lock.json` is now committed.** Removed from `.gitignore` so `npm audit` and reproducible installs work.
+- **Dead `files:` entries removed.** Seven file references in `package.json` `files:` pointed to files that don't exist; npm silently skipped them. Removed.
+
+### Notes
+
+- No public API changes. All call sites continue to work.
+- Dev-only vulnerabilities remain in `webpack 4` / `standard 12` / `mocha 8`; a toolchain upgrade is planned for 3.5.0 to address them without breaking downstream bundler integrations.
+
+## [3.4.0] - 2025-11-09
+
+### Added
+
+- **DID:web module** (`bsv.DIDWeb`, `bsv-didweb.min.js`): W3C DID Core `did:web` method generation with both ES256 (NIST P-256) and ES256K (Bitcoin secp256k1) key types.
+- **VC-JWT module** (`bsv.VcJwt`, `bsv-vcjwt.min.js`): W3C Verifiable Credentials issuance and verification as JWT (RFC 7515 / RFC 7519 compliant).
+- **StatusList2021 module** (`bsv.StatusList`, `bsv-statuslist.min.js`): credential revocation supporting 100k credentials per list.
+- **Anchor module** (`bsv.Anchor`, `bsv-anchor.min.js`): privacy-preserving SHA-256 hash-only anchoring helpers for BSV.
+- **CLI tooling** (`bin/cli.js`): `didweb`, `vc`, `status`, `anchor` subcommands.
+- Quickstart examples and updated module tables in the README.
+
+### Standards Compliance
+
+- W3C Verifiable Credentials Data Model
+- W3C DID Core (`did:web` method)
+- RFC 7515 (JWS), RFC 7519 (JWT)
+- StatusList2021 specification
+- NIST P-256 and Bitcoin secp256k1 curves
+
+### Known Issues (fixed in 3.4.1)
+
+- The four new credential bundles were not listed in `package.json` `files:`, so they did not ship to npm consumers despite being advertised in the README.
+- `prepublishOnly` only built the core 6 bundles, not the credential set.
+
 ## [3.3.4] - 2025-10-31
 
 ### Fixed

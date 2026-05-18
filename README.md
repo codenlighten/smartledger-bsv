@@ -2,15 +2,17 @@
 
 **🚀 Complete Bitcoin SV Development Framework with W3C Verifiable Credentials, DID:web, Legal Compliance, and 16 Flexible Loading Options**
 
-[![Version](https://img.shields.io/badge/version-3.4.0-blue.svg)](https://www.npmjs.com/package/@smartledger/bsv)
+[![Version](https://img.shields.io/badge/version-3.4.1-blue.svg)](https://www.npmjs.com/package/@smartledger/bsv)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![BSV](https://img.shields.io/badge/BSV-Compatible-orange.svg)](https://bitcoinsv.com/)
 [![Modular](https://img.shields.io/badge/Loading-Modular-purple.svg)](#loading-options)
 [![W3C](https://img.shields.io/badge/W3C-Compliant-blueviolet.svg)](#verifiable-credentials)
 
-The most comprehensive and flexible Bitcoin SV library available. **NEW in v3.4.0**: Legally-recognizable DID:web + VC-JWT toolkit with ES256/ES256K support, StatusList2021 revocation, and BSV anchoring. Choose from 16 different distribution methods: standalone modules, complete bundle, or mix-and-match approach.
+The most comprehensive and flexible Bitcoin SV library available. **In v3.4.x**: Legally-recognizable DID:web + VC-JWT toolkit with ES256/ES256K support, StatusList2021 revocation, and BSV anchoring. Choose from 16 different distribution methods: standalone modules, complete bundle, or mix-and-match approach.
 
-## 🆕 **v3.4.0 - Legally-Recognizable Credentials**
+> **v3.4.1 (bugfix)**: credential bundles now actually ship to npm consumers, `prepublishOnly` builds the full set, and `Transaction.shuffleOutputs()` uses a CSPRNG. See [CHANGELOG](./CHANGELOG.md#341---2026-05-18).
+
+## 🆕 **v3.4.x - Legally-Recognizable Credentials**
 
 ### **Why This Matters**
 - ✅ **W3C Standards**: Full VC-JWT and DID:web compliance for legal recognition
@@ -23,8 +25,8 @@ The most comprehensive and flexible Bitcoin SV library available. **NEW in v3.4.
 ### **Quick Start - Issue Your First Verifiable Credential**
 
 ```bash
-# Install SmartLedger BSV v3.4.0
-npm install @smartledger/bsv@3.4.0
+# Install SmartLedger BSV v3.4.1
+npm install @smartledger/bsv@3.4.1
 
 # Initialize DID:web issuer (generates ES256 keys)
 npx smartledger-bsv didweb init --domain example.com --alg ES256
@@ -133,42 +135,42 @@ console.log('Status:', status) // 'revoked'
 ### **Core Modules**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv.min.js** | 449KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@3.4.0/bsv.min.js` |
-| **bsv.bundle.js** | 885KB | Everything in one file | `unpkg.com/@smartledger/bsv@3.4.0/bsv.bundle.js` |
+| **bsv.min.js** | 937KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@3.4.1/bsv.min.js` |
+| **bsv.bundle.js** | 937KB | Everything in one file | `unpkg.com/@smartledger/bsv@3.4.1/bsv.bundle.js` |
 
-### **🆕 W3C Verifiable Credentials (v3.4.0)**
+### **🆕 W3C Verifiable Credentials (v3.4.x)**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **🟢 bsv-didweb.min.js** | 418KB | **DID:web generation** | `unpkg.com/@smartledger/bsv@3.4.0/bsv-didweb.min.js` |
-| **🟢 bsv-vcjwt.min.js** | 418KB | **VC-JWT issue/verify** | `unpkg.com/@smartledger/bsv@3.4.0/bsv-vcjwt.min.js` |
-| **🟢 bsv-statuslist.min.js** | 486KB | **StatusList2021 revocation** | `unpkg.com/@smartledger/bsv@3.4.0/bsv-statuslist.min.js` |
-| **🟢 bsv-anchor.min.js** | 417KB | **BSV anchoring (hash-only)** | `unpkg.com/@smartledger/bsv@3.4.0/bsv-anchor.min.js` |
+| **🟢 bsv-didweb.min.js** | 419KB | **DID:web generation** | `unpkg.com/@smartledger/bsv@3.4.1/bsv-didweb.min.js` |
+| **🟢 bsv-vcjwt.min.js** | 419KB | **VC-JWT issue/verify** | `unpkg.com/@smartledger/bsv@3.4.1/bsv-vcjwt.min.js` |
+| **🟢 bsv-statuslist.min.js** | 487KB | **StatusList2021 revocation** | `unpkg.com/@smartledger/bsv@3.4.1/bsv-statuslist.min.js` |
+| **🟢 bsv-anchor.min.js** | 418KB | **BSV anchoring (hash-only)** | `unpkg.com/@smartledger/bsv@3.4.1/bsv-anchor.min.js` |
 
 ### **Smart Contract & Development**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-smartcontract.min.js** | 451KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@3.4.0/bsv-smartcontract.min.js` |
-| **bsv-covenant.min.js** | 32KB | Covenant operations | `unpkg.com/@smartledger/bsv@3.4.0/bsv-covenant.min.js` |
-| **bsv-script-helper.min.js** | 27KB | Custom script tools | `unpkg.com/@smartledger/bsv@3.4.0/bsv-script-helper.min.js` |
-| **bsv-security.min.js** | 290KB | Security enhancements | `unpkg.com/@smartledger/bsv@3.4.0/bsv-security.min.js` |
+| **bsv-smartcontract.min.js** | 937KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@3.4.1/bsv-smartcontract.min.js` |
+| **bsv-covenant.min.js** | 913KB | Covenant operations | `unpkg.com/@smartledger/bsv@3.4.1/bsv-covenant.min.js` |
+| **bsv-script-helper.min.js** | 26KB | Custom script tools | `unpkg.com/@smartledger/bsv@3.4.1/bsv-script-helper.min.js` |
+| **bsv-security.min.js** | 26KB | Security enhancements | `unpkg.com/@smartledger/bsv@3.4.1/bsv-security.min.js` |
 
 ### **Legal & Compliance**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-ltp.min.js** | 817KB | Legal Token Protocol | `unpkg.com/@smartledger/bsv@3.4.0/bsv-ltp.min.js` |
-| **bsv-gdaf.min.js** | 604KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@3.4.0/bsv-gdaf.min.js` |
+| **bsv-ltp.min.js** | 1184KB | Legal Token Protocol | `unpkg.com/@smartledger/bsv@3.4.1/bsv-ltp.min.js` |
+| **bsv-gdaf.min.js** | 1184KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@3.4.1/bsv-gdaf.min.js` |
 
 ### **Advanced Cryptography**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-shamir.min.js** | 433KB | Threshold Cryptography | `unpkg.com/@smartledger/bsv@3.4.0/bsv-shamir.min.js` |
+| **bsv-shamir.min.js** | 432KB | Threshold Cryptography | `unpkg.com/@smartledger/bsv@3.4.1/bsv-shamir.min.js` |
 
 ### **Utilities**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-ecies.min.js** | 71KB | Encryption | `unpkg.com/@smartledger/bsv@3.4.0/bsv-ecies.min.js` |
-| **bsv-message.min.js** | 26KB | Message signing | `unpkg.com/@smartledger/bsv@3.4.0/bsv-message.min.js` |
-| **bsv-mnemonic.min.js** | 670KB | HD wallets | `unpkg.com/@smartledger/bsv@3.4.0/bsv-mnemonic.min.js` |
+| **bsv-ecies.min.js** | 71KB | Encryption | `unpkg.com/@smartledger/bsv@3.4.1/bsv-ecies.min.js` |
+| **bsv-message.min.js** | 26KB | Message signing | `unpkg.com/@smartledger/bsv@3.4.1/bsv-message.min.js` |
+| **bsv-mnemonic.min.js** | 681KB | HD wallets | `unpkg.com/@smartledger/bsv@3.4.1/bsv-mnemonic.min.js` |
 
 ## ⚡ **2-Minute Quick Start**
 
@@ -179,10 +181,10 @@ Get started with Bitcoin SV development in under 2 minutes:
 npm install @smartledger/bsv
 
 # Or include in HTML
-<script src="https://unpkg.com/@smartledger/bsv@3.4.0/bsv.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.1/bsv.min.js"></script>
 ```
 
-> **🔧 v3.4.0 Update:** Added legally-recognizable W3C Verifiable Credentials with DID:web + VC-JWT toolkit. ES256/ES256K support, StatusList2021 revocation, and privacy-preserving BSV anchoring. Complete CLI tooling included!
+> **🔧 v3.4.x:** Legally-recognizable W3C Verifiable Credentials with DID:web + VC-JWT toolkit. ES256/ES256K support, StatusList2021 revocation, and privacy-preserving BSV anchoring. Complete CLI tooling included! v3.4.1 ensures these bundles ship to npm consumers; see CHANGELOG.
 
 **Basic Transaction (30 seconds):**
 ```javascript

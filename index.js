@@ -119,7 +119,9 @@ try {
 try {
   bsv.BrowserUTXOManager = require('./lib/browser-utxo-manager-es5')
 } catch (e) {
-  // BrowserUTXOManager not available
+  if (typeof window === 'undefined') {
+    console.warn('[bsv] BrowserUTXOManager failed to load:', e.message)
+  }
 }
 
 // Node.js specific tools (advanced development tools)
@@ -140,28 +142,36 @@ bsv.GDAF = require('./lib/gdaf')
 try {
   bsv.DIDWeb = require('./lib/didweb')
 } catch (e) {
-  // DIDWeb module not available - use standalone bsv-didweb.min.js
+  if (typeof window === 'undefined') {
+    console.warn('[bsv] DIDWeb module failed to load:', e.message)
+  }
 }
 
 // VC-JWT Module (W3C Verifiable Credentials)
 try {
   bsv.VcJwt = require('./lib/vcjwt')
 } catch (e) {
-  // VcJwt module not available - use standalone bsv-vcjwt.min.js
+  if (typeof window === 'undefined') {
+    console.warn('[bsv] VcJwt module failed to load:', e.message)
+  }
 }
 
 // StatusList2021 Module (Credential revocation)
 try {
   bsv.StatusList = require('./lib/statuslist')
 } catch (e) {
-  // StatusList module not available - use standalone bsv-statuslist.min.js
+  if (typeof window === 'undefined') {
+    console.warn('[bsv] StatusList module failed to load:', e.message)
+  }
 }
 
 // Anchor Module (BSV hash anchoring)
 try {
   bsv.Anchor = require('./lib/anchor')
 } catch (e) {
-  // Anchor module not available - use standalone bsv-anchor.min.js
+  if (typeof window === 'undefined') {
+    console.warn('[bsv] Anchor module failed to load:', e.message)
+  }
 }
 
 // GDAF Direct Access Methods (for easier developer experience)

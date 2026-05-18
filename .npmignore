@@ -1,11 +1,21 @@
 # Development files
 test/
-docs/
+tests/
 server.js
 test.html
 web3keys.html
 SECURITY_SUMMARY.md
 overview.md
+
+# Scratch / working directories — not library code
+archive/
+debug/
+.smart-contracts/
+.workflow-demo/
+
+# Large mock blockchain data (3MB+) — not needed at install time
+blockchain-state.json
+**/blockchain-state.json
 
 # Build artifacts (keep the dist files we want)
 node_modules/
