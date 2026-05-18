@@ -29,7 +29,15 @@ bsv.versionGuard = function (version) {
 bsv.versionGuard(global._bsv)
 global._bsv = bsv.version
 
-// SmartLedger security information
+// SmartLedger security information.
+// NOTE: these properties advertise that hardening *helpers* ship in this
+// package (`bsv.SmartVerify`, `bsv.EllipticFixed`, `signature.toCanonical()`,
+// etc.). They are NOT automatically wired into the default verify path:
+// `transaction.verify()`, `signature.verify()`, and `Message().verify()` go
+// through `lib/crypto/ecdsa.js`, which uses BSV's own pure-JS ECDSA and does
+// not route through `SmartVerify` or `EllipticFixed`. To get the strict
+// input validation, call `bsv.SmartVerify.smartVerify(...)` explicitly.
+// See the Security section of README.md.
 bsv.isHardened = true
 bsv.hardenedBy = 'SmartLedger'
 bsv.baseVersion = 'v1.5.6'

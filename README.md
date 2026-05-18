@@ -267,8 +267,8 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 | **Debug Tools** | `SmartContract.examineStack()` | Analyze script | `SmartContract.examineStack(script)` |
 | | `interpretScript()` | Execute script | `SmartContract.interpretScript(script)` |
 | | `getScriptMetrics()` | Performance data | `SmartContract.getScriptMetrics(script)` |
-| **Security** | `SmartVerify.verify()` | Enhanced verification | `SmartVerify.verify(sig, hash, pubkey)` |
-| | `EllipticFixed.sign()` | Secure signing | `EllipticFixed.sign(hash, privateKey)` |
+| **Security (opt-in)** | `SmartVerify.verify()` | Hardened verify with strict input validation — call explicitly; default `signature.verify()` does NOT route through this | `SmartVerify.verify(sig, hash, pubkey)` |
+| | `EllipticFixed.sign()` | Canonicalized signing wrapper around elliptic | `EllipticFixed.sign(hash, privateKey)` |
 
 > 💡 **Tip:** All methods include comprehensive error handling and validation. See [documentation links](#documentation) for detailed guides.
 
@@ -348,7 +348,7 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 
 ### 💼 **Core Library Excellence**
 - ✅ **Complete BSV API**: Full Bitcoin SV blockchain operations → [API Reference](#api-reference)  
-- ✅ **Security Hardened**: SmartLedger elliptic curve fixes and enhanced validation → [Security Features](#security-features)
+- ✅ **Opt-in security helpers**: `bsv.SmartVerify` and `bsv.EllipticFixed` add input validation and low-`s` canonicalization on top of standard verification — **not on the default verify path**, see [Security](#-security)
 - ✅ **Browser + Node.js**: Universal compatibility with proper polyfills → [Loading Options](#12-loading-options--choose-your-approach)
 - ✅ **TypeScript Ready**: Complete type definitions included
 - ✅ **Ultra-Low Fees**: 0.01 sats/byte configuration (91% fee reduction)
@@ -698,11 +698,37 @@ const timelockScript = helper.createTimelockScript(
 
 ## 🔐 Security
 
-### Enhanced Security Features
-- **Elliptic Curve Fix**: Updated to secure elliptic@6.6.1
-- **Parameter Fixing**: Public key, ephemeral key, sighash flag validation
-- **DER Canonicalization**: Transaction malleability prevention  
-- **Preimage Validation**: Complete BIP143 structure verification
+### What's actually in the box
+
+| Surface | Status | Notes |
+|---------|--------|-------|
+| `elliptic@6.6.1` (pinned) | upstream-patched | All known CVEs through 6.6.1 are fixed by elliptic itself. SmartLedger does not patch elliptic's source. |
+| Default `transaction.verify()` / `signature.verify()` / `Message().verify()` | uses BSV's own `lib/crypto/ecdsa.js` | This path does **not** import elliptic and is **not** routed through `SmartVerify` or `EllipticFixed`. |
+| `bsv.SmartVerify` (opt-in helper) | available | Hardened standalone verify: rejects `r=0`, `s=0`, `r≥n`, `s≥n`; canonicalizes `s` to low half. Built on BSV's own `BN`/`ECDSA`. You must call it explicitly. |
+| `bsv.EllipticFixed` (opt-in helper) | available | Wraps the elliptic `secp256k1` instance with the same input checks + low-`s` on sign. Only matters if you use elliptic directly. |
+| `signature.validate()` / `isCanonical()` / `toCanonical()` | available | Real methods on `bsv.Signature`. |
+| DER canonicalization on TX signing | available | BSV's signature path produces low-`s` DER by default. |
+| BIP143 preimage utilities | available | `lib/smart_contract/preimage.js` and `examples/preimage/`. |
+
+### Using the opt-in helpers
+
+```js
+const bsv = require('@smartledger/bsv')
+
+// Hardened verify (recommended if you accept signatures from untrusted sources):
+const ok = bsv.SmartVerify.smartVerify(msgHashBuffer, derSigBuffer, publicKey)
+
+// Or call BSV's own ECDSA via the standard API (no SmartVerify hardening):
+const okDefault = bsv.crypto.ECDSA.verify(msgHashBuffer, signature, publicKey)
+```
+
+### What this library does **not** claim
+
+- It does not silently route every `verify()` call through `SmartVerify`. If you want the strict input validation on every verification, call `SmartVerify` explicitly or wrap `bsv.Signature.prototype.verify`.
+- It does not patch the elliptic library's source — the patches in `lib/crypto/elliptic-fixed.js` add input validation on top of an already-upstream-patched `elliptic@6.6.1`.
+- It does not turn `bsv.isHardened = true` into an automatic guarantee. That property indicates the hardening helpers ship; whether they're used is up to your code.
+
+A planned 3.5.0 will offer an opt-in flag to route the default verify path through `SmartVerify` so the protection is on by default for new users.
 
 ## 📝 Changelog
 

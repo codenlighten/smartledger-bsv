@@ -5,6 +5,22 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.2] - 2026-05-18
+
+### Changed (documentation honesty)
+
+- **README Security section rewritten** to accurately describe what hardening ships and what is opt-in vs. on by default.
+  - `bsv.SmartVerify` and `bsv.EllipticFixed` are **opt-in helpers**; the default `transaction.verify()` / `signature.verify()` / `Message().verify()` paths do **not** route through them.
+  - `lib/crypto/ecdsa.js` (the default verify path) uses BSV's own pure-JS ECDSA and does not import the elliptic library at all.
+  - `elliptic@6.6.1` is the upstream-patched current release; SmartLedger does not patch elliptic's source. The patches in `lib/crypto/elliptic-fixed.js` add input validation on top of an already-patched elliptic.
+  - Added a usage example showing how to call `SmartVerify.smartVerify(...)` explicitly.
+- **`index.js`**: added a doc comment above `bsv.isHardened` / `bsv.securityFeatures` clarifying these advertise that hardening helpers ship — not that they are wired into the default path. API surface unchanged.
+
+### Notes
+
+- No code behavior changes. All `bsv.*` properties and methods continue to work exactly as before.
+- A planned 3.5.0 will offer an opt-in flag to route the default verify path through `SmartVerify` so the protection is on by default for new users.
+
 ## [3.4.1] - 2026-05-18
 
 ### Fixed
