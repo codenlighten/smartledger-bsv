@@ -329,6 +329,25 @@ describe('Transaction', function () {
         tx.isValidSignature(sig).should.equal(true)
       })
     })
+
+    describe('_clearSignatures with custom-script inputs', function () {
+      it('does not throw AbstractMethodInvoked for inputs using the base Input class', function () {
+        var tx = new Transaction(tx1hex)
+        expect(function () {
+          tx._clearSignatures()
+        }).to.not.throw()
+      })
+      it('still invokes clearSignatures on typed subclass inputs', function () {
+        var tx = new Transaction()
+          .from(simpleUtxoWith100000Satoshis)
+          .to([{ address: toAddress, satoshis: 50000 }])
+          .change(changeAddress)
+          .sign(privateKey)
+        var clearSpy = sinon.spy(tx.inputs[0], 'clearSignatures')
+        tx._clearSignatures()
+        clearSpy.called.should.equal(true)
+      })
+    })
   })
 
   describe('change address', function () {

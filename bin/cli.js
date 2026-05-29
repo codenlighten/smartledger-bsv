@@ -8,6 +8,7 @@
 
 var fs = require('fs')
 var path = require('path')
+var pkg = require('../package.json')
 var didweb = require('../lib/didweb')
 var vcjwt = require('../lib/vcjwt')
 var statuslist = require('../lib/statuslist')
@@ -43,8 +44,13 @@ function writeJsonFile(filepath, data) {
 }
 
 async function main() {
-  if (!command) {
-    console.log('SmartLedger BSV CLI v3.4.0')
+  if (command === '--version' || command === '-v') {
+    console.log(pkg.version)
+    process.exit(0)
+  }
+
+  if (!command || command === '--help' || command === '-h' || command === 'help') {
+    console.log('SmartLedger BSV CLI v' + pkg.version)
     console.log('')
     console.log('Usage:')
     console.log('  smartledger-bsv didweb <subcommand> [options]')
@@ -205,15 +211,14 @@ async function handleVc(subcommand, opts) {
     
     console.error('Verifying credential...')
     
-    // Simple resolver that reads from .well-known
-    var didResolver = async function(did) {
-      var domain = did.replace('did:web:', '').replace(/%3A/g, ':')
+    // Simple resolver that reads from .well-known. lib/vcjwt expects
+    // `{ jwks: { keys: [...] } }`; jwks.json on disk is the raw JWKS,
+    // so wrap it.
+    var didResolver = async function (did) {
       var jwksPath = path.join(process.cwd(), '.well-known', 'jwks.json')
-      
       if (fs.existsSync(jwksPath)) {
-        return readJsonFile(jwksPath)
+        return { jwks: readJsonFile(jwksPath) }
       }
-      
       throw new Error('Cannot resolve DID: ' + did)
     }
 

@@ -2,17 +2,30 @@
 
 var bsv = module.exports
 
-// Initialize dependencies first to avoid circular dependency issues
+// Initialize dependencies first to avoid circular dependency issues.
+//
+// `bn.js`, `bs58`, and `elliptic` are declared runtime deps in
+// package.json. In Node they MUST be installed — silently swallowing
+// a require() failure here used to mask broken installs behind cryptic
+// downstream errors in lib/crypto/bn.js etc. We now let those throw in
+// Node so the failure points at the real cause (`npm install` is broken).
+// In a browser context the bundler is expected to inline these; if it
+// somehow didn't, we tolerate the absence rather than block the whole
+// library load.
 bsv.deps = bsv.deps || {}
-try {
+bsv.deps._ = require('./lib/util/_')
+bsv.deps.Buffer = (typeof Buffer !== 'undefined') ? Buffer : null
+
+if (typeof window === 'undefined') {
+  // Node — hard require; failure means broken install.
   bsv.deps.bnjs = require('bn.js')
   bsv.deps.bs58 = require('bs58')
-  bsv.deps.Buffer = (typeof Buffer !== 'undefined') ? Buffer : null
   bsv.deps.elliptic = require('elliptic')
-  bsv.deps._ = require('./lib/util/_')
-} catch (e) {
-  // Handle browser environment gracefully
-  console.warn('Some dependencies may not be available in browser environment:', e.message)
+} else {
+  // Browser — bundler-resolved; tolerate absence individually.
+  try { bsv.deps.bnjs = require('bn.js') } catch (e) { /* polyfilled by bundler */ }
+  try { bsv.deps.bs58 = require('bs58') } catch (e) { /* polyfilled by bundler */ }
+  try { bsv.deps.elliptic = require('elliptic') } catch (e) { /* polyfilled by bundler */ }
 }
 
 // module information

@@ -1,6 +1,6 @@
 {
   "name": "@smartledger/bsv",
-  "version": "3.4.3",
+  "version": "3.4.4",
   "description": "🚀 Complete Bitcoin SV development framework with legally-recognizable DID:web + W3C VC-JWT toolkit, Legal Token Protocol (LTP), Global Digital Attestation Framework (GDAF), StatusList2021 revocation, and 16 flexible loading options. Standards-based credentials with ES256/ES256K support, on-chain BSV anchoring, and comprehensive Bitcoin SV API. Perfect for legal tokens, verifiable credentials, DeFi, smart contracts, and secure Bitcoin applications.",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
@@ -8,12 +8,14 @@
     "url": "https://github.com/codenlighten/smartledger-bsv/issues"
   },
   "main": "index.js",
+  "types": "bsv.d.ts",
   "bin": {
     "smartledger-bsv": "./bin/cli.js"
   },
   "scripts": {
     "lint": "standard",
     "test": "mocha",
+    "test:cli": "mocha test/cli/smoke.js --timeout 25000",
     "test:ltp": "node complete_ltp_demo.js",
     "test:ltp-primitives": "node simple_demo.js",
     "test:architecture": "node architecture_demo.js",
@@ -96,8 +98,6 @@
     "bsv-anchor.min.js",
     "bsv.d.ts",
     "docs/",
-    "demos/",
-    "examples/",
     "LICENSE",
     "README.md",
     "SECURITY.md",

@@ -1,0 +1,299 @@
+# Minimal CI for @smartledger/bsv.
+#
+# Designed to catch the bug classes fixed in v3.4.1, v3.4.3, and the v3.4.4
+# doc-honesty sweep — stale CDN URLs in README/docs, dead `files:` entries
+# in package.json, missing bundles, LTP/GDAF entry placeholder regression,
+# and broken TypeScript types. Lint and the mocha suite run in advisory
+# mode (continue-on-error) until the 25 pre-existing test failures and
+# standard@12 lint baseline are cleaned up in 3.5.0.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  hygiene:
+    name: Hygiene (URLs, files:, types, pack)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Stale CDN URL check
+        # Catches the bug class fixed in v3.4.3 and v3.4.4: README/docs
+        # referencing @smartledger/bsv@OLD_VERSION/<bundle>.js URLs that
+        # serve stale code to CDN consumers.
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Current package.json version: $VERSION"
+          BAD=$(grep -rnE '@smartledger/bsv@[0-9]+\.[0-9]+\.[0-9]+/' \
+                  --include='*.md' --include='*.html' \
+                  README.md docs/ 2>/dev/null \
+                | grep -v "@$VERSION/" || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::Stale CDN URLs found (do not match current version $VERSION):"
+            echo "$BAD"
+            exit 1
+          fi
+          echo "No stale CDN URLs."
+
+      - name: Dead files-array entries check
+        # Catches the bug class fixed in v3.4.1 (seven dead entries removed)
+        # and again in v3.4.4 (SECURITY.md was listed but did not exist).
+        # Every entry in package.json `files:` must resolve to at least one
+        # path on disk; globs are expanded.
+        run: |
+          node -e "
+            const p = require('./package.json')
+            const fs = require('fs')
+            const path = require('path')
+            function walk(dir) {
+              const out = []
+              for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+                if (e.name === 'node_modules' || e.name.startsWith('.git')) continue
+                const full = path.join(dir, e.name)
+                if (e.isDirectory()) out.push(...walk(full)); else out.push(full)
+              }
+              return out
+            }
+            const all = walk('.').map(f => f.replace(/^\.\//, ''))
+            const missing = []
+            for (const f of p.files) {
+              if (fs.existsSync(f)) continue
+              if (f.endsWith('/') && fs.existsSync(f.slice(0, -1))) continue
+              if (f.includes('*')) {
+                const re = new RegExp('^' + f.replace(/\./g, '\\\\.').replace(/\*/g, '[^/]*') + '\$')
+                if (all.some(c => re.test(c))) continue
+              }
+              missing.push(f)
+            }
+            if (missing.length) {
+              console.error('::error::Dead files: entries in package.json (listed but not on disk):')
+              console.error(missing.join('\n'))
+              process.exit(1)
+            }
+            console.log('All files: entries resolve.')
+          "
+
+      - name: TypeScript types compile
+        # Catches the v3.4.4 regression where bsv.d.ts declared module 'bsv'
+        # instead of '@smartledger/bsv' (silently giving TS consumers `any`)
+        # and any future surface drift in the typed v3.3+ modules.
+        run: |
+          npm install --no-save --no-audit --no-fund typescript@5 @types/node
+          mkdir -p /tmp/ts-check
+          cp bsv.d.ts /tmp/ts-check/bsv.d.ts
+          cat > /tmp/ts-check/smoke.ts <<'EOF'
+          import * as bsv from '@smartledger/bsv'
+          const k = new bsv.PrivateKey()
+          const a: bsv.Address = k.toAddress()
+          const tx = new bsv.Transaction()
+          // exercise v3.3+ surface
+          async function s() {
+            const keys = await bsv.DIDWeb.generateIssuerKeys({ alg: 'ES256' })
+            const h: string = bsv.Anchor.sha256Hex('x')
+            const ok: boolean = bsv.SmartVerify.smartVerify(Buffer.alloc(32), Buffer.alloc(64), k.toPublicKey())
+            const ltp = new bsv.LTP()
+            const gdaf = new bsv.GDAF()
+            const shares = bsv.Shamir.split('x', 3, 5)
+          }
+          EOF
+          cat > /tmp/ts-check/tsconfig.json <<'EOF'
+          {
+            "compilerOptions": {
+              "target": "es2017",
+              "module": "commonjs",
+              "moduleResolution": "node",
+              "lib": ["es2017"],
+              "strict": true,
+              "noEmit": true,
+              "esModuleInterop": true,
+              "paths": { "@smartledger/bsv": ["./bsv.d.ts"] },
+              "types": ["node"]
+            },
+            "include": ["smoke.ts", "bsv.d.ts"]
+          }
+          EOF
+          cd /tmp/ts-check && npx tsc --noEmit -p tsconfig.json
+
+      - name: CLI smoke test
+        # Catches the v3.4.4 bug class: the README markets
+        # `npx smartledger-bsv didweb init / vc issue / vc verify / status /
+        # anchor` as the on-ramp, but the CLI was never exercised by any
+        # npm test script. The smoke test runs every advertised
+        # subcommand end-to-end in a temp dir.
+        run: npm run test:cli
+
+      - name: npm pack --dry-run + key-file + size guard
+        # Catches the v3.4.1 bug class: bundles advertised in the README
+        # not actually included in the published tarball.
+        # Size guard prevents the v3.4.4 demos/examples drop from being
+        # silently reversed (current baseline: ~11 MB / 206 files).
+        run: |
+          npm pack --dry-run > /tmp/pack.log 2>&1
+          tail -10 /tmp/pack.log
+          for f in SECURITY.md CHANGELOG.md LICENSE README.md bsv.d.ts bsv.min.js; do
+            if ! grep -qE "[[:space:]]$f$" /tmp/pack.log; then
+              echo "::error::Required file '$f' is missing from tarball"
+              exit 1
+            fi
+          done
+          # Anti-bloat guard. Bump these if a deliberate addition warrants it.
+          FILE_COUNT=$(grep -oE 'total files: [0-9]+' /tmp/pack.log | grep -oE '[0-9]+')
+          UNPACKED_MB=$(grep -oE 'unpacked size: [0-9.]+ MB' /tmp/pack.log | grep -oE '[0-9.]+')
+          echo "Tarball: $FILE_COUNT files, $UNPACKED_MB MB unpacked."
+          if [ -z "$FILE_COUNT" ] || [ "$FILE_COUNT" -gt 250 ]; then
+            echo "::error::Tarball file count ($FILE_COUNT) exceeds 250 — review additions."
+            exit 1
+          fi
+          # Use awk for float compare; ceiling is 14 MB (current ~11 MB)
+          if awk "BEGIN{exit !($UNPACKED_MB > 14)}"; then
+            echo "::error::Tarball unpacked size ($UNPACKED_MB MB) exceeds 14 MB ceiling."
+            exit 1
+          fi
+          echo "All required files present in tarball; size guard OK."
+
+  build:
+    name: Build & bundle integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 18
+        # webpack 4 needs --openssl-legacy-provider on Node 17+; pin to 18
+        # rather than chase Node 20/22 here. 3.5.0 toolchain upgrade will
+        # remove this constraint.
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build all bundles
+        run: npm run build-all
+
+      - name: Bundle inventory (16 expected)
+        # Catches the v3.4.0 → v3.4.1 bug: prepublishOnly only built 6/16
+        # bundles. Every advertised bundle must exist after build.
+        run: |
+          missing=0
+          for f in bsv.min.js bsv.bundle.js \
+                   bsv-ecies.min.js bsv-message.min.js bsv-mnemonic.min.js \
+                   bsv-shamir.min.js \
+                   bsv-smartcontract.min.js bsv-covenant.min.js \
+                   bsv-script-helper.min.js bsv-security.min.js \
+                   bsv-didweb.min.js bsv-vcjwt.min.js \
+                   bsv-statuslist.min.js bsv-anchor.min.js \
+                   bsv-ltp.min.js bsv-gdaf.min.js; do
+            if [ -f "$f" ]; then
+              size=$(stat -c%s "$f")
+              printf "%-30s %d bytes\n" "$f" "$size"
+            else
+              echo "::error::Missing bundle: $f"
+              missing=$((missing + 1))
+            fi
+          done
+          [ $missing -eq 0 ] || exit 1
+
+      - name: LTP / GDAF bundle distinctness
+        # Catches the v3.4.4 bug: ltp-entry.js and gdaf-entry.js were
+        # placeholders that both re-exported lib/smart_contract, so
+        # bsv-ltp.min.js and bsv-gdaf.min.js were byte-identical despite
+        # being marketed as different modules. Regression guard.
+        run: |
+          if cmp -s bsv-ltp.min.js bsv-gdaf.min.js; then
+            echo "::error::bsv-ltp.min.js and bsv-gdaf.min.js are byte-identical."
+            echo "::error::Check ltp-entry.js / gdaf-entry.js — they should require ./lib/ltp and ./lib/gdaf."
+            exit 1
+          fi
+          echo "LTP and GDAF bundles are distinct."
+
+      - name: Bundle UMD load smoke test
+        # Each UMD bundle must load in Node without throwing and expose a
+        # stable marker (component class, prototype method, or top-level
+        # function). Class names are minified by webpack 4, so we check
+        # stable static properties / prototype methods instead.
+        #
+        # bsv-shamir, bsv-ecies, bsv-message, bsv-mnemonic are NOT included
+        # below — they're built with the older `webpack.subproject.config.js`
+        # which sets only a browser-global library name (no UMD target),
+        # so require() returns {}. Their browser-CDN behavior is covered
+        # by tests/standalone-shamir-test.html etc.
+        run: |
+          node -e "
+            const checks = {
+              'bsv-ltp.min.js':        m => typeof m === 'function' && 'Right' in m && 'Registry' in m,
+              'bsv-gdaf.min.js':       m => typeof m === 'function' && typeof m.prototype.createDID === 'function',
+              'bsv-anchor.min.js':     m => typeof m.sha256Hex === 'function',
+              'bsv-didweb.min.js':     m => typeof m.generateIssuerKeys === 'function',
+              'bsv-vcjwt.min.js':      m => typeof m.issueVcJwt === 'function',
+              'bsv-statuslist.min.js': m => typeof m.createStatusList === 'function',
+            }
+            const origLog = console.log
+            console.log = () => {}   // silence smartutxo browser-mode notice
+            let failed = 0
+            const lines = []
+            for (const [file, check] of Object.entries(checks)) {
+              try {
+                const m = require('./' + file)
+                if (check(m)) {
+                  lines.push(file + ' → OK')
+                } else {
+                  lines.push('::error::' + file + ' loaded but failed shape check')
+                  failed++
+                }
+              } catch (e) {
+                lines.push('::error::' + file + ' failed to load: ' + e.message)
+                failed++
+              }
+            }
+            console.log = origLog
+            for (const l of lines) console.log(l)
+            process.exit(failed ? 1 : 0)
+          "
+
+  tests:
+    # Advisory: mocha and lint run on every push but don't gate merges
+    # until the 25 pre-existing test failures and standard@12 lint
+    # baseline are cleaned up as part of the 3.5.0 toolchain upgrade
+    # (see CHANGELOG `## Planned for 3.5.0`).
+    name: Tests & lint (advisory)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Mocha
+        continue-on-error: true
+        run: npm test
+
+      - name: Lint
+        continue-on-error: true
+        run: npm run lint

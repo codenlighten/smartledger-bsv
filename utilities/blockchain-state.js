@@ -5,6 +5,15 @@
  * Acts as the "blockchain database" for our miner simulator.
  */
 
+// Set BSV_DEBUG=1 (Node) or window.BSV_DEBUG = true (browser) to surface
+// info/warning narration from this module. Matches the gating pattern
+// used by lib/browser-utxo-manager-es5.js since v3.4.1.
+const debug = function () {
+  const enabled = (typeof process !== 'undefined' && process.env && process.env.BSV_DEBUG) ||
+                  (typeof window !== 'undefined' && window.BSV_DEBUG)
+  if (enabled) console.log.apply(console, arguments)
+}
+
 // Browser-compatible imports
 let bsv, fs, path, BLOCKCHAIN_STATE_PATH
 
@@ -16,7 +25,7 @@ if (typeof window === 'undefined' && typeof require === 'function') {
     path = require('path')
     BLOCKCHAIN_STATE_PATH = path.join(__dirname, 'blockchain-state.json')
   } catch (e) {
-    console.warn('BlockchainState: Running in browser mode - persistence disabled')
+    debug('BlockchainState: Running in browser mode - persistence disabled')
   }
 } else {
   // In browser, try to get bsv from global scope or fallback
@@ -54,14 +63,14 @@ function loadBlockchainState () {
     }
 
     if (!fs.existsSync(BLOCKCHAIN_STATE_PATH)) {
-      console.log('🆕 Creating new blockchain state...')
+      debug('🆕 Creating new blockchain state...')
       const initialState = initializeBlockchainState()
       saveBlockchainState(initialState)
       return initialState
     }
 
     const state = JSON.parse(fs.readFileSync(BLOCKCHAIN_STATE_PATH, 'utf8'))
-    console.log('📖 Loaded existing blockchain state')
+    debug('📖 Loaded existing blockchain state')
     return state
   } catch (error) {
     console.error('❌ Error loading blockchain state:', error.message)
@@ -79,7 +88,7 @@ function saveBlockchainState (state) {
     // Only save to file in Node.js environment
     if (fs && BLOCKCHAIN_STATE_PATH) {
       fs.writeFileSync(BLOCKCHAIN_STATE_PATH, JSON.stringify(state, null, 2))
-      console.log('💾 Blockchain state saved')
+      debug('💾 Blockchain state saved')
     }
   } catch (error) {
     console.error('❌ Error saving blockchain state:', error.message)
@@ -90,12 +99,12 @@ function saveBlockchainState (state) {
  * Register a new wallet in the blockchain state
  */
 function registerWallet (walletAddress, walletData) {
-  console.log(`📝 Registering wallet: ${walletAddress}`)
+  debug(`📝 Registering wallet: ${walletAddress}`)
 
   const state = loadBlockchainState()
 
   if (state.wallets[walletAddress]) {
-    console.log('ℹ️  Wallet already exists, updating...')
+    debug('ℹ️  Wallet already exists, updating...')
   }
 
   state.wallets[walletAddress] = {
@@ -122,7 +131,7 @@ function registerWallet (walletAddress, walletData) {
 
   saveBlockchainState(state)
 
-  console.log(`✅ Wallet registered: ${walletAddress}`)
+  debug(`✅ Wallet registered: ${walletAddress}`)
   return state
 }
 
@@ -185,7 +194,7 @@ function spendUTXO (txid, vout, spentInTx) {
 
   updateBlockchainMetadata(state)
   saveBlockchainState(state)
-  console.log(`❌ UTXO spent: ${utxoKey} in tx ${spentInTx}`)
+  debug(`❌ UTXO spent: ${utxoKey} in tx ${spentInTx}`)
 }
 
 /**
@@ -197,7 +206,7 @@ function addUTXO (utxo, ownerAddress) {
 
   // Check if UTXO already exists
   if (state.globalUTXOSet[utxoKey]) {
-    console.log(`⚠️ UTXO ${utxoKey} already exists, skipping`)
+    debug(`⚠️ UTXO ${utxoKey} already exists, skipping`)
     return
   }
 
@@ -229,7 +238,7 @@ function addUTXO (utxo, ownerAddress) {
   updateBlockchainMetadata(state)
   saveBlockchainState(state)
 
-  console.log(`✅ UTXO added: ${utxoKey} for ${ownerAddress}`)
+  debug(`✅ UTXO added: ${utxoKey} for ${ownerAddress}`)
 }
 
 /**
@@ -255,18 +264,18 @@ function updateBlockchainMetadata (state) {
 function getBlockchainStats () {
   const state = loadBlockchainState()
 
-  console.log('🌐 Blockchain State Statistics:')
-  console.log('═══════════════════════════════════════════')
-  console.log(`📊 Total Wallets: ${state.metadata.totalWallets}`)
-  console.log(`💰 Total UTXOs: ${state.metadata.totalUTXOs}`)
-  console.log(`💎 Total Value: ${state.metadata.totalValue} satoshis`)
-  console.log(`🏗️  Block Height: ${state.metadata.blockHeight}`)
-  console.log(`🕐 Last Updated: ${state.metadata.lastUpdated}\n`)
+  debug('🌐 Blockchain State Statistics:')
+  debug('═══════════════════════════════════════════')
+  debug(`📊 Total Wallets: ${state.metadata.totalWallets}`)
+  debug(`💰 Total UTXOs: ${state.metadata.totalUTXOs}`)
+  debug(`💎 Total Value: ${state.metadata.totalValue} satoshis`)
+  debug(`🏗️  Block Height: ${state.metadata.blockHeight}`)
+  debug(`🕐 Last Updated: ${state.metadata.lastUpdated}\n`)
 
   if (Object.keys(state.wallets).length > 0) {
-    console.log('👛 Registered Wallets:')
+    debug('👛 Registered Wallets:')
     Object.entries(state.wallets).forEach(([address, wallet]) => {
-      console.log(`  ${address}: ${wallet.utxos.length} UTXOs, ${wallet.totalValue} sats`)
+      debug(`  ${address}: ${wallet.utxos.length} UTXOs, ${wallet.totalValue} sats`)
     })
   }
 
@@ -280,14 +289,14 @@ function importWalletFromFile () {
   const walletPath = path.join(__dirname, 'wallet.json')
 
   if (!fs.existsSync(walletPath)) {
-    console.log('❌ No wallet.json found to import')
+    debug('❌ No wallet.json found to import')
     return false
   }
 
   try {
     const walletData = JSON.parse(fs.readFileSync(walletPath, 'utf8'))
 
-    console.log('📥 Importing wallet from wallet.json...')
+    debug('📥 Importing wallet from wallet.json...')
 
     const walletInfo = {
       registeredAt: new Date().toISOString(),
@@ -296,7 +305,7 @@ function importWalletFromFile () {
 
     registerWallet(walletData.wallet.address, walletInfo)
 
-    console.log('✅ Wallet imported successfully')
+    debug('✅ Wallet imported successfully')
     return true
   } catch (error) {
     console.error('❌ Error importing wallet:', error.message)
@@ -313,7 +322,7 @@ if (require.main === module) {
   } else if (args[0] === 'init') {
     const state = initializeBlockchainState()
     saveBlockchainState(state)
-    console.log('🆕 Initialized new blockchain state')
+    debug('🆕 Initialized new blockchain state')
   }
 
   getBlockchainStats()

@@ -5,6 +5,327 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.4] - 2026-05-25
+
+### Fixed
+
+- **TypeScript types now actually load for `@smartledger/bsv` consumers.**
+  Two pre-existing bugs combined to silently leave TS users with `any`:
+  `package.json` had no `"types"` field, and `bsv.d.ts` declared
+  `module 'bsv'` instead of `module '@smartledger/bsv'`. Added the `types:`
+  field and renamed the ambient module declaration. Existing TS consumers
+  who were previously seeing `any` for every `bsv.*` will now get real
+  autocomplete and type errors — surface API unchanged, but any code that
+  was implicitly relying on `any` to silence a real type error will need
+  to be fixed.
+
+- **`smartledger-bsv vc verify` actually works now.** The CLI's DID resolver
+  returned the raw JWKS file content (`{ keys: [...] }`), but
+  `lib/vcjwt/verifyVcJwt` expects the documented resolver shape
+  `{ jwks: { keys: [...] } }`. So every `npx smartledger-bsv vc verify`
+  call advertised in the README's quickstart would fail with "Failed to
+  resolve issuer DID" — including the one in the very first `Quick Start`
+  block at `README.md:25-53`. `bin/cli.js` now wraps the result correctly.
+  Caught by the new `test/cli/smoke.js` (Task #9 below).
+
+- **CLI version string is no longer hardcoded.** `bin/cli.js` used to
+  print `SmartLedger BSV CLI v3.4.0` regardless of the actual package
+  version (and had no `--version` flag at all). It now reads from
+  `package.json` and supports `--version` / `-v` / `--help` / `-h`.
+
+- **Library is now silent by default.** Two long-standing modules printed
+  on every consumer-side `require`/bundle-load: `lib/smartutxo.js` emitted
+  `SmartUTXO: Running in browser mode - some features may be limited`
+  plus 11 informational `console.log` calls (`📖 Loaded existing
+  blockchain state`, `💾 Saved blockchain state with N UTXOs`, etc.), and
+  `utilities/blockchain-state.js` added another `BlockchainState: Running
+  in browser mode` warn plus ~15 narration logs that fired on every
+  `SmartUTXO` method call. All of these are now gated behind the same
+  `BSV_DEBUG` flag the rest of the codebase has used since 3.4.1:
+  set `BSV_DEBUG=1` (Node) or `window.BSV_DEBUG = true` (browser) to
+  surface the diagnostics. `console.error` calls for genuine
+  storage/IO failures are unchanged — errors stay loud. A small fix to
+  `lib/smart_contract/covenant.js` does the same for the
+  `File system operations not available in browser environment` warn
+  that `.save()` emitted at call time. Verified: `require('./index.js')`
+  in Node is now completely silent; `require('./bsv-ltp.min.js')` /
+  `bsv-gdaf.min.js` / `bsv-anchor.min.js` are silent after rebuild
+  (will rebuild for the rest at release time via `prepublishOnly`).
+
+- **Broken installs now fail loudly in Node instead of silently degrading.**
+  `index.js` previously wrapped the eager `require('bn.js')` /
+  `require('bs58')` / `require('elliptic')` calls in a single try/catch that
+  emitted `console.warn('Some dependencies may not be available in browser
+  environment')` and continued — so a missing runtime dep in Node (broken
+  `npm install`, deleted `node_modules`, container-build mistake) would let
+  the library load partially and then explode with a confusing
+  `TypeError: Cannot read properties of undefined` deep in `lib/crypto/bn.js`.
+  The block now hard-requires those three deps in Node (declared in
+  `package.json` `dependencies`, so they MUST be installed) and only
+  tolerates absence in browser context where the bundler is expected to
+  inline or polyfill them. `Buffer` and the internal `lib/util/_` continue
+  to be loaded the same way they always were.
+
+- **`Transaction._clearSignatures()` no longer throws on custom-script inputs.**
+  When a transaction contained an input whose locking script wasn't one of the
+  four auto-recognized standard types (P2PKH, P2PK, bare-multisig, P2SH-multisig),
+  `_fromNonP2SH` falls through to the base `Input` class. Any subsequent
+  `Transaction` mutation that triggers `_clearSignatures` — `.fee()`, `.change()`,
+  adding another input, etc. — then threw `AbstractMethodInvoked: Input#clearSignatures`.
+  This bug existed in the upstream bsv@1.5.6 lineage and impacted users of
+  covenant and custom-script flows specifically. `transaction.js:_clearSignatures`
+  now skips inputs that haven't overridden the base method, matching the
+  guard-by-method-identity pattern already used for `isFullySigned` and
+  `isValidSignature`. The base `Input.prototype.clearSignatures` still throws
+  when called directly, so the original abstract-method contract is preserved.
+  Regression tests added in `test/transaction/transaction.js`.
+
+### Added
+
+- **`test/cli/smoke.js` — end-to-end smoke test for `bin/cli.js`.** Exercises
+  every subcommand the README markets as the on-ramp (`didweb init`,
+  `vc issue`, `vc verify`, `status create` / `set` / `check`,
+  `anchor hash` / `build`) inside an isolated temp dir per test (13
+  tests, ~580ms total). Surfaced two pre-existing CLI bugs in the
+  process (resolver shape, hardcoded version — both fixed above). Also
+  available as `npm run test:cli`, and wired into the hygiene job of
+  `ci.yml`.
+
+- **`.github/workflows/ci.yml` — minimal CI** that runs on push/PR to main
+  and is designed to catch the exact bug classes shipped in v3.4.0–v3.4.3.
+  Three jobs:
+  1. **hygiene** (strict) — fails the build if README/docs contain stale
+     `unpkg.com/@smartledger/bsv@X.Y.Z/...` URLs that don't match
+     `package.json` version; if any `files:` array entry doesn't resolve
+     to a path on disk (globs expanded); if `bsv.d.ts` fails to compile
+     against a TS smoke file under `--strict`; or if `npm pack --dry-run`
+     output is missing any of `SECURITY.md` / `CHANGELOG.md` / `LICENSE`
+     / `README.md` / `bsv.d.ts` / `bsv.min.js`.
+  2. **build** (strict) — runs `npm run build-all` and verifies all 16
+     advertised bundles land on disk; checks that `bsv-ltp.min.js` and
+     `bsv-gdaf.min.js` are not byte-identical (regression guard for the
+     v3.4.4 entry-placeholder fix); UMD-loads each credential bundle and
+     verifies its expected exports are accessible.
+  3. **tests** (advisory) — runs `npm test` and `npm run lint` on Node
+     18/20/22, but with `continue-on-error: true`. Will be gated strictly
+     after the 25 pre-existing mocha failures and standard@12 lint
+     baseline are cleaned up in 3.5.0 (see "Planned for 3.5.0" below).
+
+- **`bsv.d.ts` now covers the v3.3+ surface.** The legacy type defs (forked
+  from the original moneybutton/bsv types) only described the bitcore-lineage
+  core: Transaction, Address, Script, PrivateKey, etc. Everything added in
+  v3.3.x and v3.4.x — `DIDWeb`, `VcJwt`, `StatusList`, `Anchor`, `GDAF`, `LTP`
+  (class + 60+ top-level `prepare*` and `create*` convenience wrappers),
+  `SmartContract` (Covenant, Preimage, SIGHASH, Builder, UTXOGenerator,
+  ScriptTester, CovenantBuilder, StackExaminer, ScriptInterpreter, plus
+  `scriptToASM`/`asmToScript`/etc.), `SmartVerify`, `EllipticFixed`, `Shamir`
+  (with `splitSecret`/`reconstructSecret`/`validateShare` convenience
+  wrappers), `BrowserUTXOManager`, and the `SmartLedger` metadata namespace
+  — was missing. Added with pragmatic signatures (JWK-typed where shapes are
+  stable; `object` / `any` where the runtime takes opaque W3C/JSON
+  payloads). Verified by compiling a smoke-test file that exercises every
+  new module against `tsc --noEmit` and `tsc --noEmit --strict` (both pass).
+
+### Changed (tarball hygiene)
+
+- **`demos/` and `examples/` no longer ship in the npm tarball.** Removed
+  from `package.json` `files:` (they're still in the GitHub repo). Reduces
+  unpacked size from 11.8 MB → 11.1 MB and file count from 268 → 206
+  (≈23% fewer files in every consumer's `node_modules`). Rationale: Node
+  consumers `require('@smartledger/bsv')` and never browse those
+  directories; CDN consumers fetch `.min.js` files directly and never see
+  the tarball. `docs/` is still included — it's actively maintained,
+  small (0.39 MB), and useful for users grepping `node_modules` for
+  reference material.
+- **13 relative README links to `examples/`, `demos/`, and `tests/`
+  rewritten to absolute GitHub URLs** so they keep resolving for anyone
+  reading the post-install README from inside `node_modules`. Same final
+  destination, just doesn't depend on the directory shipping locally.
+- **CI now enforces an anti-bloat ceiling**: the hygiene job fails if the
+  tarball exceeds 250 files or 14 MB unpacked. Baseline after this
+  release: 206 files / 11.1 MB — gives ~25% headroom for normal growth.
+
+### Changed (documentation honesty, continued)
+
+Further sweep of the same stale-URL bug class fixed in 3.4.2/3.4.3, plus a
+companion `SECURITY.md` and a fix to two long-standing entry-file placeholders.
+
+- **README.md**: bumped 20 stale `unpkg.com/@smartledger/bsv@3.4.1/...` and
+  `@3.3.4/...` CDN URLs (plus the version badge and install commands) to
+  `@3.4.3`. The two historical "v3.4.1 (bugfix)" prose references at the top
+  of the file were left intact — they accurately describe what that specific
+  release shipped.
+- **`docs/`**: bumped 67 more stale CDN/install URLs that the 3.4.3 sweep
+  missed (`@3.4.2`, `@3.3.4`, `@3.1.1`) across `MODULE_REFERENCE_COMPLETE.md`,
+  `getting-started/INSTALLATION.md`, `getting-started/QUICK_START.md`,
+  `migration/FROM_BSV_1_5_6.md`, `advanced/UTXO_MANAGER_GUIDE.md`, and
+  `COVENANT_DEVELOPMENT_RESOLVED.md`.
+- **Bundle sizes corrected** in `README.md` (loading-strategy section and
+  use-case table at lines 277–791), `docs/getting-started/INSTALLATION.md`,
+  `docs/getting-started/QUICK_START.md`, and `docs/MODULE_REFERENCE_COMPLETE.md`.
+  The largest drifts (silent for several releases): `bsv-covenant.min.js`
+  shown as 32KB in `docs/` was actually 913KB (28× off); `bsv-ltp.min.js` /
+  `bsv-gdaf.min.js` shown as 817KB / 604KB were both 1184KB after the
+  3.4.x rebuilds. README's main loading-options table (lines 138–173) was
+  already accurate and was not touched. Subtotals for "load multiple
+  bundles together" rows now reflect that each standalone bundle re-embeds
+  core BSV — the previous subtotals undercounted by ignoring that overlap.
+- **`SECURITY.md`** added. `package.json` `files:` had listed it since 3.4.0
+  but the file did not exist, so npm was silently skipping the entry (same
+  class of bug 3.4.1 cleaned up for the other seven dead `files:` entries).
+  Uses the GitHub-recognized `## Supported Versions` / `## Reporting a
+  Vulnerability` format, points at GitHub Security Advisories +
+  `hello@smartledger.technology`, and restates the same opt-in vs.
+  default-path posture as README §Security so it can't drift.
+- **`ltp-entry.js` and `gdaf-entry.js`** were placeholders that re-exported
+  `lib/smart_contract`. The webpack configs built `bsv-ltp.min.js` and
+  `bsv-gdaf.min.js` (1.2 MB each) from these placeholders, so the UMD
+  `window.bsvLTP` and `window.bsvGDAF` globals advertised in the README as
+  "Legal Token Protocol" and "Digital Identity & Attestation" actually
+  exposed the smart-contract module — and the two bundles were byte-identical.
+  The entries now point at `./lib/ltp` and `./lib/gdaf` respectively, so the
+  bundles expose the `LTP` and `GDAF` classes the README documents. CDN
+  consumers who were calling `window.bsvLTP.<smart_contract_method>` will need
+  to switch to `bsv-smartcontract.min.js` or use the unbundled `@smartledger/bsv`
+  package — the previous behavior was not what was advertised.
+
+### Notes
+
+- No public API changes beyond the LTP/GDAF UMD bundle export shape correction
+  noted above. All Node.js `require('@smartledger/bsv').LTP` /
+  `require('@smartledger/bsv').GDAF` call sites continue to resolve to the
+  same `lib/ltp` / `lib/gdaf` modules they always did.
+
+---
+
+## Planned for 3.5.0 — toolchain upgrade
+
+Originally promised in 3.4.1's "Notes":
+
+> Dev-only vulnerabilities remain in `webpack 4` / `standard 12` / `mocha 8`;
+> a toolchain upgrade is planned for 3.5.0 to address them without breaking
+> downstream bundler integrations.
+
+This is the fleshed-out plan for that release. **It does not affect 3.4.x
+runtime behavior; it's a build/test/lint stack migration.** Tracking it here
+in `[Unreleased]` keeps the commitment auditable from the changelog rather
+than a side document.
+
+### Audit baseline (as of v3.4.3)
+
+`npm audit` reports **15 high / 9 moderate / 10 low**. All but two are
+strictly dev-chain (webpack 4 / mocha 8 / nyc 14 / standard 12 transitives):
+
+- The lone direct runtime entry is **`bn.js` (moderate)** — pinned at
+  `=4.11.9` because `elliptic@6.6.1` requires bn.js 4.x. A direct bump to
+  `bn.js@5.x` is not safe in isolation; see "Runtime dependency decisions"
+  below.
+- **`elliptic` appears in the low list** but is already at upstream's latest
+  (6.6.1). The advisory comes via webpack 4's obsolete
+  `node-libs-browser → crypto-browserify → browserify-sign → elliptic`
+  polyfill chain, which webpack 5 deletes entirely. So bumping webpack to 5
+  drops this advisory automatically, no code change required.
+
+### Tooling target versions
+
+| Tool | Current | Target | Why |
+| --- | --- | --- | --- |
+| `webpack` | `4.29.3` | `^5.100` | Eliminates the entire `node-libs-browser` polyfill chain (= source of most HIGH vulns), supports modern asset modules, fixes `terser-webpack-plugin` advisory |
+| `webpack-cli` | `^3.3.12` | `^5` or `^6` | Matched to webpack 5; webpack-cli 7 also works but tightens validation |
+| `mocha` | `^8.4.0` | `^10.x` | Mocha 11 requires Node 18+; 10 supports Node 14+. Picking 10 keeps a wider engines window |
+| `nyc` | `^14.1.1` | `^17` or migrate to `c8` | nyc 17 is Node 14+ compatible. Alternative: drop nyc for `c8` (lighter, uses native V8 coverage) |
+| `sinon` | `7.2.3` | `^17.x` | sinon 18+ requires Node 18+. 17 covers Node 14+ |
+| `chai` | `4.2.0` | `4.5.x` (LTS) | **Stay on chai 4.x.** chai 5+ went ESM-only — switching means rewriting `require('chai')` everywhere or migrating the test suite to ESM. Not worth bundling into a toolchain release. |
+| `standard` | `12.0.1` | `^17` or replace | standard 17 uses ESLint 8 (now stale itself); standard 18+ requires Node 18. Open question: stay on `standard`, or move to `eslint@9` + flat config + a smaller rule set. See "Linter decision" below. |
+| `brfs` | `2.0.1` | `2.0.2` | Trivial patch bump |
+
+### Runtime dependency decisions (keep / bump / shim)
+
+| Dep | Pin | Latest | Decision |
+| --- | --- | --- | --- |
+| `elliptic` | `6.6.1` | `6.6.1` | **Keep.** Already current. |
+| `bn.js` | `=4.11.9` | `5.2.3` | **Keep at 4.x.** Bumping breaks elliptic; the moderate vuln (constant-time concern in some older 4.x) is mitigated by callers in `lib/crypto/`. Add a comment in `package.json` pinning rationale. |
+| `bs58` | `=4.0.1` | `6.0.0` | **Keep at 4.x.** `bs58@5+` is ESM-only and would force a CJS→ESM migration of `lib/encoding/base58.js`. Out of scope for 3.5.0. |
+| `inherits` | `2.0.3` | `2.0.4` | **Bump to 2.0.4.** Trivial. |
+| `unorm` | `1.4.1` | `1.6.0` | **Bump to 1.6.0.** Non-breaking. |
+| `aes-js` | `^3.1.2` | `3.1.2` | **No change.** |
+| `clone-deep` | `^4.0.1` | `4.0.1` | **No change.** |
+| `hash.js` | `^1.1.7` | `1.1.7` | **No change.** |
+
+### Required code / config changes
+
+1. **`build/webpack.*.config.js` (12 files).** webpack 5 removes the
+   automatic Node polyfills that webpack 4 silently injects. Concrete
+   touches needed:
+   - Add `resolve.fallback` entries for `buffer`, `crypto`, `stream`,
+     `process` (or use `node-polyfill-webpack-plugin`).
+   - Add `buffer`, `process`, `stream-browserify`, `crypto-browserify`
+     (or modern equivalents) as **dev**-deps so the fallbacks resolve.
+   - `output.library` ideally migrates from string to object form
+     (`{ name: 'bsvFoo', type: 'umd' }`) — webpack 5 still accepts the
+     string form but warns.
+   - `globalObject: 'this'` should become `globalObject: 'globalThis'`
+     (cleaner; matches modern targets).
+   - Drop `NODE_OPTIONS="--openssl-legacy-provider"` from all 16 `npm run
+     build-*` scripts — that workaround exists *because* webpack 4 pins
+     legacy OpenSSL APIs. webpack 5 doesn't need it.
+
+2. **`test/mocha.opts` → `.mocharc.cjs` (or `mocha` field in package.json).**
+   Mocha 8 already emits a deprecation warning for `mocha.opts`; mocha 10
+   removes support entirely. Migrate the existing two flags
+   (`--recursive`, `--timeout 5000`) and add `--reporter spec`.
+
+3. **`engines` field in `package.json`.** No engines is declared today.
+   For 3.5.0 add `"engines": { "node": ">=14" }` (or `>=18` if we also
+   adopt mocha 11 / sinon 18 / standard 18). Current consumer test
+   environments span Node 14–22, so `>=14` is the safer choice.
+
+4. **`@types/node` peer dep or dev-dep.** With the typing fix in 3.4.4,
+   `bsv.d.ts` formally depends on Node types (`/// <reference types="node" />`).
+   Add `"peerDependencies": { "@types/node": "*" }` (optional) or document
+   in README that TS consumers need `@types/node` installed.
+
+5. **Linter decision (open question).**
+   Option A — Stay on `standard@17`: 1-line bump, ~1 day to fix new lint
+   errors. Risk: standard's own toolchain is aging.
+   Option B — Migrate to ESLint flat config (`eslint.config.js`) with a
+   custom rule set. More work, but unblocks long-term flexibility and the
+   newer rule engine.
+   **Recommendation:** A for 3.5.0, defer B to 3.6.0.
+
+### Risk ranking and rollout order
+
+Each step should be its own PR, validated against the full `test/` suite
+(120+ mocha tests passed in 3.4.4) and a `npm pack --dry-run` size diff.
+
+1. **Low risk:** `inherits` / `unorm` patch bumps, `brfs 2.0.1 → 2.0.2`,
+   add `engines` field, migrate `mocha.opts → .mocharc.cjs`.
+2. **Medium risk:** mocha 8 → 10, nyc 14 → 17, sinon 7 → 17, standard
+   12 → 17. Test suite may have lint/test syntax regressions.
+3. **Higher risk:** webpack 4 → 5. This is the bundle-shape change;
+   downstream CDN consumers will see different file bytes. Plan a beta
+   release (`3.5.0-beta.1`) on npm before the GA bump so integrators can
+   validate.
+4. **Out of scope, deferred:** `bn.js 4 → 5`, `bs58 4 → 6`, `chai 4 → 5`,
+   linter overhaul. These all imply CJS→ESM or coordinated upstream
+   changes and warrant a separate 3.6.0 effort.
+
+### Pre-release validation checklist
+
+Before publishing `3.5.0`:
+
+- `npm test` passes (Node 18, 20, 22).
+- `npm run build-all` succeeds without `NODE_OPTIONS` workaround.
+- All 16 bundles built and:
+  - sized within 5% of 3.4.x equivalents (or sizes updated in README/docs);
+  - smoke-tested in a browser via `tests/*.html` against the unpkg URL;
+  - UMD globals (`window.bsv`, `bsvLTP`, `bsvGDAF`, etc.) resolve correctly.
+- `npm audit` shows zero high/critical, ≤ 5 moderate (any remaining moderates
+  documented in CHANGELOG with mitigation).
+- `tsc --noEmit --strict` against `bsv.d.ts` + smoke file still passes.
+- Tag `3.5.0-beta.1` on npm for at least 7 days to let integrators report
+  bundle regressions before GA.
+
 ## [3.4.3] - 2026-05-18
 
 ### Changed (documentation honesty, continued)

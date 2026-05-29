@@ -12,10 +12,10 @@ SmartLedger-BSV offers multiple installation methods to suit different developme
 npm install @smartledger/bsv
 
 # Install specific version
-npm install @smartledger/bsv@3.4.2
+npm install @smartledger/bsv@3.4.4
 
 # Install with exact version lock
-npm install --save-exact @smartledger/bsv@3.4.2
+npm install --save-exact @smartledger/bsv@3.4.4
 ```
 
 ### **Usage in Node.js**
@@ -45,20 +45,20 @@ const tx: Transaction = new Transaction();
 
 ### **CDN Links (Instant Setup)**
 
-#### **Core Library Only (449KB)**
+#### **Core Library Only (937KB)**
 For basic Bitcoin SV operations:
 ```html
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv.min.js"></script>
 <script>
   const privateKey = new bsv.PrivateKey();
   const address = privateKey.toAddress();
 </script>
 ```
 
-#### **Complete Bundle (885KB)**  
+#### **Complete Bundle (937KB)**  
 Everything in one file:
 ```html
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.bundle.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv.bundle.js"></script>
 <script>
   // All features available immediately
   const shares = bsv.splitSecret('secret', 5, 3);
@@ -69,22 +69,22 @@ Everything in one file:
 
 ### **Modular Loading (Choose What You Need)**
 
-#### **Smart Contract Development (932KB total)**
+#### **Smart Contract Development (~2.7MB total — each bundle is self-contained and re-embeds core BSV)**
 ```html
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.min.js"></script>
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-covenant.min.js"></script>
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-smartcontract.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv-covenant.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv-smartcontract.min.js"></script>
 <script>
   const covenant = bsv.SmartContract.createCovenantBuilder()
     .extractField('amount').push(50000).greaterThanOrEqual().build();
 </script>
 ```
 
-#### **Legal & Identity Development (1.87MB total)**
+#### **Legal & Identity Development (~3.2MB total — each bundle is self-contained and re-embeds core BSV)**
 ```html
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.min.js"></script>
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-ltp.min.js"></script>
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-gdaf.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv-ltp.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv-gdaf.min.js"></script>
 <script>
   // Legal Token Protocol
   const propertyToken = bsv.createPropertyToken({
@@ -96,11 +96,11 @@ Everything in one file:
 </script>
 ```
 
-#### **Security & Cryptography (1.17MB total)**
+#### **Security & Cryptography (~1.4MB total — each bundle is self-contained and re-embeds core BSV)**
 ```html
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.min.js"></script>
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-security.min.js"></script>
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-shamir.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv-security.min.js"></script>
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv-shamir.min.js"></script>
 <script>
   // Threshold Cryptography
   const shares = bsv.splitSecret('my_secret_key', 5, 3);
@@ -114,18 +114,18 @@ Everything in one file:
 
 | Module | Size | Purpose | CDN Link |
 |--------|------|---------|----------|
-| **bsv.min.js** | 449KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@3.4.2/bsv.min.js` |
-| **bsv.bundle.js** | 885KB | Everything in one file | `unpkg.com/@smartledger/bsv@3.4.2/bsv.bundle.js` |
-| **bsv-smartcontract.min.js** | 451KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@3.4.2/bsv-smartcontract.min.js` |
-| **bsv-ltp.min.js** | 817KB | **Legal Token Protocol** | `unpkg.com/@smartledger/bsv@3.4.2/bsv-ltp.min.js` |
-| **bsv-gdaf.min.js** | 604KB | **Digital Identity & Attestation** | `unpkg.com/@smartledger/bsv@3.4.2/bsv-gdaf.min.js` |
-| **bsv-shamir.min.js** | 433KB | **Threshold Cryptography** | `unpkg.com/@smartledger/bsv@3.4.2/bsv-shamir.min.js` |
-| **bsv-security.min.js** | 26KB | Security enhancements (opt-in helpers — see README › Security) | `unpkg.com/@smartledger/bsv@3.4.2/bsv-security.min.js` |
-| **bsv-mnemonic.min.js** | 670KB | HD wallets | `unpkg.com/@smartledger/bsv@3.4.2/bsv-mnemonic.min.js` |
-| **bsv-ecies.min.js** | 71KB | Encryption | `unpkg.com/@smartledger/bsv@3.4.2/bsv-ecies.min.js` |
-| **bsv-covenant.min.js** | 32KB | Covenant operations | `unpkg.com/@smartledger/bsv@3.4.2/bsv-covenant.min.js` |
-| **bsv-script-helper.min.js** | 27KB | Custom script tools | `unpkg.com/@smartledger/bsv@3.4.2/bsv-script-helper.min.js` |
-| **bsv-message.min.js** | 26KB | Message signing | `unpkg.com/@smartledger/bsv@3.4.2/bsv-message.min.js` |
+| **bsv.min.js** | 937KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@3.4.4/bsv.min.js` |
+| **bsv.bundle.js** | 937KB | Everything in one file | `unpkg.com/@smartledger/bsv@3.4.4/bsv.bundle.js` |
+| **bsv-smartcontract.min.js** | 937KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@3.4.4/bsv-smartcontract.min.js` |
+| **bsv-ltp.min.js** | 1184KB | **Legal Token Protocol** | `unpkg.com/@smartledger/bsv@3.4.4/bsv-ltp.min.js` |
+| **bsv-gdaf.min.js** | 1184KB | **Digital Identity & Attestation** | `unpkg.com/@smartledger/bsv@3.4.4/bsv-gdaf.min.js` |
+| **bsv-shamir.min.js** | 432KB | **Threshold Cryptography** | `unpkg.com/@smartledger/bsv@3.4.4/bsv-shamir.min.js` |
+| **bsv-security.min.js** | 26KB | Security enhancements (opt-in helpers — see README › Security) | `unpkg.com/@smartledger/bsv@3.4.4/bsv-security.min.js` |
+| **bsv-mnemonic.min.js** | 681KB | HD wallets | `unpkg.com/@smartledger/bsv@3.4.4/bsv-mnemonic.min.js` |
+| **bsv-ecies.min.js** | 71KB | Encryption | `unpkg.com/@smartledger/bsv@3.4.4/bsv-ecies.min.js` |
+| **bsv-covenant.min.js** | 913KB | Covenant operations | `unpkg.com/@smartledger/bsv@3.4.4/bsv-covenant.min.js` |
+| **bsv-script-helper.min.js** | 26KB | Custom script tools | `unpkg.com/@smartledger/bsv@3.4.4/bsv-script-helper.min.js` |
+| **bsv-message.min.js** | 26KB | Message signing | `unpkg.com/@smartledger/bsv@3.4.4/bsv-message.min.js` |
 
 ## ⚙️ **Development Environment Setup**
 

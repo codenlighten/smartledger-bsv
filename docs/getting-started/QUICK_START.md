@@ -13,11 +13,11 @@ npm install @smartledger/bsv
 
 ### Browser CDN (Instant)
 ```html
-<!-- Core library (449KB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.min.js"></script>
+<!-- Core library (937KB) -->
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv.min.js"></script>
 
-<!-- Everything included (885KB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.bundle.js"></script>
+<!-- Everything included (937KB) -->
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv.bundle.js"></script>
 ```
 
 ## 💰 **Your First Transaction (60 seconds)**
@@ -126,20 +126,20 @@ const amount = preimage.getField('amount');
 SmartLedger-BSV offers 12 different loading options - use only what you need:
 
 ```html
-<!-- Core BSV only (449KB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.min.js"></script>
+<!-- Core BSV only (937KB) -->
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv.min.js"></script>
 
-<!-- Smart contracts (873KB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-smartcontract.min.js"></script>
+<!-- Smart contracts (937KB) -->
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv-smartcontract.min.js"></script>
 
-<!-- Legal tokens (1.1MB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-ltp.min.js"></script>
+<!-- Legal tokens (1.16MB) -->
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv-ltp.min.js"></script>
 
-<!-- Digital identity (1.1MB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv-gdaf.min.js"></script>
+<!-- Digital identity (1.16MB) -->
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv-gdaf.min.js"></script>
 
-<!-- Everything (885KB) -->
-<script src="https://unpkg.com/@smartledger/bsv@3.4.2/bsv.bundle.js"></script>
+<!-- Everything (937KB) -->
+<script src="https://unpkg.com/@smartledger/bsv@3.4.4/bsv.bundle.js"></script>
 ```
 
 ## ⚡ **Key Advantages**
