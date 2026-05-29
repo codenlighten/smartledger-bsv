@@ -348,6 +348,120 @@ describe('Transaction', function () {
         clearSpy.called.should.equal(true)
       })
     })
+
+    describe('P2PKH-prefixed outputs (1Sat Ordinals, MAP+BAP, etc.)', function () {
+      // Build a real-shape 1Sat ordinal locking script: P2PKH followed by
+      // an OP_FALSE OP_IF "ord" envelope. The script is NOT canonical
+      // P2PKH (length > 5 chunks) but the spendable portion is identical;
+      // Transaction.from() must dispatch it to PublicKeyHashInput so the
+      // high-level sign() path works.
+      function buildOrdinalScript (addressStr) {
+        var Address = bsv.Address
+        var Opcode = bsv.Opcode
+        return bsv.Script.buildPublicKeyHashOut(Address.fromString(addressStr))
+          .add(Opcode.OP_FALSE)
+          .add(Opcode.OP_IF)
+          .add(Buffer.from('ord'))
+          .add(Opcode.OP_1)
+          .add(Buffer.from('image/svg+xml'))
+          .add(Opcode.OP_0)
+          .add(Buffer.alloc(642, 0x20))
+          .add(Opcode.OP_ENDIF)
+      }
+
+      it('Script.isPublicKeyHashOutPrefix matches canonical P2PKH', function () {
+        var canonical = bsv.Script.buildPublicKeyHashOut(bsv.Address.fromString(toAddress))
+        canonical.isPublicKeyHashOutPrefix().should.equal(true)
+        canonical.isPublicKeyHashOut().should.equal(true)
+      })
+
+      it('Script.isPublicKeyHashOutPrefix matches P2PKH + trailing data', function () {
+        var ord = buildOrdinalScript(toAddress)
+        ord.isPublicKeyHashOutPrefix().should.equal(true)
+        // strict check still rejects (length > 5)
+        ord.isPublicKeyHashOut().should.equal(false)
+      })
+
+      it('Script.isPublicKeyHashOutPrefix rejects non-P2PKH-prefixed scripts', function () {
+        bsv.Script.empty().isPublicKeyHashOutPrefix().should.equal(false)
+        bsv.Script.buildDataOut('hello').isPublicKeyHashOutPrefix().should.equal(false)
+      })
+
+      it('Transaction.from dispatches a 1Sat ordinal output to PublicKeyHashInput', function () {
+        var addr = new bsv.PrivateKey(privateKey).toAddress().toString()
+        var ordUtxo = {
+          txid: 'a'.repeat(64),
+          outputIndex: 0,
+          satoshis: 100000,
+          script: buildOrdinalScript(addr).toHex()
+        }
+        var tx = new Transaction().from(ordUtxo)
+        tx.inputs[0].constructor.name.should.equal('PublicKeyHashInput')
+      })
+
+      it('full from/to/change/sign roundtrip on an ordinal-shaped UTXO', function () {
+        var ordPriv = bsv.PrivateKey.fromRandom('livenet')
+        var ordAddr = ordPriv.toAddress().toString()
+        var ordUtxo = {
+          txid: 'b'.repeat(64),
+          outputIndex: 0,
+          satoshis: 100000,
+          script: buildOrdinalScript(ordAddr).toHex()
+        }
+
+        var tx = new Transaction()
+          .from(ordUtxo)
+          .to(toAddress, 50000)
+          .change(changeAddress)
+          .feePerKb(500)
+          .sign(ordPriv)
+
+        tx.inputs[0].isFullySigned().should.equal(true)
+        tx.inputs[0].script.toBuffer().length.should.be.greaterThan(0)
+      })
+
+      it('sighash is computed against the FULL locking script (envelope included)', function () {
+        // Regression guard: if the signer ever truncated the script to the
+        // canonical P2PKH prefix, the signature would still pass isFullySigned
+        // but would fail mainnet validation. We assert sighash equality
+        // against the full script bytes — verified end-to-end via
+        // isValidSignature, which delegates to Sighash.verify.
+        var ordPriv = bsv.PrivateKey.fromRandom('livenet')
+        var ordAddr = ordPriv.toAddress().toString()
+        var ordUtxo = {
+          txid: 'c'.repeat(64),
+          outputIndex: 0,
+          satoshis: 100000,
+          script: buildOrdinalScript(ordAddr).toHex()
+        }
+
+        var tx = new Transaction()
+          .from(ordUtxo)
+          .to(toAddress, 50000)
+          .change(changeAddress)
+          .feePerKb(500)
+          .sign(ordPriv)
+
+        var Signature = bsv.crypto.Signature
+        var verified = tx.inputs[0].isValidSignature(tx, {
+          signature: Signature.fromTxFormat(tx.inputs[0].script.chunks[0].buf),
+          publicKey: bsv.PublicKey.fromBuffer(tx.inputs[0].script.chunks[1].buf),
+          sigtype: Signature.SIGHASH_ALL | Signature.SIGHASH_FORKID,
+          inputIndex: 0
+        })
+        verified.should.equal(true)
+      })
+
+      it('canonical P2PKH spends still work (no regression)', function () {
+        var tx = new Transaction()
+          .from(simpleUtxoWith100000Satoshis)
+          .to(toAddress, 50000)
+          .change(changeAddress)
+          .sign(privateKey)
+        tx.inputs[0].constructor.name.should.equal('PublicKeyHashInput')
+        tx.inputs[0].isFullySigned().should.equal(true)
+      })
+    })
   })
 
   describe('change address', function () {

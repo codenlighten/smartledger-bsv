@@ -5,6 +5,52 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.5] - 2026-05-29
+
+### Fixed
+
+- **1Sat Ordinals (and any "P2PKH + trailing data" output) can now be spent
+  via the high-level `Transaction.from().sign()` API.** Spending these
+  outputs previously threw `Abstract Method Invocation: Trying to sign
+  unsupported output type` because `Transaction._fromNonP2SH` routed
+  anything other than a strictly-canonical 5-chunk P2PKH script to the
+  abstract base `Input` class, which has no `getSignatures` /
+  `_estimateSize` implementations. Every consumer (wallets, marketplaces,
+  re-broadcasting indexers) had to maintain a parallel manual-signing
+  path against `Transaction.Sighash.sighash` + `crypto.ECDSA.sign`.
+
+  This release adds `Script.prototype.isPublicKeyHashOutPrefix()` —
+  identical to `isPublicKeyHashOut()` but accepts any number of trailing
+  chunks — and uses it (only) inside `_fromNonP2SH` so the dispatcher
+  routes P2PKH-prefixed scripts to `PublicKeyHashInput`. The strict
+  `isPublicKeyHashOut()` is unchanged, so script classification, address
+  derivation, and any other introspection paths keep their canonical
+  semantics. `PublicKeyHashInput.getSignatures` reads the 20-byte hash
+  directly from `chunks[2].buf` instead of via the strict
+  `getPublicKeyHash()` (which still asserts canonicality for its other
+  callers).
+
+  Sighash is unaffected — it has always passed the full `output.script`
+  bytes to `Sighash.sign`, so the resulting signature commits to the
+  inscription envelope (or whatever trailing data) the same way miners
+  verify it. Validated end-to-end by 7 new regression tests in
+  `test/transaction/transaction.js`, including a `isValidSignature`
+  round-trip on an ordinal-shaped UTXO.
+
+  Same dispatch fix unblocks: MAP+BAP metadata appended to outputs,
+  sCrypt covenants with a P2PKH spendable guard, BSV20 v2 listing
+  outputs, and any future "P2PKH + tag" pattern. The 3.4.4 `clearSignatures`
+  fix removed the *first* abstract-method barrier on these flows; this
+  release removes the *second* and final one.
+
+### Notes
+
+- No public API changes. The new `Script.prototype.isPublicKeyHashOutPrefix()`
+  is purely additive. Strict `isPublicKeyHashOut()` callers are
+  unaffected.
+- Strict semver patch: the affected code path previously threw on every
+  invocation, so no working consumer can regress.
+
 ## [3.4.4] - 2026-05-25
 
 ### Fixed
