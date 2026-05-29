@@ -93,7 +93,6 @@ jobs:
         # instead of '@smartledger/bsv' (silently giving TS consumers `any`)
         # and any future surface drift in the typed v3.3+ modules.
         run: |
-          npm install --no-save --no-audit --no-fund typescript@5 @types/node
           mkdir -p /tmp/ts-check
           cp bsv.d.ts /tmp/ts-check/bsv.d.ts
           cat > /tmp/ts-check/smoke.ts <<'EOF'
@@ -127,7 +126,13 @@ jobs:
             "include": ["smoke.ts", "bsv.d.ts"]
           }
           EOF
-          cd /tmp/ts-check && npx tsc --noEmit -p tsconfig.json
+          cd /tmp/ts-check
+          # Install typescript locally so npx tsc resolves it from here
+          # (npx searches the local node_modules first; otherwise it would
+          # download the deprecated tsc@2.0.4 shim package).
+          npm init -y > /dev/null
+          npm install --no-save --no-audit --no-fund typescript@5 @types/node
+          npx tsc --noEmit -p tsconfig.json
 
       - name: CLI smoke test
         # Catches the v3.4.4 bug class: the README markets
