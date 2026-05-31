@@ -606,6 +606,38 @@ describe('Interpreter', function () {
     })
   })
 
+  // Known, intentional divergences from the vendored Bitcoin Core
+  // script_tests.json. The vendored data is left untouched (it stays a faithful
+  // upstream copy); these overrides record where BSV / this implementation's
+  // consensus legitimately differs, so the affected vectors assert the correct
+  // BSV result instead of the stale upstream one. Keyed by
+  // `${scriptSig}|${scriptPubKey}|${flags}` and mapped to the expected error.
+  //
+  //  - CAT/SPLIT/NUM2BIN/BIN2NUM/AND/OR/XOR/DIV/MOD were re-enabled in BSV at
+  //    the Genesis upgrade, so they are no longer 'DISABLED_OPCODE'. (Note that
+  //    the surrounding `0 IF <op> ELSE 1 ENDIF` form fails under upstream only
+  //    because disabled opcodes are rejected even in unexecuted branches; once
+  //    enabled, the branch is simply skipped and the script is 'OK'.)
+  //  - 0xba is OP_NOP8 in this build's opcode table (the NOPs are shifted to
+  //    make room for the OP_SUBSTR/OP_LEFT/OP_RIGHT string ops at 0xb3-0xb5;
+  //    see lib/opcode.js), so `1 0xba` is a valid no-op, not 'BAD_OPCODE'.
+  var BSV_DIVERGENCES = {
+    "'a' 'b'|CAT|P2SH,STRICTENC": 'OK',
+    "'a' 'b' 0|IF CAT ELSE 1 ENDIF|P2SH,STRICTENC": 'OK',
+    "'abc' 1|SPLIT|P2SH,STRICTENC": 'OK',
+    "'abc' 1 0|IF SPLIT ELSE 1 ENDIF|P2SH,STRICTENC": 'OK',
+    "'abc' 2 0|IF NUM2BIN ELSE 1 ENDIF|P2SH,STRICTENC": 'OK',
+    "'abc' 2 0|IF BIN2NUM ELSE 1 ENDIF|P2SH,STRICTENC": 'OK',
+    '1 2 0 IF AND ELSE 1 ENDIF|NOP|P2SH,STRICTENC': 'OK',
+    '1 2 0 IF OR ELSE 1 ENDIF|NOP|P2SH,STRICTENC': 'OK',
+    '1 2 0 IF XOR ELSE 1 ENDIF|NOP|P2SH,STRICTENC': 'OK',
+    '2 2 0 IF DIV ELSE 1 ENDIF|NOP|P2SH,STRICTENC': 'OK',
+    '2 2 0 IF MOD ELSE 1 ENDIF|NOP|P2SH,STRICTENC': 'OK',
+    '2 DUP DIV|1 EQUAL|P2SH,STRICTENC': 'OK',
+    '7 3 MOD|1 EQUAL|P2SH,STRICTENC': 'OK',
+    '1|0xba|P2SH,STRICTENC': 'OK'
+  }
+
   describe('bitcoind script evaluation fixtures', function () {
     var testAllFixtures = function (set) {
       var c = 0; var l = set.length
@@ -621,10 +653,14 @@ describe('Interpreter', function () {
         }
 
         var fullScriptString = `${vector[0]} ${vector[1]}`
-        var expected = vector[3] === 'OK'
+        var divergeKey = `${vector[0]}|${vector[1]}|${vector[2]}`
+        var expectedError = Object.prototype.hasOwnProperty.call(BSV_DIVERGENCES, divergeKey)
+          ? BSV_DIVERGENCES[divergeKey]
+          : vector[3]
+        var expected = expectedError === 'OK'
         var descstr = vector[4]
         var comment = descstr ? (` (${descstr})`) : ''
-        var txt = `should ${vector[3]} script_tests vector #${c}/${l}: ${fullScriptString}${comment}`
+        var txt = `should ${expectedError} script_tests vector #${c}/${l}: ${fullScriptString}${comment}`
 
         it(txt, function () { testFixture(vector, expected, extraData) })
       })
