@@ -4,12 +4,15 @@ Thank you for helping keep `@smartledger/bsv` and its users safe.
 
 ## Supported Versions
 
-Security fixes are applied to the latest minor release line. Earlier releases
-are not patched; please upgrade.
+Security fixes are applied to the latest major release line. Earlier releases
+are not patched; please upgrade. **Versions ≤ 3.4.5 contain three known,
+exploitable vulnerabilities in the GDAF credential verification path (see
+CHANGELOG `## [4.0.0]`); upgrade to 4.x is strongly recommended.**
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 3.4.x   | :white_check_mark: |
+| 4.x     | :white_check_mark: |
+| 3.4.x   | :x: (contains known credential-verification vulnerabilities; upgrade to 4.x) |
 | < 3.4   | :x:                |
 
 ## Reporting a Vulnerability
