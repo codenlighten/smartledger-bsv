@@ -5,6 +5,128 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-05-31
+
+### Security
+
+This release fixes three critical vulnerabilities in the GDAF Verifiable
+Credential signing/verification path. **Any credential signed by a version
+prior to 4.0.0 should be considered unprotected and re-issued, and any
+verification result produced by a prior version should be considered
+untrustworthy.** See the Breaking Changes note below.
+
+- **Credential signatures now cover the entire credential body, including
+  nested claims (e.g. `credentialSubject`).** `AttestationSigner._canonicalizeJSON`
+  previously called `JSON.stringify(obj, Object.keys(obj).sort())`. The second
+  argument is the JSON.stringify *replacer array*, which whitelists keys at
+  **every** nesting level to the top-level key set; every nested object
+  therefore serialized to `{}` and was excluded from the signed hash. An
+  attacker could rewrite the subject's identity and claims without
+  invalidating the proof. Canonicalization is now a recursive, depth-complete
+  key sort (`AttestationSigner._sortValue`).
+
+- **The signature is now actually checked during verification.**
+  `AttestationVerifier._verifySignature` and `_verifyPresentationSignature`
+  assigned `var valid = ecdsa.verify()`. `ECDSA.prototype.verify()` returns the
+  ECDSA *instance* (always truthy), not a boolean, so the `if (valid)` branch
+  always passed — credentials and presentations were accepted regardless of
+  whether the signature was valid, or present at all. Both sites now read
+  `ecdsa.verify().verified`.
+
+- **The signing key is now bound to the claimed issuer (issuer-spoofing fix).**
+  `_verifySignature` resolved the public key from the attacker-controlled
+  `proof.verificationMethod` and never compared it to `credential.issuer`. A
+  valid signature from any DID was accepted while the credential named a
+  different (e.g. trusted) authority as issuer. Verification now requires the
+  DID owning `proof.verificationMethod` to equal the credential issuer
+  (`AttestationVerifier._normalizeDID`, supporting both string and `{ id }`
+  issuer forms).
+
+- **Removed a live private key from the published package.**
+  `utilities/wallet.json` shipped a valid mainnet WIF
+  (`KwbaQqFU…`, address `15XJXD7CSMqHL2ivFCu8PZTACQQ8MPbWY9`). The file has
+  been deleted and removed from the `files` allow-list. The dev utilities that
+  used it (`utilities/wallet-setup.js`, `utxo-manager.js`, `blockchain-state.js`)
+  already generate/import a local `wallet.json` at runtime and tolerate its
+  absence. **The published key must be considered compromised — do not reuse
+  it or send funds to that address.**
+
+- **`trustedIssuers` is now enforced instead of advisory.** When a
+  `trustedIssuers` allow-list is passed to `verifyCredential`, an issuer outside
+  the list is now a hard verification failure (previously only a warning, so the
+  list had no effect). Comparison is done on normalized DIDs.
+
+Regression coverage added in `test/gdaf/canonicalize.js` (8 tests): nested-key
+coverage, key-order independence, array-order significance, tamper-detection at
+the hash level, an untampered sign/verify round-trip, rejection of an
+issuer-spoofed credential, enforcement of the `trustedIssuers` allow-list, and
+rejection of a post-signing nested-claim tamper.
+
+### Changed
+
+- **Constant-time MAC comparison in Electrum/BIE1 ECIES** (`lib/ecies/electrum-ecies.js`).
+  The decrypt path compared the authentication tag with `Buffer.equals()`, which
+  short-circuits on the first differing byte and can leak how many leading bytes
+  matched. Replaced with an unconditional byte-wise compare (matching the
+  existing loop in `bitcore-ecies.js`). Behaviour is unchanged for valid and
+  invalid tags.
+- **Simplified ECDSA signature verification** (`lib/crypto/ecdsa.js#sigError`).
+  Removed a redundant s-canonicalization step and an unreachable
+  "backwards-compatibility" retry branch (because `(r, s)` and `(r, n - s)`
+  always verify identically, the retry could never succeed where the primary
+  check failed). Out-of-range rejection of `r`/`s` is retained. Accept/reject
+  results are byte-for-byte identical to 3.4.5; low-S is still enforced at
+  signing time via `ECDSA.toLowS`.
+
+### Removed
+
+- Dropped the inaccurate `vulnerability-free` and `security-hardened` npm
+  keywords. `bsv.isHardened` and `bsv.securityFeatures` remain but only describe
+  opt-in helpers, as documented in `index.js` and the README Security section.
+
+### Tests / Tooling
+
+- **The test runner now executes the whole suite.** mocha 8 dropped support for
+  `test/mocha.opts`, so its `--recursive` flag was silently ignored and
+  `npm test` only ran the 10 top-level `test/*.js` files (534 tests) — the ~40
+  files under `test/crypto`, `test/script`, `test/transaction`, `test/gdaf`,
+  etc. never ran in CI. Added `.mocharc.json` (`recursive`, `spec:
+  test/**/*.js`) and removed the defunct `test/mocha.opts`. `npm test` now runs
+  the full suite (4172 passing, 0 failing), including the new GDAF security
+  tests.
+- **Repaired `test/crypto/security.js`.** It was 0 passing / 8 failing in 3.4.5
+  (missing `require('chai').should()`, plus calls to a non-existent
+  `SmartVerify.verifySignature`, `Signature.validate()` used as if it returned a
+  boolean rather than throwing, and an invalid TXID fixture). Rewritten against
+  the real API (`SmartVerify.smartVerify`, `Signature#validate/isCanonical/
+  toCanonical`); now 12 passing.
+- **Fixed the 18 pre-existing failures that recursion surfaced** (all failed on
+  a pristine 3.4.5 checkout; the full suite is now green at 4172 passing):
+  - 3 in `test/crypto/ecdsa.js` — `ECDSA#sigError` did not reject negative
+    `r`/`s`. Tightened the range check to `[1, n-1]` (`lte(0)` now covers
+    negative and zero); negative-value DER vectors are correctly rejected as
+    'r and s not in range'. (Real correctness fix, in `lib/crypto/ecdsa.js`.)
+  - 14 in `test/script/interpreter.js` — stale upstream Bitcoin Core vectors
+    asserting `DISABLED_OPCODE` for CAT/SPLIT/NUM2BIN/BIN2NUM/AND/OR/XOR/DIV/MOD
+    (re-enabled in BSV at Genesis) and `BAD_OPCODE` for `0xba` (which is OP_NOP8
+    in this build). The vendored `script_tests.json` is left untouched; a
+    documented `BSV_DIVERGENCES` override in the harness records each divergence
+    and asserts the correct BSV result.
+  - 1 in `test/script/script.js` — expected byte `0xba` to disassemble as raw
+    hex, but `0xba` is `OP_NOP8` in this build's opcode table; updated to the
+    correct disassembly with an explanatory comment.
+
+### Breaking Changes
+
+- The bytes that get signed have changed (nested claims are now included), so
+  credentials and presentations signed by **≤ 3.4.5 will no longer verify**
+  under 4.0.0. This is intentional: the previous signatures did not protect
+  those bytes. Re-issue affected credentials with 4.0.0.
+- Verification is now strict: callers relying on the previous (broken)
+  behaviour where verification effectively always succeeded will see
+  legitimate failures for unsigned, mis-signed, or issuer-mismatched
+  credentials.
+
 ## [3.4.5] - 2026-05-29
 
 ### Fixed

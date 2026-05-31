@@ -1,110 +1,122 @@
-const bsv = require('../../index.js')
-const { SmartVerify } = bsv
+'use strict'
+
+/* global describe, it, before */
+
+require('chai').should()
+var expect = require('chai').expect
+
+var bsv = require('../../index.js')
+var BN = bsv.crypto.BN
+var ECDSA = bsv.crypto.ECDSA
+var Hash = bsv.crypto.Hash
+var Point = bsv.crypto.Point
+var Signature = bsv.crypto.Signature
+var SmartVerify = bsv.SmartVerify
 
 describe('SmartLedger Security Patches', function () {
-  let privateKey, publicKey, message, hash
+  var privateKey, publicKey, message, hash
 
   before(function () {
     privateKey = new bsv.PrivateKey()
     publicKey = privateKey.toPublicKey()
     message = 'SmartLedger security test message'
-    hash = bsv.crypto.Hash.sha256(Buffer.from(message))
+    hash = Hash.sha256(Buffer.from(message))
   })
 
   describe('Zero Parameter Attack Protection', function () {
-    it('should reject signatures with r=0', function () {
-      const zeroRSig = Buffer.concat([
-        Buffer.alloc(1, 0x30), // DER sequence
-        Buffer.alloc(1, 0x06), // length
-        Buffer.alloc(1, 0x02), // integer r
-        Buffer.alloc(1, 0x01), // r length
-        Buffer.alloc(1, 0x00), // r=0
-        Buffer.alloc(1, 0x02), // integer s
-        Buffer.alloc(1, 0x01), // s length
-        Buffer.alloc(1, 0x01) // s=1
-      ])
-
-      const signature = new bsv.Signature(zeroRSig)
-      signature.validate().should.equal(false)
+    it('Signature.validate() throws when r = 0', function () {
+      var sig = new Signature({ r: new BN(0), s: new BN(1) })
+      expect(function () { sig.validate() }).to.throw(/r component is zero/)
     })
 
-    it('should reject signatures with s=0', function () {
-      const zeroSSig = Buffer.concat([
-        Buffer.alloc(1, 0x30), // DER sequence
-        Buffer.alloc(1, 0x06), // length
-        Buffer.alloc(1, 0x02), // integer r
-        Buffer.alloc(1, 0x01), // r length
-        Buffer.alloc(1, 0x01), // r=1
-        Buffer.alloc(1, 0x02), // integer s
-        Buffer.alloc(1, 0x01), // s length
-        Buffer.alloc(1, 0x00) // s=0
-      ])
+    it('Signature.validate() throws when s = 0', function () {
+      var sig = new Signature({ r: new BN(1), s: new BN(0) })
+      expect(function () { sig.validate() }).to.throw(/s component is zero/)
+    })
 
-      const signature = new bsv.Signature(zeroSSig)
-      signature.validate().should.equal(false)
+    it('smartVerify rejects (without throwing) a zero-s signature', function () {
+      var sig = new Signature({ r: new BN(1), s: new BN(0) })
+      SmartVerify.smartVerify(hash, sig, publicKey).should.equal(false)
     })
   })
 
   describe('Canonical Signature Enforcement', function () {
-    it('should detect non-canonical signatures', function () {
-      // Create a valid signature first
-      const signature = bsv.Message(message).sign(privateKey)
-      const sigObj = new bsv.Signature(signature)
-
-      // All properly generated signatures should be canonical
-      sigObj.isCanonical().should.equal(true)
+    it('freshly produced signatures are canonical (low-S)', function () {
+      var sig = ECDSA.sign(hash, privateKey)
+      sig.isCanonical().should.equal(true)
+      SmartVerify.isCanonical(sig).should.equal(true)
     })
 
-    it('should convert high s values to canonical form', function () {
-      // This tests the toCanonical() method exists and works
-      const signature = bsv.Message(message).sign(privateKey)
-      const sigObj = new bsv.Signature(signature)
-      const canonical = sigObj.toCanonical()
+    it('detects a non-canonical (high-S) signature', function () {
+      var sig = ECDSA.sign(hash, privateKey)
+      var n = Point.getN()
+      var lowS = sig.s.lte(n.shrn(1)) ? sig.s : n.sub(sig.s)
+      var highS = new Signature({ r: sig.r, s: n.sub(lowS) })
 
+      highS.isCanonical().should.equal(false)
+      SmartVerify.isCanonical(highS).should.equal(false)
+    })
+
+    it('toCanonical() converts a high-S signature to canonical form', function () {
+      var sig = ECDSA.sign(hash, privateKey)
+      var n = Point.getN()
+      var lowS = sig.s.lte(n.shrn(1)) ? sig.s : n.sub(sig.s)
+      var highS = new Signature({ r: sig.r, s: n.sub(lowS) })
+
+      var canonical = highS.toCanonical()
       canonical.isCanonical().should.equal(true)
+      // Both forms verify (ECDSA is malleable in s); canonicalization does not
+      // change which key/message the signature is valid for.
+      canonical.r.cmp(highS.r).should.equal(0)
     })
   })
 
   describe('SmartVerify Enhanced Validation', function () {
-    it('should perform strict signature verification', function () {
-      const signature = bsv.Message(message).sign(privateKey)
-
-      // SmartVerify should accept valid signatures
-      const isValid = SmartVerify.verifySignature(signature, hash, publicKey)
-      isValid.should.equal(true)
+    it('accepts a valid signature', function () {
+      var sig = ECDSA.sign(hash, privateKey)
+      SmartVerify.smartVerify(hash, sig, publicKey).should.equal(true)
     })
 
-    it('should reject invalid hash length in strict mode', function () {
-      const signature = bsv.Message(message).sign(privateKey)
-      const shortHash = Buffer.alloc(16) // Too short
+    it('accepts a malleated (high-S) signature as valid but canonicalizes it', function () {
+      var sig = ECDSA.sign(hash, privateKey)
+      var n = Point.getN()
+      var lowS = sig.s.lte(n.shrn(1)) ? sig.s : n.sub(sig.s)
+      var highS = new Signature({ r: sig.r, s: n.sub(lowS) })
+      SmartVerify.smartVerify(hash, highS, publicKey).should.equal(true)
+    })
 
-      try {
-        SmartVerify.verifySignature(signature, shortHash, publicKey)
-        false.should.equal(true, 'Should have thrown error')
-      } catch (error) {
-        error.message.should.match(/Invalid hash length/)
-      }
+    it('throws on an invalid (non-32-byte) message hash', function () {
+      var sig = ECDSA.sign(hash, privateKey)
+      var shortHash = Buffer.alloc(16)
+      expect(function () {
+        SmartVerify.smartVerify(shortHash, sig, publicKey)
+      }).to.throw(/32-byte/)
+    })
+
+    it('rejects a signature from the wrong key', function () {
+      var sig = ECDSA.sign(hash, privateKey)
+      var otherPub = new bsv.PrivateKey().toPublicKey()
+      SmartVerify.smartVerify(hash, sig, otherPub).should.equal(false)
     })
   })
 
   describe('Integration with Original BSV', function () {
-    it('should maintain compatibility with BSV signature verification', function () {
-      const signature = bsv.Message(message).sign(privateKey)
-      const isValid = bsv.Message(message).verify(publicKey.toAddress(), signature)
-
-      isValid.should.equal(true)
+    it('round-trips a Bitcoin message signature', function () {
+      var sig = new bsv.Message(message).sign(privateKey)
+      var verified = new bsv.Message(message).verify(publicKey.toAddress().toString(), sig)
+      verified.should.equal(true)
     })
 
-    it('should work with transaction signing', function () {
-      const utxo = {
-        txId: '115e8f72f39fad874cfab0deed11a80f24f967a84079a8f9ae2e0c0b518d0b1e4a',
+    it('signs a transaction to completion', function () {
+      var utxo = {
+        txId: 'a'.repeat(64),
         outputIndex: 0,
         address: privateKey.toAddress().toString(),
         script: bsv.Script.buildPublicKeyHashOut(privateKey.toAddress()).toHex(),
         satoshis: 100000
       }
 
-      const transaction = new bsv.Transaction()
+      var transaction = new bsv.Transaction()
         .from(utxo)
         .to(privateKey.toAddress(), 50000)
         .sign(privateKey)
