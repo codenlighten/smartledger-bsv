@@ -120,3 +120,9 @@ package.json.backup
 # Test outputs
 test-results/
 coverage/
+# Wallet / key material — never commit private keys (see v4.0.0 key-leak fix).
+# Dev utilities (utilities/wallet-setup.js) generate this locally at runtime.
+utilities/wallet.json
+**/wallet.json
+*.wif
+*.key
