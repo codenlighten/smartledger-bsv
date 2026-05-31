@@ -16,6 +16,10 @@
  */
 
 const bsv = require('../index.js');
+// Use the direct require path so we don't trigger the bsv.SmartUTXO
+// deprecation warning (soft-deprecated since v4.0.1).
+let SmartUTXO
+try { SmartUTXO = require('../lib/smartutxo') } catch (e) { /* browser-only context */ }
 
 console.log('💎 SmartLedger-BSV UTXO Generator Demo');
 console.log('======================================\n');
@@ -130,11 +134,11 @@ async function demonstrateUTXOGenerator() {
     console.log('🔗 Test 5: SmartUTXO Integration');
     console.log('-------------------------------');
     
-    if (bsv.SmartUTXO) {
+    if (SmartUTXO) {
       console.log('✅ SmartUTXO integration available');
       
       // Create SmartUTXO instance
-      const smartUTXO = new bsv.SmartUTXO();
+      const smartUTXO = new SmartUTXO();
       
       // Check UTXOs for an address
       const testAddress = keypair.addressString;

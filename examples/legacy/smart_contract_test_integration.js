@@ -12,6 +12,9 @@
 'use strict'
 
 const bsv = require('../..')
+// Use the direct require path so we don't trigger the bsv.SmartUTXO
+// deprecation warning (soft-deprecated since v4.0.1).
+const SmartUTXO = require('../../lib/smartutxo')
 
 // Ensure we have the SmartContract module
 if (!bsv.SmartContract) {
@@ -152,7 +155,7 @@ const covenant = bsv.SmartContract.createCovenant(privateKey, {
 console.log('Covenant instance created successfully ✅')
 
 // Use our existing SmartUTXO generator for realistic testing
-const utxoManager = new bsv.SmartUTXO()
+const utxoManager = new SmartUTXO()
 const mockUtxos = utxoManager.createMockUTXOs(address, 1, 100000)
 const mockUtxo = mockUtxos[0]
 

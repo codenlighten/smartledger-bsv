@@ -8,6 +8,9 @@
  */
 
 const bsv = require('./index.js');
+// Use the direct require path so we don't trigger the bsv.SmartUTXO
+// deprecation warning (soft-deprecated since v4.0.1).
+const SmartUTXO = require('./lib/smartutxo');
 const https = require('https');
 
 console.log('🌍 SmartLedger Real UTXO Management Test');
@@ -113,7 +116,7 @@ class WhatsOnChainAPI {
 }
 
 // Enhanced SmartUTXO with real blockchain integration
-class RealUTXOManager extends bsv.SmartUTXO {
+class RealUTXOManager extends SmartUTXO {
   constructor(options = {}) {
     super(options);
     this.api = new WhatsOnChainAPI(options.network || 'main');

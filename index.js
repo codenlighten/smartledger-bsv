@@ -148,7 +148,35 @@ try {
 // Node.js specific tools (advanced development tools)
 if (typeof window === 'undefined' && typeof require === 'function') {
   try {
-    bsv.SmartUTXO = require('./lib/smartutxo')
+    // bsv.SmartUTXO is a development-only file-backed UTXO simulator.
+    // It writes to node_modules/@smartledger/bsv/utilities/blockchain-state.json,
+    // races on shared filesystem state across processes, and only ships with
+    // an empty seed (the 3.3 MB dev fixture is npmignored). Exposing it on
+    // the main `bsv` namespace creates a real footgun for anyone who assumes
+    // a production UTXO manager.
+    //
+    // Soft-deprecated in v4.0.1: the symbol is preserved (no semver break)
+    // but access surfaces a one-shot warning. Direct import remains:
+    //   require('@smartledger/bsv/lib/smartutxo')
+    // The symbol will be removed in v5.0.0.
+    var _SmartUTXO
+    var _SmartUTXOWarned = false
+    Object.defineProperty(bsv, 'SmartUTXO', {
+      configurable: true,
+      enumerable: true,
+      get: function () {
+        if (!_SmartUTXOWarned && !(process.env && process.env.BSV_HIDE_DEPRECATIONS)) {
+          _SmartUTXOWarned = true
+          console.warn('[bsv] bsv.SmartUTXO is a development-only simulator and is deprecated; ' +
+            'it will be removed in v5.0.0. Import directly: ' +
+            "require('@smartledger/bsv/lib/smartutxo'). " +
+            'Set BSV_HIDE_DEPRECATIONS=1 to silence this warning.')
+        }
+        if (!_SmartUTXO) _SmartUTXO = require('./lib/smartutxo')
+        return _SmartUTXO
+      }
+    })
+
     bsv.SmartMiner = require('./lib/smartminer')
     bsv.CustomScriptHelper = require('./lib/custom-script-helper')
   } catch (e) {

@@ -7,6 +7,9 @@
  */
 
 const bsv = require('../index.js');
+// Use the direct require path so we don't trigger the bsv.SmartUTXO
+// deprecation warning (soft-deprecated since v4.0.1).
+const SmartUTXO = require('../lib/smartutxo');
 
 console.log('🚀 SmartLedger-BSV v3.0.2 New Features Demo');
 console.log('============================================\n');
@@ -23,7 +26,7 @@ console.log(`Private Key: ${privateKey.toString()}\n`);
 console.log('💰 SmartUTXO Management System:');
 console.log('===============================');
 
-const utxoManager = new bsv.SmartUTXO();
+const utxoManager = new SmartUTXO();
 
 // Create mock UTXOs for testing
 const mockUTXOs = utxoManager.createMockUTXOs(address, 3, 50000);

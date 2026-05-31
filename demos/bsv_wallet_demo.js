@@ -14,6 +14,9 @@
  */
 
 const bsv = require('../index.js');
+// Use the direct require path so we don't trigger the bsv.SmartUTXO
+// deprecation warning (soft-deprecated since v4.0.1).
+const SmartUTXO = require('../lib/smartutxo');
 
 // Demo configuration - replace with your own for real use
 const DEMO_CONFIG = {
@@ -159,7 +162,7 @@ function demonstrateUTXOManagement() {
   console.log('========================');
   
   // Create SmartUTXO manager
-  const utxoManager = new bsv.SmartUTXO();
+  const utxoManager = new SmartUTXO();
   
   // Create some mock UTXOs
   const mockUTXOs = utxoManager.createMockUTXOs(address, 3, 50000);

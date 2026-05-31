@@ -5,6 +5,68 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.1] - 2026-05-31
+
+### Deprecated
+
+- **`bsv.SmartUTXO` is now soft-deprecated and will be removed in v5.0.0.**
+  `lib/smartutxo.js` is a development-only file-backed UTXO simulator —
+  it writes to `<package-root>/utilities/blockchain-state.json` (a path
+  inside `node_modules`), has no concurrency controls, ships with an
+  empty seed (the 3.3 MB dev fixture is `.npmignore`d), and was exposed
+  on the main `bsv.*` namespace where it looked like a production UTXO
+  manager. That conflation is the same class of footgun as the v4.0.0
+  `wallet.json` leak — dev fixtures don't belong on the production
+  surface.
+
+  The symbol is preserved (no semver break) but access now logs a
+  one-shot deprecation warning. Set `BSV_HIDE_DEPRECATIONS=1` to
+  silence. The supported import path is unchanged for users who
+  legitimately need the simulator:
+
+  ```js
+  const SmartUTXO = require('@smartledger/bsv/lib/smartutxo')
+  ```
+
+  All internal callers (`lib/smart_contract/utxo_generator.js`) and
+  in-repo demos/examples were migrated to the direct require so they
+  don't trigger the warning. `bsv.SmartMiner` and `bsv.CustomScriptHelper`
+  are unchanged in this release.
+
+### Fixed
+
+- **`SmartUTXOManager.createMockUTXOs(address, ...)` produces correct
+  mocks.** Two bugs in one method:
+  1. The P2PKH script encoded a *random* 20-byte hash rather than the
+     hash of the provided `address`, so the mock claimed to belong to
+     `address` but its locking script committed to a different address.
+     Anyone who attempted to sign these mocks with the private key for
+     `address` got a signature that wouldn't verify.
+  2. It called Node's `crypto.randomBytes(...)` unconditionally, which
+     throws in browser bundles where `crypto` is undefined.
+
+  Both fixed: the script now derives from
+  `bsv.Script.buildPublicKeyHashOut(bsv.Address.fromString(address))`,
+  and randomness uses `bsv.crypto.Random.getRandomBuffer(32)` which
+  works in both Node and browser builds.
+
+### Documentation
+
+- Added a clear "DEVELOPMENT ONLY" header block to `lib/smartutxo.js`
+  spelling out the supported import path, the deprecation status, and
+  why it shouldn't be used in production.
+- Bumped CDN/install refs from `@4.0.0` to `@4.0.1` across README +
+  6 docs files. SECURITY.md is unchanged (4.x is still the only
+  supported line, 3.4.x still flagged as vulnerable).
+
+### Semver note
+
+This release deliberately stops short of a hard removal. Removing
+`bsv.SmartUTXO` outright would be a major-version break, and v4.0.0
+shipped less than 24 hours ago — bumping to v5.0.0 now would churn
+consumers who are still digesting the v4.0.0 credential-verification
+changes. The hard removal is queued for v5.0.0.
+
 ## [4.0.0] - 2026-05-31
 
 ### Security
