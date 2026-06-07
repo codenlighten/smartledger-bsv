@@ -5,6 +5,75 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-06-07
+
+### Added
+
+- **`Interpreter.useGenesisLimits([max])` — one-call opt-in for
+  post-Genesis BSV consensus.** The bundled `Script.Interpreter`
+  hardcoded the *pre-Genesis* consensus caps that BSV removed at the
+  Genesis upgrade (February 2020): 520-byte stack elements, 4-byte
+  script numbers, 201 non-push opcodes per script. Those caps make this
+  library's own flagship features impossible to evaluate — OP_PUSH_TX
+  covenants push a ~585-byte preimage element, do 32-byte modular
+  arithmetic (`OP_ADD`/`OP_MOD`), and run a few hundred opcodes.
+
+  ```js
+  // Default: bound the limits to a safe ceiling.
+  // 64 KB covers every covenant pattern seen in production and blocks
+  // memory-exhaustion via oversized pushes from untrusted scripts.
+  bsv.Script.Interpreter.useGenesisLimits(64 * 1024)
+
+  // Or fully unbounded (~2 GB) — only safe for trusted scripts:
+  // bsv.Script.Interpreter.useGenesisLimits()
+  ```
+
+  Defaults are unchanged out of the box (520 / 4 / 201) — existing
+  consumers see zero behavior change unless they opt in. The call
+  mutates static properties on the `Interpreter` constructor and
+  therefore affects every subsequent `new Interpreter()` in the
+  process; treat it as an app-startup setting, not per-request.
+
+- **`Interpreter.MAX_OPS_PER_SCRIPT`** exposed as a named constant
+  (= 201). Replaces the two hardcoded `> 201` checks in `Interpreter.step`.
+
+- **`bsv.d.ts`** now types `Interpreter.MAX_SCRIPT_ELEMENT_SIZE`,
+  `MAXIMUM_ELEMENT_SIZE`, `MAX_OPS_PER_SCRIPT`, and `useGenesisLimits()`.
+
+### Fixed
+
+- **`Interpreter.MAXIMUM_ELEMENT_SIZE` was a dead knob in the numeric
+  opcodes.** The constant was defined as `4` but never threaded into the
+  `BN.fromScriptNumBuffer(buf, fRequireMinimal, size)` calls in
+  `OP_ADD`/`OP_SUB`/`OP_MUL`/`OP_DIV`/`OP_MOD`/`OP_BOOLAND`/`OP_BOOLOR`/
+  `OP_NUMEQUAL`/`OP_NUMEQUALVERIFY`/`OP_NUMNOTEQUAL`/`OP_LESSTHAN`/
+  `OP_GREATERTHAN`/`OP_LESSTHANOREQUAL`/`OP_GREATERTHANOREQUAL`/`OP_MIN`/
+  `OP_MAX` (binary) and `OP_WITHIN` (ternary). The 3rd `size` argument was
+  always omitted, so BN fell back to its own 4-byte default — raising
+  `Interpreter.MAXIMUM_ELEMENT_SIZE` above 4 had no effect. Now threaded
+  through, so the knob actually does what its name implies.
+
+### Tests
+
+- Added `test/script/genesis_limits.js` (6 tests) covering defaults,
+  the lift, rejection of >4-byte arithmetic and >201 opcodes under
+  defaults, and acceptance of both after `useGenesisLimits()`. Full
+  suite: **4178 passing, 0 failing**.
+
+### Docs
+
+- README §"Evaluating covenants locally" — one-paragraph mention of
+  the new API in the covenant/smart-contract section.
+- JSDoc on `useGenesisLimits` calls out the process-wide-mutation
+  semantics and recommends bounded ceilings for untrusted input.
+- CDN/install refs bumped `@4.0.1` → `@4.1.0` across README + 6 docs
+  files.
+
+### Semver
+
+Minor bump — purely additive: a new public method and a fixed-but-was-
+dead constant. No existing API or default behavior changes.
+
 ## [4.0.1] - 2026-05-31
 
 ### Deprecated
