@@ -124,6 +124,25 @@ describe('SmartContract covenants (v4.2.0)', function () {
       spend.inputs[0].setScript(new Script().add(PushTx.grind(spend, 0, lock, SATS).preimage))
       verify(spend.inputs[0].script, lock, { tx: spend, satoshis: SATS }).ok.should.equal(false)
     })
+
+    it('grind yields a CANONICAL low-S signature, enforced under SCRIPT_VERIFY_LOW_S', function () {
+      var BN = bsv.crypto.BN
+      var Hash = bsv.crypto.Hash
+      var halfN = BN.fromBuffer(Buffer.from('7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0', 'hex'))
+      var I = bsv.Script.Interpreter
+      // The hardened verify flags enforce low-S.
+      ;(help.flags() & I.SCRIPT_VERIFY_LOW_S).should.not.equal(0)
+
+      var lock = PushTx.authenticator()
+      var spend = spendOf(lock, SATS, [p2pkhOutput(alice, SATS - 500)])
+      var preimage = PushTx.grind(spend, 0, lock, SATS).preimage
+      // The in-script signature s = (HASH256(preimage)+Gx) mod n is provably low-S.
+      var s = BN.fromBuffer(Hash.sha256sha256(preimage)).add(BN.fromBuffer(PushTx.Gx)).mod(PushTx.N)
+      s.gt(halfN).should.equal(false)
+      // And it verifies with LOW_S enforced (a high-S signature would be rejected here).
+      spend.inputs[0].setScript(new Script().add(preimage))
+      verify(spend.inputs[0].script, lock, { tx: spend, satoshis: SATS }).ok.should.equal(true)
+    })
   })
 
   describe('PELS (perpetual covenant)', function () {
