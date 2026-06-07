@@ -8,11 +8,57 @@
 [![Modular](https://img.shields.io/badge/Loading-Modular-purple.svg)](#loading-options)
 [![W3C](https://img.shields.io/badge/W3C-Compliant-blueviolet.svg)](#verifiable-credentials)
 
-The most comprehensive and flexible Bitcoin SV library available. **In v3.4.x**: Legally-recognizable DID:web + VC-JWT toolkit with ES256/ES256K support, StatusList2021 revocation, and BSV anchoring. Choose from 16 different distribution methods: standalone modules, complete bundle, or mix-and-match approach.
+The most comprehensive and flexible Bitcoin SV library available. **In v4.x**:
+first-class interpreter-verified covenants (OP_PUSH_TX, PELS, ownership tokens),
+post-Genesis script limits via a one-call opt-in, fixed credential-verification
+flaws in GDAF/VC-JWT, legally-recognizable DID:web + VC-JWT toolkit, and 16
+distribution methods. **v4.x is the only supported line — upgrade from 3.4.x.**
 
-> **v3.4.1 (bugfix)**: credential bundles now actually ship to npm consumers, `prepublishOnly` builds the full set, and `Transaction.shuffleOutputs()` uses a CSPRNG. See [CHANGELOG](./CHANGELOG.md#341---2026-05-18).
+> **v4.2.0 (latest)**: first-class interpreter-verified covenants — `SmartContract.PushTx`,
+> `PELS`, `Token`, `Locks`, all evaluated end-to-end through `Script.Interpreter`
+> with positive **and** negative test coverage. See [CHANGELOG](./CHANGELOG.md#420---2026-06-07).
 
-## 🆕 **v3.4.x - Legally-Recognizable Credentials**
+## 🆕 **v4.2.0 — Interpreter-Verified Covenants**
+
+The full covenant stack now lives at `bsv.SmartContract`, builds on the
+post-Genesis script limits added in 4.1.0, and verifies end-to-end through
+`Script.Interpreter`. Every locking script has both a positive (must-accept)
+and negative (must-reject) test.
+
+```javascript
+const bsv = require('@smartledger/bsv')
+const SC = bsv.SmartContract
+SC.enableGenesis()                       // post-Genesis limits (OP_PUSH_TX needs them)
+
+// Self-replicating covenant — every spend recreates the same script (value − fee).
+const lock = SC.perpetualCovenant(500)
+
+// Stateful ownership token (NFT) — transfer requires the owner's secret,
+// rewrites state, perpetuates the token code.
+const token = SC.ownershipToken(500, ownerHash)
+
+// Value covenant — forces spend outputs to match a specific hashOutputs.
+const vlock = SC.valueCovenant(SC.PushTx.hashOutputs(requiredOutputs))
+
+// Verify any locking script end-to-end through Script.Interpreter
+const ok = SC.verifyScript(unlockScript, lockingScript, tx, inputIndex, satoshis)
+```
+
+**Available primitives under `bsv.SmartContract`:**
+
+| Namespace | Purpose |
+|---|---|
+| `PushTx` | nChain WP1605 OP_PUSH_TX — `authenticator()`, `valueCovenant()`, `hashOutputs()`, `extractHashOutputs()`, `grind()` |
+| `PELS` | Perpetually Enforcing Locking Scripts — `perpetualCovenant(fee)` |
+| `Token` | Stateful ownership token (NFT) — `ownershipToken(fee, ownerHash)` |
+| `Locks` | Hash-lock, P2PKH, CLTV time-lock, m-of-n multisig, HTLC |
+| `CovenantHelpers` | Consensus-flag `verify()` harness, raw BIP-143 preimage, signing, fund/spend scaffolding |
+
+> ⚠️ Research-grade. Review carefully before mainnet value: the OP_PUSH_TX key
+> is the intentionally public `a=k=1` construction, and low-S malleability is
+> left unenforced for the in-script signature.
+
+## 🆕 **Legally-Recognizable Credentials (v3.4.x+)**
 
 ### **Why This Matters**
 - ✅ **W3C Standards**: Full VC-JWT and DID:web compliance for legal recognition
@@ -138,7 +184,7 @@ console.log('Status:', status) // 'revoked'
 | **bsv.min.js** | 937KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@4.2.0/bsv.min.js` |
 | **bsv.bundle.js** | 937KB | Everything in one file | `unpkg.com/@smartledger/bsv@4.2.0/bsv.bundle.js` |
 
-### **🆕 W3C Verifiable Credentials (v3.4.x)**
+### **W3C Verifiable Credentials**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
 | **🟢 bsv-didweb.min.js** | 419KB | **DID:web generation** | `unpkg.com/@smartledger/bsv@4.2.0/bsv-didweb.min.js` |
@@ -184,7 +230,10 @@ npm install @smartledger/bsv
 <script src="https://unpkg.com/@smartledger/bsv@4.2.0/bsv.min.js"></script>
 ```
 
-> **🔧 v3.4.x:** Legally-recognizable W3C Verifiable Credentials with DID:web + VC-JWT toolkit. ES256/ES256K support, StatusList2021 revocation, and privacy-preserving BSV anchoring. Complete CLI tooling included! v3.4.1 ensures these bundles ship to npm consumers; see CHANGELOG.
+> **🔧 v4.x:** First-class interpreter-verified covenants (4.2.0), post-Genesis
+> script limits opt-in (4.1.0), fixed GDAF credential-verification flaws (4.0.0),
+> legally-recognizable DID:web + VC-JWT toolkit, StatusList2021 revocation, and
+> privacy-preserving BSV anchoring. Complete CLI tooling included. See CHANGELOG.
 
 **Basic Transaction (30 seconds):**
 ```javascript
@@ -627,28 +676,47 @@ console.log('Amount:', preimage.amountValue);         // BigInt accessor
 console.log('Valid structure:', preimage.isValid);    // Boolean validation
 ```
 
-### PUSHTX Covenants (nChain WP1605)
+### PUSHTX Covenants (nChain WP1605) — v4.2.0 API
 ```javascript
-const { CovenantInterface } = require('@smartledger/bsv/lib/covenant-interface');
-const covenant = new CovenantInterface();
+const bsv = require('@smartledger/bsv')
+const SC = bsv.SmartContract
+SC.enableGenesis()                              // OP_PUSH_TX needs post-Genesis limits
 
-// Create PUSHTX covenant with in-script signature generation
-const pushtxCovenant = covenant.createAdvancedCovenant('pushtx', {
-  publicKey: '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
-  enforceOutputs: true,
-  sighashType: 0x41
-});
+// Bare OP_PUSH_TX authenticator: unlocks only with the (grindable) preimage of
+// THIS transaction. Built from the nChain `a=k=1` public-key construction —
+// the script generates an ECDSA signature in-script from the pushed preimage
+// (r=Gx, s=(e+Gx) mod n) and verifies it with OP_CHECKSIG, which only passes
+// if the preimage matches this very spend.
+const authLock = SC.PushTx.authenticator()
+
+// Value covenant — force spend outputs to match a specific hashOutputs.
+const requiredOutputs = [/* bsv.Transaction.Output objects */]
+const valueLock = SC.PushTx.valueCovenant(SC.PushTx.hashOutputs(requiredOutputs))
 ```
 
-### Perpetually Enforcing Locking Scripts (PELS)
+### Perpetually Enforcing Locking Scripts (PELS) — v4.2.0 API
 ```javascript
-// Create perpetual covenant that enforces rules across all future transactions
-const pels = covenant.createAdvancedCovenant('perpetual', {
-  publicKeyHash: '751e76e8199196d454941c45d1b3a323f1433bd6',
-  feeDeduction: 512,
-  enforceScript: true,
-  enforceValue: true
-});
+// Self-replicating covenant: every spend must recreate the same script
+// (value − fee), reading its own code out of the authenticated preimage's
+// scriptCode field. No self-hash circularity.
+const pels = SC.perpetualCovenant(500)   // fee in satoshis deducted each hop
+```
+
+### Ownership Tokens (NFT) — v4.2.0 API
+```javascript
+// Stateful ownership token. Owner is carried as on-chain state; transfer
+// requires the current owner's secret and rewrites state, perpetuating
+// the token code across the chain of spends.
+const ownerHash = bsv.crypto.Hash.sha256ripemd160(currentOwnerPubKey.toBuffer())
+const token = SC.ownershipToken(500, ownerHash)
+```
+
+### End-to-end verification
+
+```javascript
+// Any locking script can be verified end-to-end through Script.Interpreter,
+// with the consensus flags this library was tested against.
+const ok = SC.verifyScript(unlockScript, lockingScript, tx, inputIndex, satoshis)
 ```
 
 ### Evaluating covenants locally — `Interpreter.useGenesisLimits()` (v4.1.0+)
@@ -705,7 +773,7 @@ const timelockScript = helper.createTimelockScript(
 );
 ```
 
-## � Examples
+## 📁 Examples
 
 ### Basic Examples
 - **[Advanced Covenant Demo](advanced_covenant_demo.js)**: Complete covenant showcase
@@ -719,13 +787,9 @@ const timelockScript = helper.createTimelockScript(
 
 ## 🔧 CDN Bundles
 
-| Bundle | Size | Description |
-|--------|------|-------------|
-| `bsv.bundle.js` | 684KB | Complete library with all features |
-| `bsv.min.js` | 364KB | Minified production version |
-| `bsv-ecies.min.js` | 145KB | ECIES encryption only |
-| `bsv-message.min.js` | 120KB | Message signing only |
-| `bsv-mnemonic.min.js` | 98KB | Mnemonic handling only |
+See the **[16 Loading Options](#-16-loading-options---choose-your-approach)**
+table near the top for the full list of bundles with current sizes and
+canonical `unpkg.com/@smartledger/bsv@4.2.0/...` URLs.
 
 ## 🔐 Security
 
@@ -759,165 +823,113 @@ const okDefault = bsv.crypto.ECDSA.verify(msgHashBuffer, signature, publicKey)
 - It does not patch the elliptic library's source — the patches in `lib/crypto/elliptic-fixed.js` add input validation on top of an already-upstream-patched `elliptic@6.6.1`.
 - It does not turn `bsv.isHardened = true` into an automatic guarantee. That property indicates the hardening helpers ship; whether they're used is up to your code.
 
-A planned 3.5.0 will offer an opt-in flag to route the default verify path through `SmartVerify` so the protection is on by default for new users.
+v4.0.0 fixed three critical, exploitable vulnerabilities in the GDAF
+credential-verification path (`_canonicalizeJSON` excluded nested claims
+from the signed hash; `_verifySignature` always returned truthy regardless
+of validity; `verificationMethod` was not bound to the credential issuer)
+and removed a live mainnet WIF that had been shipping inside the
+package. **All ≤ 3.4.5 releases should be considered untrustworthy for
+credential verification and must be upgraded to 4.x.** See
+[CHANGELOG `## [4.0.0]`](./CHANGELOG.md#400---2026-05-31) for details
+and [SECURITY.md](./SECURITY.md) for the supported-versions policy.
 
 ## 📝 Changelog
 
-### v3.2.0 - JavaScript-to-Bitcoin Script Framework
-- ✅ Complete JavaScript-to-Bitcoin Script translation system
-- ✅ 121 Bitcoin Script opcodes mapped to JavaScript functions
-- ✅ High-level CovenantBuilder API for rapid development
-- ✅ Real-time script simulation and debugging capabilities
-- ✅ Template-based covenant patterns library
-- ✅ Automatic ASM generation from JavaScript operations
-- ✅ Enhanced documentation and comprehensive examples
+The authoritative version history lives in [CHANGELOG.md](./CHANGELOG.md).
+Highlights of the v4.x line:
 
-### v3.1.1 - Advanced Covenant Framework
-- ✅ Enhanced covenant interface with BIP143 + PUSHTX support
-- ✅ Perpetually Enforcing Locking Scripts (PELS) implementation
-- ✅ Transaction introspection with preimage analysis
-- ✅ Comprehensive documentation and examples
+- **[4.2.0](./CHANGELOG.md#420---2026-06-07)** — first-class
+  interpreter-verified covenants (`SmartContract.PushTx`, `PELS`,
+  `Token`, `Locks`, `verifyScript`) with positive + negative test coverage.
+- **[4.1.0](./CHANGELOG.md#410---2026-06-07)** — `Interpreter.useGenesisLimits()`
+  one-call opt-in for post-Genesis BSV consensus; latent
+  `MAXIMUM_ELEMENT_SIZE` bug fixed.
+- **[4.0.1](./CHANGELOG.md#401---2026-05-31)** — soft-deprecated
+  `bsv.SmartUTXO` (dev-only simulator on production surface);
+  `createMockUTXOs` bug fixes.
+- **[4.0.0](./CHANGELOG.md#400---2026-05-31)** — **security release.** Fixes
+  three exploitable credential-verification flaws in GDAF/VC-JWT and
+  removes a live mainnet WIF that shipped inside prior versions. All
+  ≤ 3.4.5 should be considered untrustworthy.
 
-### v3.0.2 - Custom Script Framework  
-- ✅ Complete custom script development API
-- ✅ Multi-signature, timelock, and conditional script support
-- ✅ Transaction signature API gap resolution
-
-### v3.0.1 - Ultra-Low Fee System
-- ✅ 0.01 sats/byte fee configuration (91% reduction)
-- ✅ Advanced UTXO state management
-- ✅ Change output optimization
-
-## 📄 License
+Earlier 3.x changelog entries are preserved in `CHANGELOG.md`.
 
 ---
 
 ## 📚 **Complete Documentation**
 
-### 🚀 **Getting Started**
-- **[2-Minute Quick Start](#2-minute-quick-start)** - Get up and running fast
-- **[Loading Options](#9-loading-options--choose-your-approach)** - Choose your distribution method
-- **[API Reference](#api-reference)** - Quick method lookup
-- **[Installation Guide](#installation)** - npm, CDN, and browser setup
+### 🚀 Getting Started
+- **[2-Minute Quick Start](#-2-minute-quick-start)** — npm, CDN, browser setup
+- **[16 Loading Options](#-16-loading-options---choose-your-approach)** — pick the bundles you need
+- **[API Reference](#-api-reference)** — quick method lookup
+- **[CHANGELOG](./CHANGELOG.md)** — version history (current line: 4.x)
+- **[SECURITY.md](./SECURITY.md)** — supported-versions policy + how to report
 
-### 🎯 **Development Guides**
-- **[Advanced Covenant Development](docs/ADVANCED_COVENANT_DEVELOPMENT.md)** - Complete BIP143 + PUSHTX guide
-- **[Custom Script Development](docs/CUSTOM_SCRIPT_DEVELOPMENT.md)** - Multi-sig, timelock, and custom patterns
-- **[Covenant Development Resolved](docs/COVENANT_DEVELOPMENT_RESOLVED.md)** - Solutions to common issues
-- **[PUSHTX Key Insights](docs/pushtx-key-insights.md)** - nChain research implementation
+### 🔒 Smart Contracts & Covenants
+- **[Smart Contract Guide](docs/advanced/SMART_CONTRACT_GUIDE.md)** — comprehensive covenant development
+- **[Advanced Covenant Development](docs/advanced/ADVANCED_COVENANT_DEVELOPMENT.md)** — full BIP-143 + OP_PUSH_TX guide
+- **[Custom Script Development](docs/advanced/CUSTOM_SCRIPT_DEVELOPMENT.md)** — multi-sig, timelock, conditional patterns
+- **[UTXO Manager Guide](docs/advanced/UTXO_MANAGER_GUIDE.md)** — UTXO management + mock generation
+- **[Covenant Development Resolved](docs/COVENANT_DEVELOPMENT_RESOLVED.md)** — solutions to common issues
+- **[PUSHTX Key Insights](docs/pushtx-key-insights.md)** — nChain WP1605 implementation notes
+- **[SmartContract Development Guide](docs/SMART_CONTRACT_DEVELOPMENT_GUIDE.md)** — end-to-end workflow
 
-### 🔧 **Technical Resources**
-- **[SmartContract Integration](SMARTCONTRACT_INTEGRATION.md)** - Debug tools and analysis
-- **[Examples Directory](https://github.com/codenlighten/smartledger-bsv/tree/main/examples)** - Working code samples
-- **[Test Suite](https://github.com/codenlighten/smartledger-bsv/tree/main/tests)** - Comprehensive testing examples
-- **[Build System](build/)** - Webpack configurations
+### 🆕 Advanced Features
+- **[Legal Token Protocol](docs/advanced/LEGAL_TOKEN_PROTOCOL.md)** — property rights & obligation tokens (LTP)
+- **[GDAF Developer Interface](docs/technical/GDAF_DEVELOPER_INTERFACE.md)** — Global Digital Attestation Framework
+- **[Shamir Integration Summary](docs/technical/SHAMIR_INTEGRATION_SUMMARY.md)** — threshold cryptography & key backup
 
-### 🌐 **Loading Strategy Examples**
+### 📊 Technical References
+- **[Module Reference](docs/MODULE_REFERENCE_COMPLETE.md)** — every shipped module
+- **[Documentation Review Report](docs/DOCUMENTATION_REVIEW_REPORT.md)** — internal doc audit (historical)
+- **[API Reference (docs/api/)](https://github.com/codenlighten/smartledger-bsv/tree/main/docs/api)** — per-module API docs
 
-| **Use Case** | **Recommended Load** | **Size** | **Features** |
-|--------------|---------------------|----------|--------------|
-| **Simple Transactions** | `bsv.min.js` | 937KB | Core BSV + SmartContract |
-| **DeFi Development** | Core + Covenant + Debug | ~2.7MB | Advanced contracts + tools (bundles re-embed core BSV) |
-| **Enterprise Apps** | `bsv.bundle.js` | 937KB | Everything included |
-| **Mobile/Lightweight** | Core + Script Helper | ~963KB | Essential tools only |
-| **Research/Analysis** | Core + SmartContract | 900KB | Full debug capabilities |
+### 📋 Examples & Demos
+- **[Examples Directory](https://github.com/codenlighten/smartledger-bsv/tree/main/examples)** — runnable code samples
+- **[Demos Directory](https://github.com/codenlighten/smartledger-bsv/tree/main/demos)** — interactive HTML & Node demos
+- **[Test Suite](https://github.com/codenlighten/smartledger-bsv/tree/main/test)** — covenant verification specs, CLI smoke, full mocha suite
 
-### 🔗 **Cross-References**
+> **Note:** `examples/` and `demos/` live in the repo but are not shipped
+> in the npm tarball (as of v3.4.4). Browse them on GitHub.
 
-**From Quick Start → Deep Dive:**
-- [Basic Transaction](#2-minute-quick-start) → [Transaction API](docs/transaction.md)
-- [Covenant Example](#2-minute-quick-start) → [Advanced Covenant Guide](docs/ADVANCED_COVENANT_DEVELOPMENT.md)
-- [API Reference](#api-reference) → [Method Documentation](docs/)
-
-**From Examples → Implementation:**
-- [Covenant Examples](https://github.com/codenlighten/smartledger-bsv/tree/main/examples/covenants) → [Production Guide](docs/ADVANCED_COVENANT_DEVELOPMENT.md#production-guidelines)
-- [Script Examples](https://github.com/codenlighten/smartledger-bsv/tree/main/examples/scripts) → [Custom Script Guide](docs/CUSTOM_SCRIPT_DEVELOPMENT.md)
-- [Test Files](https://github.com/codenlighten/smartledger-bsv/tree/main/tests) → [Integration Examples](https://github.com/codenlighten/smartledger-bsv/tree/main/examples)
-
-**From Concepts → Code:**
-- [PUSHTX Theory](docs/pushtx-key-insights.md) → [Covenant Implementation](https://github.com/codenlighten/smartledger-bsv/blob/main/examples/covenants/advanced_covenant_demo.js)
-- [Security Features](#smart-security) → [Implementation](lib/crypto/smartledger_verify.js)
-- [Debug Tools](#debug-tools) → [Usage Examples](https://github.com/codenlighten/smartledger-bsv/blob/main/tests/smartcontract-test.html)
-
-### 🎓 **Learning Path**
-
-1. **Start**: [2-Minute Quick Start](#2-minute-quick-start)
-2. **Practice**: [Examples Directory](https://github.com/codenlighten/smartledger-bsv/tree/main/examples) 
-3. **Build**: [Custom Script Guide](docs/CUSTOM_SCRIPT_DEVELOPMENT.md)
-4. **Advanced**: [Covenant Development](docs/ADVANCED_COVENANT_DEVELOPMENT.md)
-5. **Deploy**: [Production Guidelines](docs/ADVANCED_COVENANT_DEVELOPMENT.md#production-guidelines)
-
----
-
-## � **Complete Documentation**
-
-### 📚 **Getting Started Guides**
-- [📋 **UTXO Manager Guide**](docs/UTXO_MANAGER_GUIDE.md) - Complete UTXO management and mock generation
-- [🔒 **Smart Contract Guide**](docs/SMART_CONTRACT_GUIDE.md) - Comprehensive covenant development
-- [🛠️ **Custom Script Development**](docs/CUSTOM_SCRIPT_DEVELOPMENT.md) - Build custom Bitcoin scripts
-- [🚀 **Advanced Covenant Development**](docs/ADVANCED_COVENANT_DEVELOPMENT.md) - Production-ready covenants
-
-### 🆕 **Advanced Features Documentation**
-- [⚖️ **Legal Token Protocol Guide**](docs/LTP_LEGAL_TOKENS_GUIDE.md) - Property rights & obligation tokens
-- [🌐 **Digital Attestation Guide**](docs/GDAF_DIGITAL_ATTESTATION_GUIDE.md) - DIDs & verifiable credentials  
-- [🔐 **Shamir Secret Sharing Guide**](docs/SHAMIR_SECRET_SHARING_GUIDE.md) - Threshold cryptography & key backup
-- [🛡️ **Security Features**](SECURITY_SUMMARY.md) - Enhanced validation & smart verification
-
-### 📊 **Technical References**
-- [📝 **Module Reference**](docs/MODULE_REFERENCE_COMPLETE.md) - All 12 modules explained
-- [🔍 **Documentation Review Report**](docs/DOCUMENTATION_REVIEW_REPORT.md) - Comprehensive analysis
-- [📋 **API Reference**](docs/api/) - Complete API documentation
-- [🔧 **Integration Guide**](SMARTCONTRACT_INTEGRATION.md) - Smart contract integration
-
-### 📋 **Examples & Demos**
-- [� **Interactive Demos**](https://github.com/codenlighten/smartledger-bsv/tree/main/demos) - **NEW!** HTML & Node.js smart contract demos
-- [�📁 **Examples Directory**](https://github.com/codenlighten/smartledger-bsv/tree/main/examples) - Working code examples
-- [🎯 **Basic Examples**](https://github.com/codenlighten/smartledger-bsv/tree/main/examples/basic) - Simple transactions & addresses
-- [🔒 **Covenant Examples**](https://github.com/codenlighten/smartledger-bsv/tree/main/examples/covenants) - Smart contract patterns  
-- [📊 **Advanced Examples**](https://github.com/codenlighten/smartledger-bsv/tree/main/examples/covenants2) - Production patterns
-
-**🎮 Try the Interactive Demos:**
 ```bash
-# Terminal-based interactive demo
-npm run demo
-
-# Or run specific features
-npm run demo:basics     # Library basics & tests
-npm run demo:covenant   # Covenant builder
-npm run demo:preimage   # BIP-143 preimage parser
-npm run demo:utxo      # UTXO generator
-npm run demo:scripts   # Script tools
-
-# Web-based demo (open in browser)
-npm run demo:web
+# Try the interactive demo:
+npm run demo               # terminal walkthrough
+npm run demo:web           # open demos/smart_contract_demo.html
+npm run demo:covenant      # covenant builder example
 ```
 
-### 🔍 **Troubleshooting & Support**
-- [📚 **Complete Documentation**](docs/README.md) - Organized documentation hub
-- [❓ **Issues & Solutions**](https://github.com/codenlighten/smartledger-bsv/issues) - Community support
-- [📈 **Status Reports**](SMARTLEDGER_V302_STATUS_REPORT.md) - Latest updates  
-- [🔒 **Security Policy**](SECURITY.md) - Security guidelines
-- [📝 **Changelog**](CHANGELOG.md) - Version history
+### 🔗 Recommended learning path
+
+1. **Start** — [2-Minute Quick Start](#-2-minute-quick-start)
+2. **Practice** — [Examples Directory](https://github.com/codenlighten/smartledger-bsv/tree/main/examples)
+3. **Build** — [Custom Script Development](docs/advanced/CUSTOM_SCRIPT_DEVELOPMENT.md)
+4. **Advanced** — [Advanced Covenant Development](docs/advanced/ADVANCED_COVENANT_DEVELOPMENT.md)
+5. **Production** — [SECURITY.md](./SECURITY.md) + [v4.0.0 CHANGELOG](./CHANGELOG.md#400---2026-05-31) (mandatory read before mainnet credentials)
 
 ---
 
-## �📄 **License**
+## 📄 **License**
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ## 🤝 **Contributing**
 
-We welcome contributions to SmartLedger-BSV! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+Issues, PRs, and security reports welcome at
+[github.com/codenlighten/smartledger-bsv](https://github.com/codenlighten/smartledger-bsv).
+For security vulnerabilities, follow the disclosure process in
+[SECURITY.md](./SECURITY.md) rather than opening a public issue.
 
 ## 🏢 **Enterprise Support**
 
 - **GitHub**: [github.com/codenlighten/smartledger-bsv](https://github.com/codenlighten/smartledger-bsv)
-- **NPM**: [@smartledger/bsv](https://www.npmjs.com/package/@smartledger/bsv)
+- **NPM (scoped)**: [@smartledger/bsv](https://www.npmjs.com/package/@smartledger/bsv)
+- **NPM (unscoped)**: [smartledger-bsv](https://www.npmjs.com/package/smartledger-bsv)
 - **Issues**: [GitHub Issues](https://github.com/codenlighten/smartledger-bsv/issues)
-- **Documentation**: [Complete Docs](#complete-documentation)
+- **Security**: [SECURITY.md](./SECURITY.md)
 
 ---
 
-**SmartLedger-BSV v3.3.4** - *Complete Bitcoin SV Development Framework*
+**SmartLedger-BSV v4.2.0** — *Complete Bitcoin SV Development Framework*
 
-Built with ❤️ for the Bitcoin SV ecosystem • 9 Loading Options • Enterprise Ready
+Built with ❤️ for the Bitcoin SV ecosystem • 16 Loading Options • Interpreter-Verified Covenants

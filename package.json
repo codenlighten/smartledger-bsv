@@ -1,5 +1,5 @@
 {
-  "name": "@smartledger/bsv",
+  "name": "smartledger-bsv",
   "version": "4.2.0",
   "description": "🚀 Complete Bitcoin SV development framework with legally-recognizable DID:web + W3C VC-JWT toolkit, Legal Token Protocol (LTP), Global Digital Attestation Framework (GDAF), StatusList2021 revocation, and 16 flexible loading options. Standards-based credentials with ES256/ES256K support, on-chain BSV anchoring, and comprehensive Bitcoin SV API. Perfect for legal tokens, verifiable credentials, DeFi, smart contracts, and secure Bitcoin applications.",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
