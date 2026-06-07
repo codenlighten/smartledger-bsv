@@ -5,6 +5,43 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.0] - 2026-06-07
+
+### Added
+
+- **First-class, interpreter-verified covenants under `bsv.SmartContract`.**
+  A complete, tested stack of custom locking scripts that verify end-to-end
+  through `Script.Interpreter` (positive and negative cases), building on the
+  post-Genesis limits from 4.1.0:
+  - **`SmartContract.PushTx`** — a *correct* OP_PUSH_TX (nChain WP1605). The
+    locking script generates an ECDSA signature in-script from the pushed
+    preimage (`a=k=1`, `r=Gx`, `s=(e+Gx) mod n`, pubkey `02||Gx`) and verifies
+    it with `OP_CHECKSIG`, proving the preimage is this very transaction. Uses a
+    fixed-length DER template with an `nLockTime` grind (`PushTx.grind`). Exposes
+    `authenticator()`, `valueCovenant()`, `hashOutputs()`, `extractHashOutputs()`.
+  - **`SmartContract.PELS` / `perpetualCovenant(fee)`** — a Perpetually Enforcing
+    Locking Script: every spend must recreate the same script (value − fee).
+    Reads its own script from the authenticated preimage's `scriptCode`, so there
+    is no self-hash circularity.
+  - **`SmartContract.Token` / `ownershipToken(fee, ownerHash)`** — a stateful
+    ownership token (NFT) carrying its owner as on-chain state; transfer requires
+    the owner's secret and rewrites the state, perpetuating the token code.
+  - **`SmartContract.Locks`** — hash-lock, P2PKH, CLTV time-lock, m-of-n
+    multisig, and HTLC primitives.
+  - **`SmartContract.CovenantHelpers`** + convenience methods
+    `enableGenesis()`, `verifyScript()`, `valueCovenant()` — a consensus-flag
+    `verify()` harness, raw BIP-143 preimage access, signing, and fund/spend
+    scaffolding.
+- New mocha suite `test/smart_contract/covenants.js` (11 specs / 24 assertions),
+  all green; full suite 4178 → 4189 passing.
+
+### Notes
+
+- These covenants require post-Genesis limits: call `SmartContract.enableGenesis()`
+  (a.k.a `Interpreter.useGenesisLimits()`) before verifying. Research-grade and
+  interpreter-verified — review before mainnet value (the OP_PUSH_TX key is the
+  intentionally public `a=k=1`; low-S malleability is left unenforced).
+
 ## [4.1.0] - 2026-06-07
 
 ### Added
