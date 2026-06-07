@@ -136,9 +136,9 @@ node custom_script_signature_test.js
 ## 📦 Installation
 
 ```bash
-npm install smartledger-bsv@4.2.0
+npm install smartledger-bsv@4.2.1
 # or
-npm install @smartledger/bsv@4.2.0
+npm install @smartledger/bsv@4.2.1
 ```
 
 ## ✅ Verification Results

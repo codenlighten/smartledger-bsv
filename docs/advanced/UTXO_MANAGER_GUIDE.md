@@ -722,7 +722,7 @@ interface UTXO {
 <html>
 <head>
     <title>UTXO Manager Demo</title>
-    <script src="https://cdn.jsdelivr.net/npm/@smartledger/bsv@4.2.0/bsv.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@smartledger/bsv@4.2.1/bsv.min.js"></script>
 </head>
 <body>
     <script>

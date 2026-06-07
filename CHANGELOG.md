@@ -5,6 +5,37 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.1] - 2026-06-07
+
+### Docs
+
+- **Substantial README rewrite for the v4.x line.** The README still
+  headlined v3.4.x (4 minors and a major stale), showed the *old*
+  `lib/covenant-interface` API in the covenant examples instead of the
+  v4.2.0 `bsv.SmartContract.PushTx`/`PELS`/`Token`/`Locks`/`verifyScript`
+  surface, had a wrong CDN-Bundles size table (off by up to 7× on
+  `bsv-mnemonic`), duplicate "Complete Documentation" sections, a
+  "planned 3.5.0" security note that was overtaken by 4.0.0, and a
+  footer stamp claiming "v3.3.4 • 9 Loading Options". Replaced the
+  headline with the v4.2.0 covenant section, rewrote PUSHTX/PELS
+  examples to use the new API, added Ownership Tokens + end-to-end
+  verification snippets, merged the two Documentation sections (7
+  broken file paths fixed, 4 dead links removed), replaced the
+  inaccurate CDN sub-table with a pointer to the canonical
+  loading-options table, updated Security to point at the v4.0.0 GDAF
+  fix, and stamped the footer at v4.2.1.
+
+### Semver
+
+Patch — README only. No source changes; no `lib/`, `bin/`, `bsv.d.ts`,
+or test diffs. Out-of-band republish: `@smartledger/bsv@4.2.0` was
+published from a separate session with the OLD README, then
+unpublished after the rewrite. npm's anti-republish policy refuses to
+reuse the 4.2.0 version number; 4.2.1 is the canonical version with
+the corrected README content. `smartledger-bsv@4.2.0` (unscoped) was
+published with the new README; for parity, the unscoped is also
+republished at 4.2.1.
+
 ## [4.2.0] - 2026-06-07
 
 ### Added
