@@ -5,6 +5,33 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.0] - 2026-06-07
+
+### Changed — mainnet hardening of OP_PUSH_TX covenants
+
+- **Canonical low-S signatures.** The OP_PUSH_TX grind now requires `s <= n/2`,
+  so the in-script signature is canonical (low-S) and non-malleable, and the
+  covenant verify path enforces `SCRIPT_VERIFY_LOW_S`. This makes the produced
+  spends standard for mainnet relay/mining. Cost: zero extra script bytes — the
+  constraint is satisfied by the spender's grind, not by added opcodes.
+  (`SmartContract.PushTx.sFromPreimage`, `CovenantHelpers.flags`.)
+- **Smaller scripts (−22 bytes per covenant).** `pushTxCore` now shares a single
+  `Gx` push between the DER signature's r-value and the `02||Gx` public key
+  (parked on the alt-stack) instead of embedding the 32-byte constant twice.
+  Authenticator 404→382 B, value covenant 450→428 B, perpetual 451→429 B,
+  ownership token 515→493 B.
+
+### Notes
+
+- The remaining ~382-byte floor is intrinsic to OP_PUSH_TX on BSV: ~248 B is the
+  two mandatory 32-byte endianness reversals (big-endian hash ↔ little-endian
+  script arithmetic ↔ big-endian DER), the rest is fixed secp256k1 constants and
+  the DER template. There is no single-opcode byte reverse on BSV —
+  `OP_REVERSEBYTES` is a Bitcoin Cash opcode, not part of the BSV opcode set, so
+  the `OP_SPLIT`/`OP_SWAP`/`OP_CAT` reversal gadget is the correct approach.
+- New test: `test/smart_contract/covenants.js` proves the grind yields low-S
+  signatures enforced under `SCRIPT_VERIFY_LOW_S`. Full suite 4189 → 4190.
+
 ## [4.2.1] - 2026-06-07
 
 ### Docs
