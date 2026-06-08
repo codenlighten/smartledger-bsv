@@ -5,6 +5,29 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.4.0] - 2026-06-07
+
+### Added — BSV string opcodes OP_SUBSTR / OP_LEFT / OP_RIGHT
+
+- **Implemented the re-enabled BSV (Chronicle) string opcodes in the script
+  interpreter.** They were declared in the opcode map (`0xb3`/`0xb4`/`0xb5`) but
+  unimplemented — executing one returned `BAD_OPCODE`. Now they evaluate with the
+  original Satoshi semantics:
+  - `OP_LEFT  (in n -- out)` — the first `n` bytes.
+  - `OP_RIGHT (in n -- out)` — the last `n` bytes (`OP_RIGHT 0` ⇒ empty, not the
+    whole string).
+  - `OP_SUBSTR (in begin size -- out)` — `in[begin : begin+size]`.
+  Out-of-range lengths clamp to the string length; negative arguments fail with
+  `SCRIPT_ERR_INVALID_NUMBER_RANGE`. New test: `test/script/string_ops.js`.
+
+### Changed
+
+- **Covenant field-extraction now uses these opcodes**, shrinking the scripts
+  further: perpetual covenant 429→**421 B**, ownership token 493→**482 B**, value
+  covenant 428→**424 B** (vs. the verbose `OP_SIZE/OP_SUB/OP_SPLIT/OP_NIP` form).
+
+Full mocha suite 4190 → 4199 passing, 0 failing. Lint clean.
+
 ## [4.3.0] - 2026-06-07
 
 ### Changed — mainnet hardening of OP_PUSH_TX covenants
