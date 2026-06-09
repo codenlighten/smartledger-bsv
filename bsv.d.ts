@@ -820,6 +820,100 @@ declare module '@smartledger/bsv' {
         function validateASM(asmString: string): boolean;
         function interpretScript(script: Script | Buffer | string): any;
         function optimizeScript(script: Script | Buffer | string): any;
+
+        // -------- Interpreter-verified covenant suite (v4.2.0+) --------------
+
+        interface VerifyResult { ok: boolean; err: string; }
+        interface VerifyOpts { tx?: Transaction; satoshis?: number; inputIndex?: number; flags?: number; }
+
+        /** Opt into post-Genesis script limits (required to verify OP_PUSH_TX covenants). */
+        function enableGenesis(max?: number): void;
+        /** Verify an unlocking/locking pair through the consensus interpreter. */
+        function verifyScript(unlocking: Script, locking: Script, opts?: VerifyOpts): VerifyResult;
+        /** Perpetually Enforcing Locking Script: every spend recreates the same script (value - fee). */
+        function perpetualCovenant(fee: number): Script;
+        /** Stateful ownership token (NFT) locking script. */
+        function ownershipToken(fee: number, ownerHash: Buffer): Script;
+        /** OP_PUSH_TX value/output covenant: coins can only go where the covenant says. */
+        function valueCovenant(expectedHashOutputs: Buffer): Script;
+
+        namespace CovenantHelpers {
+            const SIGHASH: number;
+            function flags(): number;
+            function enableGenesis(max?: number): void;
+            function verify(unlocking: Script, locking: Script, opts?: VerifyOpts): VerifyResult;
+            function rawPreimage(tx: Transaction, inputIndex: number, lockingScript: Script, satoshis: number, sighashType?: number): Buffer;
+            function sighashDigest(tx: Transaction, inputIndex: number, lockingScript: Script, satoshis: number, sighashType?: number): Buffer;
+            function signInput(tx: Transaction, privateKey: PrivateKey, inputIndex: number, lockingScript: Script, satoshis: number, sighashType?: number): Buffer;
+            function fundAndSpend(lockingScript: Script, satoshis: number, opts?: { outputs?: Transaction.Output[] }): { funding: Transaction; spend: Transaction };
+            function p2pkhOutput(addressOrPubKey: Address | PublicKey, satoshis: number): Transaction.Output;
+            function scriptNum(n: number): Buffer;
+        }
+
+        namespace PushTx {
+            const Gx: Buffer;
+            const PUBKEY: Buffer;
+            function pushTxCore(script: Script): Script;
+            function authenticator(): Script;
+            function extractHashOutputs(script: Script): Script;
+            function hashOutputs(outputs: Transaction.Output[]): Buffer;
+            function valueCovenant(expectedHashOutputs: Buffer): Script;
+            function sFromPreimage(preimage: Buffer): Buffer | null;
+            function grind(spend: Transaction, inputIndex: number, lockingScript: Script, satoshis: number, maxTries?: number): { preimage: Buffer; tries: number };
+        }
+
+        namespace PELS {
+            function pelsCovenant(fee: number): Script;
+        }
+
+        namespace Token {
+            function ownershipToken(fee: number, ownerHash: Buffer): Script;
+            function ownerId(secret: Buffer): Buffer;
+            function unlockTransfer(ownerSecret: Buffer, newOwnerHash: Buffer, preimage: Buffer): Script;
+        }
+
+        interface LockSpec { lock: Script; meta: { [k: string]: any }; [k: string]: any; }
+        namespace Locks {
+            function hashLock(secret: Buffer): LockSpec;
+            function p2pkh(privateKey: PrivateKey): LockSpec;
+            function timeLockCLTV(privateKey: PrivateKey, locktime: number): LockSpec;
+            function multisig(m: number, privateKeys: PrivateKey[]): LockSpec;
+            function htlc(opts: { secret: Buffer; receiver: PrivateKey; sender: PrivateKey; timeout: number }): LockSpec;
+        }
+
+        // -------- Declarative covenant DSL (v4.5.0) --------------------------
+
+        interface CompiledPolicy {
+            lock: Script;
+            outputs: Transaction.Output[];
+            describe(): string;
+            unlock(spendTx: Transaction, satoshis: number, inputIndex?: number): Script;
+        }
+        class Policy {
+            payTo(dest: Address | PublicKey | Script | Transaction.Output, satoshis: number): Policy;
+            lockUntil(height: number): Policy;
+            outputs(): Transaction.Output[];
+            describe(): string;
+            compile(): CompiledPolicy;
+        }
+        interface PolicyFactory {
+            (): Policy;
+            perpetual(fee: number): Script;
+            token(fee: number, ownerHash: Buffer): Script;
+        }
+        const policy: PolicyFactory;
+
+        // -------- Covenant stack debugger (v4.5.0) ---------------------------
+
+        interface TraceStep { phase: 'unlock' | 'lock'; op: string; stack: string[]; altstack: string[]; }
+        interface TraceResult { ok: boolean; err: string; steps: TraceStep[]; }
+        function trace(unlocking: Script, locking: Script, opts?: VerifyOpts): TraceResult;
+        namespace Debugger {
+            function trace(unlocking: Script, locking: Script, opts?: VerifyOpts): TraceResult;
+            function format(result: TraceResult): string;
+            function print(result: TraceResult): TraceResult;
+            function opLabel(opcodenum: number): string;
+        }
     }
 
     // -------- BrowserUTXOManager ----------------------------------------

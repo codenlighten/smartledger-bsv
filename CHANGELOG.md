@@ -5,6 +5,35 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.0] - 2026-06-09
+
+### Added — declarative covenant DSL + stack debugger
+
+- **`SmartContract.policy()` — a declarative covenant DSL.** Describe a spending
+  policy and compile it to a verified OP_PUSH_TX locking script, no opcodes:
+  ```js
+  const c = bsv.SmartContract.policy()
+    .payTo(aliceAddr, 9500)   // the spend MUST create this output...
+    .lockUntil(800000)        // ...with nLockTime >= 800000
+    .compile()
+  // c.lock, c.outputs, c.unlock(spendTx, satoshis)
+  ```
+  Clauses AND together (each compiles to one preimage-field check on a single
+  OP_PUSH_TX authentication). `payTo` pins outputs via `hashOutputs`; `lockUntil`
+  checks the `nLockTime` field. The compiled `unlock()` grinds the OP_PUSH_TX
+  nonce *from the locktime floor upward* so it never collides with a `lockUntil`
+  constraint. Shortcuts: `policy.perpetual(fee)`, `policy.token(fee, ownerHash)`.
+- **`SmartContract.trace()` — a covenant stack debugger.** Step-traces a
+  locking/unlocking pair and records the stack + alt-stack after every opcode, so
+  you can watch an OP_PUSH_TX covenant build its signature and enforce its
+  constraints. `SmartContract.Debugger.format(result)` pretty-prints it.
+- **TypeScript types** for the full covenant suite in `bsv.d.ts`
+  (`SmartContract.{PushTx,PELS,Token,Locks,CovenantHelpers,policy,Policy,trace,
+  Debugger}` + `enableGenesis`/`verifyScript`/`perpetualCovenant`/…).
+
+New mocha suite `test/smart_contract/dsl_debugger.js` (7 specs). Full suite
+4199 → 4206 passing. Lint clean; `bsv.d.ts` type-checks.
+
 ## [4.4.0] - 2026-06-07
 
 ### Added — BSV string opcodes OP_SUBSTR / OP_LEFT / OP_RIGHT
