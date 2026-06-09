@@ -5,6 +5,33 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.6.0] - 2026-06-09
+
+### Fixed — covenants are now mainnet-relayable (MINIMALDATA)
+
+OP_PUSH_TX covenants up to 4.5.0 were consensus-valid but **non-standard**: their
+locking scripts contained non-minimal data pushes, so every mainnet miner
+rejected the spend with `non-mandatory-script-verify-flag (Data push larger than
+necessary)` = `SCRIPT_ERR_MINIMALDATA`. Found by actually broadcasting to BSV
+mainnet (WhatsOnChain/Taal **and** GorillaPool ARC both rejected it).
+
+The non-minimal pushes were: a bare `0x00` sign byte, a bare `0x02` pubkey
+prefix, and small integers (3/4/8) pushed as data. Fixes:
+
+- **`PushTx.pushTxCore`**: drop the `0x00` sign-extension — the grind now requires
+  `z[0]` (first byte of HASH256(preimage)) to be `0x01..0x7f`, so the hash is
+  already a positive, minimally-encoded number. Use `OP_2` for the pubkey prefix.
+- **`CovenantHelpers.scriptNum`**: emit `OP_0`/`OP_1..OP_16`/`OP_1NEGATE` for
+  `0..16`/`-1` instead of a data push (fixes PELS, token, and the DSL's
+  `lockUntil`).
+- **`CovenantHelpers.flags`**: now includes `SCRIPT_VERIFY_MINIMALDATA`, so local
+  `verifyScript`/`trace` mirror real mainnet relay policy and catch non-relayable
+  covenants before broadcast.
+
+A value covenant built with this release was **deployed and spent on BSV
+mainnet** (txids `f9f25dbd…` deploy, `ea438096…` spend). Full suite 4206 passing,
+lint clean.
+
 ## [4.5.0] - 2026-06-09
 
 ### Added — declarative covenant DSL + stack debugger
