@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.0.0] - 2026-06-13
 
+### BREAKING — Shamir Secret Sharing now uses a vetted GF(2⁸) engine
+
+`crypto.Shamir` previously used a hand-rolled finite-field implementation over a
+31-bit prime, with no authentication of shares. It is now backed by
+`secrets.js-grempe` (a vetted GF(2⁸) implementation), with two safety additions:
+a per-split nonce (`splitId`) so shares from different splits can't be silently
+mixed, and an integrity `checksum` so a tampered/mismatched share set is rejected
+at combine time instead of returning garbage.
+
+- **New share format (v2).** `split()` returns objects shaped
+  `{ v, id, threshold, shares, length, splitId, share, checksum }` instead of the
+  old `{ id, threshold, shares, length, bytes:[{x,y}] }`.
+- **Old shares remain recoverable.** `combine()` and `verifyShare()` detect and
+  accept legacy (≤ 4.x) shares for recovery; you do not need the old version to
+  reconstruct previously-split secrets.
+- Randomness is sourced from the library's own `crypto.Random` (Node CSPRNG /
+  `window.crypto`) via `secrets.setRNG`, and `secrets` is loaded lazily so simply
+  importing the library never triggers its init.
+- New coverage in `test/crypto/shamir.js` (round-trips, threshold subsets,
+  leading-zero/Buffer secrets, tamper detection, split isolation, legacy
+  recovery).
+
+Browser bundles that bundle the full library no longer mock node `crypto` as
+empty (`bsv.min.js`, `bsv.bundle.js`, `bsv-security.min.js`); webpack's default
+`crypto` polyfill is used so Shamir can obtain a CSPRNG. This increases the size
+of the full bundles (e.g. `bsv.min.js` ~951 KB → ~1.2 MB); the dedicated
+non-Shamir module bundles are unaffected.
+
 ### BREAKING — VC-JWT signatures are now JOSE-compliant (IEEE P1363)
 
 Up to and including 4.6.0, `VcJwt.issueVcJwt` signed with Node's default
