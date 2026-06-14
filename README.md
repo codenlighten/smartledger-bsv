@@ -5,8 +5,8 @@
 [![Version](https://img.shields.io/badge/version-4.2.1-blue.svg)](https://www.npmjs.com/package/@smartledger/bsv)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![BSV](https://img.shields.io/badge/BSV-Compatible-orange.svg)](https://bitcoinsv.com/)
-[![Modular](https://img.shields.io/badge/Loading-Modular-purple.svg)](#loading-options)
-[![W3C](https://img.shields.io/badge/W3C-Compliant-blueviolet.svg)](#verifiable-credentials)
+[![Modular](https://img.shields.io/badge/Loading-Modular-purple.svg)](#-16-loading-options---choose-your-approach)
+[![W3C](https://img.shields.io/badge/W3C-Compliant-blueviolet.svg)](#-legally-recognizable-credentials-v34x)
 
 The most comprehensive and flexible Bitcoin SV library available. **In v4.x**:
 first-class interpreter-verified covenants (OP_PUSH_TX, PELS, ownership tokens),
@@ -234,7 +234,7 @@ npm install @smartledger/bsv
 > sharing now runs on a vetted GF(2⁸) engine with authenticated shares; VC-JWT
 > signatures are now JOSE-compliant (IEEE P1363); VC-JWT verification pins the
 > algorithm; ECDSA low-S preserves `recoveryParam`; ECIES MAC check is
-> constant-time. **If you are upgrading from 4.x, read [Upgrading to v5.0.0](#-upgrading-to-v500-breaking-changes) below.** Builds on the v4.x covenant,
+> constant-time. **If you are upgrading from 4.x, read [Upgrading to v5.0.0](#upgrading-to-v500-breaking-changes) below.** Builds on the v4.x covenant,
 > DID:web + VC-JWT, StatusList2021, and BSV-anchoring toolkit. See CHANGELOG.
 
 **Basic Transaction (30 seconds):**
@@ -398,9 +398,9 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 - ✅ **Complete Smart Contract Suite**: 23+ production-ready covenant features → [SmartContract Guide](docs/SMART_CONTRACT_GUIDE.md)
 
 ### 💼 **Core Library Excellence**
-- ✅ **Complete BSV API**: Full Bitcoin SV blockchain operations → [API Reference](#api-reference)  
+- ✅ **Complete BSV API**: Full Bitcoin SV blockchain operations → [API Reference](#-api-reference)  
 - ✅ **Opt-in security helpers**: `bsv.SmartVerify` and `bsv.EllipticFixed` add input validation and low-`s` canonicalization on top of standard verification — **not on the default verify path**, see [Security](#-security)
-- ✅ **Browser + Node.js**: Universal compatibility with proper polyfills → [Loading Options](#12-loading-options--choose-your-approach)
+- ✅ **Browser + Node.js**: Universal compatibility with proper polyfills → [Loading Options](#-16-loading-options---choose-your-approach)
 - ✅ **TypeScript Ready**: Complete type definitions included
 - ✅ **Ultra-Low Fees**: 0.01 sats/byte configuration (91% fee reduction)
 
@@ -412,7 +412,7 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 - � **PUSHTX Integration**: nChain techniques for advanced covenant patterns → [PUSHTX Insights](docs/pushtx-key-insights.md)
 
 ### 📦 **Flexible Architecture** 
-- 📦 **16 Modular Options**: Load only what you need (26KB to 1184KB) → [Loading Strategy](#loading-strategy-examples)
+- 📦 **16 Modular Options**: Load only what you need (26KB to 1208KB) → [Loading Strategy](#-16-loading-options---choose-your-approach)
 - 📦 **Standalone Modules**: Independent legal, identity, and crypto modules → [Standalone Test](https://github.com/codenlighten/smartledger-bsv/blob/main/tests/standalone-modules-test.html)
 - 📦 **Complete Bundle**: Everything in one file for convenience → [Bundle Demo](https://github.com/codenlighten/smartledger-bsv/blob/main/tests/bundle-demo.html)
 - 📦 **CDN Ready**: All modules available via unpkg and jsDelivr
@@ -420,7 +420,7 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 
 ## ⚡ **Installation & Usage**
 
-> 💡 **Quick Start**: Jump to [2-Minute Quick Start](#2-minute-quick-start) for instant setup examples
+> 💡 **Quick Start**: Jump to [2-Minute Quick Start](#-2-minute-quick-start) for instant setup examples
 
 ### NPM Installation
 ```bash
@@ -431,9 +431,9 @@ npm install @smartledger/bsv
 npm install smartledger-bsv
 ```
 
-> 📖 **Next Steps**: After installation, see [Loading Options](#9-loading-options--choose-your-approach) to choose your distribution method
+> 📖 **Next Steps**: After installation, see [Loading Options](#-16-loading-options---choose-your-approach) to choose your distribution method
 
-### ⚠️ Upgrading to v5.0.0 (Breaking Changes)
+### Upgrading to v5.0.0 (Breaking Changes)
 
 v5.0.0 hardens the cryptography. Most apps need **no code changes** — the
 breaking changes only affect data produced by older versions:
