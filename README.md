@@ -71,8 +71,8 @@ const ok = SC.verifyScript(unlockScript, lockingScript, tx, inputIndex, satoshis
 ### **Quick Start - Issue Your First Verifiable Credential**
 
 ```bash
-# Install SmartLedger BSV v4.2.1
-npm install @smartledger/bsv@4.2.1
+# Install SmartLedger BSV v5.0.0
+npm install @smartledger/bsv@5.0.0
 
 # Initialize DID:web issuer (generates ES256 keys)
 npx smartledger-bsv didweb init --domain example.com --alg ES256
@@ -230,10 +230,12 @@ npm install @smartledger/bsv
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv.min.js"></script>
 ```
 
-> **🔧 v4.x:** First-class interpreter-verified covenants (4.2.0), post-Genesis
-> script limits opt-in (4.1.0), fixed GDAF credential-verification flaws (4.0.0),
-> legally-recognizable DID:web + VC-JWT toolkit, StatusList2021 revocation, and
-> privacy-preserving BSV anchoring. Complete CLI tooling included. See CHANGELOG.
+> **🔒 v5.0.0 (production hardening — has breaking changes):** Shamir secret
+> sharing now runs on a vetted GF(2⁸) engine with authenticated shares; VC-JWT
+> signatures are now JOSE-compliant (IEEE P1363); VC-JWT verification pins the
+> algorithm; ECDSA low-S preserves `recoveryParam`; ECIES MAC check is
+> constant-time. **If you are upgrading from 4.x, read [Upgrading to v5.0.0](#-upgrading-to-v500-breaking-changes) below.** Builds on the v4.x covenant,
+> DID:web + VC-JWT, StatusList2021, and BSV-anchoring toolkit. See CHANGELOG.
 
 **Basic Transaction (30 seconds):**
 ```javascript
@@ -323,7 +325,7 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 
 ## 📚 **Quick Start Examples**
 
-### 🔧 **Basic Development** (~963KB total)
+### 🔧 **Basic Development** (~1.2MB total)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv-script-helper.min.js"></script>
@@ -333,7 +335,7 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 </script>
 ```
 
-### 🔒 **Smart Contract Development** (~2.7MB total — each bundle re-embeds core BSV)
+### 🔒 **Smart Contract Development** (~3.0MB total — each bundle re-embeds core BSV)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv-covenant.min.js"></script>
@@ -345,7 +347,7 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 </script>
 ```
 
-### 🆕 **Legal & Identity Development** (~3.2MB total — each bundle re-embeds core BSV)
+### 🆕 **Legal & Identity Development** (~3.5MB total — each bundle re-embeds core BSV)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv-ltp.min.js"></script>
@@ -361,7 +363,7 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 </script>
 ```
 
-### 🆕 **Security & Cryptography** (~1.4MB total)
+### 🆕 **Security & Cryptography** (~1.6MB total)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv-security.min.js"></script>
@@ -375,7 +377,7 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 </script>
 ```
 
-### 🎯 **Everything Bundle** (937KB)
+### 🎯 **Everything Bundle** (~1.2MB)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv.bundle.js"></script>
 <script>
@@ -431,6 +433,35 @@ npm install smartledger-bsv
 
 > 📖 **Next Steps**: After installation, see [Loading Options](#9-loading-options--choose-your-approach) to choose your distribution method
 
+### ⚠️ Upgrading to v5.0.0 (Breaking Changes)
+
+v5.0.0 hardens the cryptography. Most apps need **no code changes** — the
+breaking changes only affect data produced by older versions:
+
+- **Shamir shares.** `Shamir.split()` now returns the **v2 share format**
+  (backed by a vetted GF(2⁸) engine). Shares created with ≤ 4.x still
+  reconstruct — `Shamir.combine()` and `Shamir.verifyShare()` auto-detect and
+  accept legacy shares for recovery. No flag needed.
+- **VC-JWT signatures.** Tokens are now signed and verified as JOSE-standard
+  **IEEE P1363** (`r||s`) instead of DER, so they interoperate with `jose`,
+  `jsonwebtoken`, etc. Tokens **issued by ≤ 4.6.0 are DER-encoded** and will
+  fail verification by default — pass `{ allowLegacyDER: true }` while you
+  re-issue:
+  ```javascript
+  const result = await bsv.VcJwt.verifyVcJwt(oldToken, {
+    didResolver,
+    allowLegacyDER: true // accept ≤ 4.6.0 DER-signed tokens during migration
+  });
+  ```
+- **VC-JWT algorithm pinning.** `verifyVcJwt` rejects any token whose `alg` is
+  outside `['ES256','ES256K']` (override via `opts.allowedAlgs`) and binds the
+  key's curve to the algorithm — defense against alg-substitution attacks.
+- **Browser bundles are larger.** The full bundles now ship a real `crypto`
+  polyfill so Shamir can source a CSPRNG (`bsv.min.js` ~937KB → ~1.2MB). The
+  dedicated single-feature module bundles are unaffected.
+
+Full details in the [CHANGELOG](./CHANGELOG.md#500---2026-06-13).
+
 ### Node.js Usage
 ```javascript
 const bsv = require('@smartledger/bsv');
@@ -455,7 +486,7 @@ const contractTx = covenant.createCovenantTransaction({
 
 ### Browser CDN (Choose Your Loading Strategy)
 
-#### 1. **Minimal Setup** - Core + Script Helper (~963KB)
+#### 1. **Minimal Setup** - Core + Script Helper (~1.2MB)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv-script-helper.min.js"></script>
@@ -465,7 +496,7 @@ const contractTx = covenant.createCovenantTransaction({
 </script>
 ```
 
-#### 2. **DeFi Development** - Core + Covenants + Debug (~2.7MB — each bundle re-embeds core BSV)
+#### 2. **DeFi Development** - Core + Covenants + Debug (~3.0MB — each bundle re-embeds core BSV)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv-covenant.min.js"></script>
@@ -477,7 +508,7 @@ const contractTx = covenant.createCovenantTransaction({
 </script>
 ```
 
-#### 3. **Security First** - Core + Enhanced Security (~963KB)
+#### 3. **Security First** - Core + Enhanced Security (~1.2MB)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv-security.min.js"></script>
@@ -487,7 +518,7 @@ const contractTx = covenant.createCovenantTransaction({
 </script>
 ```
 
-#### 4. **Everything Bundle** - One File Solution (937KB)
+#### 4. **Everything Bundle** - One File Solution (~1.2MB)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@5.0.0/bsv.bundle.js"></script>
 <script>
