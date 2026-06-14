@@ -158,7 +158,7 @@ if (typeof window === 'undefined' && typeof require === 'function') {
     // Soft-deprecated in v4.0.1: the symbol is preserved (no semver break)
     // but access surfaces a one-shot warning. Direct import remains:
     //   require('@smartledger/bsv/lib/smartutxo')
-    // The symbol will be removed in v5.0.0.
+    // The symbol will be removed in v6.0.0.
     var _SmartUTXO
     var _SmartUTXOWarned = false
     Object.defineProperty(bsv, 'SmartUTXO', {
