@@ -10,8 +10,9 @@ module.exports = {
     filename: 'bsv.bundle.js'
   },
   node: {
-    crypto: 'empty',
-    stream: 'empty',  
+    // crypto left to webpack's default polyfill so Shamir (secrets.js) works
+    // in the browser; bsv's own crypto stays pure-JS.
+    stream: 'empty',
     Buffer: true
   },
   mode: 'production',

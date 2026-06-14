@@ -10,7 +10,9 @@ module.exports = {
     filename: 'bsv.min.js'
   },
   node: {
-    crypto: 'empty',
+    // `crypto` is left to webpack's default polyfill (crypto-browserify) so
+    // secrets.js (Shamir) can obtain a CSPRNG in the browser. bsv's own crypto
+    // remains pure-JS. (Previously mocked 'empty', which broke Shamir.)
     stream: 'empty',
     Buffer: true
   },

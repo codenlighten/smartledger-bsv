@@ -5,6 +5,81 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] - 2026-06-13
+
+### BREAKING — Shamir Secret Sharing now uses a vetted GF(2⁸) engine
+
+`crypto.Shamir` previously used a hand-rolled finite-field implementation over a
+31-bit prime, with no authentication of shares. It is now backed by
+`secrets.js-grempe` (a vetted GF(2⁸) implementation), with two safety additions:
+a per-split nonce (`splitId`) so shares from different splits can't be silently
+mixed, and an integrity `checksum` so a tampered/mismatched share set is rejected
+at combine time instead of returning garbage.
+
+- **New share format (v2).** `split()` returns objects shaped
+  `{ v, id, threshold, shares, length, splitId, share, checksum }` instead of the
+  old `{ id, threshold, shares, length, bytes:[{x,y}] }`.
+- **Old shares remain recoverable.** `combine()` and `verifyShare()` detect and
+  accept legacy (≤ 4.x) shares for recovery; you do not need the old version to
+  reconstruct previously-split secrets.
+- Randomness is sourced from the library's own `crypto.Random` (Node CSPRNG /
+  `window.crypto`) via `secrets.setRNG`, and `secrets` is loaded lazily so simply
+  importing the library never triggers its init.
+- New coverage in `test/crypto/shamir.js` (round-trips, threshold subsets,
+  leading-zero/Buffer secrets, tamper detection, split isolation, legacy
+  recovery).
+
+Browser bundles that bundle the full library no longer mock node `crypto` as
+empty (`bsv.min.js`, `bsv.bundle.js`, `bsv-security.min.js`); webpack's default
+`crypto` polyfill is used so Shamir can obtain a CSPRNG. This increases the size
+of the full bundles (e.g. `bsv.min.js` ~951 KB → ~1.2 MB); the dedicated
+non-Shamir module bundles are unaffected.
+
+### BREAKING — VC-JWT signatures are now JOSE-compliant (IEEE P1363)
+
+Up to and including 4.6.0, `VcJwt.issueVcJwt` signed with Node's default
+ECDSA output, which is **DER-encoded**. The JOSE specs (RFC 7515/7518, and
+RFC 8812 for ES256K) require ECDSA JWS signatures to be the raw `r||s`
+concatenation (**IEEE P1363**). As a result, tokens issued by older versions
+**did not verify in any standards-compliant library** (`jose`, `jsonwebtoken`,
+etc.), and this library could not verify standard tokens from other issuers.
+This also affected `StatusList`, which issues its lists via `VcJwt`.
+
+- **`VcJwt.issueVcJwt`** now emits P1363 signatures and is verifiable by `jose`.
+- **`VcJwt.verifyVcJwt`** now decodes P1363 signatures.
+- **Migration:** tokens issued by ≤ 4.6.0 carry DER signatures and will fail
+  verification by default. Pass `{ allowLegacyDER: true }` to `verifyVcJwt` to
+  accept them while you re-issue. New tokens require no flag.
+- Round-trip interoperability with `jose` (both directions, ES256 + ES256K) is
+  now covered by `test/vcjwt/interop.js`.
+
+### Security
+
+- **VC-JWT algorithm pinning.** `verifyVcJwt` now rejects any token whose
+  `alg` is not in the allowed set (default `['ES256','ES256K']`, overridable via
+  `opts.allowedAlgs`) **before** verifying — closing the classic JWT algorithm
+  substitution hole. It also binds the resolved key's curve to the algorithm
+  (an ES256K signature can no longer be checked against a P-256 key), and
+  `issueVcJwt` refuses to sign when the key curve and `alg` disagree.
+- **`crypto/elliptic-fixed` low-S now preserves `recoveryParam`.** The previous
+  manual `s → n-s` flip did not update the recovery id, so public-key recovery
+  returned the wrong key for ~50% of signatures. Canonicalization now uses
+  elliptic's own `{ canonical: true }`, which keeps `recoveryParam` consistent.
+- **ECIES MAC check is now constant-time** (portable comparison; no early-out
+  on the first differing byte).
+
+### Fixed
+
+- **Removed the self-referential dependency.** `package.json` listed
+  `@smartledger/bsv` as one of its own `dependencies`, causing npm to install a
+  nested older copy of the package and triggering the "More than one instance of
+  bsv" guard. Removed.
+
+### Changed
+
+- Deduplicated `package.json` keywords (86 → 79).
+- `bsv.SmartUTXO` removal pushed from v5.0.0 to v6.0.0 (still soft-deprecated).
+
 ## [4.6.0] - 2026-06-09
 
 ### Fixed — covenants are now mainnet-relayable (MINIMALDATA)

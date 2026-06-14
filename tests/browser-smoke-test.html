@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@smartledger/bsv — Browser Smoke Test</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.5 -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 24px; max-width: 920px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #888; margin: 0 0 16px; }
+  #banner { padding: 14px 18px; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 16px 0; }
+  .pending { background: #eef; color: #335; }
+  .ok { background: #e6f7e6; color: #1a7f1a; }
+  .fail { background: #fdeaea; color: #c0392b; }
+  .env { background: #f5f5f7; border-radius: 8px; padding: 12px 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; white-space: pre-wrap; }
+  @media (prefers-color-scheme: dark) { .env { background: #1d1d20; } #banner.pending { background:#23233a; color:#aab; } }
+  table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  @media (prefers-color-scheme: dark) { th, td { border-bottom-color: #333; } }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #999; }
+  td.status { font-weight: 700; white-space: nowrap; }
+  td.status.PASS { color: #1a7f1a; }
+  td.status.FAIL { color: #c0392b; }
+  td.grp { color: #888; font-size: 12px; }
+  td.detail { color: #b00; font-family: ui-monospace, monospace; font-size: 12px; }
+  button { font: inherit; padding: 8px 16px; border-radius: 6px; border: 1px solid #ccc; background: #fafafa; cursor: pointer; }
+  code { background: rgba(127,127,127,.15); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+  <h1>@smartledger/bsv — Browser Smoke Test</h1>
+  <p class="sub">Verifies the browser-sensitive paths of <code>bsv.min.js</code> — above all the
+  Shamir CSPRNG path (secrets.js &larr; crypto-browserify &larr; <code>window.crypto</code>),
+  which can't be exercised headlessly. Open this file over <code>http(s)://</code> (a local
+  server) for the most faithful result; <code>file://</code> usually works too.</p>
+
+  <div id="banner" class="pending">Loading bundle&hellip;</div>
+  <div class="env" id="env"></div>
+  <p><button id="rerun">Re-run tests</button></p>
+  <table>
+    <thead><tr><th style="width:90px">Result</th><th style="width:120px">Group</th><th>Test</th><th>Detail</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <!-- The full library bundle under test. To smoke-test the standalone Shamir
+       bundle instead, change this to ../bsv-shamir.min.js and adjust SHAMIR
+       below to use the global `bsvShamir`. -->
+  <script src="../bsv.min.js"></script>
+  <script>
+  (function () {
+    'use strict'
+    var rows = document.getElementById('rows')
+    var banner = document.getElementById('banner')
+    var envEl = document.getElementById('env')
+
+    // ---- tiny sync test framework ----
+    var results = []
+    var currentGroup = ''
+    function group (name) { currentGroup = name }
+    function record (grp, name, pass, detail) {
+      results.push({ grp: grp, name: name, pass: pass, detail: detail || '' })
+    }
+    function test (name, fn) {
+      try { fn(); record(currentGroup, name, true, '') } catch (e) { record(currentGroup, name, false, e && e.message ? e.message : String(e)) }
+    }
+    function assert (cond, msg) { if (!cond) throw new Error(msg || 'assertion failed') }
+    function assertThrows (fn, re, msg) {
+      var threw = false; var m = ''
+      try { fn() } catch (e) { threw = true; m = e && e.message ? e.message : String(e) }
+      if (!threw) throw new Error(msg || 'expected an exception but none was thrown')
+      if (re && !re.test(m)) throw new Error('threw, but message did not match ' + re + ' (got: ' + m + ')')
+    }
+    function randBytes (n) { return bsv.crypto.Random.getRandomBuffer(n) }
+
+    function runAll () {
+      results = []
+      var bsvOK = (typeof bsv !== 'undefined')
+
+      // ---------------- Environment & bundle ----------------
+      group('environment')
+      test('window.crypto.getRandomValues is available', function () {
+        assert(window.crypto && typeof window.crypto.getRandomValues === 'function', 'no window.crypto.getRandomValues')
+      })
+      test('bsv global is defined', function () { assert(bsvOK, 'bsv is not defined — bundle failed to load') })
+      test('bsv.version is present', function () { assert(bsvOK && bsv.version, 'bsv.version missing') })
+
+      if (bsvOK) {
+        // ---------------- Random ----------------
+        group('Random')
+        test('getRandomBuffer(32) returns 32 bytes', function () {
+          var b = randBytes(32); assert(b && b.length === 32, 'wrong length: ' + (b && b.length))
+        })
+        test('two draws differ', function () {
+          assert(randBytes(16).toString('hex') !== randBytes(16).toString('hex'), 'two draws were identical')
+        })
+
+        // ---------------- Shamir (the critical path) ----------------
+        group('Shamir')
+        test('split returns v2 shares with splitId + checksum', function () {
+          var sh = bsv.Shamir.split('smoke-test secret', 3, 5)
+          assert(sh.length === 5, 'expected 5 shares')
+          assert(sh[0].v === 2, 'expected share format v2')
+          assert(/^[0-9a-f]{16}$/.test(sh[0].splitId), 'bad splitId')
+          assert(/^[0-9a-f]{8}$/.test(sh[0].checksum), 'bad checksum')
+        })
+        test('3-of-5 string round-trip', function () {
+          var sh = bsv.Shamir.split('Hello, Bitcoin SV!', 3, 5)
+          assert(bsv.Shamir.combine(sh.slice(0, 3)).toString('utf8') === 'Hello, Bitcoin SV!', 'mismatch')
+        })
+        test('32-byte key round-trip (uses window.crypto via Random)', function () {
+          var key = randBytes(32)
+          var sh = bsv.Shamir.split(key, 4, 7)
+          assert(bsv.Shamir.combine(sh.slice(0, 4)).equals(key), 'key mismatch')
+        })
+        test('alternate threshold subset reconstructs', function () {
+          var key = randBytes(16)
+          var sh = bsv.Shamir.split(key, 3, 5)
+          assert(bsv.Shamir.combine([sh[1], sh[3], sh[4]]).equals(key), 'subset mismatch')
+        })
+        test('preserves leading zero bytes', function () {
+          var secret = Buffer.from('000000deadbeef', 'hex')
+          var sh = bsv.Shamir.split(secret, 2, 3)
+          assert(bsv.Shamir.combine(sh.slice(0, 2)).equals(secret), 'leading zeros lost')
+        })
+        test('verifyShare accepts a fresh share', function () {
+          var sh = bsv.Shamir.split('verify', 2, 3)
+          assert(bsv.Shamir.verifyShare(sh[0]) === true, 'verifyShare returned false')
+        })
+        test('tampered share is rejected at combine', function () {
+          var sh = bsv.Shamir.split(randBytes(16), 3, 5)
+          var s = sh[1]; var last = s.share[s.share.length - 1]
+          sh[1] = Object.assign({}, s, { share: s.share.slice(0, -1) + (last === '0' ? '1' : '0') })
+          assertThrows(function () { bsv.Shamir.combine(sh.slice(0, 3)) }, /Integrity check failed|Reconstruction failed/)
+        })
+        test('shares from different splits cannot be mixed', function () {
+          var secret = randBytes(16)
+          var a = bsv.Shamir.split(secret, 2, 3)
+          var b = bsv.Shamir.split(secret, 2, 3)
+          assertThrows(function () { bsv.Shamir.combine([a[0], b[1]]) }, /different splits|splitId/)
+        })
+        test('generateTestVectors().valid === true', function () {
+          assert(bsv.Shamir.generateTestVectors().valid === true, 'test vectors invalid')
+        })
+
+        // ---------------- ECIES (constant-time MAC path) ----------------
+        group('ECIES')
+        test('encrypt/decrypt round-trip', function () {
+          var alice = bsv.PrivateKey.fromRandom()
+          var bob = bsv.PrivateKey.fromRandom()
+          var msg = 'ecies browser round-trip'
+          var enc = bsv.ECIES().privateKey(alice).publicKey(bob.publicKey).encrypt(msg)
+          var dec = bsv.ECIES().privateKey(bob).publicKey(alice.publicKey).decrypt(enc).toString()
+          assert(dec === msg, 'decrypt mismatch: ' + dec)
+        })
+        test('tampered ciphertext is rejected', function () {
+          var alice = bsv.PrivateKey.fromRandom()
+          var bob = bsv.PrivateKey.fromRandom()
+          var enc = bsv.ECIES().privateKey(alice).publicKey(bob.publicKey).encrypt('tamper me')
+          enc[enc.length - 1] = enc[enc.length - 1] ^ 0xff // flip last MAC byte
+          assertThrows(function () {
+            bsv.ECIES().privateKey(bob).publicKey(alice.publicKey).decrypt(enc)
+          }, /checksum|mac|invalid/i)
+        })
+
+        // ---------------- Sign / verify ----------------
+        group('sign/verify')
+        test('message sign + verify (true)', function () {
+          var priv = bsv.PrivateKey.fromRandom()
+          var addr = priv.toAddress()
+          var sig = bsv.Message('attack at dawn').sign(priv)
+          assert(bsv.Message('attack at dawn').verify(addr, sig) === true, 'valid signature did not verify')
+        })
+        test('verify rejects a different message', function () {
+          var priv = bsv.PrivateKey.fromRandom()
+          var addr = priv.toAddress()
+          var sig = bsv.Message('attack at dawn').sign(priv)
+          assert(bsv.Message('retreat at noon').verify(addr, sig) === false, 'wrong message verified true')
+        })
+
+        // ---------------- Core sanity ----------------
+        group('core')
+        test('PrivateKey -> Address looks valid', function () {
+          var addr = bsv.PrivateKey.fromRandom().toAddress().toString()
+          assert(typeof addr === 'string' && addr.length >= 26 && addr.length <= 35, 'bad address: ' + addr)
+        })
+        test('round-trip a private key through WIF', function () {
+          var p = bsv.PrivateKey.fromRandom()
+          var p2 = bsv.PrivateKey.fromWIF(p.toWIF())
+          assert(p.toString() === p2.toString(), 'WIF round-trip mismatch')
+        })
+      }
+
+      paint()
+    }
+
+    function paint () {
+      rows.innerHTML = ''
+      var passed = 0; var failed = 0
+      results.forEach(function (r) {
+        if (r.pass) passed++; else failed++
+        var tr = document.createElement('tr')
+        tr.innerHTML =
+          '<td class="status ' + (r.pass ? 'PASS' : 'FAIL') + '">' + (r.pass ? '✓ PASS' : '✗ FAIL') + '</td>' +
+          '<td class="grp">' + r.grp + '</td>' +
+          '<td>' + r.name + '</td>' +
+          '<td class="detail">' + (r.pass ? '' : escapeHtml(r.detail)) + '</td>'
+        rows.appendChild(tr)
+      })
+      banner.className = failed === 0 ? 'ok' : 'fail'
+      banner.textContent = failed === 0
+        ? ('ALL ' + passed + ' CHECKS PASSED — browser paths look healthy')
+        : (failed + ' of ' + (passed + failed) + ' checks FAILED (' + passed + ' passed)')
+      // Also log to console for CI/headless capture.
+      /* eslint-disable no-console */
+      console.log('[bsv smoke] ' + passed + ' passed, ' + failed + ' failed')
+      results.filter(function (r) { return !r.pass }).forEach(function (r) {
+        console.error('[bsv smoke] FAIL: ' + r.grp + ' / ' + r.name + ' — ' + r.detail)
+      })
+      window.__bsvSmoke = { passed: passed, failed: failed, results: results }
+    }
+
+    function escapeHtml (s) {
+      return String(s).replace(/[&<>]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c] })
+    }
+
+    function showEnv () {
+      var lines = [
+        'userAgent : ' + navigator.userAgent,
+        'location  : ' + location.href,
+        'window.crypto.getRandomValues : ' + (window.crypto && typeof window.crypto.getRandomValues === 'function'),
+        'bsv loaded : ' + (typeof bsv !== 'undefined'),
+        'bsv.version: ' + (typeof bsv !== 'undefined' ? bsv.version : '(bundle not loaded)'),
+        'Buffer     : ' + (typeof Buffer !== 'undefined')
+      ]
+      envEl.textContent = lines.join('\n')
+    }
+
+    document.getElementById('rerun').addEventListener('click', runAll)
+    showEnv()
+    runAll()
+  })()
+  </script>
+</body>
+</html>
