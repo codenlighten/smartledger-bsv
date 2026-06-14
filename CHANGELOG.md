@@ -5,6 +5,35 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Documentation-only fixes landed on `main` after the v5.0.0 npm publish; they
+correct the docs for the v5.0.0 release but do not change any code, so the
+published `5.0.0` package is unaffected. They will roll into the next published
+version.
+
+### Documentation
+
+- **README bundle size table** updated to the actual v5.0.0 bundle sizes (the
+  full bundles grew because they now ship a real `crypto` polyfill for the
+  vetted Shamir engine, e.g. `bsv.min.js` 937KB → 1207KB). (#13)
+- **Install instructions updated for v5.0.0** (#14):
+  - bumped a stale `@smartledger/bsv@4.2.1` install command to `@5.0.0`;
+  - replaced the v4.x highlights callout with a v5.0.0 breaking-change summary;
+  - added an **"Upgrading to v5.0.0 (Breaking Changes)"** section covering the
+    Shamir v2 share format (with legacy auto-recovery), JOSE-compliant VC-JWT
+    signatures + the `allowLegacyDER` migration flag, algorithm pinning, and the
+    larger browser bundles;
+  - corrected the bundle-size totals in the Quick Start / CDN examples.
+- **Removed an orphaned `@latest/dist/*` script block** after the "Everything
+  Bundle" example — it was malformed markdown pointing at paths that don't exist
+  in the published package (bundles ship at the package root, not under
+  `dist/`). (#15)
+- **Fixed broken in-page anchor links** (#16): the `Upgrading to v5.0.0` heading
+  emoji left a stray variation-selector byte in its GitHub slug, and six
+  pre-existing TOC/badge anchors pointed at slugs GitHub never generated; all now
+  resolve. Also bumped a stale module-size range (`1184KB` → `1208KB`).
+
 ## [5.0.0] - 2026-06-13
 
 ### BREAKING — Shamir Secret Sharing now uses a vetted GF(2⁸) engine
