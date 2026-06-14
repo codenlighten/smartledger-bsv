@@ -168,7 +168,7 @@ if (typeof window === 'undefined' && typeof require === 'function') {
         if (!_SmartUTXOWarned && !(process.env && process.env.BSV_HIDE_DEPRECATIONS)) {
           _SmartUTXOWarned = true
           console.warn('[bsv] bsv.SmartUTXO is a development-only simulator and is deprecated; ' +
-            'it will be removed in v5.0.0. Import directly: ' +
+            'it will be removed in v6.0.0. Import directly: ' +
             "require('@smartledger/bsv/lib/smartutxo'). " +
             'Set BSV_HIDE_DEPRECATIONS=1 to silence this warning.')
         }

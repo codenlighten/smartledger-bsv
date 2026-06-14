@@ -5,12 +5,18 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.0.1] - 2026-06-14
 
-Documentation-only fixes landed on `main` after the v5.0.0 npm publish; they
-correct the docs for the v5.0.0 release but do not change any code, so the
-published `5.0.0` package is unaffected. They will roll into the next published
-version.
+Patch release. Documentation corrections for the v5.0.0 release (which were
+committed to `main` after the 5.0.0 npm publish), plus one user-facing message
+fix. No API or behavioral changes; functionally identical to 5.0.0.
+
+### Fixed
+
+- **`bsv.SmartUTXO` deprecation warning gave the wrong removal version.** The
+  runtime warning said the symbol "will be removed in v5.0.0", but removal was
+  deferred to v6.0.0 in 5.0.0 (the adjacent code comment was updated then; the
+  warning string was missed). Corrected to v6.0.0. Bundles regenerated.
 
 ### Documentation
 
@@ -18,7 +24,7 @@ version.
   full bundles grew because they now ship a real `crypto` polyfill for the
   vetted Shamir engine, e.g. `bsv.min.js` 937KB → 1207KB). (#13)
 - **Install instructions updated for v5.0.0** (#14):
-  - bumped a stale `@smartledger/bsv@4.2.1` install command to `@5.0.0`;
+  - bumped a stale `@smartledger/bsv@4.2.1` install command;
   - replaced the v4.x highlights callout with a v5.0.0 breaking-change summary;
   - added an **"Upgrading to v5.0.0 (Breaking Changes)"** section covering the
     Shamir v2 share format (with legacy auto-recovery), JOSE-compliant VC-JWT
@@ -33,6 +39,7 @@ version.
   emoji left a stray variation-selector byte in its GitHub slug, and six
   pre-existing TOC/badge anchors pointed at slugs GitHub never generated; all now
   resolve. Also bumped a stale module-size range (`1184KB` → `1208KB`).
+- CDN/install references in the README and docs bumped `@5.0.0` → `@5.0.1`.
 
 ## [5.0.0] - 2026-06-13
 
