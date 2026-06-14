@@ -529,17 +529,6 @@ const contractTx = covenant.createCovenantTransaction({
   const encrypted = bsv.ECIES.encrypt('secret', publicKey);
 </script>
 ```
-<!-- Main library -->
-<script src="https://unpkg.com/@smartledger/bsv@latest/dist/bsv.bundle.js"></script>
-
-<!-- Minified version -->
-<script src="https://unpkg.com/@smartledger/bsv@latest/dist/bsv.min.js"></script>
-
-<!-- Specialized modules -->
-<script src="https://unpkg.com/@smartledger/bsv@latest/dist/bsv-ecies.min.js"></script>
-<script src="https://unpkg.com/@smartledger/bsv@latest/dist/bsv-message.min.js"></script>
-<script src="https://unpkg.com/@smartledger/bsv@latest/dist/bsv-mnemonic.min.js"></script>
-```
 
 ## 🔨 Basic Usage
 
