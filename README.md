@@ -181,40 +181,40 @@ console.log('Status:', status) // 'revoked'
 ### **Core Modules**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv.min.js** | 937KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@5.0.0/bsv.min.js` |
-| **bsv.bundle.js** | 937KB | Everything in one file | `unpkg.com/@smartledger/bsv@5.0.0/bsv.bundle.js` |
+| **bsv.min.js** | 1207KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@5.0.0/bsv.min.js` |
+| **bsv.bundle.js** | 1207KB | Everything in one file | `unpkg.com/@smartledger/bsv@5.0.0/bsv.bundle.js` |
 
 ### **W3C Verifiable Credentials**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
 | **🟢 bsv-didweb.min.js** | 419KB | **DID:web generation** | `unpkg.com/@smartledger/bsv@5.0.0/bsv-didweb.min.js` |
-| **🟢 bsv-vcjwt.min.js** | 419KB | **VC-JWT issue/verify** | `unpkg.com/@smartledger/bsv@5.0.0/bsv-vcjwt.min.js` |
+| **🟢 bsv-vcjwt.min.js** | 420KB | **VC-JWT issue/verify** | `unpkg.com/@smartledger/bsv@5.0.0/bsv-vcjwt.min.js` |
 | **🟢 bsv-statuslist.min.js** | 487KB | **StatusList2021 revocation** | `unpkg.com/@smartledger/bsv@5.0.0/bsv-statuslist.min.js` |
 | **🟢 bsv-anchor.min.js** | 418KB | **BSV anchoring (hash-only)** | `unpkg.com/@smartledger/bsv@5.0.0/bsv-anchor.min.js` |
 
 ### **Smart Contract & Development**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-smartcontract.min.js** | 937KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@5.0.0/bsv-smartcontract.min.js` |
-| **bsv-covenant.min.js** | 913KB | Covenant operations | `unpkg.com/@smartledger/bsv@5.0.0/bsv-covenant.min.js` |
+| **bsv-smartcontract.min.js** | 961KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@5.0.0/bsv-smartcontract.min.js` |
+| **bsv-covenant.min.js** | 937KB | Covenant operations | `unpkg.com/@smartledger/bsv@5.0.0/bsv-covenant.min.js` |
 | **bsv-script-helper.min.js** | 26KB | Custom script tools | `unpkg.com/@smartledger/bsv@5.0.0/bsv-script-helper.min.js` |
 | **bsv-security.min.js** | 26KB | Security enhancements | `unpkg.com/@smartledger/bsv@5.0.0/bsv-security.min.js` |
 
 ### **Legal & Compliance**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-ltp.min.js** | 1184KB | Legal Token Protocol | `unpkg.com/@smartledger/bsv@5.0.0/bsv-ltp.min.js` |
-| **bsv-gdaf.min.js** | 1184KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@5.0.0/bsv-gdaf.min.js` |
+| **bsv-ltp.min.js** | 1208KB | Legal Token Protocol | `unpkg.com/@smartledger/bsv@5.0.0/bsv-ltp.min.js` |
+| **bsv-gdaf.min.js** | 1208KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@5.0.0/bsv-gdaf.min.js` |
 
 ### **Advanced Cryptography**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-shamir.min.js** | 432KB | Threshold Cryptography | `unpkg.com/@smartledger/bsv@5.0.0/bsv-shamir.min.js` |
+| **bsv-shamir.min.js** | 442KB | Threshold Cryptography | `unpkg.com/@smartledger/bsv@5.0.0/bsv-shamir.min.js` |
 
 ### **Utilities**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-ecies.min.js** | 71KB | Encryption | `unpkg.com/@smartledger/bsv@5.0.0/bsv-ecies.min.js` |
+| **bsv-ecies.min.js** | 72KB | Encryption | `unpkg.com/@smartledger/bsv@5.0.0/bsv-ecies.min.js` |
 | **bsv-message.min.js** | 26KB | Message signing | `unpkg.com/@smartledger/bsv@5.0.0/bsv-message.min.js` |
 | **bsv-mnemonic.min.js** | 681KB | HD wallets | `unpkg.com/@smartledger/bsv@5.0.0/bsv-mnemonic.min.js` |
 
