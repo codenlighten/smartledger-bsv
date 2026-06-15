@@ -22,10 +22,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     vectors all pass unchanged), so signatures, keys and addresses are
     byte-identical to prior versions. Scalar multiplication uses @noble's
     *constant-time* `multiply` (important for the secret signing nonce).
-  - `elliptic` is still a dependency: `lib/crypto/elliptic-fixed.js` (the
-    optional `bsv.EllipticFixed` / `bsv.SmartVerify` modules) still uses it.
-    Migrating that file is the remaining step before `elliptic` can be dropped
-    and the bundles shrink.
+- **`lib/crypto/elliptic-fixed.js` (`bsv.EllipticFixed`) migrated to
+  `@noble/curves`.** Its hardened sign/verify/recover surface
+  (`keyFromPrivate`, `sign` → `{r, s, recoveryParam}`, `verify`,
+  `recoverPubKey`, `curve.n`) is unchanged and still produces low-S canonical
+  signatures with a consistent `recoveryParam`. `bsv.SmartVerify` already ran on
+  `@noble` (via `Point`/`ECDSA`).
+- **`elliptic` removed as a dependency.** With both `point.js` and
+  `elliptic-fixed.js` on `@noble`, no source code imports `elliptic` anymore and
+  it has been removed from `package.json`. **All of bsv's secp256k1
+  cryptography now runs on the audited `@noble` suite.** `bn.js` remains (it is
+  the codebase's general-purpose bignum, used well beyond crypto).
+
+### Removed
+
+- **`bsv.deps.elliptic`** is no longer exposed (the `elliptic` passthrough on the
+  internal `deps` object). The documented public API (`bsv.PrivateKey`,
+  `bsv.Transaction`, `bsv.crypto.*`, …) is unaffected; only code reaching into
+  `bsv.deps.elliptic` directly is impacted.
+
+### Notes
+
+- The standalone module bundles that don't embed the browser `crypto` polyfill
+  shrink (e.g. `bsv-smartcontract.min.js` / `bsv-covenant.min.js` ~939KB →
+  ~873KB). The full bundles are unchanged for now: they still pull `elliptic`
+  transitively through `crypto-browserify` (the browser CSPRNG polyfill, a
+  devDependency) for `createSign`/`createECDH` — APIs bsv never calls. Trimming
+  that from the browser build (so the full bundles shrink too) is a follow-up.
 
 ## [5.2.0] - 2026-06-15
 
