@@ -2,14 +2,14 @@ const path = require('path')
 const { bundlePolyfills } = require('./webpack.base')
 
 module.exports = bundlePolyfills({
-  entry: path.join(__dirname, '../ltp-entry.js'),
+  entry: path.join(__dirname, '../shamir-entry.js'),
   mode: 'production',
   output: {
     path: path.resolve(__dirname, '../'),
-    filename: 'bsv-ltp.min.js',
-    library: 'bsvLTP',
-    libraryTarget: 'umd',
-    globalObject: 'this'
+    filename: 'bsv-shamir.min.js',
+    library: 'bsvShamir',
+    libraryTarget: 'var'
   },
+  externals: { '../../': 'bsv' },
   target: 'web'
 })

@@ -1,24 +1,15 @@
-const path = require('path');
+const path = require('path')
+const { bundlePolyfills } = require('./webpack.base')
 
-module.exports = {
+// security-entry embeds bsv (no externals) and needs the crypto polyfill so
+// Shamir/secrets.js gets a CSPRNG in the browser -> full polyfills.
+module.exports = bundlePolyfills({
   mode: 'production',
-  entry: '../security-entry.js',
+  entry: path.join(__dirname, '../security-entry.js'),
   output: {
     path: path.resolve(__dirname, '../'),
     filename: 'bsv-security.min.js',
     library: 'bsvSecurity',
     libraryTarget: 'var'
-  },
-  node: {
-    // crypto left to webpack's default polyfill so Shamir (secrets.js) works
-    // in the browser; bsv's own crypto stays pure-JS.
-    fs: 'empty',
-    path: 'empty',
-    stream: 'empty',
-    assert: 'empty',
-    http: 'empty',
-    https: 'empty',
-    os: 'empty',
-    url: 'empty'
   }
-};
+})
