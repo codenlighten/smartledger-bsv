@@ -5,6 +5,28 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **EC point math migrated from `elliptic` to the audited `@noble/curves`.**
+  `lib/crypto/point.js` — the single seam all secp256k1 point operations flow
+  through — is now backed by `@noble/curves`, so the entire signing/keys stack
+  (`ECDSA` sign/verify/recovery, public-key derivation, HD keys, message
+  signing) runs on audited, constant-time curve code. The `Point` API
+  (`mul`/`add`/`mulAdd`/`getX`/`getY`/`.x`/`.y`/`eq`/`isInfinity`/`validate` and
+  the `getG`/`getN`/`fromX`/`fromBuffer` statics) is unchanged, so `ecdsa.js`
+  and all consumers are untouched.
+  - **No API or behavioral change.** Verified by the full existing test suite
+    (4241 tests — ECDSA known-answer vectors, address/HD-key/transaction/message
+    vectors all pass unchanged), so signatures, keys and addresses are
+    byte-identical to prior versions. Scalar multiplication uses @noble's
+    *constant-time* `multiply` (important for the secret signing nonce).
+  - `elliptic` is still a dependency: `lib/crypto/elliptic-fixed.js` (the
+    optional `bsv.EllipticFixed` / `bsv.SmartVerify` modules) still uses it.
+    Migrating that file is the remaining step before `elliptic` can be dropped
+    and the bundles shrink.
+
 ## [5.2.0] - 2026-06-15
 
 First migration of bsv's cryptography to the audited `@noble` suite (ECIES).
