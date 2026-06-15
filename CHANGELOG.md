@@ -5,6 +5,41 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] - 2026-06-15
+
+Build-tooling modernization. **No source or API changes** — the published
+JavaScript API and all bundle formats/globals are identical to 5.0.1. This is a
+foundational release that unblocks migrating bsv's cryptography to the audited,
+BigInt-based `@noble` suite (webpack 4 cannot parse BigInt; webpack 5 can).
+
+### Changed
+
+- **Bundler migrated from webpack 4 to webpack 5** (`webpack` 4.29 → 5.107,
+  `webpack-cli` 5). All 13 build configs were ported to a shared
+  `build/webpack.base.js`:
+  - webpack 5 dropped automatic Node-core polyfills; they are now declared
+    explicitly via `resolve.fallback` + `ProvidePlugin` (real
+    `crypto-browserify`/`stream`/`buffer` for bundles that embed bsv's crypto so
+    Shamir/secrets.js still gets a browser CSPRNG; empty stubs for extern-bsv
+    bundles). `Buffer`/`process` globals are preserved everywhere.
+  - `ecies`/`message`/`mnemonic`/`shamir` now build from dedicated config files
+    (webpack-cli 5 dropped the `-o`/`--output-library` flags the old shared
+    `webpack.subproject.config.js` relied on).
+  - TerserPlugin is pinned with `extractComments:false` so no `*.LICENSE.txt`
+    sidecars are emitted; the published file list is unchanged.
+  - Build scripts no longer need `NODE_OPTIONS=--openssl-legacy-provider`.
+- **Browser bundle sizes shifted slightly** from the webpack 5 runtime + the
+  now-explicit `process`/`buffer` shims (e.g. `bsv.min.js` 1207KB → 1266KB).
+  README size table refreshed accordingly. The dependency tree is leaner
+  (`package-lock.json` shrank substantially).
+
+### Notes
+
+- Polyfill packages that were transitive under webpack 4 (`crypto-browserify`,
+  `stream-browserify`, `buffer`, `process`, `assert`, `util`, `path-browserify`,
+  `browserify-zlib`, `vm-browserify`) are now explicit devDependencies, as
+  webpack 5 requires.
+
 ## [5.0.1] - 2026-06-14
 
 Patch release. Documentation corrections for the v5.0.0 release (which were
