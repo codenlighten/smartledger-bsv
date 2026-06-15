@@ -191,6 +191,9 @@
     "request": "browser-request"
   },
   "dependencies": {
+    "@noble/ciphers": "2.2.0",
+    "@noble/curves": "2.2.0",
+    "@noble/hashes": "2.2.0",
     "aes-js": "^3.1.2",
     "bn.js": "=4.11.9",
     "bs58": "=4.0.1",

@@ -5,6 +5,27 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **ECIES crypto primitives migrated to the audited `@noble` suite.** Both ECIES
+  variants — the default Electrum BIE1 (`bsv.ECIES`) and the legacy Bitcore
+  ECIES (`bsv.ECIES.bitcoreECIES`) — now use `@noble/curves` (secp256k1 ECDH),
+  `@noble/hashes` (SHA-512/SHA-256/HMAC) and `@noble/ciphers` (AES-CBC) instead
+  of `elliptic` + `aes-js` for their cryptographic operations. The `@noble`
+  libraries are audited, constant-time and dependency-free.
+  - **No API or wire-format change.** Ciphertexts are byte-identical to prior
+    versions and interoperate in both directions — locked by the existing golden
+    known-answer vectors in `test/ecies/{bitcore,electrum}-ecies.js`, which now
+    run against the `@noble` implementation.
+  - This is the first piece of bsv's crypto to move to `@noble`; `elliptic`/
+    `bn.js` remain for signing/keys (a future migration). Enabled by the
+    webpack 5 build (5.1.0), which — unlike webpack 4 — can bundle `@noble`'s
+    BigInt-based code.
+  - `@noble/curves`, `@noble/hashes`, `@noble/ciphers` added as (pinned)
+    dependencies. `bsv-ecies.min.js` grows ~76KB → ~79KB.
+
 ## [5.1.0] - 2026-06-15
 
 Build-tooling modernization. **No source or API changes** — the published
