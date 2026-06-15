@@ -5,6 +5,21 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **`elliptic` removed from the browser bundles (~120–140KB smaller each).**
+  The bundles still pulled `elliptic` transitively through `crypto-browserify`'s
+  `browserify-sign` + `create-ecdh` (for `crypto.createSign`/`createECDH` — APIs
+  bsv never calls; its EC crypto is `@noble`). Those are now stubbed out in the
+  webpack config, so no `elliptic` code ships in any bundle. e.g. `bsv.min.js`
+  1271KB → 1149KB, `bsv-didweb`/`bsv-vcjwt`/`bsv-anchor` ~−138KB; published
+  tarball 12.2MB → 10.9MB. `randomBytes`/`createHash`/`createHmac` (the Shamir
+  CSPRNG and hashing) are unaffected. Verified by the headless-Chrome browser
+  smoke test (this was only safe once the secrets.js AMD/crypto fix in 5.3.1 made
+  the polyfill chain robust).
+
 ## [5.3.1] - 2026-06-15
 
 Patch release. Fixes browser-side Shamir secret sharing, which was broken in the
