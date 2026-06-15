@@ -2,23 +2,26 @@
 
 **🚀 Complete Bitcoin SV Development Framework with W3C Verifiable Credentials, DID:web, Legal Compliance, and 16 Flexible Loading Options**
 
-[![Version](https://img.shields.io/badge/version-4.2.1-blue.svg)](https://www.npmjs.com/package/@smartledger/bsv)
+[![Version](https://img.shields.io/badge/version-5.3.1-blue.svg)](https://www.npmjs.com/package/@smartledger/bsv)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![BSV](https://img.shields.io/badge/BSV-Compatible-orange.svg)](https://bitcoinsv.com/)
 [![Modular](https://img.shields.io/badge/Loading-Modular-purple.svg)](#-16-loading-options---choose-your-approach)
 [![W3C](https://img.shields.io/badge/W3C-Compliant-blueviolet.svg)](#-legally-recognizable-credentials-v34x)
 
-The most comprehensive and flexible Bitcoin SV library available. **In v4.x**:
-first-class interpreter-verified covenants (OP_PUSH_TX, PELS, ownership tokens),
-post-Genesis script limits via a one-call opt-in, fixed credential-verification
-flaws in GDAF/VC-JWT, legally-recognizable DID:web + VC-JWT toolkit, and 16
-distribution methods. **v4.x is the only supported line — upgrade from 3.4.x.**
+The most comprehensive and flexible Bitcoin SV library available. **In v5.x**:
+all secp256k1 cryptography runs on the audited, constant-time
+[`@noble`](https://github.com/paulmillr/noble-curves) suite (ECDSA, ECIES, key
+derivation) with `elliptic` removed; Shamir secret sharing on a vetted GF(2⁸)
+engine; JOSE-compliant VC-JWT — on top of the v4.x interpreter-verified covenant
+stack (OP_PUSH_TX, PELS, ownership tokens), legally-recognizable DID:web + VC-JWT
+toolkit, and 16 distribution methods. **v5.x is the only supported line — see
+[Upgrading to v5.0.0](#upgrading-to-v500-breaking-changes) when moving from 4.x.**
 
-> **v4.2.0 (latest)**: first-class interpreter-verified covenants — `SmartContract.PushTx`,
-> `PELS`, `Token`, `Locks`, all evaluated end-to-end through `Script.Interpreter`
-> with positive **and** negative test coverage. See [CHANGELOG](./CHANGELOG.md#420---2026-06-07).
+> **v5.3.1 (latest)**: all secp256k1 crypto on the audited `@noble` suite,
+> `elliptic` dropped; browser Shamir fixed and guarded by a headless-Chrome CI
+> check. See [CHANGELOG](./CHANGELOG.md).
 
-## 🆕 **v4.2.0 — Interpreter-Verified Covenants**
+## **Interpreter-Verified Covenants**
 
 The full covenant stack now lives at `bsv.SmartContract`, builds on the
 post-Genesis script limits added in 4.1.0, and verifies end-to-end through
