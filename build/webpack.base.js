@@ -86,6 +86,16 @@ function bundlePolyfills (config) {
   config.module.rules = (config.module.rules || []).concat([
     { test: /secrets\.js-grempe/, parser: { amd: false } }
   ])
+  // crypto-browserify drags in the whole `elliptic` library via browserify-sign
+  // + create-ecdh (for crypto.createSign/createVerify/createECDH) — APIs bsv
+  // never calls (its EC crypto is @noble). Stub them so `elliptic` is not bundled
+  // (~140KB/bundle). randomBytes/createHash/createHmac (the Shamir CSPRNG and
+  // hashing) are unaffected.
+  config.resolve = config.resolve || {}
+  config.resolve.alias = Object.assign(
+    { 'browserify-sign': false, 'create-ecdh': false },
+    config.resolve.alias
+  )
   return merge(config, FULL_FALLBACK, [
     new webpack.ProvidePlugin({ Buffer: ['buffer', 'Buffer'], process: 'process/browser' })
   ])
