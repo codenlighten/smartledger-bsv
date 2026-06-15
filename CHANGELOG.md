@@ -5,7 +5,10 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.2.0] - 2026-06-15
+
+First migration of bsv's cryptography to the audited `@noble` suite (ECIES).
+No API or wire-format change.
 
 ### Changed
 
