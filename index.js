@@ -20,12 +20,10 @@ if (typeof window === 'undefined') {
   // Node — hard require; failure means broken install.
   bsv.deps.bnjs = require('bn.js')
   bsv.deps.bs58 = require('bs58')
-  bsv.deps.elliptic = require('elliptic')
 } else {
   // Browser — bundler-resolved; tolerate absence individually.
   try { bsv.deps.bnjs = require('bn.js') } catch (e) { /* polyfilled by bundler */ }
   try { bsv.deps.bs58 = require('bs58') } catch (e) { /* polyfilled by bundler */ }
-  try { bsv.deps.elliptic = require('elliptic') } catch (e) { /* polyfilled by bundler */ }
 }
 
 // module information
