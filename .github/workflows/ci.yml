@@ -272,6 +272,14 @@ jobs:
             process.exit(failed ? 1 : 0)
           "
 
+      - name: Browser smoke test (headless Chrome)
+        # Runs tests/browser-smoke-test.html in real headless Chrome. Catches
+        # browser-only regressions the Node suite cannot — notably the Shamir
+        # CSPRNG path (secrets.js ← crypto-browserify ← window.crypto), which
+        # broke silently in the webpack 4→5 migration. ubuntu-latest ships
+        # google-chrome.
+        run: npm run test:browser:ci
+
   tests:
     # Advisory: mocha and lint run on every push but don't gate merges
     # until the 25 pre-existing test failures and standard@12 lint

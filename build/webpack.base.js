@@ -76,6 +76,16 @@ function merge (config, fallback, plugins) {
 
 // For bundles that include bsv's crypto (need real Node-core shims).
 function bundlePolyfills (config) {
+  // secrets.js-grempe (Shamir) is a UMD whose AMD branch calls its factory
+  // WITHOUT the crypto argument. webpack provides `define.amd`, so it takes that
+  // branch and secrets.js receives `crypto === undefined` — its CSPRNG init then
+  // throws ("Initialization failed") and Shamir is broken in the browser.
+  // Disabling AMD for it forces the CommonJS branch — factory(require('crypto'))
+  // — so it gets crypto-browserify and initialises correctly.
+  config.module = config.module || {}
+  config.module.rules = (config.module.rules || []).concat([
+    { test: /secrets\.js-grempe/, parser: { amd: false } }
+  ])
   return merge(config, FULL_FALLBACK, [
     new webpack.ProvidePlugin({ Buffer: ['buffer', 'Buffer'], process: 'process/browser' })
   ])

@@ -64,7 +64,8 @@
     "test:browser": "echo 'Open tests/standalone-modules-test.html in browser for comprehensive testing'",
     "test:bundle": "echo 'Open tests/bundle-completeness-test.html in browser to verify bundle completeness'",
     "preimage:extract": "node examples/preimage/extract_preimage_bidirectional.js",
-    "prepublishOnly": "NODE_OPTIONS=\"--openssl-legacy-provider\" npm run build-all"
+    "prepublishOnly": "NODE_OPTIONS=\"--openssl-legacy-provider\" npm run build-all",
+    "test:browser:ci": "node test/browser-smoke-runner.js"
   },
   "unpkg": "bsv.min.js",
   "jsdelivr": "bsv.min.js",

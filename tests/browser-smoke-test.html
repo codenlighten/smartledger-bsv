@@ -119,7 +119,9 @@
           assert(bsv.Shamir.combine([sh[1], sh[3], sh[4]]).equals(key), 'subset mismatch')
         })
         test('preserves leading zero bytes', function () {
-          var secret = Buffer.from('000000deadbeef', 'hex')
+          // Browser has no global Buffer; use the one the bundle exposes.
+          var B = bsv.deps.Buffer
+          var secret = B.from('000000deadbeef', 'hex')
           var sh = bsv.Shamir.split(secret, 2, 3)
           assert(bsv.Shamir.combine(sh.slice(0, 2)).equals(secret), 'leading zeros lost')
         })
