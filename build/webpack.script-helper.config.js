@@ -1,8 +1,9 @@
-const path = require('path');
+const path = require('path')
+const { externStubs } = require('./webpack.base')
 
-module.exports = {
+module.exports = externStubs({
   mode: 'production',
-  entry: '../script-helper-entry.js',
+  entry: path.join(__dirname, '../script-helper-entry.js'),
   output: {
     path: path.resolve(__dirname, '../'),
     filename: 'bsv-script-helper.min.js',
@@ -12,16 +13,5 @@ module.exports = {
   externals: {
     // Don't bundle BSV - it should be loaded separately
     '../index.js': 'bsv'
-  },
-  node: {
-    fs: 'empty',
-    path: 'empty',
-    crypto: 'empty',
-    stream: 'empty',
-    assert: 'empty',
-    http: 'empty',
-    https: 'empty',
-    os: 'empty',
-    url: 'empty'
   }
-};
+})

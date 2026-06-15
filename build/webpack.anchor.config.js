@@ -1,11 +1,9 @@
 const path = require('path')
+const { bundlePolyfills } = require('./webpack.base')
 
-module.exports = {
-  entry: './anchor-entry.js',
+module.exports = bundlePolyfills({
+  entry: path.join(__dirname, '../anchor-entry.js'),
   mode: 'production',
-  optimization: {
-    minimize: true
-  },
   output: {
     path: path.resolve(__dirname, '../'),
     filename: 'bsv-anchor.min.js',
@@ -14,4 +12,4 @@ module.exports = {
     globalObject: 'this'
   },
   target: 'web'
-}
+})
