@@ -5,6 +5,30 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Shamir secret sharing was broken in the browser bundles** (regressed in the
+  webpack 4→5 migration, 5.1.0). `secrets.js-grempe` is a UMD whose AMD branch
+  calls its factory **without** the `crypto` argument; webpack 5 provides
+  `define.amd`, so the bundle took that branch and `secrets.js` received
+  `crypto === undefined` — its CSPRNG init threw "Initialization failed" and
+  every `bsv.Shamir.split`/`combine` failed in browsers (Node was unaffected).
+  Fixed by disabling AMD parsing for `secrets.js-grempe` in the webpack config,
+  forcing the CommonJS branch (`factory(require('crypto'))`). All bundles
+  regenerated.
+- **`tests/browser-smoke-test.html`** "preserves leading zero bytes" check used
+  a bare `Buffer` global (absent in browsers); now uses `bsv.deps.Buffer`.
+
+### Added
+
+- **CI gate: headless-Chrome browser smoke test.** `npm run test:browser:ci`
+  runs `tests/browser-smoke-test.html` in real headless Chrome and now runs in
+  the Build job. This is the regression gate for browser-only paths (like the
+  Shamir CSPRNG) that the Node suite cannot exercise — and which let this
+  regression ship undetected across 5.1.0–5.3.0.
+
 ## [5.3.0] - 2026-06-15
 
 Completes the migration of **all** of bsv's secp256k1 cryptography to the
