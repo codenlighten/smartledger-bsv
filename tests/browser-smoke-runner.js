@@ -11,7 +11,7 @@
 var execFileSync = require('child_process').execFileSync
 var path = require('path')
 
-var html = 'file://' + path.join(__dirname, '..', 'tests', 'browser-smoke-test.html')
+var html = 'file://' + path.join(__dirname, 'browser-smoke-test.html')
 var candidates = ['google-chrome-stable', 'google-chrome', 'chromium-browser', 'chromium']
 
 var bin = null
