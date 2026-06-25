@@ -5,6 +5,33 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.2] - 2026-06-25
+
+Patch release. Dependency security maintenance — no API or behavior changes.
+
+### Security
+
+- **`bn.js` `4.11.9` → `4.12.3`** — picks up the backported 4.x patch for
+  GHSA-378v-28hj-76wf (infinite loop via hardened hex parsing). This is the
+  only runtime-dependency change; the public `BN` API is unchanged. After the
+  bump, `npm audit --omit=dev` reports **0 vulnerabilities** in the runtime
+  tree.
+
+### Changed
+
+- **`mocha` `^8.4.0` → `^11.7.6`** and **`nyc` `^14.1.1` → `^18.0.0`**
+  (dev-only). Clears the high-severity dev advisories with real upstream fixes
+  (cross-spawn / spawn-wrap ReDoS, the old `serialize-javascript` RCE, `nanoid`,
+  `uuid`). Full suite still **4256 passing**; `nyc` coverage verified.
+
+### Notes
+
+- The remaining `npm audit` findings are all development-only and never reach
+  installers (the published tarball ships no `node_modules`; none are listed
+  under `dependencies`). They are either upstream-blocked (`mocha`/`nyc` are at
+  their latest releases but still range-pin affected transitives) or await the
+  deferred `standard@17` lint migration. See `SECURITY.md` for the full scope.
+
 ## [5.4.1] - 2026-06-25
 
 Patch release. Repairs Legal Token Protocol (LTP) right-token creation,
