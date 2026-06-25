@@ -54,7 +54,8 @@ const ok = SC.verifyScript(unlockScript, lockingScript, tx, inputIndex, satoshis
 |---|---|
 | `PushTx` | nChain WP1605 OP_PUSH_TX — `authenticator()`, `valueCovenant()`, `hashOutputs()`, `extractHashOutputs()`, `grind()` |
 | `PELS` | Perpetually Enforcing Locking Scripts — `perpetualCovenant(fee)` |
-| `Token` | Stateful ownership token (NFT) — `ownershipToken(fee, ownerPubKeyHash)`, `ownerId(key)`, `unlockTransfer(...)` (ECDSA-authorized transfer) |
+| `Token` | Stateful ownership token (NFT) — `ownershipToken(fee, owner[, auth])`, `ownershipTokenMulti(owner[, auth])`, `ownerId(key)`, `unlockTransfer(...)`, `unlockTransferMulti(...)` |
+| `Authorizers` | Pluggable token ownership — `singleKey()`, `multisig(m, n)`, `predicate({...})` |
 | `Locks` | Hash-lock, P2PKH, CLTV time-lock, m-of-n multisig, HTLC |
 | `CovenantHelpers` | Consensus-flag `verify()` harness, raw BIP-143 preimage, signing, fund/spend scaffolding |
 
@@ -738,6 +739,21 @@ const ownerHash = SC.Token.ownerId(currentOwnerKey) // = HASH160(pubkey)
 const token = SC.ownershipToken(500, ownerHash)
 // To spend it forward to `nextOwnerHash`, the current owner signs:
 //   tokenInput.setScript(SC.Token.unlockTransfer(currentOwnerKey, nextOwnerHash, spendTx, sats, token))
+
+// Pluggable ownership — the SAME covenant, owned by an m-of-n group. Ownership is
+// committed as a 20-byte hash either way, so the transfer plumbing is identical.
+const ms = SC.Authorizers.multisig(2, 3)
+const groupToken = SC.Token.ownershipToken(500, ms.commit([pkA, pkB, pkC]), ms)
+// transfer requires any 2 of the 3 keys:
+//   SC.Token.unlockTransfer({ keys: [pkA, pkB, pkC], signWith: [skA, skC] },
+//                           nextOwnerHash, spendTx, sats, groupToken, { auth: ms })
+// Custom schemes: SC.Authorizers.predicate({ commit, emit, unlockArgs }).
+
+// N-output: recreate the token alongside other outputs (payments, change, data).
+// The spender reveals the surrounding output bytes; the covenant binds them all.
+const multi = SC.Token.ownershipTokenMulti(ownerHash)
+//   SC.Token.unlockTransferMulti(currentOwnerKey, nextOwnerHash, spendTx, sats, multi,
+//     { before: serializedOutputsBeforeToken, after: serializedOutputsAfterToken, tokenValue: le8(value) })
 ```
 
 ### End-to-end verification
