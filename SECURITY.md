@@ -52,13 +52,22 @@ to remain anonymous.
 - Bugs in BIP-143 preimage handling, covenant construction, or LTP/GDAF
   signing paths.
 - Supply-chain concerns about pinned runtime dependencies
-  (`elliptic@6.6.1`, `bn.js@4.11.9`, `bs58@4.0.1`, etc.).
+  (`bn.js@4.12.3`, `bs58@4.0.1`, `@noble/*`, etc.). The runtime dependency
+  tree carries **no known advisories** (`npm audit --omit=dev` is clean);
+  `elliptic` was dropped from the runtime/bundle path in 5.4.0.
 
 ## Out of Scope
 
 - Vulnerabilities in development-only dependencies (`webpack 4`, `standard 12`,
-  `mocha 8`, etc.). These are tracked separately and addressed in the planned
-  3.5.0 toolchain upgrade.
+  `mocha`, `nyc`, `crypto-browserify`, etc.). These never reach installers — the
+  published tarball ships no `node_modules` and none are listed under
+  `dependencies`. The remaining `npm audit` findings (currently 17, all
+  dev-only) are either upstream-blocked — `mocha`/`nyc` are already at their
+  latest releases but still range-pin affected transitives (`diff`,
+  `serialize-javascript`, nested `js-yaml`) — or require the deferred
+  `standard@17` lint migration (`eslint`/`inquirer`/`tmp` chain) and the
+  `crypto-browserify` browser-build chain. They are accepted dev-only risk and
+  tracked separately.
 - Issues that require a malicious local environment (compromised Node, browser
   extension, or filesystem) to exploit.
 - Denial-of-service from intentionally malformed inputs that do **not** cross
