@@ -5,6 +5,26 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.5.1] - 2026-06-25
+
+Patch release. Credibility/transparency cleanup — no API or behavior changes.
+
+### Changed
+
+- **Tests now ship in the published tarball.** `test/` and `.mocharc.json` are
+  added to `package.json` `files`, so a consumer can independently run the suite
+  (`npm test`, with mocha/chai installed) instead of taking "4267 passing" on
+  faith.
+- **`SmartContract.version` tracks the package version** (read from
+  `package.json`) instead of a hardcoded `'v1.0.0'` that had drifted from the
+  5.x package.
+- **Dropped the `PRODUCTION_READY` feature flag** — it asserted a claim rather
+  than describing a capability.
+- **Softened an unverifiable comment** in `covenant_helpers.js` ("covenants
+  verified here have been deployed and spent on BSV mainnet") to an accurate
+  statement: the local verify flags mirror mainnet relay/consensus policy, so a
+  covenant that passes is expected to be accepted on broadcast.
+
 ## [5.5.0] - 2026-06-25
 
 Minor release. Closes a front-running theft flaw in the ownership-token covenant
