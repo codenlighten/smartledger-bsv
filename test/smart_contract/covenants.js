@@ -169,40 +169,79 @@ describe('SmartContract covenants (v4.2.0)', function () {
 
   describe('Token (stateful NFT)', function () {
     var FEE = 500
-    var aliceSecret = Buffer.from('alice-secret-32-bytes-padding!!!')
-    var bobSecret = Buffer.from('bob---secret-32-bytes-padding!!!')
-    var carolSecret = Buffer.from('carol-secret-32-bytes-padding!!!')
 
-    function transfer (currentLock, inSats, ownerSecret, nextHash, outputOverride) {
+    // Owners are keys, not secrets: ownerId = HASH160(pubkey); transfers are ECDSA-signed.
+    function transfer (currentLock, inSats, ownerKey, nextHash, outputOverride) {
       var nextLock = Token.ownershipToken(FEE, nextHash)
       var out = outputOverride || new Transaction.Output({ script: nextLock, satoshis: inSats - FEE })
       var spend = spendOf(currentLock, inSats, [out])
-      var g = PushTx.grind(spend, 0, currentLock, inSats)
-      spend.inputs[0].setScript(Token.unlockTransfer(ownerSecret, nextHash, g.preimage))
+      spend.inputs[0].setScript(Token.unlockTransfer(ownerKey, nextHash, spend, inSats, currentLock))
       return { spend: spend, nextLock: nextLock }
     }
 
     it('transfers ownership across a chain and rejects a non-owner', function () {
-      var aliceToken = Token.ownershipToken(FEE, Token.ownerId(aliceSecret))
-      var bobHash = Token.ownerId(bobSecret)
-      var carolHash = Token.ownerId(carolSecret)
+      var aliceToken = Token.ownershipToken(FEE, Token.ownerId(alice))
+      var bobHash = Token.ownerId(bob)
+      var carolHash = Token.ownerId(carol)
 
-      var r = transfer(aliceToken, SATS, aliceSecret, bobHash)
+      var r = transfer(aliceToken, SATS, alice, bobHash)
       verify(r.spend.inputs[0].script, aliceToken, { tx: r.spend, satoshis: SATS }).ok.should.equal(true)
 
       var inSats = SATS - FEE
-      var r2 = transfer(r.nextLock, inSats, bobSecret, carolHash)
+      var r2 = transfer(r.nextLock, inSats, bob, carolHash)
       verify(r2.spend.inputs[0].script, r.nextLock, { tx: r2.spend, satoshis: inSats }).ok.should.equal(true)
 
-      var bad = transfer(aliceToken, SATS, carolSecret, bobHash) // wrong owner
+      var bad = transfer(aliceToken, SATS, carol, bobHash) // carol does not own alice's token
       verify(bad.spend.inputs[0].script, aliceToken, { tx: bad.spend, satoshis: SATS }).ok.should.equal(false)
     })
 
     it('rejects breaking the token out to a P2PKH', function () {
-      var aliceToken = Token.ownershipToken(FEE, Token.ownerId(aliceSecret))
-      var r = transfer(aliceToken, SATS, aliceSecret, Token.ownerId(bobSecret),
+      var aliceToken = Token.ownershipToken(FEE, Token.ownerId(alice))
+      var r = transfer(aliceToken, SATS, alice, Token.ownerId(bob),
         p2pkhOutput(PrivateKey.fromRandom(), SATS - FEE))
       verify(r.spend.inputs[0].script, aliceToken, { tx: r.spend, satoshis: SATS }).ok.should.equal(false)
+    })
+
+    it('defeats front-running: a third party cannot redirect a signed transfer', function () {
+      var aliceToken = Token.ownershipToken(FEE, Token.ownerId(alice))
+      var bobHash = Token.ownerId(bob)
+      var mallory = PrivateKey.fromRandom()
+      var malloryHash = Token.ownerId(mallory)
+
+      // Alice signs a valid transfer to Bob.
+      var r = transfer(aliceToken, SATS, alice, bobHash)
+      verify(r.spend.inputs[0].script, aliceToken, { tx: r.spend, satoshis: SATS }).ok.should.equal(true)
+
+      // A mempool watcher lifts Alice's signature + pubkey (chunks 1 and 2 of her
+      // unlock script) and tries to redirect the token to Mallory by recreating
+      // the token output owned by Mallory and reusing Alice's signature.
+      var chunks = r.spend.inputs[0].script.chunks
+      var stolenSig = chunks[1].buf
+      var stolenPub = chunks[2].buf
+
+      var malloryLock = Token.ownershipToken(FEE, malloryHash)
+      var evil = spendOf(aliceToken, SATS, [new Transaction.Output({ script: malloryLock, satoshis: SATS - FEE })])
+      var g = PushTx.grind(evil, 0, aliceToken, SATS) // a valid OP_PUSH_TX preimage for the evil tx
+      evil.inputs[0].setScript(new Script()
+        .add(Buffer.from(malloryHash))
+        .add(stolenSig) // Alice signed the Bob-output spend, not this one
+        .add(stolenPub)
+        .add(Buffer.from(g.preimage)))
+
+      // OP_CHECKSIG recomputes the sighash over the Mallory output => Alice's sig fails.
+      verify(evil.inputs[0].script, aliceToken, { tx: evil, satoshis: SATS }).ok.should.equal(false)
+    })
+
+    it('grinds the input sequence so a token can coexist with a pinned nLockTime', function () {
+      var aliceToken = Token.ownershipToken(FEE, Token.ownerId(alice))
+      var bobHash = Token.ownerId(bob)
+      var nextLock = Token.ownershipToken(FEE, bobHash)
+      var spend = spendOf(aliceToken, SATS, [new Transaction.Output({ script: nextLock, satoshis: SATS - FEE })])
+      spend.nLockTime = 500000 // caller pins nLockTime; grind must not clobber it
+      spend.inputs[0].setScript(
+        Token.unlockTransfer(alice, bobHash, spend, SATS, aliceToken, { grind: { field: 'sequence' } }))
+      spend.nLockTime.should.equal(500000)
+      verify(spend.inputs[0].script, aliceToken, { tx: spend, satoshis: SATS }).ok.should.equal(true)
     })
   })
 })

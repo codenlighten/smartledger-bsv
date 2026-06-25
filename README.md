@@ -37,9 +37,9 @@ SC.enableGenesis()                       // post-Genesis limits (OP_PUSH_TX need
 // Self-replicating covenant — every spend recreates the same script (value − fee).
 const lock = SC.perpetualCovenant(500)
 
-// Stateful ownership token (NFT) — transfer requires the owner's secret,
-// rewrites state, perpetuates the token code.
-const token = SC.ownershipToken(500, ownerHash)
+// Stateful ownership token (NFT) — transfer requires the owner's ECDSA signature
+// over the spend, rewrites state, perpetuates the token code.
+const token = SC.ownershipToken(500, ownerHash) // ownerHash = SC.Token.ownerId(ownerKey)
 
 // Value covenant — forces spend outputs to match a specific hashOutputs.
 const vlock = SC.valueCovenant(SC.PushTx.hashOutputs(requiredOutputs))
@@ -54,7 +54,7 @@ const ok = SC.verifyScript(unlockScript, lockingScript, tx, inputIndex, satoshis
 |---|---|
 | `PushTx` | nChain WP1605 OP_PUSH_TX — `authenticator()`, `valueCovenant()`, `hashOutputs()`, `extractHashOutputs()`, `grind()` |
 | `PELS` | Perpetually Enforcing Locking Scripts — `perpetualCovenant(fee)` |
-| `Token` | Stateful ownership token (NFT) — `ownershipToken(fee, ownerHash)` |
+| `Token` | Stateful ownership token (NFT) — `ownershipToken(fee, ownerPubKeyHash)`, `ownerId(key)`, `unlockTransfer(...)` (ECDSA-authorized transfer) |
 | `Locks` | Hash-lock, P2PKH, CLTV time-lock, m-of-n multisig, HTLC |
 | `CovenantHelpers` | Consensus-flag `verify()` harness, raw BIP-143 preimage, signing, fund/spend scaffolding |
 
@@ -729,11 +729,15 @@ const pels = SC.perpetualCovenant(500)   // fee in satoshis deducted each hop
 
 ### Ownership Tokens (NFT) — v4.2.0 API
 ```javascript
-// Stateful ownership token. Owner is carried as on-chain state; transfer
-// requires the current owner's secret and rewrites state, perpetuating
-// the token code across the chain of spends.
-const ownerHash = bsv.crypto.Hash.sha256ripemd160(currentOwnerPubKey.toBuffer())
+// Stateful ownership token. Owner is carried as on-chain state (HASH160 of the
+// owner's public key); transfer requires the current owner's ECDSA SIGNATURE over
+// the spend (OP_CHECKSIG) and rewrites state, perpetuating the token code across
+// the chain of spends. The signature commits to the chosen next owner, so a
+// mempool watcher cannot redirect a pending transfer (no hash-lock front-running).
+const ownerHash = SC.Token.ownerId(currentOwnerKey) // = HASH160(pubkey)
 const token = SC.ownershipToken(500, ownerHash)
+// To spend it forward to `nextOwnerHash`, the current owner signs:
+//   tokenInput.setScript(SC.Token.unlockTransfer(currentOwnerKey, nextOwnerHash, spendTx, sats, token))
 ```
 
 ### End-to-end verification

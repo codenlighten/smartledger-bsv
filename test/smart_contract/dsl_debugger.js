@@ -71,7 +71,7 @@ describe('SmartContract covenant DSL + debugger (v4.5.0)', function () {
 
     it('exposes .perpetual()/.token() shortcuts', function () {
       SC.policy.perpetual(500).toBuffer().length.should.be.above(252)
-      var h = bsv.crypto.Hash.sha256(Buffer.from('owner'))
+      var h = bsv.crypto.Hash.sha256ripemd160(bsv.PrivateKey.fromRandom().toPublicKey().toBuffer())
       SC.policy.token(500, h).toBuffer().length.should.be.above(252)
     })
 
