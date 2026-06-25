@@ -5,6 +5,52 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.5.0] - 2026-06-25
+
+Minor release. Closes a front-running theft flaw in the ownership-token covenant
+and generalizes the covenant core into a pluggable, multi-output state machine.
+
+### Security
+
+- **`SmartContract.Token` ownership is now ECDSA-authorized.** The previous design
+  gated a transfer on revealing `ownerSecret` with `SHA256(ownerSecret) ==
+  ownerHash` — a hash-lock. The secret was exposed in the mempool on the first
+  spend and the spender freely chose the next owner, so a watcher could lift the
+  revealed secret and broadcast a competing spend redirecting the token to
+  themselves. Ownership is now a key: state is `HASH160(ownerPubKey)` and a
+  transfer requires the current owner's signature over the spend
+  (`OP_CHECKSIGVERIFY`), which commits via `SIGHASH_ALL` `hashOutputs` to the
+  exact recreated output — so altering the destination invalidates the proof.
+
+### Added
+
+- **Pluggable ownership — `SmartContract.Authorizers`.** Token ownership is always
+  a 20-byte commitment, so the transfer plumbing is identical across schemes:
+  - `singleKey()` — signature over the spend (the model above).
+  - `multisig(m, n)` — m-of-n group ownership; the key set is committed by hashing
+    the canonical redeem script, revealed at spend, bound to the commitment, and
+    checked with `OP_CHECKMULTISIG`.
+  - `predicate({ commit, emit, unlockArgs })` — escape hatch for custom schemes.
+- **Multi-output (N-output) tokens** — `Token.ownershipTokenMulti` /
+  `unlockTransferMulti` let the recreated token output sit among other outputs
+  (payments, change, data); the spender reveals the surrounding output bytes and
+  the covenant binds them into the committed `hashOutputs`.
+- **`PushTx.grind` configurable nonce** — `{ field: 'nLockTime' | 'sequence' }`,
+  so a covenant pinning `nLockTime` for a CLTV timelock can grind the input
+  sequence instead. `PushTx.assertSighashAll()` guard added to token/PELS scripts.
+
+### Changed (breaking, `SmartContract.Token` only)
+
+- `Token.ownershipToken(fee, owner)` — `owner` is now `HASH160(pubkey)` (use
+  `Token.ownerId(key)`), not `SHA256(secret)`.
+- `Token.unlockTransfer(signer, newOwnerHash, spend, satoshis, lockingScript[, opts])`
+  — now takes the owner key and the spend (it grinds and signs), not a precomputed
+  preimage. The rest of the package's API is unchanged and fully compatible.
+
+### Notes
+
+- Full suite **4267 passing**; `lib/` and `test/` lint clean.
+
 ## [5.4.2] - 2026-06-25
 
 Patch release. Dependency security maintenance — no API or behavior changes.
