@@ -5,6 +5,40 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.1] - 2026-06-25
+
+Patch release. Repairs Legal Token Protocol (LTP) right-token creation,
+signing, transfer, obligation and verification, which all threw on use.
+
+### Fixed
+
+- **LTP right-token signing was completely broken.** `lib/ltp/right.js`
+  defined `_signToken` twice; the duplicate object-literal key shadowed the
+  working signer and referenced an undefined `hash`, so every
+  `prepareRightToken` / transfer / reissue / obligation signing failed with
+  "hash is not defined". The detached-JWS builder is now `_createJWS(hash,
+  signature)`.
+- **`LTP#createRightToken` called non-existent entrypoints** (`LTPRight.create`
+  and `LTPProof.createSignature`). Added a build-only `RightToken.create(...)`
+  (reused by `prepareRightToken`) and signing now goes through the repaired
+  `RightToken._signToken`.
+- **`LTP#verifyToken`, `transferRight`, `createObligation`,
+  `createSelectiveDisclosure` and `createLegalValidityProof` all threw** — each
+  called a non-existent `LTPProof`/`LTPRight` method (the same `prepare*` vs
+  `create*` naming mismatch). They now call the real `prepare*` entrypoints.
+- **Added `RightToken.verifyToken(token, publicKey)`** — a real public-key
+  ECDSA verifier for tokens signed by `_signToken` (recomputes the canonical
+  hash, confirms `tokenHash` integrity, then verifies the signature embedded in
+  the detached JWS). `LTP#verifyToken` routes through it, so the pre-transfer
+  ownership check is now a genuine signature check.
+
+### Tests
+
+- Adds `test/ltp/right.js` covering right-token creation, signing,
+  verification (valid / wrong-key / tampered), transfer (incl. non-transferable
+  rejection), obligation creation, selective disclosure and legal-validity
+  proofs. Full suite: 4256 passing.
+
 ## [5.4.0] - 2026-06-15
 
 ### Changed
