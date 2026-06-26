@@ -146,7 +146,8 @@ jobs:
         # Catches the v3.4.1 bug class: bundles advertised in the README
         # not actually included in the published tarball.
         # Size guard prevents the v3.4.4 demos/examples drop from being
-        # silently reversed (current baseline: ~11 MB / 206 files).
+        # silently reversed. Baseline grew at v5.5.1, which deliberately
+        # ships the test suite in the tarball (~13 MB / 294 files).
         run: |
           npm pack --dry-run > /tmp/pack.log 2>&1
           tail -10 /tmp/pack.log
@@ -160,8 +161,8 @@ jobs:
           FILE_COUNT=$(grep -oE 'total files: [0-9]+' /tmp/pack.log | grep -oE '[0-9]+')
           UNPACKED_MB=$(grep -oE 'unpacked size: [0-9.]+ MB' /tmp/pack.log | grep -oE '[0-9.]+')
           echo "Tarball: $FILE_COUNT files, $UNPACKED_MB MB unpacked."
-          if [ -z "$FILE_COUNT" ] || [ "$FILE_COUNT" -gt 250 ]; then
-            echo "::error::Tarball file count ($FILE_COUNT) exceeds 250 — review additions."
+          if [ -z "$FILE_COUNT" ] || [ "$FILE_COUNT" -gt 340 ]; then
+            echo "::error::Tarball file count ($FILE_COUNT) exceeds 340 — review additions."
             exit 1
           fi
           # Use awk for float compare; ceiling is 14 MB (current ~11 MB)
