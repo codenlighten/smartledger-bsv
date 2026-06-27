@@ -10,14 +10,16 @@
 // consumers. The Hygiene CI job flags this; this script fixes it
 // mechanically so it never reaches CI.
 //
-// Wired into the `version` npm lifecycle hook: it runs after `npm version`
-// rewrites package.json but before the version commit, and re-stages the
-// touched docs so they land in the same commit/tag. It is also safe to run
-// by hand at any time (`npm run sync-cdn`).
+// Wired into the `version` npm lifecycle hook (see package.json): it runs
+// after `npm version` rewrites package.json but before the version commit.
+// The hook's `git add` (in the npm script line, not here) re-stages the
+// touched docs so they land in the same commit/tag. This script only
+// rewrites files — it stays a pure, idempotent rewriter so it is equally
+// safe to run by hand (`npm run sync-cdn`) without side effects on the
+// git index.
 
 const fs = require('fs')
 const path = require('path')
-const { execFileSync } = require('child_process')
 
 const ROOT = path.resolve(__dirname, '..')
 const VERSION = require(path.join(ROOT, 'package.json')).version
@@ -67,14 +69,3 @@ if (!changed.length) {
 
 console.log(`sync-cdn-urls: bumped CDN pins to @${VERSION} in:`)
 for (const f of changed) console.log(`  ${f}`)
-
-// During `npm version`, re-stage the edits so they ride along in the
-// version commit/tag. Outside that context (e.g. a manual run) the git add
-// is harmless; swallow any failure so the script never blocks.
-if (process.env.npm_lifecycle_event === 'version') {
-  try {
-    execFileSync('git', ['add', ...changed], { cwd: ROOT, stdio: 'inherit' })
-  } catch (err) {
-    console.warn(`sync-cdn-urls: git add skipped (${err.message})`)
-  }
-}

@@ -5,6 +5,26 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.5.2] - 2026-06-28
+
+Docs-only patch. No API, behavior, or bundle changes — every shipped `.js`
+bundle is byte-identical to 5.5.1.
+
+### Fixed
+
+- **CDN URLs in README/docs now point at the current version.** The 5.5.0/5.5.1
+  releases bumped `package.json` but left the README and `docs/` examples
+  pinned to `@smartledger/bsv@5.4.0`, which served stale bundle code to
+  unpkg/jsDelivr consumers. All pins are now `@5.5.2`.
+
+### Added
+
+- **`scripts/sync-cdn-urls.js` + `version` lifecycle hook.** `npm version` now
+  rewrites every `@smartledger/bsv@X.Y.Z/` CDN pin in the README and `docs/`
+  to the freshly bumped version and stages the edits into the version commit,
+  so the docs can no longer drift behind `package.json`. Also runnable by hand
+  via `npm run sync-cdn`.
+
 ## [5.5.1] - 2026-06-25
 
 Patch release. Credibility/transparency cleanup — no API or behavior changes.
