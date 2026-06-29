@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.5.2] - 2026-06-28
 
-Docs-only patch. No API, behavior, or bundle changes — every shipped `.js`
-bundle is byte-identical to 5.5.1.
+Docs-only patch. No API or behavior changes — the only difference in any
+shipped `.js` bundle is the embedded version string (`5.5.1` → `5.5.2`,
+read from `package.json`); the executable code is identical to 5.5.1.
 
 ### Fixed
 
