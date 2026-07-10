@@ -81,13 +81,15 @@ reproducible build of `lib/`.
   - **Self-describing listings**: `parseOrdLock(script)` / `isOrdLock(script)` recover the seller,
     the pinned payment(s), the total price, and any inline inscription — an indexer/wallet/UI can
     read a listing straight off-chain.
-  - **End-to-end assembly**: `buildPurchaseTx({listing, ordinalDestination, funding, fee})` reads
-    the required payment(s) off the listing script and returns a complete, signed purchase — the
-    covenant input grinds the OP_PUSH_TX signature and the P2PKH funding inputs are signed over the
-    finalized tx.
-  Every emitted script (covenant + funding inputs) is interpreter-verified, including adversarial
-  spends (underpay seller/royalty, redirect fee, wrong-key cancel, tamper-after-build) asserted to
-  be rejected. Typed in `bsv.d.ts` (`namespace Ordinals`).
+  - **End-to-end assembly** covers the whole lifecycle: `buildListingTx({ordinal, seller, price,
+    royalties, funding, fee})` moves a P2PKH ordinal into a listing (sat preserved into output 0),
+    and `buildPurchaseTx({listing, ordinalDestination, funding, fee})` reads the required payment(s)
+    off the listing script and returns a complete, signed purchase — the covenant input grinds the
+    OP_PUSH_TX signature and the P2PKH funding inputs are signed over the finalized tx.
+  Every emitted script (covenant + funding + ordinal inputs) is interpreter-verified across the
+  full list → buy / cancel lifecycle, including adversarial spends (underpay seller/royalty,
+  redirect fee, wrong-key cancel, tamper-after-build) asserted to be rejected. Typed in `bsv.d.ts`
+  (`namespace Ordinals`); documented in `lib/ordinals/README.md`.
 
 ### Changed — BREAKING
 

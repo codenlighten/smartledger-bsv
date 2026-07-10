@@ -1068,6 +1068,14 @@ declare module '@smartledger/bsv' {
         }
         interface Outpoint { txid?: string; prevTxId?: string; outputIndex?: number; vout?: number; }
         interface FundingCoin extends Outpoint { script: Script | Buffer | string; satoshis: number; privateKey: PrivateKey; }
+        interface OrdinalCoin extends Outpoint { script: Script | Buffer | string; satoshis?: number; privateKey: PrivateKey; }
+        interface BuildListingTxParams extends OrdLockParams {
+            ordinal: OrdinalCoin;
+            funding?: FundingCoin[];
+            fee?: number;
+            changeAddress?: Address | PublicKey | PrivateKey | string;
+        }
+        interface ListingTxResult { tx: Transaction; listingScript: Script; listingOutpoint: { txid: string; outputIndex: number }; }
         interface BuildPurchaseTxParams {
             listing: Outpoint & { script: Script | Buffer | string; satoshis?: number };
             ordinalDestination: Address | PublicKey | PrivateKey | string;
@@ -1091,6 +1099,8 @@ declare module '@smartledger/bsv' {
         function purchaseOrdLock(params: PurchaseParams): Script;
         /** Build (and assign) the unlocking script that CANCELS a listing. */
         function cancelOrdLock(params: CancelParams): Script;
+        /** Assemble a complete, signed listing tx: move a P2PKH ordinal into an OrdLock output. */
+        function buildListingTx(params: BuildListingTxParams): ListingTxResult;
         /** Assemble a complete, signed purchase tx from a listing UTXO and buyer P2PKH coins. */
         function buildPurchaseTx(params: BuildPurchaseTxParams): Transaction;
     }

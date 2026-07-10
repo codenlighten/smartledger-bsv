@@ -380,3 +380,103 @@ describe('Ordinals OrdLock — buildPurchaseTx (end-to-end)', function () {
     verify(tx.inputs[0].script, l.script, { tx: tx, satoshis: l.satoshis, inputIndex: 0 }).ok.should.equal(false)
   })
 })
+
+describe('Ordinals OrdLock — full lifecycle (list -> buy / cancel)', function () {
+  this.timeout(20000)
+  var I = bsv.Script.Interpreter
+  var saved
+  before(function () {
+    saved = { el: I.MAX_SCRIPT_ELEMENT_SIZE, num: I.MAXIMUM_ELEMENT_SIZE, ops: I.MAX_OPS_PER_SCRIPT }
+    SC.enableGenesis()
+  })
+  after(function () {
+    I.MAX_SCRIPT_ELEMENT_SIZE = saved.el
+    I.MAXIMUM_ELEMENT_SIZE = saved.num
+    I.MAX_OPS_PER_SCRIPT = saved.ops
+  })
+
+  var owner = PrivateKey.fromRandom() // current ordinal owner / seller
+  var royalty = PrivateKey.fromRandom()
+  var buyer = PrivateKey.fromRandom()
+  var fundKey = PrivateKey.fromRandom()
+  var fundScript = bsv.Script.buildPublicKeyHashOut(fundKey.toAddress())
+  var ownerScript = bsv.Script.buildPublicKeyHashOut(owner.toAddress())
+
+  // The ordinal UTXO currently held by the owner under P2PKH.
+  function ordinalUtxo () {
+    return { txid: '0e'.repeat(32), outputIndex: 0, script: ownerScript, satoshis: ORD_SATS, privateKey: owner }
+  }
+  function fundCoin (sats, i) {
+    return { txid: 'f' + (i || 0) + '0'.repeat(62), outputIndex: 0, script: fundScript, satoshis: sats, privateKey: fundKey }
+  }
+
+  it('buildListingTx signs the ordinal + fee and preserves the sat into the listing', function () {
+    var funding = [fundCoin(20000)]
+    var out = Ord.buildListingTx({
+      ordinal: ordinalUtxo(), seller: owner.toAddress(), price: PRICE,
+      royalties: [{ address: royalty.toAddress(), satoshis: 4000 }],
+      funding: funding, fee: 500
+    })
+    // Output 0 is the listing (ordinal's sat), and it's a parseable OrdLock.
+    out.tx.outputs[0].satoshis.should.equal(ORD_SATS)
+    out.listingOutpoint.outputIndex.should.equal(0)
+    Ord.isOrdLock(out.tx.outputs[0].script).should.equal(true)
+    Ord.parseOrdLock(out.listingScript).totalPrice.should.equal(PRICE + 4000)
+    // Change = funding - fee.
+    out.tx.outputs[1].satoshis.should.equal(20000 - 500)
+    // Both inputs (ordinal P2PKH + funding P2PKH) verify.
+    verify(out.tx.inputs[0].script, ownerScript, { tx: out.tx, satoshis: ORD_SATS, inputIndex: 0 }).ok.should.equal(true)
+    verify(out.tx.inputs[1].script, fundScript, { tx: out.tx, satoshis: 20000, inputIndex: 1 }).ok.should.equal(true)
+  })
+
+  it('a listing created by buildListingTx can then be PURCHASED end-to-end', function () {
+    // 1) Seller lists.
+    var listed = Ord.buildListingTx({
+      ordinal: ordinalUtxo(), seller: owner.toAddress(), price: PRICE,
+      royalties: [{ address: royalty.toAddress(), satoshis: 4000 }],
+      funding: [fundCoin(20000)], fee: 500
+    })
+    // 2) Buyer purchases the freshly-created listing UTXO (terms read off its script).
+    var listing = {
+      txid: listed.listingOutpoint.txid,
+      outputIndex: listed.listingOutpoint.outputIndex,
+      script: listed.listingScript,
+      satoshis: ORD_SATS
+    }
+    var buyFunding = [fundCoin(200000, 1)]
+    var buyTx = Ord.buildPurchaseTx({
+      listing: listing, ordinalDestination: buyer.toAddress(), funding: buyFunding, fee: 500
+    })
+    // Ordinal -> buyer, seller + royalty paid, change back to buyer.
+    buyTx.outputs[0].satoshis.should.equal(ORD_SATS)
+    buyTx.outputs[1].satoshis.should.equal(PRICE)
+    buyTx.outputs[2].satoshis.should.equal(4000)
+    // Covenant input + funding input both verify through the interpreter.
+    verify(buyTx.inputs[0].script, listing.script, { tx: buyTx, satoshis: ORD_SATS, inputIndex: 0 }).ok.should.equal(true)
+    verify(buyTx.inputs[1].script, fundScript, { tx: buyTx, satoshis: 200000, inputIndex: 1 }).ok.should.equal(true)
+  })
+
+  it('a listing created by buildListingTx can instead be CANCELLED by the seller', function () {
+    var listed = Ord.buildListingTx({
+      ordinal: ordinalUtxo(), seller: owner.toAddress(), price: PRICE,
+      funding: [fundCoin(20000)], fee: 500
+    })
+    // Seller reclaims the ordinal from the listing UTXO.
+    var reclaim = new Transaction()
+    reclaim.addInput(new Transaction.Input({
+      prevTxId: listed.listingOutpoint.txid, outputIndex: 0, script: Script.empty()
+    }), listed.listingScript, ORD_SATS)
+    reclaim.addOutput(p2pkhOutput(owner, ORD_SATS))
+    Ord.cancelOrdLock({ privateKey: owner, spend: reclaim, lockingScript: listed.listingScript, satoshis: ORD_SATS })
+    verify(reclaim.inputs[0].script, listed.listingScript, { tx: reclaim, satoshis: ORD_SATS }).ok.should.equal(true)
+  })
+
+  it('buildListingTx throws when funding cannot cover the fee', function () {
+    ;(function () {
+      Ord.buildListingTx({
+        ordinal: ordinalUtxo(), seller: owner.toAddress(), price: PRICE,
+        funding: [fundCoin(300)], fee: 500
+      })
+    }).should.throw(/insufficient funding/)
+  })
+})
