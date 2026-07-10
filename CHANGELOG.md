@@ -74,10 +74,20 @@ reproducible build of `lib/`.
   `purchaseOrdLock`/`cancelOrdLock`). A trustless "pay the seller or cancel" listing built on the
   configurable-SIGHASH OP_PUSH_TX core (`SIGHASH_ALL|ANYONECANPAY|FORKID`, new
   `PushTx.SIGHASH_ALL_ANYONECANPAY_FORKID`): the buyer supplies the surrounding outputs and the
-  covenant binds the seller's payment output byte-for-byte into the committed `hashOutputs`, while
-  the seller keeps an ECDSA cancel path. Every emitted script is interpreter-verified, including
-  adversarial spends (underpay / redirect / wrong-key cancel) asserted to be rejected. Typed in
-  `bsv.d.ts` (`namespace Ordinals`).
+  covenant binds the required payment output(s) byte-for-byte into the committed `hashOutputs`,
+  while the seller keeps an ECDSA cancel path.
+  - **Multi-output payments**: a listing can pin a seller payment plus royalty and marketplace-fee
+    outputs (`payOutputs` / `royalties`), so a purchase atomically pays every party or fails.
+  - **Self-describing listings**: `parseOrdLock(script)` / `isOrdLock(script)` recover the seller,
+    the pinned payment(s), the total price, and any inline inscription — an indexer/wallet/UI can
+    read a listing straight off-chain.
+  - **End-to-end assembly**: `buildPurchaseTx({listing, ordinalDestination, funding, fee})` reads
+    the required payment(s) off the listing script and returns a complete, signed purchase — the
+    covenant input grinds the OP_PUSH_TX signature and the P2PKH funding inputs are signed over the
+    finalized tx.
+  Every emitted script (covenant + funding inputs) is interpreter-verified, including adversarial
+  spends (underpay seller/royalty, redirect fee, wrong-key cancel, tamper-after-build) asserted to
+  be rejected. Typed in `bsv.d.ts` (`namespace Ordinals`).
 
 ### Changed — BREAKING
 

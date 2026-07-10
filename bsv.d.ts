@@ -1023,13 +1023,27 @@ declare module '@smartledger/bsv' {
         // ---- Marketplace: OrdLock "pay the seller or cancel" covenant ----
         /** SIGHASH_ALL|ANYONECANPAY|FORKID (0xc1) — the flag OrdLock commits/grinds under. */
         const ORDLOCK_SIGHASH: number;
+        /** A payment spec: a full Output, an {address,satoshis} pair, or serialized-output bytes. */
+        type PaymentSpec = Transaction.Output | Buffer | { address?: Address | PublicKey | PrivateKey | string; payTo?: Address | PublicKey | PrivateKey | string; satoshis?: number; price?: number };
         interface OrdLockParams {
             seller: Address | PublicKey | PrivateKey | string | Buffer;
             price?: number;
             payTo?: Address | PublicKey | PrivateKey | string | Transaction.Output;
+            /** Extra payments appended after the `price` output (royalties, marketplace fee). */
+            royalties?: PaymentSpec[];
+            /** Pin an explicit ordered list of payment outputs (overrides price/payTo/royalties). */
+            payOutputs?: PaymentSpec[];
             payOutput?: Transaction.Output | Buffer;
             inscription?: { contentType?: string | Buffer; content?: string | Buffer };
             satoshis?: number;
+        }
+        interface ParsedPayment { satoshis: number; script: Script; address: string | null; }
+        interface ParsedOrdLock {
+            seller: { pubKeyHash: Buffer; address: string };
+            payOutputs: ParsedPayment[];
+            payBlob: Buffer;
+            totalPrice: number;
+            inscription: null | { contentType: string; content: Buffer; contentText: string };
         }
         interface PurchaseParams {
             spend: Transaction;
@@ -1037,6 +1051,10 @@ declare module '@smartledger/bsv' {
             satoshis?: number;
             inputIndex?: number;
             payoutIndex?: number;
+            /** Number of pinned payment outputs (auto-derived from the listing when omitted). */
+            payoutCount?: number;
+            /** Assert the pinned block matches the listing before signing (default true). */
+            validate?: boolean;
             payOutput?: Transaction.Output | Buffer;
             grind?: SmartContract.GrindOpts;
         }
@@ -1048,8 +1066,23 @@ declare module '@smartledger/bsv' {
             inputIndex?: number;
             sighashType?: number;
         }
-        /** Build an OrdLock listing (locking) script pinning the seller's payment. */
+        interface Outpoint { txid?: string; prevTxId?: string; outputIndex?: number; vout?: number; }
+        interface FundingCoin extends Outpoint { script: Script | Buffer | string; satoshis: number; privateKey: PrivateKey; }
+        interface BuildPurchaseTxParams {
+            listing: Outpoint & { script: Script | Buffer | string; satoshis?: number };
+            ordinalDestination: Address | PublicKey | PrivateKey | string;
+            funding: FundingCoin[];
+            payOutputs?: PaymentSpec[];
+            fee?: number;
+            changeAddress?: Address | PublicKey | PrivateKey | string;
+            grind?: SmartContract.GrindOpts;
+        }
+        /** Build an OrdLock listing (locking) script pinning the required payment output(s). */
         function buildOrdLock(params: OrdLockParams): Script;
+        /** Parse an OrdLock listing into its economic terms; null if not an OrdLock. */
+        function parseOrdLock(script: Script | Buffer | string): ParsedOrdLock | null;
+        /** True if the script is a recognizable OrdLock listing. */
+        function isOrdLock(script: Script | Buffer | string): boolean;
         /** Build the 1-sat Transaction.Output that lists an ordinal for sale. */
         function listInscriptionOutput(params: OrdLockParams): Transaction.Output;
         /** Build a P2PKH payment Output from an address/pubkey/key (or pass an Output through). */
@@ -1058,6 +1091,8 @@ declare module '@smartledger/bsv' {
         function purchaseOrdLock(params: PurchaseParams): Script;
         /** Build (and assign) the unlocking script that CANCELS a listing. */
         function cancelOrdLock(params: CancelParams): Script;
+        /** Assemble a complete, signed purchase tx from a listing UTXO and buyer P2PKH coins. */
+        function buildPurchaseTx(params: BuildPurchaseTxParams): Transaction;
     }
 
     // -------- BrowserUTXOManager ----------------------------------------
