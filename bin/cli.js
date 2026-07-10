@@ -43,6 +43,34 @@ function writeJsonFile(filepath, data) {
   fs.writeFileSync(filepath, JSON.stringify(data, null, 2))
 }
 
+// Build the issuer-pinned verification options a status-list read/update needs.
+// Status-list reads MUST verify the list JWT signature against the issuer's key
+// (else revocation is bypassable), so we resolve that key from --jwks <file>, or
+// the issuer key file (--key, default issuer-key.json), plus the issuer DID.
+function loadStatusVerifyOpts(opts, keyData) {
+  var expectedIssuerDid = opts.issuer
+  var issuerJwks = null
+  if (opts.jwks && fs.existsSync(opts.jwks)) {
+    issuerJwks = readJsonFile(opts.jwks)
+  } else {
+    var kd = keyData
+    if (!kd) {
+      var kf = opts.key || 'issuer-key.json'
+      if (fs.existsSync(kf)) kd = readJsonFile(kf)
+    }
+    if (kd && kd.publicJwk) {
+      expectedIssuerDid = expectedIssuerDid || kd.did
+      issuerJwks = { keys: [Object.assign({}, kd.publicJwk, { kid: kd.kid })] }
+    }
+  }
+  if (!expectedIssuerDid || !issuerJwks) {
+    console.error('status verification requires the issuer key (--key issuer-key.json) ' +
+      'or --jwks <file>, plus --issuer <did>')
+    process.exit(1)
+  }
+  return { expectedIssuerDid: expectedIssuerDid, issuerJwks: issuerJwks }
+}
+
 async function main() {
   if (command === '--version' || command === '-v') {
     console.log(pkg.version)
@@ -279,12 +307,13 @@ async function handleStatus(subcommand, opts) {
     console.error('  Index:', opts.index)
     console.error('  Status:', opts.status)
 
-    var result = await statuslist.updateStatusList({
+    var setVerifyOpts = loadStatusVerifyOpts(opts, keyData)
+    var result = await statuslist.updateStatusList(Object.assign({
       listVcJwt: listJwt,
       index: parseInt(opts.index),
       status: opts.status,
       privateJwk: keyData.privateJwk
-    })
+    }, setVerifyOpts))
 
     console.log(result.listVcJwt)
     console.error('✅ Status list updated')
@@ -296,11 +325,12 @@ async function handleStatus(subcommand, opts) {
     }
 
     var listJwt = fs.readFileSync(opts.list, 'utf8').trim()
-    
-    var status = statuslist.getCredentialStatusEntry({
+
+    var checkVerifyOpts = loadStatusVerifyOpts(opts, null)
+    var status = await statuslist.getCredentialStatusEntry(Object.assign({
       listVcJwt: listJwt,
       index: parseInt(opts.index)
-    })
+    }, checkVerifyOpts))
 
     console.log(status)
     console.error('Status at index', opts.index + ':', status)

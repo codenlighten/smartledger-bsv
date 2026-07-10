@@ -141,35 +141,37 @@ async function testStatusListCreation(issuerDid, keys) {
 }
 
 // Test 7: StatusList2021 Update (Revocation)
-async function testStatusListRevocation(listJwt, keys) {
+async function testStatusListRevocation(listJwt, keys, issuerDid, jwks) {
   console.log('\n7️⃣  Testing credential revocation...')
-  
+
   var index = 42
-  
+  var didResolver = async function() { return { jwks: jwks } }
+  var verifyOpts = { expectedIssuerDid: issuerDid, didResolver: didResolver }
+
   // Check initial status
-  var initialStatus = statuslist.getCredentialStatusEntry({
+  var initialStatus = await statuslist.getCredentialStatusEntry(Object.assign({
     listVcJwt: listJwt,
     index: index
-  })
-  
+  }, verifyOpts))
+
   assert.strictEqual(initialStatus, 'valid', 'Initial status should be valid')
   console.log('   ✅ Initial status at index', index + ':', initialStatus)
-  
+
   // Revoke credential
-  var result = await statuslist.updateStatusList({
+  var result = await statuslist.updateStatusList(Object.assign({
     listVcJwt: listJwt,
     index: index,
     status: 'revoked',
     privateJwk: keys.privateJwk
-  })
-  
+  }, verifyOpts))
+
   assert(result.listVcJwt, 'Updated list should be returned')
-  
+
   // Check updated status
-  var updatedStatus = statuslist.getCredentialStatusEntry({
+  var updatedStatus = await statuslist.getCredentialStatusEntry(Object.assign({
     listVcJwt: result.listVcJwt,
     index: index
-  })
+  }, verifyOpts))
   
   assert.strictEqual(updatedStatus, 'revoked', 'Status should be revoked')
   console.log('   ✅ Updated status at index', index + ':', updatedStatus)
@@ -276,19 +278,20 @@ async function testEndToEndWorkflow() {
   })
   
   // Revoke credential
-  var updatedList = await statuslist.updateStatusList({
+  var statusVerifyOpts = { expectedIssuerDid: docs.did, didResolver: didResolver }
+  var updatedList = await statuslist.updateStatusList(Object.assign({
     listVcJwt: statusListResult.listVcJwt,
     index: 10,
     status: 'revoked',
     privateJwk: keys.privateJwk
-  })
-  
+  }, statusVerifyOpts))
+
   // Verify credential is now revoked
   var verification2 = await vcjwt.verifyVcJwt(jwt, { didResolver: didResolver })
-  var revokedStatus = statuslist.getCredentialStatusEntry({
+  var revokedStatus = await statuslist.getCredentialStatusEntry(Object.assign({
     listVcJwt: updatedList.listVcJwt,
     index: 10
-  })
+  }, statusVerifyOpts))
   
   assert.strictEqual(verification2.valid, true, 'JWT signature still valid')
   assert.strictEqual(revokedStatus, 'revoked', 'But credential is revoked')
@@ -306,7 +309,7 @@ async function runTests() {
     var jwt = await testVCIssuanceES256(docs.did, p256Keys)
     var verification = await testVCVerification(jwt, docs.jwks)
     var statusListJwt = await testStatusListCreation(docs.did, p256Keys)
-    var revokedListJwt = await testStatusListRevocation(statusListJwt, p256Keys)
+    var revokedListJwt = await testStatusListRevocation(statusListJwt, p256Keys, docs.did, docs.jwks)
     var hash = testAnchorHashing()
     var anchorPayload = testAnchorPayload(hash, docs.did)
     await testEndToEndWorkflow()
