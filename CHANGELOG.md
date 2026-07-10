@@ -67,6 +67,17 @@ reproducible build of `lib/`.
   covenants (seller signs its own input+output; buyer adds funding). Default remains SIGHASH_ALL.
 - **CI bundle-parity gate** (`.github/workflows/ci.yml`): fails if the shipped `*.min.js`/
   `*.bundle.js` are not a reproducible build of `lib/`. Added `.nvmrc` (Node 18) for reproducibility.
+- **1Sat Ordinals module** (`bsv.Ordinals`). `buildInscription`/`parseInscription`/`isInscription`
+  build and round-trip the `OP_FALSE OP_IF "ord" … OP_ENDIF` inscription envelope on a P2PKH (or
+  custom) base lock; `createInscriptionOutput`/`batchInscriptionOutputs` mint the 1-sat output(s).
+- **OrdLock marketplace covenant** (`bsv.Ordinals.buildOrdLock`/`listInscriptionOutput`/
+  `purchaseOrdLock`/`cancelOrdLock`). A trustless "pay the seller or cancel" listing built on the
+  configurable-SIGHASH OP_PUSH_TX core (`SIGHASH_ALL|ANYONECANPAY|FORKID`, new
+  `PushTx.SIGHASH_ALL_ANYONECANPAY_FORKID`): the buyer supplies the surrounding outputs and the
+  covenant binds the seller's payment output byte-for-byte into the committed `hashOutputs`, while
+  the seller keeps an ECDSA cancel path. Every emitted script is interpreter-verified, including
+  adversarial spends (underpay / redirect / wrong-key cancel) asserted to be rejected. Typed in
+  `bsv.d.ts` (`namespace Ordinals`).
 
 ### Changed — BREAKING
 

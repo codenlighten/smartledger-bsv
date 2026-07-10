@@ -892,6 +892,8 @@ declare module '@smartledger/bsv' {
             const SIGHASH_SINGLE_FORKID: number;
             /** SIGHASH_SINGLE|ANYONECANPAY|FORKID (0xc3) — marketplace / partially-signed. */
             const SIGHASH_SINGLE_ANYONECANPAY_FORKID: number;
+            /** SIGHASH_ALL|ANYONECANPAY|FORKID (0xc1) — commit ALL outputs, open inputs (OrdLock). */
+            const SIGHASH_ALL_ANYONECANPAY_FORKID: number;
             /**
              * Append the in-script signature generator + OP_CHECKSIG. `opts.sighashType`
              * sets the flag baked into the synthetic signature (default 0x41); the spender
@@ -989,6 +991,73 @@ declare module '@smartledger/bsv' {
             function print(result: TraceResult): TraceResult;
             function opLabel(opcodenum: number): string;
         }
+    }
+
+    // -------- Ordinals (1Sat Ordinals inscriptions + marketplace) -------
+
+    export namespace Ordinals {
+        interface InscriptionParams {
+            contentType?: string | Buffer;
+            content?: string | Buffer;
+            lock?: Script | Buffer | string;
+            address?: Address | string;
+            satoshis?: number;
+        }
+        interface ParsedInscription {
+            contentType: string;
+            content: Buffer;
+            contentText: string;
+            lock: Script;
+        }
+        /** Build a 1Sat Ordinals inscription locking script (base lock + inert envelope). */
+        function buildInscription(params: InscriptionParams): Script;
+        /** Parse an inscription out of a locking script; null if none present. */
+        function parseInscription(script: Script | Buffer | string): ParsedInscription | null;
+        /** True if the script carries an inscription envelope. */
+        function isInscription(script: Script | Buffer | string): boolean;
+        /** Build the 1-sat Transaction.Output carrying an inscription. */
+        function createInscriptionOutput(params: InscriptionParams): Transaction.Output;
+        /** Build one 1-sat inscription output per item. */
+        function batchInscriptionOutputs(items: InscriptionParams[]): Transaction.Output[];
+
+        // ---- Marketplace: OrdLock "pay the seller or cancel" covenant ----
+        /** SIGHASH_ALL|ANYONECANPAY|FORKID (0xc1) — the flag OrdLock commits/grinds under. */
+        const ORDLOCK_SIGHASH: number;
+        interface OrdLockParams {
+            seller: Address | PublicKey | PrivateKey | string | Buffer;
+            price?: number;
+            payTo?: Address | PublicKey | PrivateKey | string | Transaction.Output;
+            payOutput?: Transaction.Output | Buffer;
+            inscription?: { contentType?: string | Buffer; content?: string | Buffer };
+            satoshis?: number;
+        }
+        interface PurchaseParams {
+            spend: Transaction;
+            lockingScript: Script;
+            satoshis?: number;
+            inputIndex?: number;
+            payoutIndex?: number;
+            payOutput?: Transaction.Output | Buffer;
+            grind?: SmartContract.GrindOpts;
+        }
+        interface CancelParams {
+            privateKey: PrivateKey;
+            spend: Transaction;
+            lockingScript: Script;
+            satoshis?: number;
+            inputIndex?: number;
+            sighashType?: number;
+        }
+        /** Build an OrdLock listing (locking) script pinning the seller's payment. */
+        function buildOrdLock(params: OrdLockParams): Script;
+        /** Build the 1-sat Transaction.Output that lists an ordinal for sale. */
+        function listInscriptionOutput(params: OrdLockParams): Transaction.Output;
+        /** Build a P2PKH payment Output from an address/pubkey/key (or pass an Output through). */
+        function payOutputFor(payTo: Address | PublicKey | PrivateKey | string | Transaction.Output, price: number): Transaction.Output;
+        /** Build (and assign) the unlocking script that PURCHASES a listed ordinal. */
+        function purchaseOrdLock(params: PurchaseParams): Script;
+        /** Build (and assign) the unlocking script that CANCELS a listing. */
+        function cancelOrdLock(params: CancelParams): Script;
     }
 
     // -------- BrowserUTXOManager ----------------------------------------

@@ -182,6 +182,9 @@ if (typeof window === 'undefined' && typeof require === 'function') {
   }
 }
 
+// Ordinals (1Sat Ordinals inscriptions + marketplace)
+bsv.Ordinals = require('./lib/ordinals')
+
 // Global Digital Attestation Framework (GDAF)
 bsv.GDAF = require('./lib/gdaf')
 
