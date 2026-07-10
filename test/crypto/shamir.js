@@ -77,7 +77,9 @@ describe('Shamir Secret Sharing', function () {
 
   describe('integrity and isolation', function () {
     it('detects a tampered share at combine time', function () {
-      var shares = Shamir.split(crypto.randomBytes(16), 3, 5)
+      // checksum is opt-in (off by default to avoid leaking a hash of the secret);
+      // this test exercises the checksum-based detection, so enable it explicitly.
+      var shares = Shamir.split(crypto.randomBytes(16), 3, 5, { checksum: true })
       // flip a hex nibble in one share's data
       var s = shares[1]
       var ch = s.share[s.share.length - 1]
@@ -93,6 +95,12 @@ describe('Shamir Secret Sharing', function () {
       var a = Shamir.split(secret, 2, 3)
       var b = Shamir.split(secret, 2, 3)
       assert.throws(function () { Shamir.combine([a[0], b[1]]) }, /different splits|splitId/)
+    })
+
+    it('does not embed a secret checksum by default (no leak to sub-threshold holders)', function () {
+      var shares = Shamir.split('low-entropy-pin-1234', 2, 3)
+      assert.strictEqual(shares[0].checksum, null)
+      assert.strictEqual(Shamir.combine(shares.slice(0, 2)).toString('utf8'), 'low-entropy-pin-1234')
     })
 
     it('checksum can be disabled', function () {
