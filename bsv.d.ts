@@ -1103,6 +1103,42 @@ declare module '@smartledger/bsv' {
         function buildListingTx(params: BuildListingTxParams): ListingTxResult;
         /** Assemble a complete, signed purchase tx from a listing UTXO and buyer P2PKH coins. */
         function buildPurchaseTx(params: BuildPurchaseTxParams): Transaction;
+
+        // ---- BSV-20 / BSV-21 fungible-token inscriptions ----
+        namespace BSV20 {
+            type IntLike = string | number;
+            interface Owner { address?: Address | string; lock?: Script | Buffer | string; contentType?: string; satoshis?: number; }
+            /** A parsed BSV-20 payload. Amounts are integer strings (may exceed 2^53). */
+            interface Payload {
+                p: 'bsv-20';
+                op: 'deploy' | 'mint' | 'transfer' | 'deploy+mint' | string;
+                tick?: string;
+                id?: string;
+                amt?: string;
+                max?: string;
+                lim?: string;
+                dec?: string;
+                sym?: string;
+                icon?: string;
+            }
+            const CONTENT_TYPE: string;
+            /** Deploy a v1 (ticker) token. */
+            function buildDeploy(params: Owner & { tick: string; max: IntLike; lim?: IntLike; dec?: IntLike }): Script;
+            /** Mint an amount of a v1 (ticker) token. */
+            function buildMint(params: Owner & { tick: string; amt: IntLike }): Script;
+            /** Transfer an amount of a token — provide `tick` (v1) or `id` (v2 / BSV-21). */
+            function buildTransfer(params: Owner & { amt: IntLike; tick?: string; id?: string }): Script;
+            /** Deploy + mint a BSV-21 (id-based) supply in one operation. */
+            function buildDeployMint(params: Owner & { amt: IntLike; dec?: IntLike; sym?: string; icon?: string }): Script;
+            function createDeployOutput(params: Owner & { tick: string; max: IntLike; lim?: IntLike; dec?: IntLike }): Transaction.Output;
+            function createMintOutput(params: Owner & { tick: string; amt: IntLike }): Transaction.Output;
+            function createTransferOutput(params: Owner & { amt: IntLike; tick?: string; id?: string }): Transaction.Output;
+            function createDeployMintOutput(params: Owner & { amt: IntLike; dec?: IntLike; sym?: string; icon?: string }): Transaction.Output;
+            /** Parse a BSV-20 payload from a script, JSON string, or object; null if none. */
+            function parseBsv20(input: Script | Buffer | string | object): Payload | null;
+            /** True if the input carries a valid BSV-20 inscription. */
+            function isBsv20(input: Script | Buffer | string | object): boolean;
+        }
     }
 
     // -------- BrowserUTXOManager ----------------------------------------

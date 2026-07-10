@@ -90,6 +90,14 @@ reproducible build of `lib/`.
   full list → buy / cancel lifecycle, including adversarial spends (underpay seller/royalty,
   redirect fee, wrong-key cancel, tamper-after-build) asserted to be rejected. Typed in `bsv.d.ts`
   (`namespace Ordinals`); documented in `lib/ordinals/README.md`.
+- **BSV-20 / BSV-21 fungible-token inscriptions** (`bsv.Ordinals.BSV20`). Build and parse the
+  `application/bsv-20` JSON payloads carried on 1-sat outputs: v1 ticker tokens
+  (`buildDeploy`/`buildMint`/`buildTransfer`), v2 / BSV-21 id-based supplies
+  (`buildDeployMint`, transfer by `id`), `create*Output` 1-sat outputs, and
+  `parseBsv20`/`isBsv20` (accepting a script, JSON string, or object). Amounts are integer
+  strings — never coerced to JS numbers, so supplies beyond 2^53 stay exact. Builders validate
+  their inputs (ticker ≤ 4 UTF-8 bytes, non-negative integer `amt`/`max`/`lim`, `dec` 0–18,
+  well-formed BSV-21 `id`). Typed in `bsv.d.ts` (`namespace Ordinals.BSV20`).
 
 ### Changed — BREAKING
 

@@ -122,6 +122,36 @@ build (and assign) the unlocking script when you are assembling the spend transa
 yourself. `purchaseOrdLock` grinds the OP_PUSH_TX signature into `nLockTime`, so call it
 **before** signing any funding inputs the buyer adds.
 
+## BSV-20 / BSV-21 fungible tokens
+
+Fungible tokens are a JSON payload (`application/bsv-20`) inside an inscription on a 1-sat
+output. Two eras: **v1** is ticker-based (`tick`, 1–4 bytes); **v2 / BSV-21** is id-based
+(`deploy+mint`, then transfer by `id` = the deploy `<txid>_<vout>`). Amounts are **integer
+strings** — they routinely exceed 2^53, so they are never coerced to JS numbers.
+
+```js
+var B = bsv.Ordinals.BSV20
+
+// v1: deploy a ticker, mint, transfer.
+B.buildDeploy({ address: owner, tick: 'ORDI', max: '21000000', lim: '1000', dec: 18 })
+B.buildMint({ address: owner, tick: 'ORDI', amt: '1000' })
+B.buildTransfer({ address: newOwner, tick: 'ORDI', amt: '250' })
+
+// v2 / BSV-21: deploy+mint a supply, transfer by id.
+B.buildDeployMint({ address: owner, amt: '1000000', dec: 8, sym: 'XYZ' })
+B.buildTransfer({ address: newOwner, id: deployTxid + '_0', amt: '5' })
+
+// 1-sat outputs and parsing.
+var out = B.createMintOutput({ address: owner, tick: 'ORDI', amt: '1' })
+B.isBsv20(out.script)                 // true
+B.parseBsv20(script)                  // { p:'bsv-20', op:'mint', tick:'ORDI', amt:'1000' } | null
+B.parseBsv20('{"p":"bsv-20","op":"mint","tick":"ORDI","amt":"1"}')  // also accepts JSON / objects
+```
+
+Builders validate their inputs (ticker ≤ 4 bytes, non-negative integer amounts, `dec` 0–18,
+well-formed BSV-21 `id`) and throw on bad data. Balance tracking is an indexer concern —
+this module builds and reads the on-chain payloads.
+
 ## API
 
 | Function | Purpose |
@@ -135,3 +165,6 @@ yourself. `purchaseOrdLock` grinds the OP_PUSH_TX signature into `nLockTime`, so
 | `purchaseOrdLock`, `cancelOrdLock` | build unlock scripts for a spend you assemble |
 | `payOutputFor` | build a P2PKH payment output |
 | `ORDLOCK_SIGHASH` | `SIGHASH_ALL\|ANYONECANPAY\|FORKID` (0xc1) |
+| `BSV20.buildDeploy` / `buildMint` / `buildTransfer` / `buildDeployMint` | build BSV-20/21 token inscriptions |
+| `BSV20.create*Output` | 1-sat token outputs |
+| `BSV20.parseBsv20`, `BSV20.isBsv20` | read a token payload back |
