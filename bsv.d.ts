@@ -688,6 +688,25 @@ declare module '@smartledger/bsv' {
         function verifyMerkleProof(proof: MerkleProof): boolean;
         /** Verify a tx is included in a block: branch -> root, root == header.merkleRoot, PoW. */
         function verifyTxInclusion(params: InclusionParams): InclusionResult;
+
+        interface HeaderChainResult {
+            valid: boolean;
+            reason?: string;
+            count: number;
+            anchorHash?: string;
+            tipHash?: string;
+            work?: number;
+        }
+        /**
+         * Verify consecutive headers (oldest->newest): each links to the previous and
+         * meets its PoW target; optionally the tip/anchor must equal opts.trustedHash.
+         * Validates linkage + per-header PoW, NOT the difficulty-retarget schedule —
+         * supply a trusted checkpoint hash for adversarial settings.
+         */
+        function verifyHeaderChain(
+            headers: Array<any>,
+            opts?: { requirePow?: boolean; trustedHash?: string }
+        ): HeaderChainResult;
     }
 
     // -------- GDAF (Global Digital Attestation Framework) ---------------
