@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Security-hardening release. Fixes four CRITICAL forgery-enabling verification
-bugs, a revocation bypass, and several covenant defects, and adds ordinal-safe
-transfers plus a configurable-SIGHASH covenant core. **Contains breaking changes**
-(see below) — recommended as a **major** version bump. All 4294 suite tests pass;
-each fix ships with an adversarial regression test that asserts the *bad* input is
-rejected. Bundles rebuilt; a new CI gate enforces that shipped bundles are a
-reproducible build of `lib/`.
+## [6.0.0] - 2026-07-12
+
+Major release. Combines a security-hardening pass (four CRITICAL forgery-enabling
+verification bugs, a revocation bypass, and several covenant defects — all fixed) with
+two large new capabilities: a complete **1Sat Ordinals** stack (inscriptions, the
+OrdLock marketplace, and BSV-20 / BSV-21 fungible tokens) and **trustless SPV**
+(Merkle-inclusion + header-chain confirmations). **Contains breaking changes** (see
+below). The suite grew to 4365 tests; each security fix ships an adversarial regression
+that asserts the *bad* input is rejected, and every emitted covenant/inscription script
+is interpreter-verified. A CI gate enforces that shipped bundles are a reproducible
+build of `lib/`.
 
 ### Security — Fixed
 
@@ -98,6 +102,14 @@ reproducible build of `lib/`.
   strings — never coerced to JS numbers, so supplies beyond 2^53 stay exact. Builders validate
   their inputs (ticker ≤ 4 UTF-8 bytes, non-negative integer `amt`/`max`/`lim`, `dec` 0–18,
   well-formed BSV-21 `id`). Typed in `bsv.d.ts` (`namespace Ordinals.BSV20`).
+- **Trustless SPV** (`bsv.SPV`). `verifyMerkleProof` / `merkleRootFromBranch` / `verifyTxInclusion`
+  verify a transaction's inclusion in a proof-of-work-backed block from a Merkle branch
+  (double-SHA256, internal-LE byte order, TSC `*` odd-node duplication), and `verifyHeaderChain`
+  checks header linkage + per-header proof-of-work against an optional trusted checkpoint. Wired
+  into GDAF's `SmartLedgerAnchor.verifyAnchor`: a new trustless path
+  (`{ spvProof:{index,nodes}, header|headerChain, rawTx }`) proves inclusion + PoW, binds the raw
+  tx to the txid, and checks an OP_RETURN commits to the expected hash — replacing the
+  trust-the-provider stub. Typed in `bsv.d.ts`.
 
 ### Changed — BREAKING
 
