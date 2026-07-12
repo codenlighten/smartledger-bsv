@@ -892,6 +892,8 @@ declare module '@smartledger/bsv' {
             const SIGHASH_SINGLE_FORKID: number;
             /** SIGHASH_SINGLE|ANYONECANPAY|FORKID (0xc3) — marketplace / partially-signed. */
             const SIGHASH_SINGLE_ANYONECANPAY_FORKID: number;
+            /** SIGHASH_ALL|ANYONECANPAY|FORKID (0xc1) — commit ALL outputs, open inputs (OrdLock). */
+            const SIGHASH_ALL_ANYONECANPAY_FORKID: number;
             /**
              * Append the in-script signature generator + OP_CHECKSIG. `opts.sighashType`
              * sets the flag baked into the synthetic signature (default 0x41); the spender
@@ -988,6 +990,154 @@ declare module '@smartledger/bsv' {
             function format(result: TraceResult): string;
             function print(result: TraceResult): TraceResult;
             function opLabel(opcodenum: number): string;
+        }
+    }
+
+    // -------- Ordinals (1Sat Ordinals inscriptions + marketplace) -------
+
+    export namespace Ordinals {
+        interface InscriptionParams {
+            contentType?: string | Buffer;
+            content?: string | Buffer;
+            lock?: Script | Buffer | string;
+            address?: Address | string;
+            satoshis?: number;
+        }
+        interface ParsedInscription {
+            contentType: string;
+            content: Buffer;
+            contentText: string;
+            lock: Script;
+        }
+        /** Build a 1Sat Ordinals inscription locking script (base lock + inert envelope). */
+        function buildInscription(params: InscriptionParams): Script;
+        /** Parse an inscription out of a locking script; null if none present. */
+        function parseInscription(script: Script | Buffer | string): ParsedInscription | null;
+        /** True if the script carries an inscription envelope. */
+        function isInscription(script: Script | Buffer | string): boolean;
+        /** Build the 1-sat Transaction.Output carrying an inscription. */
+        function createInscriptionOutput(params: InscriptionParams): Transaction.Output;
+        /** Build one 1-sat inscription output per item. */
+        function batchInscriptionOutputs(items: InscriptionParams[]): Transaction.Output[];
+
+        // ---- Marketplace: OrdLock "pay the seller or cancel" covenant ----
+        /** SIGHASH_ALL|ANYONECANPAY|FORKID (0xc1) — the flag OrdLock commits/grinds under. */
+        const ORDLOCK_SIGHASH: number;
+        /** A payment spec: a full Output, an {address,satoshis} pair, or serialized-output bytes. */
+        type PaymentSpec = Transaction.Output | Buffer | { address?: Address | PublicKey | PrivateKey | string; payTo?: Address | PublicKey | PrivateKey | string; satoshis?: number; price?: number };
+        interface OrdLockParams {
+            seller: Address | PublicKey | PrivateKey | string | Buffer;
+            price?: number;
+            payTo?: Address | PublicKey | PrivateKey | string | Transaction.Output;
+            /** Extra payments appended after the `price` output (royalties, marketplace fee). */
+            royalties?: PaymentSpec[];
+            /** Pin an explicit ordered list of payment outputs (overrides price/payTo/royalties). */
+            payOutputs?: PaymentSpec[];
+            payOutput?: Transaction.Output | Buffer;
+            inscription?: { contentType?: string | Buffer; content?: string | Buffer };
+            satoshis?: number;
+        }
+        interface ParsedPayment { satoshis: number; script: Script; address: string | null; }
+        interface ParsedOrdLock {
+            seller: { pubKeyHash: Buffer; address: string };
+            payOutputs: ParsedPayment[];
+            payBlob: Buffer;
+            totalPrice: number;
+            inscription: null | { contentType: string; content: Buffer; contentText: string };
+        }
+        interface PurchaseParams {
+            spend: Transaction;
+            lockingScript: Script;
+            satoshis?: number;
+            inputIndex?: number;
+            payoutIndex?: number;
+            /** Number of pinned payment outputs (auto-derived from the listing when omitted). */
+            payoutCount?: number;
+            /** Assert the pinned block matches the listing before signing (default true). */
+            validate?: boolean;
+            payOutput?: Transaction.Output | Buffer;
+            grind?: SmartContract.GrindOpts;
+        }
+        interface CancelParams {
+            privateKey: PrivateKey;
+            spend: Transaction;
+            lockingScript: Script;
+            satoshis?: number;
+            inputIndex?: number;
+            sighashType?: number;
+        }
+        interface Outpoint { txid?: string; prevTxId?: string; outputIndex?: number; vout?: number; }
+        interface FundingCoin extends Outpoint { script: Script | Buffer | string; satoshis: number; privateKey: PrivateKey; }
+        interface OrdinalCoin extends Outpoint { script: Script | Buffer | string; satoshis?: number; privateKey: PrivateKey; }
+        interface BuildListingTxParams extends OrdLockParams {
+            ordinal: OrdinalCoin;
+            funding?: FundingCoin[];
+            fee?: number;
+            changeAddress?: Address | PublicKey | PrivateKey | string;
+        }
+        interface ListingTxResult { tx: Transaction; listingScript: Script; listingOutpoint: { txid: string; outputIndex: number }; }
+        interface BuildPurchaseTxParams {
+            listing: Outpoint & { script: Script | Buffer | string; satoshis?: number };
+            ordinalDestination: Address | PublicKey | PrivateKey | string;
+            funding: FundingCoin[];
+            payOutputs?: PaymentSpec[];
+            fee?: number;
+            changeAddress?: Address | PublicKey | PrivateKey | string;
+            grind?: SmartContract.GrindOpts;
+        }
+        /** Build an OrdLock listing (locking) script pinning the required payment output(s). */
+        function buildOrdLock(params: OrdLockParams): Script;
+        /** Parse an OrdLock listing into its economic terms; null if not an OrdLock. */
+        function parseOrdLock(script: Script | Buffer | string): ParsedOrdLock | null;
+        /** True if the script is a recognizable OrdLock listing. */
+        function isOrdLock(script: Script | Buffer | string): boolean;
+        /** Build the 1-sat Transaction.Output that lists an ordinal for sale. */
+        function listInscriptionOutput(params: OrdLockParams): Transaction.Output;
+        /** Build a P2PKH payment Output from an address/pubkey/key (or pass an Output through). */
+        function payOutputFor(payTo: Address | PublicKey | PrivateKey | string | Transaction.Output, price: number): Transaction.Output;
+        /** Build (and assign) the unlocking script that PURCHASES a listed ordinal. */
+        function purchaseOrdLock(params: PurchaseParams): Script;
+        /** Build (and assign) the unlocking script that CANCELS a listing. */
+        function cancelOrdLock(params: CancelParams): Script;
+        /** Assemble a complete, signed listing tx: move a P2PKH ordinal into an OrdLock output. */
+        function buildListingTx(params: BuildListingTxParams): ListingTxResult;
+        /** Assemble a complete, signed purchase tx from a listing UTXO and buyer P2PKH coins. */
+        function buildPurchaseTx(params: BuildPurchaseTxParams): Transaction;
+
+        // ---- BSV-20 / BSV-21 fungible-token inscriptions ----
+        namespace BSV20 {
+            type IntLike = string | number;
+            interface Owner { address?: Address | string; lock?: Script | Buffer | string; contentType?: string; satoshis?: number; }
+            /** A parsed BSV-20 payload. Amounts are integer strings (may exceed 2^53). */
+            interface Payload {
+                p: 'bsv-20';
+                op: 'deploy' | 'mint' | 'transfer' | 'deploy+mint' | string;
+                tick?: string;
+                id?: string;
+                amt?: string;
+                max?: string;
+                lim?: string;
+                dec?: string;
+                sym?: string;
+                icon?: string;
+            }
+            const CONTENT_TYPE: string;
+            /** Deploy a v1 (ticker) token. */
+            function buildDeploy(params: Owner & { tick: string; max: IntLike; lim?: IntLike; dec?: IntLike }): Script;
+            /** Mint an amount of a v1 (ticker) token. */
+            function buildMint(params: Owner & { tick: string; amt: IntLike }): Script;
+            /** Transfer an amount of a token — provide `tick` (v1) or `id` (v2 / BSV-21). */
+            function buildTransfer(params: Owner & { amt: IntLike; tick?: string; id?: string }): Script;
+            /** Deploy + mint a BSV-21 (id-based) supply in one operation. */
+            function buildDeployMint(params: Owner & { amt: IntLike; dec?: IntLike; sym?: string; icon?: string }): Script;
+            function createDeployOutput(params: Owner & { tick: string; max: IntLike; lim?: IntLike; dec?: IntLike }): Transaction.Output;
+            function createMintOutput(params: Owner & { tick: string; amt: IntLike }): Transaction.Output;
+            function createTransferOutput(params: Owner & { amt: IntLike; tick?: string; id?: string }): Transaction.Output;
+            function createDeployMintOutput(params: Owner & { amt: IntLike; dec?: IntLike; sym?: string; icon?: string }): Transaction.Output;
+            /** Parse a BSV-20 payload from a script, JSON string, or object; null if none. */
+            function parseBsv20(input: Script | Buffer | string | object): Payload | null;
+            /** True if the input carries a valid BSV-20 inscription. */
+            function isBsv20(input: Script | Buffer | string | object): boolean;
         }
     }
 
