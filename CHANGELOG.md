@@ -67,6 +67,37 @@ reproducible build of `lib/`.
   covenants (seller signs its own input+output; buyer adds funding). Default remains SIGHASH_ALL.
 - **CI bundle-parity gate** (`.github/workflows/ci.yml`): fails if the shipped `*.min.js`/
   `*.bundle.js` are not a reproducible build of `lib/`. Added `.nvmrc` (Node 18) for reproducibility.
+- **1Sat Ordinals module** (`bsv.Ordinals`). `buildInscription`/`parseInscription`/`isInscription`
+  build and round-trip the `OP_FALSE OP_IF "ord" … OP_ENDIF` inscription envelope on a P2PKH (or
+  custom) base lock; `createInscriptionOutput`/`batchInscriptionOutputs` mint the 1-sat output(s).
+- **OrdLock marketplace covenant** (`bsv.Ordinals.buildOrdLock`/`listInscriptionOutput`/
+  `purchaseOrdLock`/`cancelOrdLock`). A trustless "pay the seller or cancel" listing built on the
+  configurable-SIGHASH OP_PUSH_TX core (`SIGHASH_ALL|ANYONECANPAY|FORKID`, new
+  `PushTx.SIGHASH_ALL_ANYONECANPAY_FORKID`): the buyer supplies the surrounding outputs and the
+  covenant binds the required payment output(s) byte-for-byte into the committed `hashOutputs`,
+  while the seller keeps an ECDSA cancel path.
+  - **Multi-output payments**: a listing can pin a seller payment plus royalty and marketplace-fee
+    outputs (`payOutputs` / `royalties`), so a purchase atomically pays every party or fails.
+  - **Self-describing listings**: `parseOrdLock(script)` / `isOrdLock(script)` recover the seller,
+    the pinned payment(s), the total price, and any inline inscription — an indexer/wallet/UI can
+    read a listing straight off-chain.
+  - **End-to-end assembly** covers the whole lifecycle: `buildListingTx({ordinal, seller, price,
+    royalties, funding, fee})` moves a P2PKH ordinal into a listing (sat preserved into output 0),
+    and `buildPurchaseTx({listing, ordinalDestination, funding, fee})` reads the required payment(s)
+    off the listing script and returns a complete, signed purchase — the covenant input grinds the
+    OP_PUSH_TX signature and the P2PKH funding inputs are signed over the finalized tx.
+  Every emitted script (covenant + funding + ordinal inputs) is interpreter-verified across the
+  full list → buy / cancel lifecycle, including adversarial spends (underpay seller/royalty,
+  redirect fee, wrong-key cancel, tamper-after-build) asserted to be rejected. Typed in `bsv.d.ts`
+  (`namespace Ordinals`); documented in `lib/ordinals/README.md`.
+- **BSV-20 / BSV-21 fungible-token inscriptions** (`bsv.Ordinals.BSV20`). Build and parse the
+  `application/bsv-20` JSON payloads carried on 1-sat outputs: v1 ticker tokens
+  (`buildDeploy`/`buildMint`/`buildTransfer`), v2 / BSV-21 id-based supplies
+  (`buildDeployMint`, transfer by `id`), `create*Output` 1-sat outputs, and
+  `parseBsv20`/`isBsv20` (accepting a script, JSON string, or object). Amounts are integer
+  strings — never coerced to JS numbers, so supplies beyond 2^53 stay exact. Builders validate
+  their inputs (ticker ≤ 4 UTF-8 bytes, non-negative integer `amt`/`max`/`lim`, `dec` 0–18,
+  well-formed BSV-21 `id`). Typed in `bsv.d.ts` (`namespace Ordinals.BSV20`).
 
 ### Changed — BREAKING
 
