@@ -480,3 +480,73 @@ describe('Ordinals OrdLock — full lifecycle (list -> buy / cancel)', function 
     }).should.throw(/insufficient funding/)
   })
 })
+
+describe('Ordinals OrdLock — code-review regressions', function () {
+  this.timeout(20000)
+  var I = bsv.Script.Interpreter
+  var saved
+  before(function () {
+    saved = { el: I.MAX_SCRIPT_ELEMENT_SIZE, num: I.MAXIMUM_ELEMENT_SIZE, ops: I.MAX_OPS_PER_SCRIPT }
+    SC.enableGenesis()
+  })
+  after(function () {
+    I.MAX_SCRIPT_ELEMENT_SIZE = saved.el
+    I.MAXIMUM_ELEMENT_SIZE = saved.num
+    I.MAX_OPS_PER_SCRIPT = saved.ops
+  })
+
+  var owner = PrivateKey.fromRandom()
+  var fundKey = PrivateKey.fromRandom()
+  var ownerScript = bsv.Script.buildPublicKeyHashOut(owner.toAddress())
+  var fundScript = bsv.Script.buildPublicKeyHashOut(fundKey.toAddress())
+
+  // Finding #1: buildListingTx must sign the ordinal input with the resolved value even
+  // when the caller omits ordinal.satoshis (documented to default to 1).
+  it('buildListingTx signs a valid ordinal input when ordinal.satoshis is omitted', function () {
+    var out = Ord.buildListingTx({
+      ordinal: { txid: '0e'.repeat(32), outputIndex: 0, script: ownerScript, privateKey: owner }, // no satoshis
+      seller: owner.toAddress(),
+      price: PRICE,
+      funding: [{ txid: 'f0'.repeat(32), outputIndex: 0, script: fundScript, satoshis: 20000, privateKey: fundKey }],
+      fee: 500
+    })
+    verify(out.tx.inputs[0].script, ownerScript, { tx: out.tx, satoshis: 1, inputIndex: 0 }).ok.should.equal(true)
+  })
+
+  // Finding #2: parsed addresses honor a network option instead of always being livenet.
+  it('parseOrdLock formats addresses for the requested network', function () {
+    var lock = Ord.buildOrdLock({ seller: owner.toAddress(), price: PRICE })
+    var live = Ord.parseOrdLock(lock).seller.address
+    var test = Ord.parseOrdLock(lock, { network: 'testnet' }).seller.address
+    live.should.not.equal(test)
+    bsv.Address.fromString(test).network.name.should.equal('testnet')
+    bsv.Address.fromString(live).network.name.should.equal('livenet')
+  })
+
+  // Finding #3: a funding coin missing satoshis fails fast (was a silent wrong-amount signature).
+  it('buildPurchaseTx throws when a funding coin has no satoshis', function () {
+    var lock = Ord.buildOrdLock({ seller: owner.toAddress(), price: PRICE })
+    ;(function () {
+      Ord.buildPurchaseTx({
+        listing: { txid: 'a1'.repeat(32), outputIndex: 0, script: lock, satoshis: 1 },
+        ordinalDestination: fundKey.toAddress(),
+        funding: [{ txid: 'b1'.repeat(32), outputIndex: 0, script: fundScript, privateKey: fundKey }], // no satoshis
+        fee: 500
+      })
+    }).should.throw(/satoshis/)
+  })
+
+  // Finding #5: payOutputFor never silently ignores price when handed a full Output.
+  it('payOutputFor rejects a Transaction.Output (price would be ignored)', function () {
+    var o = new bsv.Transaction.Output({ script: ownerScript, satoshis: 5 })
+    ;(function () { Ord.payOutputFor(o, PRICE) }).should.throw()
+  })
+
+  it('buildOrdLock still accepts a pre-built Output as payTo (uses its own value)', function () {
+    var lock = Ord.buildOrdLock({
+      seller: owner.toAddress(), price: 1,
+      payTo: new bsv.Transaction.Output({ script: ownerScript, satoshis: 777 })
+    })
+    Ord.parseOrdLock(lock).totalPrice.should.equal(777)
+  })
+})

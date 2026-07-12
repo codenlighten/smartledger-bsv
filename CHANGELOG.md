@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.1] - 2026-07-12
+
+Patch release — fixes from a code review of the v6.0.0 ordinals module. No API
+removals; all additive/validation changes.
+
+### Fixed
+
+- **`Ordinals.buildListingTx` signed the ordinal input with the wrong amount.** It resolved
+  the input value (defaulting `ordinal.satoshis` to 1) but signed with the raw, possibly-
+  undefined `ordinal.satoshis`, so omitting the documented-optional field produced a
+  signature over amount 0 that fails on-chain. It now signs with the resolved value.
+- **`Ordinals.parseOrdLock` / `isOrdLock` always returned livenet addresses.** They now
+  accept `{ network }` so `seller.address` and `payOutputs[].address` can be formatted for
+  testnet (the pubKeyHash / scripts were always exact; only the display strings were wrong).
+- **`Ordinals.BSV20` builders emitted non-canonical amounts.** Integer strings with leading
+  zeros (`"007"`) are now canonicalized (`"7"`) so indexers expecting canonical decimals
+  accept them; arbitrary precision is preserved.
+
+### Changed
+
+- `Ordinals.payOutputFor` no longer silently ignores `price` when handed a `Transaction.Output`
+  (it now requires an address/pubkey/key + integer price); pass a pre-built output via the
+  `payOutputs`/`payTo` specs instead.
+- Satoshi amounts are validated (non-negative integers) in `buildListingTx` / `buildPurchaseTx`
+  and at signing time, so a missing/NaN `satoshis` fails fast instead of yielding an invalid
+  signature. `purchase()` accepts a pre-computed `parsed` to avoid re-parsing the listing.
+
 ## [6.0.0] - 2026-07-12
 
 Major release. Combines a security-hardening pass (four CRITICAL forgery-enabling
