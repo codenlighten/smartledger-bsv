@@ -1103,8 +1103,14 @@ declare module '@smartledger/bsv' {
             payoutCount?: number;
             /** Assert the pinned block matches the listing before signing (default true). */
             validate?: boolean;
+            /** A pre-computed parseOrdLock(lockingScript) result, to avoid re-parsing. */
+            parsed?: ParsedOrdLock;
             payOutput?: Transaction.Output | Buffer;
             grind?: SmartContract.GrindOpts;
+        }
+        interface ParseOpts {
+            /** Network for returned address strings ('livenet' | 'testnet'); default livenet. */
+            network?: string;
         }
         interface CancelParams {
             privateKey: PrivateKey;
@@ -1136,9 +1142,9 @@ declare module '@smartledger/bsv' {
         /** Build an OrdLock listing (locking) script pinning the required payment output(s). */
         function buildOrdLock(params: OrdLockParams): Script;
         /** Parse an OrdLock listing into its economic terms; null if not an OrdLock. */
-        function parseOrdLock(script: Script | Buffer | string): ParsedOrdLock | null;
+        function parseOrdLock(script: Script | Buffer | string, opts?: ParseOpts): ParsedOrdLock | null;
         /** True if the script is a recognizable OrdLock listing. */
-        function isOrdLock(script: Script | Buffer | string): boolean;
+        function isOrdLock(script: Script | Buffer | string, opts?: ParseOpts): boolean;
         /** Build the 1-sat Transaction.Output that lists an ordinal for sale. */
         function listInscriptionOutput(params: OrdLockParams): Transaction.Output;
         /** Build a P2PKH payment Output from an address/pubkey/key (or pass an Output through). */

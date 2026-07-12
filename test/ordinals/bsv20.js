@@ -66,6 +66,16 @@ describe('Ordinals BSV-20 fungible tokens', function () {
     p.amt.should.equal('42')
   })
 
+  // Code-review finding #4: leading-zero integer strings are canonicalized (indexers expect
+  // canonical decimals), while preserving arbitrary precision.
+  it('canonicalizes leading-zero amount strings', function () {
+    B.parseBsv20(B.buildMint({ address: address, tick: 'ORDI', amt: '007' })).amt.should.equal('7')
+    B.parseBsv20(B.buildDeploy({ address: address, tick: 'ORDI', max: '000100' })).max.should.equal('100')
+    // canonicalization does not corrupt a huge value
+    var huge = '90000000000000000000000000'
+    B.parseBsv20(B.buildMint({ address: address, tick: 'ORDI', amt: '0' + huge })).amt.should.equal(huge)
+  })
+
   it('builds a 1-sat token output', function () {
     var out = B.createMintOutput({ address: address, tick: 'ORDI', amt: '1' })
     out.satoshis.should.equal(1)
