@@ -661,6 +661,54 @@ declare module '@smartledger/bsv' {
         function parseAnchorPayload(opReturnData: string): AnchorParseResult;
     }
 
+    // -------- SPV (trustless Merkle inclusion proofs) -------------------
+
+    export namespace SPV {
+        /** A Merkle branch proof. All hashes are DISPLAY-order hex; a node of '*' means "duplicate the working hash". */
+        interface MerkleProof { txid: string; index: number; nodes: string[]; merkleRoot: string; }
+        interface InclusionParams {
+            txid: string;
+            index: number;
+            nodes: string[];
+            /** a bsv.BlockHeader, an 80-byte Buffer, or 80-byte hex. */
+            header: any;
+            /** default true — require the header to meet its proof-of-work target. */
+            requirePow?: boolean;
+        }
+        interface InclusionResult {
+            valid: boolean;
+            rootMatches: boolean;
+            powValid: boolean;
+            merkleRoot: string;
+            blockHash: string;
+        }
+        /** Recompute the Merkle root from a branch proof (display-order hex). */
+        function merkleRootFromBranch(txid: string, index: number, nodes: string[]): string;
+        /** Verify a branch proof against an expected root. */
+        function verifyMerkleProof(proof: MerkleProof): boolean;
+        /** Verify a tx is included in a block: branch -> root, root == header.merkleRoot, PoW. */
+        function verifyTxInclusion(params: InclusionParams): InclusionResult;
+
+        interface HeaderChainResult {
+            valid: boolean;
+            reason?: string;
+            count: number;
+            anchorHash?: string;
+            tipHash?: string;
+            work?: number;
+        }
+        /**
+         * Verify consecutive headers (oldest->newest): each links to the previous and
+         * meets its PoW target; optionally the tip/anchor must equal opts.trustedHash.
+         * Validates linkage + per-header PoW, NOT the difficulty-retarget schedule —
+         * supply a trusted checkpoint hash for adversarial settings.
+         */
+        function verifyHeaderChain(
+            headers: Array<any>,
+            opts?: { requirePow?: boolean; trustedHash?: string }
+        ): HeaderChainResult;
+    }
+
     // -------- GDAF (Global Digital Attestation Framework) ---------------
 
     export class GDAF {
