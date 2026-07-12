@@ -5,6 +5,78 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Security-hardening release. Fixes four CRITICAL forgery-enabling verification
+bugs, a revocation bypass, and several covenant defects, and adds ordinal-safe
+transfers plus a configurable-SIGHASH covenant core. **Contains breaking changes**
+(see below) — recommended as a **major** version bump. All 4294 suite tests pass;
+each fix ships with an adversarial regression test that asserts the *bad* input is
+rejected. Bundles rebuilt; a new CI gate enforces that shipped bundles are a
+reproducible build of `lib/`.
+
+### Security — Fixed
+
+- **CRITICAL: forgeable signatures via the `ECDSA.verify()` trap.** `ECDSA.prototype.verify()`
+  returns the ECDSA *instance* (always truthy) with the real result on `.verified`.
+  Three call sites treated the truthy return as a boolean and one skipped the check
+  entirely, so a forged signature verified as valid:
+  - `lib/ltp/proof.js` and `lib/gdaf/did-resolver.js` (`verifyOwnership`) now read `.verified`.
+  - `lib/ltp/right.js` / `lib/ltp/obligation.js` `_verifyTokenSignature` (was a `// TODO`)
+    now verifies the JWS, **bound to the issuer DID's key** (not the attacker-controlled
+    `proof.verificationMethod`), and fails closed.
+  - Added `ECDSA.prototype.verifyBool()` and a warning on `verify()`.
+- **CRITICAL: `SmartLedgerAnchor.verifyAnchor` was a stub** returning `{verified:true}`
+  for any txid. Now fails closed (throws) unless an injected `chainProvider` performs a
+  real inclusion + OP_RETURN-commitment check.
+- **HIGH: StatusList2021 revocation bypass.** `getCredentialStatusEntry` / `updateStatusList`
+  read the revocation bitstring from an **unverified** JWT — a substituted/forged list could
+  un-revoke a credential. They now verify the list-JWT signature against a **pinned issuer**
+  before reading any bit, and cap gzip inflation (gzip-bomb DoS).
+- **HIGH: `prepareRightTokenTransfer` did not bind the signer to the current owner** — anyone
+  could mint a "valid" transfer of a token they don't own. Now bound to `credentialSubject.id`.
+- **MEDIUM: Shamir checksum leaked a hash of the secret** in every share (offline brute-force of
+  low-entropy secrets by a single, sub-threshold holder). The per-share checksum is now **off by
+  default** (opt-in via `{checksum:true}`).
+- **MEDIUM: `vcjwt.verifyVcJwt`** — tokens without an `exp` never expired; added opt-in
+  `requireExpiration`.
+- **MEDIUM: `LTP.Anchor.verifyTokenAnchor`** trusted caller-supplied `txData` with no chain
+  proof; result now carries `chainVerified:false` and the doc states it is commitment-match only.
+
+### Fixed — Covenants (consensus-relevant)
+
+- **Inverted `OP_SPLIT`/`OP_DROP` field extraction** in `covenant_builder.js` and the
+  reference ASM in `preimage.js`. After `OP_SPLIT` the right part is on top, so keeping it
+  needs `OP_NIP`; the code used `OP_DROP`, extracting the wrong bytes for RIGHT-strategy fields
+  (`value`, `nSequence`, `hashOutputs`, `nLocktime`, `sighashType`). Proven at the interpreter
+  level and fixed; added `nip()`.
+- **`SmartContract.Covenant` built a non-enforcing "covenant"** (reduces to P2PK; bound nothing
+  about the spend) while claiming "production-ready … BIP-143 validation." `createFromP2PKH`
+  now throws unless constructed with `{allowNonEnforcing:true}`, and the docs redirect to the
+  real OP_PUSH_TX primitives.
+- **Shamir RNG could hang forever** on a degenerate/stubbed CSPRNG (all-zero draws); the re-draw
+  loop is now bounded and throws instead.
+
+### Added
+
+- **Ordinal-safe transfers.** `SmartContract.Token.transferOrdinal` / `SmartContract.ordinalLock`
+  recreate a 1-sat ordinal among funding outputs (fee paid from funding, satoshi preserved), with
+  an anti-burn guard; the single-output `unlockTransfer` now refuses a 1-sat UTXO.
+- **Configurable SIGHASH covenant core.** `PushTx.pushTxCore(script, {sighashType})`,
+  `assertSighashType`, and `grind({sighashType})` enable `SIGHASH_SINGLE|ANYONECANPAY` marketplace
+  covenants (seller signs its own input+output; buyer adds funding). Default remains SIGHASH_ALL.
+- **CI bundle-parity gate** (`.github/workflows/ci.yml`): fails if the shipped `*.min.js`/
+  `*.bundle.js` are not a reproducible build of `lib/`. Added `.nvmrc` (Node 18) for reproducibility.
+
+### Changed — BREAKING
+
+- `statuslist.getCredentialStatusEntry` is now **async** and both status functions **require**
+  `expectedIssuerDid` plus a key source (`didResolver` / `issuerJwks` / `issuerPublicJwk`). The CLI
+  `status set`/`check` resolve the issuer key from the key file automatically.
+- `SmartContract.Covenant.createFromP2PKH` **throws** unless the instance is constructed with
+  `{allowNonEnforcing:true}`.
+- Shamir `split()` no longer embeds a secret checksum by default (pass `{checksum:true}` to restore).
+
 ## [5.5.2] - 2026-06-28
 
 Docs-only patch. No API or behavior changes — the only difference in any

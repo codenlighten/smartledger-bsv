@@ -192,6 +192,24 @@ jobs:
 
       - name: Build all bundles
         run: npm run build-all
+        env:
+          # webpack's default hash needs the legacy OpenSSL provider on Node 17+.
+          NODE_OPTIONS: --openssl-legacy-provider
+
+      - name: Bundle parity (shipped bundles == source)
+        # THE supply-chain gate. The shipped *.min.js / *.bundle.js MUST be a
+        # reproducible build of the current source. Otherwise npm/CDN consumers can
+        # receive DIFFERENT code than the repository audits — exactly how a security
+        # fix in lib/ can silently fail to reach users. build-all ran above; if it
+        # changed any committed bundle, dist and source have drifted.
+        run: |
+          if ! git diff --exit-code -- '*.min.js' '*.bundle.js'; then
+            echo "::error::Shipped bundles do not match a fresh build of lib/."
+            echo "::error::Run: NODE_OPTIONS=--openssl-legacy-provider npm run build-all"
+            echo "::error::then commit the regenerated bundles alongside the source change."
+            exit 1
+          fi
+          echo "Bundles are a reproducible build of source."
 
       - name: Bundle inventory (16 expected)
         # Catches the v3.4.0 → v3.4.1 bug: prepublishOnly only built 6/16

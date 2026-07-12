@@ -14,9 +14,24 @@ declare module '@smartledger/bsv' {
     export namespace crypto {
         class BN { }
 
-        namespace ECDSA {
-            function sign(message: Buffer, key: PrivateKey): Signature;
-            function verify(hashbuf: Buffer, sig: Signature, pubkey: PublicKey, endian?: 'little'): boolean;
+        class ECDSA {
+            hashbuf?: Buffer;
+            sig?: Signature;
+            pubkey?: PublicKey;
+            /** Result of the last verify() call. */
+            verified?: boolean;
+            /**
+             * @returns the ECDSA INSTANCE (always truthy) — the pass/fail result is on
+             * `.verified`. Treating this return value as a boolean silently accepts
+             * forged signatures; read `.verified` or use `verifyBool()`.
+             */
+            verify(): this;
+            /** Boolean verification — true only when the signature is valid (the safe form). */
+            verifyBool(): boolean;
+            /** Static: sign a hash. */
+            static sign(message: Buffer, key: PrivateKey): Signature;
+            /** Static: returns a real boolean (safe). */
+            static verify(hashbuf: Buffer, sig: Signature, pubkey: PublicKey, endian?: 'little'): boolean;
         }
 
         namespace Hash {
@@ -760,8 +775,14 @@ declare module '@smartledger/bsv' {
     // to evolving internal shapes.
 
     export namespace SmartContract {
+        /**
+         * @deprecated NON-ENFORCING — builds a constant hash-lock that reduces to
+         * plain P2PK and binds nothing about the spend. Use `policy()` (declarative
+         * OP_PUSH_TX), `PushTx`, `Token`, or `valueCovenant`. `createFromP2PKH` throws
+         * unless the instance is constructed with `{ allowNonEnforcing: true }`.
+         */
         class Covenant {
-            constructor(privateKey: PrivateKey, options?: object);
+            constructor(privateKey: PrivateKey, options?: { allowNonEnforcing?: boolean; [key: string]: any });
             [key: string]: any;
         }
         class Preimage {
@@ -772,8 +793,13 @@ declare module '@smartledger/bsv' {
             constructor(sighashType: number);
             [key: string]: any;
         }
+        /**
+         * @deprecated NON-ENFORCING — same constant hash-lock flaw as Covenant (reduces
+         * to P2PK). Use `policy()` / `PushTx` / `Token`. `buildLockingScript` and
+         * `createCovenant` throw unless constructed with `{ allowNonEnforcing: true }`.
+         */
         class Builder {
-            constructor(privateKey: PrivateKey, options?: object);
+            constructor(privateKey: PrivateKey, options?: { allowNonEnforcing?: boolean; [key: string]: any });
             [key: string]: any;
         }
         class UTXOGenerator {
@@ -836,6 +862,10 @@ declare module '@smartledger/bsv' {
         function ownershipToken(fee: number, ownerHash: Buffer): Script;
         /** OP_PUSH_TX value/output covenant: coins can only go where the covenant says. */
         function valueCovenant(expectedHashOutputs: Buffer): Script;
+        /** Ordinal covenant locking script (value-preserving; safe for 1-sat ordinals). */
+        function ordinalLock(owner: Buffer, auth?: Authorizer): Script;
+        /** Transfer a 1-sat (or N-sat) ordinal without burning it (see Token.transferOrdinal). */
+        function transferOrdinal(signer: any, newOwnerHash: Buffer, spend: Transaction, ordinalSats: number, lockingScript: Script, opts?: OrdinalOpts): Script;
 
         namespace CovenantHelpers {
             const SIGHASH: number;
@@ -850,26 +880,71 @@ declare module '@smartledger/bsv' {
             function scriptNum(n: number): Buffer;
         }
 
+        interface GrindOpts { maxTries?: number; start?: number; field?: 'nLockTime' | 'sequence'; sighashType?: number; }
+        interface GrindResult { preimage: Buffer; tries: number; field?: string; nonce?: number; }
+
         namespace PushTx {
             const Gx: Buffer;
             const PUBKEY: Buffer;
-            function pushTxCore(script: Script): Script;
+            /** SIGHASH_ALL|FORKID (0x41) — the default. */
+            const SIGHASH_ALL_FORKID: number;
+            /** SIGHASH_SINGLE|FORKID (0x43). */
+            const SIGHASH_SINGLE_FORKID: number;
+            /** SIGHASH_SINGLE|ANYONECANPAY|FORKID (0xc3) — marketplace / partially-signed. */
+            const SIGHASH_SINGLE_ANYONECANPAY_FORKID: number;
+            /**
+             * Append the in-script signature generator + OP_CHECKSIG. `opts.sighashType`
+             * sets the flag baked into the synthetic signature (default 0x41); the spender
+             * must push the matching BIP-143 preimage (grind with the same sighashType).
+             */
+            function pushTxCore(script: Script, opts?: { sighashType?: number }): Script;
             function authenticator(): Script;
+            /** Assert the spend is SIGHASH_ALL|FORKID. */
+            function assertSighashAll(script: Script): Script;
+            /** Assert the spend uses a specific SIGHASH flag (pairs with pushTxCore/grind opts). */
+            function assertSighashType(script: Script, sighashType: number): Script;
             function extractHashOutputs(script: Script): Script;
             function hashOutputs(outputs: Transaction.Output[]): Buffer;
             function valueCovenant(expectedHashOutputs: Buffer): Script;
             function sFromPreimage(preimage: Buffer): Buffer | null;
-            function grind(spend: Transaction, inputIndex: number, lockingScript: Script, satoshis: number, maxTries?: number): { preimage: Buffer; tries: number };
+            /** Grind a malleable field until the in-script signature is canonical. Legacy: a bare number is maxTries. */
+            function grind(spend: Transaction, inputIndex: number, lockingScript: Script, satoshis: number, opts?: GrindOpts | number): GrindResult;
         }
 
         namespace PELS {
             function pelsCovenant(fee: number): Script;
         }
 
+        /** Pluggable authorization scheme for Token covenants. */
+        interface Authorizer {
+            commit(owner: any): Buffer;
+            emit(script: Script): Script;
+            unlockArgs(spend: Transaction, inputIndex: number, lockingScript: Script, satoshis: number, signer: any): any[];
+        }
+        namespace Authorizers {
+            /** Single-key (default): owner id = HASH160(pubkey). */
+            function singleKey(): Authorizer;
+            /** m-of-n multisig authorizer. */
+            function multisig(m: number, keys: PublicKey[]): Authorizer;
+            /** Arbitrary predicate authorizer over a fixed 20-byte commitment. */
+            function predicate(commit: Buffer, emit: (script: Script) => Script): Authorizer;
+        }
+        interface TransferOpts { auth?: Authorizer; inputIndex?: number; grind?: GrindOpts; allowLowValue?: boolean; }
+        interface MultiLayout { before?: Buffer; after?: Buffer; tokenValue: Buffer; }
+        interface OrdinalOpts { auth?: Authorizer; inputIndex?: number; tokenIndex?: number; grind?: GrindOpts; }
         namespace Token {
-            function ownershipToken(fee: number, ownerHash: Buffer): Script;
-            function ownerId(secret: Buffer): Buffer;
-            function unlockTransfer(ownerSecret: Buffer, newOwnerHash: Buffer, preimage: Buffer): Script;
+            /** Single-output perpetual NFT (value = input - fee). NOT for 1-sat ordinals — use ordinalLock/transferOrdinal. */
+            function ownershipToken(fee: number, owner: Buffer, auth?: Authorizer): Script;
+            /** Multi-output token: the recreated output carries its own value and may sit among other outputs. */
+            function ownershipTokenMulti(owner: Buffer, auth?: Authorizer): Script;
+            /** Value-preserving ordinal covenant (safe for 1-sat ordinals). */
+            function ordinalLock(owner: Buffer, auth?: Authorizer): Script;
+            /** Owner id from a key (HASH160 of the pubkey) for the single-key authorizer. */
+            function ownerId(key: PrivateKey | PublicKey): Buffer;
+            function unlockTransfer(signer: any, newOwnerHash: Buffer, spend: Transaction, satoshis: number, lockingScript: Script, opts?: TransferOpts): Script;
+            function unlockTransferMulti(signer: any, newOwnerHash: Buffer, spend: Transaction, satoshis: number, lockingScript: Script, layout: MultiLayout, opts?: TransferOpts): Script;
+            /** Transfer a 1-sat (or N-sat) ordinal without burning it; recreates the token output at exactly `ordinalSats`. */
+            function transferOrdinal(signer: any, newOwnerHash: Buffer, spend: Transaction, ordinalSats: number, lockingScript: Script, opts?: OrdinalOpts): Script;
         }
 
         interface LockSpec { lock: Script; meta: { [k: string]: any }; [k: string]: any; }

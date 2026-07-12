@@ -97,12 +97,14 @@
 
         // ---------------- Shamir (the critical path) ----------------
         group('Shamir')
-        test('split returns v2 shares with splitId + checksum', function () {
-          var sh = bsv.Shamir.split('smoke-test secret', 3, 5)
+        test('split returns v2 shares with splitId (+ opt-in checksum)', function () {
+          // checksum is opt-in (off by default so shares don't leak a hash of the secret).
+          var sh = bsv.Shamir.split('smoke-test secret', 3, 5, { checksum: true })
           assert(sh.length === 5, 'expected 5 shares')
           assert(sh[0].v === 2, 'expected share format v2')
           assert(/^[0-9a-f]{16}$/.test(sh[0].splitId), 'bad splitId')
           assert(/^[0-9a-f]{8}$/.test(sh[0].checksum), 'bad checksum')
+          assert(bsv.Shamir.split('x', 2, 3)[0].checksum === null, 'checksum should be null by default')
         })
         test('3-of-5 string round-trip', function () {
           var sh = bsv.Shamir.split('Hello, Bitcoin SV!', 3, 5)
@@ -130,7 +132,7 @@
           assert(bsv.Shamir.verifyShare(sh[0]) === true, 'verifyShare returned false')
         })
         test('tampered share is rejected at combine', function () {
-          var sh = bsv.Shamir.split(randBytes(16), 3, 5)
+          var sh = bsv.Shamir.split(randBytes(16), 3, 5, { checksum: true })
           var s = sh[1]; var last = s.share[s.share.length - 1]
           sh[1] = Object.assign({}, s, { share: s.share.slice(0, -1) + (last === '0' ? '1' : '0') })
           assertThrows(function () { bsv.Shamir.combine(sh.slice(0, 3)) }, /Integrity check failed|Reconstruction failed/)
