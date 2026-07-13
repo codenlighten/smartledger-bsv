@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### CI / quality (no runtime change)
+
+- **Lint ratchet** (`scripts/lint-ratchet.js`, `.lint-baseline.json`): the whole repo is now
+  gated on `standard` without the big one-shot cleanup. The baseline grandfathers the existing
+  10,190 legacy violations (per-file counts, so moving code within a file doesn't trip it); CI
+  **fails on any file that gains a new violation**, and the baseline can only shrink (`npm run
+  lint:ratchet:update` after cleaning a file). Replaces the previously-advisory repo-wide lint.
+
 ## [6.1.1] - 2026-07-13
 
 First release published from CI with **npm provenance**. No runtime/API change —

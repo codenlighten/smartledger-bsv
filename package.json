@@ -17,6 +17,8 @@
   },
   "scripts": {
     "lint": "standard",
+    "lint:ratchet": "node scripts/lint-ratchet.js",
+    "lint:ratchet:update": "node scripts/lint-ratchet.js --update",
     "test": "mocha",
     "test:cli": "mocha test/cli/smoke.js --timeout 25000",
     "test:ltp": "node complete_ltp_demo.js",
