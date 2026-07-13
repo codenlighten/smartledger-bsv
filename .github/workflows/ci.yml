@@ -300,16 +300,19 @@ jobs:
         run: npm run test:browser:ci
 
   tests:
-    # Advisory: mocha and lint run on every push but don't gate merges
-    # until the 25 pre-existing test failures and standard@12 lint
-    # baseline are cleaned up as part of the 3.5.0 toolchain upgrade
-    # (see CHANGELOG `## Planned for 3.5.0`).
-    name: Tests & lint (advisory)
+    # Mocha is now BLOCKING — the full suite is green across supported Node versions, and
+    # a library that handles value must gate merges on it. The matrix is Node 20 + 22:
+    # Node 18 is EOL (2025-04) and the audited ESM-only `@noble/curves@2` crypto dep can't
+    # be require()'d there (ERR_REQUIRE_ESM), so `engines` requires >=20.19 (where
+    # require(ESM) is unflagged). Repo-wide `standard` stays advisory against the large
+    # standard@12 legacy baseline, but a scoped lint of the audited / consensus-critical
+    # modules is BLOCKING so new code there cannot regress.
+    name: Tests (gating) + lint
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18, 20, 22]
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v5
 
@@ -322,10 +325,12 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Mocha
-        continue-on-error: true
+      - name: Mocha (blocking — full suite must pass)
         run: npm test
 
-      - name: Lint
+      - name: Lint — audited modules (blocking)
+        run: npx standard lib/ordinals lib/spv lib/smart_contract/pushtx.js lib/smart_contract/token.js test/ordinals test/security
+
+      - name: Lint — repo-wide (advisory, standard@12 legacy baseline)
         continue-on-error: true
         run: npm run lint

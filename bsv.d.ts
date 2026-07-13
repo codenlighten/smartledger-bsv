@@ -1,4 +1,4 @@
-// Type definitions for @smartledger/bsv 3.4.x
+// Type definitions for @smartledger/bsv 6.x
 // Project: https://github.com/codenlighten/smartledger-bsv
 // Forked from: https://github.com/moneybutton/bsv (which forked from https://github.com/bitpay/bitcore-lib)
 // Original definitions by: Lautaro Dragan <https://github.com/lautarodragan>

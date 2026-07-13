@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Requires Node.js >= 20.19** (added `engines`). The audited crypto dependency
+  `@noble/curves@2` is ESM-only; `require()`-ing it needs unflagged `require(ESM)`, which
+  landed in Node 20.19 / 22. Node 18 is EOL (2025-04) and the CJS entry never loaded there
+  (`ERR_REQUIRE_ESM`) — this makes the real requirement explicit instead of failing at load.
+
+### CI / quality (no runtime change)
+
+- The **mocha suite now gates merges** (was advisory). CI matrix is Node 20 + 22.
+- Added `test/security/fail_closed_contracts.js` — mechanically asserts every security-critical
+  verification rejects a forged/invalid input as a strict boolean or a throw (never a truthy
+  object), guarding against the fail-open class fixed in 6.0.0.
+- A **blocking scoped lint** now gates the audited/consensus-critical modules (ordinals, spv,
+  pushtx, token); repo-wide `standard` stays advisory against the legacy baseline.
+- Fixed the stale `3.4.x` version header in `bsv.d.ts`.
+
 ## [6.0.1] - 2026-07-12
 
 Patch release — fixes from a code review of the v6.0.0 ordinals module. No API
