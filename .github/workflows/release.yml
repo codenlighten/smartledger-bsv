@@ -44,8 +44,9 @@ jobs:
           cache: npm
 
       - name: Upgrade npm for OIDC trusted publishing
-        # Node 20 ships npm 10.8; OIDC trusted publishing needs npm >= 11.5.1.
-        run: npm install -g npm@latest
+        # Node 20 ships npm 10.8; OIDC trusted publishing needs npm >= 11.5.1. Pin to the
+        # 11.x line — npm@latest is 12.x which requires Node 22+ (incompatible with Node 20).
+        run: npm install -g 'npm@^11.5.1'
 
       - name: Install
         run: npm ci
