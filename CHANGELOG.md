@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### CI / release
+
+- **Release publishing is now tokenless via npm OIDC Trusted Publishing.** The release
+  workflow no longer uses an `NPM_TOKEN` secret — the GitHub Actions OIDC identity
+  (`id-token: write`) is exchanged for a short-lived publish token at release time and
+  provenance is automatic. (npm removed classic/automation tokens in Nov 2025; trusted
+  publishing is the modern replacement.) Requires a one-time trusted-publisher registration
+  on npmjs.com and npm ≥ 11.5.1 (the workflow installs it). See `RELEASING.md`.
+
 ### CI / quality (no runtime change)
 
 - **Lint ratchet** (`scripts/lint-ratchet.js`, `.lint-baseline.json`): the whole repo is now

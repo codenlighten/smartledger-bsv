@@ -7,9 +7,15 @@ from that exact commit ("published package == audited source", publicly checkabl
 
 ## One-time setup (repo admin)
 
-Add an npm **Automation** access token as the Actions secret `NPM_TOKEN`
-(Settings → Secrets and variables → Actions). Automation tokens bypass 2FA, which
-CI/provenance publishing requires. The repo must be public for provenance.
+Auth is **tokenless** via npm **OIDC Trusted Publishing** — no secret to manage. On
+npmjs.com, open the `@smartledger/bsv` package → **Settings → Trusted Publisher →
+GitHub Actions** and register repository `codenlighten/smartledger-bsv`, workflow
+`release.yml`. The workflow's OIDC identity is then exchanged for a short-lived publish
+token at release time, and provenance is automatic. The repo must be public.
+
+(npm removed classic/automation tokens in Nov 2025; trusted publishing is the modern
+replacement and avoids granular-token scoping issues. The workflow installs npm ≥ 11.5.1,
+which OIDC trusted publishing requires.)
 
 ## Cutting a release
 
