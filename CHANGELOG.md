@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.1] - 2026-07-13
+
+First release published from CI with **npm provenance**. No runtime/API change —
+type corrections + release/CI hardening.
+
 ### CI / release
 
 - **Automated releases with npm provenance** (`.github/workflows/release.yml`, `RELEASING.md`).
