@@ -9,9 +9,14 @@
 # This replaces the manual `docker run node:20 ... npm publish` flow. It removes
 # the OTP/credential dance and the trust-me-it-matches-source gap.
 #
-# ONE-TIME SETUP (repo admin): add an npm **Automation** access token as the
-# Actions secret `NPM_TOKEN` (Settings -> Secrets and variables -> Actions).
-# Automation tokens bypass 2FA, which provenance/CI publishing requires.
+# Auth is TOKENLESS via npm **OIDC Trusted Publishing** — no NPM_TOKEN secret. The
+# workflow's OIDC identity (id-token: write) is exchanged for a short-lived npm token
+# at publish time, and provenance is automatic. (npm removed classic/automation tokens
+# in Nov 2025; trusted publishing is the modern path and avoids granular-token scoping.)
+#
+# ONE-TIME SETUP (repo admin, on npmjs.com): @smartledger/bsv -> Settings ->
+# Trusted Publisher -> GitHub Actions -> repository `codenlighten/smartledger-bsv`,
+# workflow `release.yml`. No secret needed. Requires npm >= 11.5.1 (installed below).
 
 name: Release
 
@@ -31,11 +36,16 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Setup Node 20
+        # Build/parity stay on Node 20 (matches the committed bundles). No registry-url /
+        # token env — OIDC trusted publishing configures auth itself.
         uses: actions/setup-node@v5
         with:
           node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
           cache: npm
+
+      - name: Upgrade npm for OIDC trusted publishing
+        # Node 20 ships npm 10.8; OIDC trusted publishing needs npm >= 11.5.1.
+        run: npm install -g npm@latest
 
       - name: Install
         run: npm ci
@@ -80,8 +90,8 @@ jobs:
           fi
 
       # prepublishOnly rebuilds bundles again (idempotent); publish with provenance.
-      - name: Publish
+      - name: Publish (OIDC trusted publishing + provenance)
         if: steps.exists.outputs.already == 'false'
+        # No token: npm exchanges the GitHub OIDC id-token for a short-lived publish
+        # token via the configured trusted publisher, and attaches provenance.
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
