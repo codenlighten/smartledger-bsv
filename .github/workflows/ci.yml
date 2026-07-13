@@ -178,13 +178,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Setup Node 18
-        # webpack 4 needs --openssl-legacy-provider on Node 17+; pin to 18
-        # rather than chase Node 20/22 here. 3.5.0 toolchain upgrade will
-        # remove this constraint.
+      - name: Setup Node 20
+        # The build hashes with webpack's built-in xxhash64 (build/webpack.base.js),
+        # so it no longer needs OpenSSL's md4 / --openssl-legacy-provider and runs on
+        # modern Node. Node 20 matches the runtime floor (engines >=20.19).
         uses: actions/setup-node@v5
         with:
-          node-version: '18'
+          node-version: '20'
           cache: npm
 
       - name: Install
@@ -192,9 +192,6 @@ jobs:
 
       - name: Build all bundles
         run: npm run build-all
-        env:
-          # webpack's default hash needs the legacy OpenSSL provider on Node 17+.
-          NODE_OPTIONS: --openssl-legacy-provider
 
       - name: Bundle parity (shipped bundles == source)
         # THE supply-chain gate. The shipped *.min.js / *.bundle.js MUST be a
@@ -205,7 +202,7 @@ jobs:
         run: |
           if ! git diff --exit-code -- '*.min.js' '*.bundle.js'; then
             echo "::error::Shipped bundles do not match a fresh build of lib/."
-            echo "::error::Run: NODE_OPTIONS=--openssl-legacy-provider npm run build-all"
+            echo "::error::Run: npm run build-all"
             echo "::error::then commit the regenerated bundles alongside the source change."
             exit 1
           fi

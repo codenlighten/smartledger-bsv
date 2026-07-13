@@ -70,6 +70,12 @@ function merge (config, fallback, plugins) {
   // config-provided fallbacks win over the shared defaults.
   config.resolve.fallback = Object.assign({}, fallback, config.resolve.fallback)
   config.plugins = (config.plugins || []).concat(plugins)
+  // Hash module/chunk content with webpack's built-in xxhash64 instead of the default
+  // md4. md4 goes through Node's OpenSSL, which OpenSSL 3 (Node 17+) disables — the sole
+  // reason the build needed `--openssl-legacy-provider` and a pinned Node 18. xxhash64 is
+  // pure (no OpenSSL), so `build-all` runs natively on any modern Node with no flag.
+  config.output = config.output || {}
+  if (!config.output.hashFunction) config.output.hashFunction = 'xxhash64'
   applyOptimization(config)
   return config
 }
