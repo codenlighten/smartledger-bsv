@@ -3,9 +3,9 @@
 # Designed to catch the bug classes fixed in v3.4.1, v3.4.3, and the v3.4.4
 # doc-honesty sweep — stale CDN URLs in README/docs, dead `files:` entries
 # in package.json, missing bundles, LTP/GDAF entry placeholder regression,
-# and broken TypeScript types. Lint and the mocha suite run in advisory
-# mode (continue-on-error) until the 25 pre-existing test failures and
-# standard@12 lint baseline are cleaned up in 3.5.0.
+# and broken TypeScript types. The mocha suite is blocking; lint is gated by a
+# ratchet (no NEW violations against the grandfathered standard@12 baseline) plus a
+# pristine-required scoped lint of the audited/consensus-critical modules.
 
 name: CI
 
@@ -325,9 +325,11 @@ jobs:
       - name: Mocha (blocking — full suite must pass)
         run: npm test
 
-      - name: Lint — audited modules (blocking)
+      - name: Lint — audited modules (blocking, must be pristine)
         run: npx standard lib/ordinals lib/spv lib/smart_contract/pushtx.js lib/smart_contract/token.js test/ordinals test/security test/types
 
-      - name: Lint — repo-wide (advisory, standard@12 legacy baseline)
-        continue-on-error: true
-        run: npm run lint
+      - name: Lint ratchet — no NEW violations repo-wide (blocking)
+        # Grandfathers the standard@12 legacy baseline (.lint-baseline.json) but fails on
+        # any file that gains a new violation, so the whole repo is gated without the big
+        # one-shot cleanup and the baseline can only shrink over time.
+        run: node scripts/lint-ratchet.js
