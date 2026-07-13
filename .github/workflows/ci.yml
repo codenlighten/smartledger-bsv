@@ -326,7 +326,7 @@ jobs:
         run: npm test
 
       - name: Lint — audited modules (blocking)
-        run: npx standard lib/ordinals lib/spv lib/smart_contract/pushtx.js lib/smart_contract/token.js test/ordinals test/security
+        run: npx standard lib/ordinals lib/spv lib/smart_contract/pushtx.js lib/smart_contract/token.js test/ordinals test/security test/types
 
       - name: Lint — repo-wide (advisory, standard@12 legacy baseline)
         continue-on-error: true

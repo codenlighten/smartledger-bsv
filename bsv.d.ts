@@ -327,7 +327,6 @@ declare module '@smartledger/bsv' {
             DATA_OUT: string;
         };
         function buildMultisigOut(publicKeys: PublicKey[], threshold: number, opts: object): Script;
-        function buildWitnessMultisigOutFromScript(script: Script): Script;
         function buildMultisigIn(pubkeys: PublicKey[], threshold: number, signatures: Buffer[], opts: object): Script;
         function buildP2SHMultisigIn(pubkeys: PublicKey[], threshold: number, signatures: Buffer[], opts: object): Script;
         function buildPublicKeyHashOut(address: Address): Script;
@@ -454,20 +453,6 @@ declare module '@smartledger/bsv' {
         constructor(data: Buffer | Uint8Array | string | object, network?: Networks.Network | string, type?: string);
     }
 
-    export class Unit {
-        static fromBTC(amount: number): Unit;
-        static fromMilis(amount: number): Unit;
-        static fromBits(amount: number): Unit;
-        static fromSatoshis(amount: number): Unit;
-
-        constructor(amount: number, unitPreference: string);
-
-        toBTC(): number;
-        toMilis(): number;
-        toBits(): number;
-        toSatoshis(): number;
-    }
-
     // ---------------------------------------------------------------------
     // SmartLedger v3.3-3.4.x additions
     //
@@ -495,10 +480,11 @@ declare module '@smartledger/bsv' {
             const constants: { n: any; nh: any };
         }
         namespace EllipticFixed {
-            const ec: {
-                verify(msg: Buffer | string, sig: any, key: any, enc?: string, opts?: object): boolean;
-                sign(msg: Buffer | string, key: any, enc?: string, options?: object): any;
-            };
+            const curve: any;
+            function keyFromPrivate(priv: Buffer | string, enc?: string): any;
+            function sign(msg: Buffer | string, key: any, enc?: string, options?: object): any;
+            function verify(msg: Buffer | string, sig: any, key: any, enc?: string, opts?: object): boolean;
+            function recoverPubKey(msg: Buffer | string, sig: any, j: number, enc?: string): any;
         }
         class Shamir {
             static split(secret: Buffer | string, threshold: number, shares: number, options?: object): ShamirShare[];
@@ -1299,7 +1285,6 @@ declare module '@smartledger/bsv' {
     export function addCustomClaimSchema(name: string, schema: object): void;
 
     // Shamir convenience wrappers (also available on bsv.Shamir directly)
-    export function splitSecret(secret: Buffer | string, totalShares: number, threshold: number, options?: object): ShamirShare[];
-    export function reconstructSecret(shares: ShamirShare[]): Buffer;
-    export function validateShare(share: ShamirShare): boolean;
+    // Shamir secret sharing is exposed as `bsv.Shamir.split` / `.combine` / `.verifyShare`
+    // (see `crypto.Shamir` above) — there are no top-level splitSecret/reconstructSecret helpers.
 }

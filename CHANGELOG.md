@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — types
+
+- **`bsv.d.ts` no longer declares phantom APIs.** A new mechanical type-drift gate
+  (`test/types/dts_drift.js`, TypeScript AST vs. runtime) found six declarations for symbols
+  the runtime doesn't expose; all corrected: removed `Unit`,
+  `Script.buildWitnessMultisigOutFromScript`, and the top-level `splitSecret`/
+  `reconstructSecret`/`validateShare` (Shamir lives at `bsv.Shamir.split`/`.combine`/
+  `.verifyShare`); replaced the non-existent `crypto.EllipticFixed.ec` with its real members.
+
+### CI / quality (no runtime change)
+
+- Added the **type-drift gate** to the (blocking) suite: every declared class/function/const
+  must exist at runtime, and every runtime function on `Ordinals` / `Ordinals.BSV20` / `SPV`
+  must be declared — so the curated `bsv.d.ts` can't drift from the code again.
+- `typescript` is now a pinned devDependency (was installed ad-hoc in CI); the scoped
+  blocking lint covers `test/types`.
+
 ## [6.1.0] - 2026-07-13
 
 ### Changed — build toolchain (no source/API change)
