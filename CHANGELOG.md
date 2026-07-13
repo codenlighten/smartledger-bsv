@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### CI / release
+
+- **Automated releases with npm provenance** (`.github/workflows/release.yml`, `RELEASING.md`).
+  Pushing a `vX.Y.Z` tag now gates the tag (version match, full suite, scoped lint, bundle-parity)
+  and publishes from GitHub Actions with `--provenance` via OIDC — npmjs.com gets a verifiable
+  link proving the tarball was built from that commit ("published == audited source"). Replaces
+  the manual publish flow; idempotent (no-op if the version is already published). Requires a
+  one-time `NPM_TOKEN` Actions secret (npm Automation token). Tidied `repository.url` to the
+  canonical `git+https://…​.git` form provenance expects.
+
 ### Fixed — types
 
 - **`bsv.d.ts` no longer declares phantom APIs.** A new mechanical type-drift gate
