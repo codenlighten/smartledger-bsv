@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.2] - 2026-07-13
+
+First release published tokenlessly via **npm OIDC Trusted Publishing** with automatic
+provenance. No runtime/API change — CI/release hardening.
+
 ### CI / release
 
 - **Release publishing is now tokenless via npm OIDC Trusted Publishing.** The release
