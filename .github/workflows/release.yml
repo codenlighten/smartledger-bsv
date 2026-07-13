@@ -36,11 +36,13 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Setup Node 20
-        # Build/parity stay on Node 20 (matches the committed bundles). No registry-url /
-        # token env — OIDC trusted publishing configures auth itself.
+        # Build/parity stay on Node 20 (matches the committed bundles). registry-url points
+        # npm at npmjs.org in .npmrc (needed for the OIDC exchange); no token is supplied —
+        # OIDC trusted publishing mints a short-lived one.
         uses: actions/setup-node@v5
         with:
           node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
           cache: npm
 
       - name: Upgrade npm for OIDC trusted publishing
@@ -91,6 +93,13 @@ jobs:
           fi
 
       # prepublishOnly rebuilds bundles again (idempotent); publish with provenance.
+      - name: OIDC preflight (diagnostic)
+        if: steps.exists.outputs.already == 'false'
+        run: |
+          echo "npm: $(npm --version)"
+          echo "id-token request URL present: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}${ACTIONS_ID_TOKEN_REQUEST_URL:-NO}"
+          echo "id-token request token present: ${ACTIONS_ID_TOKEN_REQUEST_TOKEN:+yes}${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-NO}"
+
       - name: Publish (OIDC trusted publishing + provenance)
         if: steps.exists.outputs.already == 'false'
         # No token: npm exchanges the GitHub OIDC id-token for a short-lived publish
