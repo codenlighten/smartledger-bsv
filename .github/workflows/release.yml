@@ -93,13 +93,6 @@ jobs:
           fi
 
       # prepublishOnly rebuilds bundles again (idempotent); publish with provenance.
-      - name: OIDC preflight (diagnostic)
-        if: steps.exists.outputs.already == 'false'
-        run: |
-          echo "npm: $(npm --version)"
-          echo "id-token request URL present: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}${ACTIONS_ID_TOKEN_REQUEST_URL:-NO}"
-          echo "id-token request token present: ${ACTIONS_ID_TOKEN_REQUEST_TOKEN:+yes}${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-NO}"
-
       - name: Publish (OIDC trusted publishing + provenance)
         if: steps.exists.outputs.already == 'false'
         # No token: npm exchanges the GitHub OIDC id-token for a short-lived publish
