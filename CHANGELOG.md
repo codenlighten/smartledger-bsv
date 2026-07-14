@@ -26,8 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the first step of migrating the 16 webpack bundles to esbuild. It replicates webpack's
   Node-core polyfill map (crypto-browserify etc.) via a precise `onResolve` plugin and is
   proven equivalent to the webpack `bsv.min.js` — **20/20 Chrome browser-smoke**, gated by a
-  build-integrity test. The published bundles are still webpack-built (no consumer impact yet);
-  cutover + the remaining bundles + ESM/CJS dual `exports` come in later steps.
+  build-integrity test. A **UMD footer** preserves the webpack UMD contract: the bundle is a
+  browser global **and** `require()`-able / AMD-loadable (verified — same browser-only CSPRNG
+  behaviour as the webpack bundle). The published bundles are still webpack-built (no consumer
+  impact yet); cutover + the remaining bundles + ESM/CJS dual `exports` come in later steps.
 
 ## [6.1.2] - 2026-07-13
 
