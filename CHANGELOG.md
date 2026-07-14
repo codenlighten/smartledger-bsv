@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security / docs (audit-readiness)
+
+- **Test-backed threat model** (`docs/THREAT_MODEL.md`): states each security property, its
+  trust assumptions, and the adversarial test that enforces it (fail-closed verification,
+  covenant/marketplace enforcement, credential C1–C4 binding, revocation-bypass closure, SPV
+  inclusion, Shamir non-leak, type honesty). `test/security/threat_model_coverage.js` asserts
+  every test the model cites exists, so it can't drift. Honest "known limitations" section
+  (unaudited inherited core, the residual `ECDSA.verify()` footgun, no difficulty-retarget
+  validation, provenance pending).
+- **`SECURITY.md` refreshed** to 6.x — corrected the stale supported-versions table (was 4.x),
+  documented the 6.0.0 fail-open hardening + the residual `verify()` trap, updated build tooling
+  and disclosure history.
+
 ### Build (in progress — webpack → esbuild)
 
 - **esbuild build for the full library bundle** (`build/esbuild.js`, `npm run build:esbuild`),

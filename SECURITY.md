@@ -5,15 +5,19 @@ Thank you for helping keep `@smartledger/bsv` and its users safe.
 ## Supported Versions
 
 Security fixes are applied to the latest major release line. Earlier releases
-are not patched; please upgrade. **Versions ≤ 3.4.5 contain three known,
-exploitable vulnerabilities in the GDAF credential verification path (see
-CHANGELOG `## [4.0.0]`); upgrade to 4.x is strongly recommended.**
+are not patched; please upgrade. **Versions < 6.0.0 contain four CRITICAL
+fail-open signature/verification bugs and a revocation-bypass (fixed in 6.0.0 —
+see CHANGELOG `## [6.0.0]`); upgrading to the latest 6.x is strongly recommended.**
+Requires **Node.js ≥ 20.19** (the audited crypto dependency `@noble/curves@2` is
+ESM-only).
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 4.x     | :white_check_mark: |
-| 3.4.x   | :x: (contains known credential-verification vulnerabilities; upgrade to 4.x) |
-| < 3.4   | :x:                |
+| 6.x     | :white_check_mark: |
+| < 6.0   | :x: (fail-open verification + revocation-bypass; upgrade to 6.x) |
+
+The security model and the adversarial tests that enforce it are documented in
+[`docs/THREAT_MODEL.md`](./docs/THREAT_MODEL.md).
 
 ## Reporting a Vulnerability
 
@@ -58,8 +62,9 @@ to remain anonymous.
 
 ## Out of Scope
 
-- Vulnerabilities in development-only dependencies (`webpack 4`, `standard 12`,
-  `mocha`, `nyc`, `crypto-browserify`, etc.). These never reach installers — the
+- Vulnerabilities in development-only dependencies (`webpack 5`, `esbuild`,
+  `standard 12`, `mocha`, `nyc`, `crypto-browserify`, etc.). These never reach
+  installers — the
   published tarball ships no `node_modules` and none are listed under
   `dependencies`. The remaining `npm audit` findings (currently 17, all
   dev-only) are either upstream-blocked — `mocha`/`nyc` are already at their
@@ -84,16 +89,38 @@ explicitly. The default `transaction.verify()` / `signature.verify()` /
 `Message().verify()` paths use BSV's own pure-JS ECDSA in
 `lib/crypto/ecdsa.js` and are **not** routed through `SmartVerify`.
 
-See the [Security section of the README](./README.md#-security) for the full
-"what's in the box" table and usage examples for the opt-in helpers. A
-planned 3.5.0 will offer an opt-in flag to route the default verify path
-through `SmartVerify` so the protection is on by default for new users.
+**6.0.0 hardening.** Four CRITICAL fail-open bugs — code that read a truthy
+return value (an ECDSA *instance*, a stub `{verified:true}`) as if it meant
+"valid" — were fixed and locked down:
+
+- `ECDSA.prototype.verifyBool()` is the safe boolean verify; every security-
+  critical call site now reads `.verified` / uses `verifyBool()` and **fails
+  closed** (returns `false` or throws, never a chainable object).
+- `test/security/fail_closed_contracts.js` **mechanically enforces** this — it
+  feeds each verify path a forged input and asserts rejection as a strict boolean
+  or a throw. The CI suite is a merge gate.
+
+**Known residual footgun (mitigated).** `ECDSA.prototype.verify()` still returns
+the *instance* (truthy) with the result on `.verified` — a landmine if read as a
+boolean. It is retained for back-compat, typed to make misuse a compile error
+(`verify(): this` vs `verifyBool(): boolean` in `bsv.d.ts`), and pinned by a
+test; it is slated for **removal in the next major**. Prefer `verifyBool()`.
+
+See [`docs/THREAT_MODEL.md`](./docs/THREAT_MODEL.md) for the full property-by-
+property security model and the tests that enforce each claim, and the
+[Security section of the README](./README.md#-security) for the opt-in helpers.
 
 ## Disclosure History
 
 Significant security-relevant changes are documented in
 [`CHANGELOG.md`](./CHANGELOG.md). Recent entries of note:
 
+- **6.0.0** — fixed four CRITICAL fail-open verification bugs (the `ECDSA.verify()`
+  returns-the-instance trap at three call sites plus a `//TODO` stub), a StatusList2021
+  revocation bypass (unverified list bitstring), an ownership-forgery in
+  `prepareRightTokenTransfer`, and covenant defects (inverted `OP_SPLIT`/`OP_DROP`;
+  non-enforcing "covenants" that reduced to P2PK now throw). Each fix ships an
+  adversarial regression asserting the *bad* input is rejected.
 - **3.4.2 / 3.4.3** — corrected documentation overclaims about which
   hardening is on by default vs. opt-in.
 - **3.4.1** — `Transaction.shuffleOutputs()` now draws entropy from
