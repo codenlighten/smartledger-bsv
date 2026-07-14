@@ -5,6 +5,13 @@ Releases are **published automatically from CI with npm provenance** — pushing
 to npm. Provenance gives npmjs.com a verifiable link proving the tarball was built
 from that exact commit ("published package == audited source", publicly checkable).
 
+> **Status (2026-07):** the tokenless provenance workflow is verified working through the
+> OIDC / Sigstore signing step, but the final publish is authorized by npm's **Trusted
+> Publisher**, which must be registered on npmjs.com — a **2FA-gated** setting. Until that
+> one-time registration is done, releases go out via the **fallback below** (no provenance).
+> Registering the trusted publisher (needs 2FA once) permanently switches releases to the
+> tokenless, provenance-by-default path.
+
 ## One-time setup (repo admin)
 
 Auth is **tokenless** via npm **OIDC Trusted Publishing** — no secret to manage. On
@@ -57,3 +64,23 @@ npm view @smartledger/bsv dist.attestations # provenance present
 
 The build is byte-deterministic across Node 20 and 22, so the CI-built bundles match a
 local `npm run build-all`.
+
+## Fallback publish (until the trusted publisher is registered)
+
+Provenance requires 2FA one way or another (real 2FA at publish, or the one-time
+2FA-gated trusted-publisher registration). Until that's set up, publish from a granular
+token — build on Node 20 (no `--openssl-legacy-provider`) so the tarball matches the
+committed, CI-verified bundles:
+
+```
+docker run --rm -e NPM_TOKEN="$NPM_TOKEN" -v "$PWD":/w -w /w node:20 bash -c '
+  npm ci
+  printf "//registry.npmjs.org/:_authToken=%s\n" "$NPM_TOKEN" > ~/.npmrc
+  npm publish --access public
+'
+```
+
+Do steps 1–3 above (bump, build, changelog, merge) first; this replaces steps 4–5.
+This path has **no provenance** — the published `.js` is still a byte-for-byte
+reproducible build of the tagged source (enforced by the CI bundle-parity gate), just
+without the cryptographic npm attestation.
