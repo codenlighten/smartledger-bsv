@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Build (in progress — webpack → esbuild)
+
+- **esbuild build for the full library bundle** (`build/esbuild.js`, `npm run build:esbuild`),
+  the first step of migrating the 16 webpack bundles to esbuild. It replicates webpack's
+  Node-core polyfill map (crypto-browserify etc.) via a precise `onResolve` plugin and is
+  proven equivalent to the webpack `bsv.min.js` — **20/20 Chrome browser-smoke**, gated by a
+  build-integrity test. The published bundles are still webpack-built (no consumer impact yet);
+  cutover + the remaining bundles + ESM/CJS dual `exports` come in later steps.
+
 ## [6.1.2] - 2026-07-13
 
 First release published tokenlessly via **npm OIDC Trusted Publishing** with automatic

@@ -72,7 +72,8 @@
     "prepublishOnly": "npm run build-all",
     "sync-cdn": "node scripts/sync-cdn-urls.js",
     "version": "node scripts/sync-cdn-urls.js && git add README.md docs",
-    "test:browser:ci": "node tests/browser-smoke-runner.js"
+    "test:browser:ci": "node tests/browser-smoke-runner.js",
+    "build:esbuild": "node build/esbuild.js"
   },
   "unpkg": "bsv.min.js",
   "jsdelivr": "bsv.min.js",
@@ -220,6 +221,7 @@
     "buffer": "^6.0.3",
     "chai": "4.2.0",
     "crypto-browserify": "^3.12.1",
+    "esbuild": "^0.28.1",
     "jose": "^5.10.0",
     "mocha": "^11.7.6",
     "nyc": "^18.0.0",
