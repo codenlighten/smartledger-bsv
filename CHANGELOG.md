@@ -28,8 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   proven equivalent to the webpack `bsv.min.js` — **20/20 Chrome browser-smoke**, gated by a
   build-integrity test. A **UMD footer** preserves the webpack UMD contract: the bundle is a
   browser global **and** `require()`-able / AMD-loadable (verified — same browser-only CSPRNG
-  behaviour as the webpack bundle). The published bundles are still webpack-built (no consumer
-  impact yet); cutover + the remaining bundles + ESM/CJS dual `exports` come in later steps.
+  behaviour as the webpack bundle). `build/esbuild.js` now config-drives **all 16 bundles**
+  (both polyfill modes — `full` browserify shims and `stub` externalised built-ins — plus a
+  plugin that externalises the bsv root to the global `bsv` for the feature bundles); a gate
+  builds all 16 and asserts a feature bundle loads against a global `bsv`. Note: esbuild's
+  `bsv-covenant`/`bsv-smartcontract` come out ~30–290 KB vs webpack's ~900 KB — the webpack
+  `externals` config never matched the real `require('../..')`, so those bundles wrongly embed
+  bsv; the esbuild build fixes that. The published bundles are still webpack-built (no consumer
+  impact yet); cutover + ESM/CJS dual `exports` come in the final steps.
 
 ## [6.1.2] - 2026-07-13
 
