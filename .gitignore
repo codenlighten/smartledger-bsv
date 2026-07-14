@@ -126,3 +126,4 @@ utilities/wallet.json
 **/wallet.json
 *.wif
 *.key
+bsv.esbuild.min.js

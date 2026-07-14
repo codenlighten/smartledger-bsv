@@ -326,7 +326,7 @@ jobs:
         run: npm test
 
       - name: Lint — audited modules (blocking, must be pristine)
-        run: npx standard lib/ordinals lib/spv lib/smart_contract/pushtx.js lib/smart_contract/token.js test/ordinals test/security test/types
+        run: npx standard lib/ordinals lib/spv lib/smart_contract/pushtx.js lib/smart_contract/token.js test/ordinals test/security test/types build/esbuild.js build/esbuild test/build
 
       - name: Lint ratchet — no NEW violations repo-wide (blocking)
         # Grandfathers the standard@12 legacy baseline (.lint-baseline.json) but fails on
