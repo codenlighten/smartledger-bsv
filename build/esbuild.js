@@ -50,6 +50,12 @@ function buildFullBundle (opts) {
     plugins: [nodePolyfills],
     inject: [path.join(__dirname, 'esbuild/globals.js')],
     define: { global: 'globalThis' },
+    // esbuild emits an IIFE (browser global `bsv`); webpack emitted UMD. Add a footer so the
+    // same file also works via CommonJS `require()` and AMD `define`, preserving the UMD
+    // contract for anyone who loads bsv.min.js outside a <script> tag.
+    footer: {
+      js: 'if(typeof module!=="undefined"&&module.exports){module.exports=bsv}else if(typeof define==="function"&&define.amd){define([],function(){return bsv})}'
+    },
     write: opts.write !== false,
     outfile: opts.write === false ? undefined : path.join(__dirname, '../bsv.esbuild.min.js'),
     logLevel: opts.logLevel || 'warning'
