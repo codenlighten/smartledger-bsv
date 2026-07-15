@@ -26,8 +26,9 @@ if (typeof window === 'undefined') {
   try { bsv.deps.bs58 = require('bs58') } catch (e) { /* polyfilled by bundler */ }
 }
 
-// module information
-bsv.version = 'v' + require('./package.json').version
+// module information (./version is generated from package.json by the `version` npm hook;
+// requiring it instead of package.json keeps ~4 KB of dev metadata out of the bundles)
+bsv.version = 'v' + require('./version')
 bsv.versionGuard = function (version) {
   if (version !== undefined) {
     var message = `
