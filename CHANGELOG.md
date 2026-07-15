@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.1] - 2026-07-15
+
+Bundle hygiene. No runtime/API change.
+
+### Changed
+
+- **Bundles no longer embed the full `package.json`.** `bsv.version` and
+  `SmartContract.version` now read a generated `version.js` (a one-line
+  `module.exports = '<version>'`) instead of `require('./package.json')`, so the
+  browser bundles no longer carry ~4 KB of dev metadata (devDependencies,
+  scripts, keywords). The full and smart-contract bundles shrink accordingly
+  (e.g. `bsv.min.js` −5.8 KB) with byte-identical, reproducible output.
+
+### Added
+
+- `scripts/sync-version.js` regenerates `version.js` from `package.json.version`
+  on every `npm version` bump; `test/build/version_sync.js` gates the two from
+  drifting.
+
 ## [6.2.0] - 2026-07-14
 
 Build modernization: the browser bundles are now built with **esbuild** (webpack
