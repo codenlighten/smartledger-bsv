@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.0] - 2026-07-14
+
+Build modernization: the browser bundles are now built with **esbuild** (webpack
+removed). No runtime/API change; the bundles are functionally equivalent (and two are
+fixed — see below).
+
 ### Security / docs (audit-readiness)
 
 - **Test-backed threat model** (`docs/THREAT_MODEL.md`): states each security property, its
@@ -20,22 +26,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documented the 6.0.0 fail-open hardening + the residual `verify()` trap, updated build tooling
   and disclosure history.
 
-### Build (in progress — webpack → esbuild)
+### Build — webpack → esbuild (cutover complete)
 
-- **esbuild build for the full library bundle** (`build/esbuild.js`, `npm run build:esbuild`),
-  the first step of migrating the 16 webpack bundles to esbuild. It replicates webpack's
-  Node-core polyfill map (crypto-browserify etc.) via a precise `onResolve` plugin and is
-  proven equivalent to the webpack `bsv.min.js` — **20/20 Chrome browser-smoke**, gated by a
-  build-integrity test. A **UMD footer** preserves the webpack UMD contract: the bundle is a
-  browser global **and** `require()`-able / AMD-loadable (verified — same browser-only CSPRNG
-  behaviour as the webpack bundle). `build/esbuild.js` now config-drives **all 16 bundles**
-  (both polyfill modes — `full` browserify shims and `stub` externalised built-ins — plus a
-  plugin that externalises the bsv root to the global `bsv` for the feature bundles); a gate
-  builds all 16 and asserts a feature bundle loads against a global `bsv`. Note: esbuild's
-  `bsv-covenant`/`bsv-smartcontract` come out ~30–290 KB vs webpack's ~900 KB — the webpack
-  `externals` config never matched the real `require('../..')`, so those bundles wrongly embed
-  bsv; the esbuild build fixes that. The published bundles are still webpack-built (no consumer
-  impact yet); cutover + ESM/CJS dual `exports` come in the final steps.
+- **All 16 browser bundles are now built with esbuild** (`build/esbuild.js`; `npm run
+  build-all`). The 16 webpack configs + `webpack.base.js` are removed. One config-driven
+  builder replicates the two webpack polyfill modes (`full` browserify shims so the browser
+  Shamir CSPRNG works; `stub` externalised built-ins) and externalises the bsv root to the
+  global `bsv` for the feature bundles. Every bundle is UMD (browser global **and**
+  `require()`/AMD). The build needs **no `--openssl-legacy-provider`** and is **byte-identical
+  across Node 20 and 22** (the bundle-parity gate stays reliable).
+- Validated: **20/20 Chrome browser-smoke** on `bsv.min.js`, plus an isolated per-bundle load
+  smoke asserting all 16 shipped bundles load and expose an API.
+- **Fixed: `bsv-covenant.min.js` / `bsv-smartcontract.min.js` shrank from ~900 KB to
+  ~30–290 KB.** The old webpack `externals` key never matched the real `require('../..')`, so
+  those two wrongly embedded the whole library (yet still referenced the global, so they were
+  broken standalone). They are now correctly externalised — load `bsv.min.js` first, as
+  intended. All other bundles are functionally equivalent (bytes differ: esbuild vs webpack
+  minification).
 
 ## [6.1.2] - 2026-07-13
 

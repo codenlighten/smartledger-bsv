@@ -179,9 +179,9 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Setup Node 20
-        # The build hashes with webpack's built-in xxhash64 (build/webpack.base.js),
-        # so it no longer needs OpenSSL's md4 / --openssl-legacy-provider and runs on
-        # modern Node. Node 20 matches the runtime floor (engines >=20.19).
+        # The bundles are built with esbuild (build/esbuild.js) — deterministic across
+        # Node 20/22, no OpenSSL / --openssl-legacy-provider. Node 20 matches the runtime
+        # floor (engines >=20.19).
         uses: actions/setup-node@v5
         with:
           node-version: '20'
