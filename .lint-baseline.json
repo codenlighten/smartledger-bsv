@@ -94,7 +94,7 @@
   "lib/smart_contract/covenant_builder.js": 91,
   "lib/smart_contract/opcode_list.js": 13,
   "lib/smart_contract/opcode_map.js": 964,
-  "lib/smart_contract/preimage.js": 94,
+  "lib/smart_contract/preimage.js": 92,
   "lib/smart_contract/script_interpreter.js": 137,
   "lib/smart_contract/script_tester.js": 73,
   "lib/smart_contract/script_utils.js": 78,
