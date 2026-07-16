@@ -4,7 +4,7 @@
 both aimed at making the library structurally harder to misuse. This document is
 the complete list of what changed and how to update.
 
-> Status: **7.0.0-alpha.1** — preview on the `next/7.0` branch. Not yet published
+> Status: **7.0.0** — released.
 > to npm. APIs below are final in intent; report friction before the stable cut.
 
 ---

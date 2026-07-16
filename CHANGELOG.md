@@ -7,24 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [7.0.0-alpha.1] - 2026-07-16
+## [7.0.0] - 2026-07-16
 
-### Added
-
-- **Real dual ESM entry.** The package now ships `index.mjs` behind the `import`
-  condition, so `import { PrivateKey, Transaction } from '@smartledger/bsv'`
-  (named) and `import bsv from '@smartledger/bsv'` (default) both work natively —
-  the `import` condition no longer falls back to the CJS file. `index.mjs` is
-  generated from the CJS build's runtime surface (108 named exports) by
-  `scripts/gen-esm-wrapper.js` on every `npm version`, and `test/build/esm_wrapper.js`
-  gates it against drift and asserts no deprecation warning fires at import
-  (deprecated accessors like `SmartUTXO` are excluded from the named exports but
-  stay reachable via the default export).
-
-## [7.0.0-alpha.0] - 2026-07-16
-
-First preview of the 7.0 breaking major (branch `next/7.0`, **not published**).
-See [`docs/MIGRATION_7.md`](docs/MIGRATION_7.md) for the full migration guide.
+Breaking major. Small and mechanical to adopt — see
+[`docs/MIGRATION_7.md`](docs/MIGRATION_7.md) for the full migration guide.
 
 ### BREAKING
 
@@ -44,9 +30,17 @@ See [`docs/MIGRATION_7.md`](docs/MIGRATION_7.md) for the full migration guide.
 
 ### Added
 
-- `test/build/exports_resolution.js` — self-reference guards for the supported
-  import surface (main, `package.json`, `./version`, bundles, `lib/*` both
-  extension styles) plus an ESM `import` smoke test.
+- **Real dual ESM entry.** The package ships `index.mjs` behind the `import`
+  condition, so `import { PrivateKey, Transaction } from '@smartledger/bsv'`
+  (named) and `import bsv from '@smartledger/bsv'` (default) both work natively.
+  `index.mjs` is generated from the CJS build's runtime surface (108 named
+  exports) by `scripts/gen-esm-wrapper.js` on every `npm version`; deprecated
+  accessors like `SmartUTXO` are excluded from the named exports (so importing
+  emits no deprecation warning) but stay reachable via the default export.
+- `test/build/exports_resolution.js` and `test/build/esm_wrapper.js` — guards for
+  the supported import surface (main, `package.json`, `./version`, bundles,
+  `lib/*` both extension styles, the ESM `import` condition, and ESM-wrapper
+  drift).
 - Adversarial `#verify` tests asserting `verify()` returns a strict boolean and
   rejects a forgery.
 
