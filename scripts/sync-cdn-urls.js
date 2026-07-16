@@ -24,8 +24,10 @@ const path = require('path')
 const ROOT = path.resolve(__dirname, '..')
 const VERSION = require(path.join(ROOT, 'package.json')).version
 
-// Match any @smartledger/bsv@<semver>/ pin, regardless of CDN host.
-const PIN_RE = /@smartledger\/bsv@\d+\.\d+\.\d+\//g
+// Match any @smartledger/bsv@<semver>/ pin, regardless of CDN host. The optional
+// group covers prerelease/build tags (e.g. 7.0.0-alpha.1) so an alpha->release
+// bump rewrites its own preview URLs instead of leaving dead pins behind.
+const PIN_RE = /@smartledger\/bsv@\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\//g
 const REPLACEMENT = `@smartledger/bsv@${VERSION}/`
 
 // Files to scan: README plus everything under docs/ (.md and .html).

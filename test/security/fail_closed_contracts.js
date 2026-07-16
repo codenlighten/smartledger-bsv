@@ -49,15 +49,19 @@ describe('security: fail-closed verification contracts', function () {
       inst(wrongPub).verifyBool().should.equal(false)
     })
 
-    // Locks the documented trap: instance .verify() returns the INSTANCE (truthy), so it
-    // must never be read as a boolean. If this ever changes (e.g. a deliberate 7.0 that
-    // makes verify() return a bool), this test forces the change to be intentional.
-    it('instance .verify() returns the instance with the result on .verified (documented trap)', function () {
-      var e = new ECDSA(); e.hashbuf = hash; e.sig = goodSig; e.pubkey = wrongPub
-      var r = e.verify()
-      ;(typeof r).should.equal('object') // NOT a boolean — the trap
-      isStrictBool(r.verified).should.equal(true)
-      r.verified.should.equal(false) // forged → verified is false, even though `r` is truthy
+    // 7.0: the trap is CLOSED. Instance .verify() now returns a STRICT boolean, so
+    // `if (ecdsa.verify())` correctly rejects a forgery. (Pre-7.0 it returned the
+    // truthy instance with the real result on .verified; that idiom is gone.)
+    it('instance .verify() returns a strict boolean and fails closed on a forgery', function () {
+      var good = new ECDSA(); good.hashbuf = hash; good.sig = goodSig; good.pubkey = rightPub
+      isStrictBool(good.verify()).should.equal(true)
+      good.verify().should.equal(true)
+
+      var forged = new ECDSA(); forged.hashbuf = hash; forged.sig = goodSig; forged.pubkey = wrongPub
+      isStrictBool(forged.verify()).should.equal(true)
+      forged.verify().should.equal(false) // forged → false, and `if (forged.verify())` does NOT enter
+      // The result is still mirrored on .verified as a side effect.
+      forged.verified.should.equal(false)
     })
   })
 

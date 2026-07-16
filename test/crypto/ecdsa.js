@@ -176,7 +176,7 @@ describe('ECDSA', function () {
     it('should create a valid signature', function () {
       ecdsa.randomK()
       ecdsa.sign()
-      ecdsa.verify().verified.should.equal(true)
+      ecdsa.verify().should.equal(true)
     })
 
     it('should should throw an error if hashbuf is not 32 bytes', function () {
@@ -253,11 +253,36 @@ describe('ECDSA', function () {
       it('should verify a signature that was just signed', function () {
         ecdsa.sig = Signature.fromString('3046022100e9915e6236695f093a4128ac2a956c' +
           '40ed971531de2f4f41ba05fac7e2bd019c02210094e6a4a769cc7f2a8ab3db696c7cd8d56bcdbfff860a8c81de4bc6a798b90827')
-        ecdsa.verify().verified.should.equal(true)
+        ecdsa.verify().should.equal(true)
+      })
+      // 7.0: verify() returns a strict boolean, not the (always-truthy) instance.
+      // A forged signature must be REJECTED by `if (ecdsa.verify())`, which was the
+      // whole point of removing the trap.
+      it('returns a strict boolean, not the instance (7.0 trap closed)', function () {
+        ecdsa.signRandomK()
+        var result = ecdsa.verify()
+        result.should.be.a('boolean')
+        result.should.equal(true)
+        // Forge the signature: the return value itself must be falsy.
+        var forged = new ECDSA()
+        forged.hashbuf = ecdsa.hashbuf
+        forged.pubkey = ecdsa.pubkey
+        forged.sig = new Signature(ecdsa.sig.r.add(new BN(1)), ecdsa.sig.s)
+        forged.verify().should.equal(false)
+        ;(!!forged.verify()).should.equal(false) // `if (forged.verify())` does NOT enter
+      })
+      it('verifyBool() remains a strict-boolean alias', function () {
+        ecdsa.signRandomK()
+        ecdsa.verifyBool().should.equal(true)
+        var forged = new ECDSA()
+        forged.hashbuf = ecdsa.hashbuf
+        forged.pubkey = ecdsa.pubkey
+        forged.sig = new Signature(ecdsa.sig.r.add(new BN(1)), ecdsa.sig.s)
+        forged.verifyBool().should.equal(false)
       })
       it('should verify this known good signature', function () {
         ecdsa.signRandomK()
-        ecdsa.verify().verified.should.equal(true)
+        ecdsa.verify().should.equal(true)
       })
       it('should verify a valid signature, and unverify an invalid signature', function () {
         var sig = ECDSA.sign(ecdsa.hashbuf, ecdsa.privkey)
@@ -295,7 +320,7 @@ describe('ECDSA', function () {
           ecdsa2.k.toString().should.equal(ecdsa.k.toString())
           ecdsa2.sig.toString().should.equal(ecdsa.sig.toString())
           ecdsa2.sig.i.should.equal(ecdsa.sig.i)
-          ecdsa.verify().verified.should.equal(true)
+          ecdsa.verify().should.equal(true)
         })
       })
 

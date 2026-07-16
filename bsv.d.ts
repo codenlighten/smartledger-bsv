@@ -18,15 +18,16 @@ declare module '@smartledger/bsv' {
             hashbuf?: Buffer;
             sig?: Signature;
             pubkey?: PublicKey;
-            /** Result of the last verify() call. */
+            /** Result of the last verify() call (also set as a side effect of verify()). */
             verified?: boolean;
             /**
-             * @returns the ECDSA INSTANCE (always truthy) — the pass/fail result is on
-             * `.verified`. Treating this return value as a boolean silently accepts
-             * forged signatures; read `.verified` or use `verifyBool()`.
+             * Verify the signature. Returns a strict boolean: `true` only when valid.
+             * @breaking 7.0 — previously returned the ECDSA instance (always truthy);
+             * the chained `.verify().verified` idiom no longer works, read the return
+             * value directly.
              */
-            verify(): this;
-            /** Boolean verification — true only when the signature is valid (the safe form). */
+            verify(): boolean;
+            /** Explicit boolean alias of verify(), retained for pre-7.0 callers. */
             verifyBool(): boolean;
             /** Static: sign a hash. */
             static sign(message: Buffer, key: PrivateKey): Signature;

@@ -1,6 +1,6 @@
 {
   "name": "@smartledger/bsv",
-  "version": "6.2.2",
+  "version": "7.0.0",
   "description": "🚀 Complete Bitcoin SV development framework with legally-recognizable DID:web + W3C VC-JWT toolkit, Legal Token Protocol (LTP), Global Digital Attestation Framework (GDAF), StatusList2021 revocation, and 16 flexible loading options. Standards-based credentials with ES256/ES256K support, on-chain BSV anchoring, and comprehensive Bitcoin SV API. Perfect for legal tokens, verifiable credentials, DeFi, smart contracts, and secure Bitcoin applications.",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
@@ -9,6 +9,19 @@
   },
   "main": "index.js",
   "types": "bsv.d.ts",
+  "exports": {
+    ".": {
+      "types": "./bsv.d.ts",
+      "import": "./index.mjs",
+      "require": "./index.js",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json",
+    "./version": "./version.js",
+    "./lib/*.js": "./lib/*.js",
+    "./lib/*": "./lib/*.js",
+    "./*": "./*"
+  },
   "engines": {
     "node": ">=20.19.0"
   },
@@ -51,7 +64,7 @@
     "preimage:extract": "node examples/preimage/extract_preimage_bidirectional.js",
     "prepublishOnly": "npm run build-all",
     "sync-cdn": "node scripts/sync-cdn-urls.js",
-    "version": "node scripts/sync-cdn-urls.js && node scripts/sync-version.js && git add README.md docs version.js",
+    "version": "node scripts/sync-cdn-urls.js && node scripts/sync-version.js && node scripts/gen-esm-wrapper.js && git add README.md docs version.js index.mjs",
     "test:browser:ci": "node tests/browser-smoke-runner.js"
   },
   "unpkg": "bsv.min.js",
@@ -59,6 +72,7 @@
   "cdn": "bsv.min.js",
   "files": [
     "index.js",
+    "index.mjs",
     "version.js",
     "test/",
     ".mocharc.json",

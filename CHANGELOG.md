@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0] - 2026-07-16
+
+Breaking major. Small and mechanical to adopt — see
+[`docs/MIGRATION_7.md`](docs/MIGRATION_7.md) for the full migration guide.
+
+### BREAKING
+
+- **`ECDSA.prototype.verify()` now returns a strict `boolean`** instead of the
+  ECDSA instance. This removes the truthy-instance trap where
+  `if (ecdsa.verify())` silently accepted forged signatures. The result is still
+  mirrored on `this.verified`, so only the chained `.verify().verified` idiom is
+  gone — replace it with `ecdsa.verify()`. The static `ECDSA.verify(...)`,
+  `Message.verify()`, and `verifyBool()` are unchanged. A security-contract test
+  now locks the trap **closed** (a forgery must make `verify()` return `false`).
+- **`package.json` now declares an `exports` map.** The main entry, `package.json`,
+  `./version`, all shipped bundles, and `lib/*` files (with or without `.js`)
+  resolve as before, and `import bsv from '@smartledger/bsv'` now works directly.
+  Directory-style deep imports without an explicit file (e.g.
+  `require('@smartledger/bsv/lib/smart_contract')`) are no longer auto-resolved —
+  use the main entry or point at the file. CDN usage is unaffected.
+
+### Added
+
+- **Real dual ESM entry.** The package ships `index.mjs` behind the `import`
+  condition, so `import { PrivateKey, Transaction } from '@smartledger/bsv'`
+  (named) and `import bsv from '@smartledger/bsv'` (default) both work natively.
+  `index.mjs` is generated from the CJS build's runtime surface (108 named
+  exports) by `scripts/gen-esm-wrapper.js` on every `npm version`; deprecated
+  accessors like `SmartUTXO` are excluded from the named exports (so importing
+  emits no deprecation warning) but stay reachable via the default export.
+- `test/build/exports_resolution.js` and `test/build/esm_wrapper.js` — guards for
+  the supported import surface (main, `package.json`, `./version`, bundles,
+  `lib/*` both extension styles, the ESM `import` condition, and ESM-wrapper
+  drift).
+- Adversarial `#verify` tests asserting `verify()` returns a strict boolean and
+  rejects a forgery.
+
 ## [6.2.2] - 2026-07-15
 
 ### Fixed
