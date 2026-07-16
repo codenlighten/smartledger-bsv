@@ -27,6 +27,38 @@ describe('Mnemonic', function () {
       Mnemonic.Words.SPANISH.includes(mnemonic3.toString().split(' ')[1]).should.equal(true)
       Mnemonic.Words.SPANISH.includes(mnemonic3.toString().split(' ')[2]).should.equal(true)
     })
+
+    // Regression: the second argument used to be silently dropped, so the
+    // documented fromRandom(wordlist, 256) form returned a WEAK 12-word phrase.
+    function wordCount (m) { return m.toString().split(' ').length }
+
+    it('defaults to a 12-word (128-bit) phrase', function () {
+      wordCount(Mnemonic.fromRandom()).should.equal(12)
+      wordCount(Mnemonic.fromRandom(Mnemonic.Words.ENGLISH)).should.equal(12)
+    })
+
+    it('honours entropy passed as the second argument (wordlist, ent)', function () {
+      // The previously-broken documented form: must now yield 24 words.
+      wordCount(Mnemonic.fromRandom(Mnemonic.Words.ENGLISH, 256)).should.equal(24)
+      wordCount(Mnemonic.fromRandom(Mnemonic.Words.ENGLISH, 192)).should.equal(18)
+      wordCount(Mnemonic.fromRandom(Mnemonic.Words.ENGLISH, 160)).should.equal(15)
+    })
+
+    it('honours entropy passed as the first argument (ent) or (ent, wordlist)', function () {
+      wordCount(Mnemonic.fromRandom(256)).should.equal(24)
+      var es = Mnemonic.fromRandom(256, Mnemonic.Words.SPANISH)
+      wordCount(es).should.equal(24)
+      Mnemonic.Words.SPANISH.includes(es.toString().split(' ')[0]).should.equal(true)
+    })
+
+    it('throws on invalid entropy instead of silently degrading', function () {
+      ;(function () { Mnemonic.fromRandom(Mnemonic.Words.ENGLISH, 200) }).should.throw(/ENT/)
+      ;(function () { Mnemonic.fromRandom(64) }).should.throw(/ENT/)
+    })
+
+    it('reports a meaningful arity (2), not 0', function () {
+      Mnemonic.fromRandom.length.should.equal(2)
+    })
   })
 
   describe('# Mnemonic', function () {
