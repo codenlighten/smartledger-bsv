@@ -251,7 +251,8 @@ declare module '@smartledger/bsv' {
         toString(): string;
         inspect(): string;
 
-        static fromRandom(wordlist?: Array<string>): Mnemonic;
+        static fromRandom(wordlist?: Array<string>, ent?: number): Mnemonic;
+        static fromRandom(ent: number, wordlist?: Array<string>): Mnemonic;
         static fromString(mnemonic: String, wordList?: Array<string>): Mnemonic;
         static isValid(mnemonic: String, wordList?: Array<string>): boolean;
         static fromSeed(seed: Buffer, wordlist: Array<string>): Mnemonic

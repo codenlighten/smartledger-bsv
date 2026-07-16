@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.1] - 2026-07-16
+
+### Fixed (security)
+
+- **`Mnemonic.fromRandom(wordlist, entropy)` no longer silently drops the entropy
+  argument.** The method previously accepted only a single `wordlist` parameter,
+  so the documented two-argument form `fromRandom(Words.ENGLISH, 256)` ignored the
+  `256` and returned a **weak 12-word / 128-bit** phrase instead of the intended
+  24-word / 256-bit one — with no error, and `fromRandom.length` reporting `0` so
+  nothing signalled the mistake. `fromRandom` now accepts entropy in either
+  argument position (a number is the entropy, an array is the wordlist), honours
+  it, throws on invalid entropy (must be a multiple of 32 and ≥ 128), and reports
+  an arity of `2`. Backward compatible: `fromRandom()`, `fromRandom(wordlist)`,
+  and `fromRandom(256)` are unchanged. Types updated with both overloads.
+
 ## [7.0.0] - 2026-07-16
 
 Breaking major. Small and mechanical to adopt — see
