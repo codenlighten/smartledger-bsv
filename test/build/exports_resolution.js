@@ -46,9 +46,13 @@ describe('7.0 exports map resolution', function () {
     execFileSync(process.execPath, ['-e', script], { cwd: ROOT, stdio: 'pipe' })
   })
 
-  it('supports the ESM `import` condition for the main entry', function () {
-    var script = 'import bsv from ' + JSON.stringify(N) + ';' +
-      'process.exit(bsv && bsv.PrivateKey && bsv.crypto.ECDSA ? 0 : 3)'
+  it('routes the ESM `import` condition to index.mjs with default AND named exports', function () {
+    // Proves the dual-ESM entry end-to-end through the package specifier: the
+    // `import` condition resolves to index.mjs, which exposes real named bindings.
+    var script =
+      'import bsv, { PrivateKey, Transaction, crypto } from ' + JSON.stringify(N) + ';' +
+      'process.exit((bsv && bsv.PrivateKey && PrivateKey === bsv.PrivateKey && ' +
+      'typeof Transaction === "function" && typeof crypto.ECDSA === "function") ? 0 : 3)'
     execFileSync(process.execPath, ['--input-type=module', '-e', script], { cwd: ROOT, stdio: 'pipe' })
   })
 })

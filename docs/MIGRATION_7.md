@@ -72,11 +72,19 @@ type-checkers and ready for a real dual ESM build.
 | `@smartledger/bsv/bsv.min.js` (any bundle)  | that bundle file   |
 | `@smartledger/bsv/lib/foo` or `/lib/foo.js` | `lib/foo.js`       |
 
-ESM default import now works directly:
+The package ships a real ESM entry (`index.mjs`, behind the `import` condition),
+so both default **and named** imports work natively:
 
 ```js
-import bsv from '@smartledger/bsv'   // 7.0
+import bsv from '@smartledger/bsv'                     // default
+import { PrivateKey, Transaction, crypto } from '@smartledger/bsv' // named
 ```
+
+`index.mjs` is generated from the CJS build's runtime surface (108 named
+exports) and gated against drift; `require('@smartledger/bsv')` continues to
+return the same object. Deprecated accessors (e.g. `SmartUTXO`) are reachable
+via the default export but are intentionally not named exports, so importing the
+package emits no deprecation warnings.
 
 ### Breaking edge case
 
@@ -108,7 +116,8 @@ not apply `exports` resolution.
 
 ## Still on the roadmap (not in this alpha)
 
-- A true dual **ESM build** (real `.mjs` output behind the `import` condition;
-  today it maps to the CJS entry, which Node's interop imports cleanly).
+- A full **ESM source migration** (native `import`/`export` throughout `lib/`,
+  enabling real tree-shaking). The current `index.mjs` is a thin, drift-gated
+  wrapper that already gives working named/default ESM imports over the CJS core.
 - Removal of the residual `verified` side-effect property once downstreams have
   migrated.
