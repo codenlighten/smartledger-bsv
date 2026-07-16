@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (dev toolchain only — no runtime/API/bundle change)
+
+- Removed the now-unused **webpack** devDependencies (`webpack`, `webpack-cli`,
+  `terser-webpack-plugin`, `brfs`) left over from the esbuild migration. `events`
+  — which `stream-browserify` requires but does not declare, and which had been
+  supplied transitively by webpack — is now an explicit devDependency so the
+  browser build no longer depends on dependency hoisting. Bundles rebuild
+  byte-identical; the published package is unchanged.
+
 ## [6.2.1] - 2026-07-15
 
 Bundle hygiene. No runtime/API change.
