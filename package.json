@@ -196,12 +196,12 @@
   },
   "devDependencies": {
     "assert": "^2.1.0",
-    "brfs": "2.0.1",
     "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
     "chai": "4.2.0",
     "crypto-browserify": "^3.12.1",
     "esbuild": "^0.28.1",
+    "events": "^3.3.0",
     "jose": "^5.10.0",
     "mocha": "^11.7.6",
     "nyc": "^18.0.0",
@@ -210,12 +210,9 @@
     "sinon": "7.2.3",
     "standard": "12.0.1",
     "stream-browserify": "^3.0.0",
-    "terser-webpack-plugin": "^5.6.1",
     "typescript": "^5.9.3",
     "util": "^0.12.5",
-    "vm-browserify": "^1.1.2",
-    "webpack": "^5.107.2",
-    "webpack-cli": "^5.1.4"
+    "vm-browserify": "^1.1.2"
   },
   "license": "MIT",
   "standard": {
