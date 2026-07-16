@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.2] - 2026-07-16
+
+### Fixed
+
+A codebase-wide audit for the same silent-argument class as the 7.0.1
+`Mnemonic.fromRandom` bug found three more confirmed foot-guns, each verified
+with a repro and now gated by a regression test:
+
+- **`HDPrivateKey.fromRandom(network)` silently ignored the network** and always
+  returned a mainnet key. `fromRandom('testnet')` produced an `xprv` (livenet)
+  instead of a `tprv` (testnet), with no error — so a testnet wallet was
+  generated on mainnet. It now forwards the network to the constructor (which
+  already routes it to random generation). `fromRandom()` default is unchanged.
+- **`Base58Check.fromString` returned a plain `Base58`** (no checksum) instead of
+  a `Base58Check`, so `Base58Check.encode(...)` → `fromString` → `toString`
+  silently round-tripped to a *different, unchecksummed* string. It now returns a
+  `Base58Check`.
+- **Bitcore ECIES dropped its `opts` when called without `new`** — `ECIES({ noKey:
+  true })` (the factory idiom used throughout the suite) silently ignored
+  `noKey`/`shortTag`, changing the wire format (e.g. leaking the 33-byte sender
+  pubkey). The no-`new` path now forwards `opts`. (The default `bsv.ECIES`
+  electrum variant was already correct.)
+
 ## [7.0.1] - 2026-07-16
 
 ### Fixed (security)

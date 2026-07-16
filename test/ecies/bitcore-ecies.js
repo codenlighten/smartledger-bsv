@@ -28,6 +28,14 @@ describe('Bitcore ECIES', function () {
     (ecies instanceof ECIES).should.equal(true)
   })
 
+  // Regression: the no-`new` factory path used to drop opts (return new ECIES()),
+  // silently ignoring { noKey, shortTag } and changing the wire format.
+  it('forwards opts through the no-"new" factory path', function () {
+    var ecies = ECIES({ noKey: true, shortTag: true })
+    ecies.opts.noKey.should.equal(true)
+    ecies.opts.shortTag.should.equal(true)
+  })
+
   it('privateKey fails with no argument', function () {
     var ecies = ECIES()
     var fail = function () {
