@@ -291,6 +291,15 @@ describe('HDPrivate key interface', function () {
       xprv2.toString().should.not.equal(xprv3.toString())
       xprv1.toString().should.not.equal(xprv3.toString())
     })
+
+    // Regression: fromRandom used to drop its argument and always return a
+    // mainnet key, so fromRandom('testnet') silently produced an xprv.
+    it('honours the network argument', function () {
+      HDPrivateKey.fromRandom('testnet').network.name.should.equal('testnet')
+      HDPrivateKey.fromRandom('testnet').toString().slice(0, 4).should.equal('tprv')
+      HDPrivateKey.fromRandom('livenet').network.name.should.equal('livenet')
+      HDPrivateKey.fromRandom().network.name.should.equal('livenet') // default unchanged
+    })
   })
 
   describe('conversion to plain object/json', function () {

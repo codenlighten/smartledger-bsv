@@ -282,7 +282,7 @@ declare module '@smartledger/bsv' {
         toHex(): string;
         inspect(): string;
 
-        static fromRandom(): HDPrivateKey;
+        static fromRandom(network?: string): HDPrivateKey;
         static fromString(str: string): HDPrivateKey;
         static fromObject(obj: object): HDPrivateKey;
         static fromSeed(hexa: string | Buffer, network: string | Networks.Network): HDPrivateKey;

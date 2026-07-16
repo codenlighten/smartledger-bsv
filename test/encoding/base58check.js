@@ -111,6 +111,15 @@ describe('Base58Check', function () {
     it('should convert this known string to a buffer', function () {
       Base58Check.fromString(enc).toBuffer().toString('hex').should.equal(buf.toString('hex'))
     })
+
+    // Regression: the static factory used to return a plain Base58 (no checksum),
+    // so encode -> fromString -> toString silently round-tripped to a different
+    // string. It must return a Base58Check that re-encodes with the checksum.
+    it('returns a Base58Check that round-trips through toString', function () {
+      var r = Base58Check.fromString(enc)
+      r.should.be.instanceof(Base58Check)
+      r.toString().should.equal(enc)
+    })
   })
 
   describe('#toBuffer', function () {
