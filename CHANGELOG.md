@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.2] - 2026-07-15
+
+### Fixed
+
+- **`SmartContract.Preimage` now fails with an honest error on a too-short
+  buffer.** Previously a preimage shorter than the fixed BIP-143 fields threw a
+  misleading `"Invalid 8-byte CompactSize encoding"` (and emitted `console.warn`
+  noise) because extraction ran past the buffer before any length check. Construction
+  now throws `"Preimage too short: N bytes (BIP-143 preimage requires at least 157)"`,
+  and `decodeCompactSize` rejects out-of-range reads, truncated 2/4-byte prefixes,
+  and the invalid 8-byte (`0xff`) length prefix with clear messages instead of
+  salvaging garbage. `validate()`'s minimum was also corrected from the mislabeled
+  104 (left fixed zone only) to the true structural minimum of 157.
+
+### Added
+
+- `test/smart_contract/preimage.js` — first direct test coverage for the public
+  `SmartContract.Preimage` class (length guard, CompactSize edge cases, and a real
+  preimage round-trip).
+
 ### Changed (dev toolchain only — no runtime/API/bundle change)
 
 - Removed the now-unused **webpack** devDependencies (`webpack`, `webpack-cli`,
