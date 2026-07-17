@@ -62,10 +62,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `// Non-security: identifier collision avoidance only` comments at these sites
   asserted the opposite of the truth and are gone.
 
-  Not addressed: `_generateAuditId` remains 48 bits, which bounds a compliance
-  audit log at roughly 16M entries before a ~50% chance of a collision silently
-  overwriting a record. Widening it is a format change and was left as a call for
-  the maintainers.
+- **`Registry._generateAuditId` widened from 48 to 128 bits.** Audit entries are
+  minted per action and retained for years, and a collision silently overwrites a
+  record in a `Map`-keyed store; at 48 bits a log passed a ~50% chance of a
+  collision around 16M entries. The per-registry ids above stay at 64 bits — they
+  are minted once each, so the birthday bound never comes into play.
+
+  **Format change:** `audit_` + 32 hex characters, was `audit_` + 12. The ids are
+  opaque and are not parsed anywhere in the package, and existing stored ids keep
+  working as map keys.
+
+- **`Signature.prototype.applySecurityPatches()` now rejects a non-canonical
+  signature instead of silently rewriting it.** It replaced a high-S `s` with
+  `n - s` under an "anti-malleability" comment. That cannot protect against
+  malleability: ECDSA accepts `s` and `n - s` equally, so the rewritten signature
+  verifies exactly as the original did, and the only effect was to hide from the
+  caller that they had been handed a malleated signature. It now throws on
+  `s > n/2` (alongside the existing zero and out-of-range checks) and no longer
+  mutates. `toCanonical()` remains the way to deliberately normalize a signature,
+  and is unchanged — it returns a new Signature and never mutates the original.
+
+  The method had no callers anywhere in the package, and its docstring's claim
+  that it is "called during crypto operations" was false; that claim is gone.
+
+  **Breaking** for callers relying on it to normalize in place.
 
 ### Fixed
 
