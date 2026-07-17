@@ -77,12 +77,15 @@ describe('SmartLedger Security Patches', function () {
       SmartVerify.smartVerify(hash, sig, publicKey).should.equal(true)
     })
 
-    it('accepts a malleated (high-S) signature as valid but canonicalizes it', function () {
+    it('rejects a malleated (high-S) signature', function () {
       var sig = ECDSA.sign(hash, privateKey)
       var n = Point.getN()
       var lowS = sig.s.lte(n.shrn(1)) ? sig.s : n.sub(sig.s)
       var highS = new Signature({ r: sig.r, s: n.sub(lowS) })
-      SmartVerify.smartVerify(hash, highS, publicKey).should.equal(true)
+      SmartVerify.isCanonical(highS).should.equal(false)
+      SmartVerify.smartVerify(hash, highS, publicKey).should.equal(false)
+      // ...while the canonical form of the same signature still verifies.
+      SmartVerify.smartVerify(hash, new Signature({ r: sig.r, s: lowS }), publicKey).should.equal(true)
     })
 
     it('throws on an invalid (non-32-byte) message hash', function () {
