@@ -7,6 +7,118 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (security)
+
+- **Strict DER parsing now actually enforces canonical INTEGERs.**
+  `parseDER(buf, strict)` defaults `strict` to `true`, but strictness only ever
+  checked the length byte — the integers themselves were never validated, so
+  `fromDER`/`fromString` accepted excessively padded values (`02 21 00 <r>` where
+  `r`'s high bit is clear), unpadded high-bit values (parsed unsigned, i.e. as a
+  different number than DER says), and zero-length values. Each is a second
+  encoding of the same signature, so a valid credential signature could be
+  re-encoded into different bytes that still verify. This reaches application
+  code: `LTP.Proof` verification, LTP and GDAF credential JWS verification, and
+  `SmartVerify` all parse via `fromDER` on the default (strict) path. Strict now
+  requires each INTEGER to be non-empty, high-bit-clear, and minimally padded.
+
+  **Consensus behaviour is unchanged.** The non-strict path is untouched, and
+  `fromTxFormat` — the only caller that passes `strict = false`, and the one that
+  parses signatures off the chain — still accepts every non-canonical encoding it
+  did before, as its own regression tests now assert. Script-level canonicality
+  continues to be enforced by `isTxDER` under the interpreter's flags, matching
+  bitcoind.
+
+  **Breaking** for callers that hand non-canonical DER to `fromDER`/`fromString`
+  and expect it to parse; they should pass `strict = false` explicitly (via
+  `parseDER`) if they are parsing chain data.
+
+- **`parseDER` reported `sneg` from the wrong byte.** `buf[2 + 2 + rlength + 2 + 2]`
+  reads `sbuf[2]` rather than `sbuf[0]`, so the flag was wrong for any signature
+  whose `s` carries a pad byte (the `r` case one line up reads `rbuf[0]`
+  correctly). Latent — nothing internal consumes `sneg` — but it is part of the
+  returned object and was therefore wrong for external callers.
+
+- **LTP identifiers are now drawn from the CSPRNG instead of `Math.random()`.**
+  `Right._generateUUID` and `Obligation._generateUUID` minted the `id` of signed
+  W3C Verifiable Credentials from `Math.random()`. That id is covered by the
+  credential's signature, is the primary key of the registry's registration and
+  revocation maps, and is an input to proof material (`LTP.Proof` derives a
+  witness from `sha256(nonce + token.id + predicate)`) — so it must be
+  unpredictable, not merely distinct. V8 implements `Math.random` with
+  xorshift128+, whose internal state is recoverable from a handful of outputs;
+  each UUID consumed 31 sequential draws, so a single issued token id leaked
+  enough state to predict every later id from that process, including ids issued
+  to other subjects. With the engine PRNG frozen, the old generator emitted the
+  fixed string `88888888-8888-4888-8888-888888888888`.
+
+  `Registry._generateRegistryId`, `Registry._generateAuditId` and
+  `Claim._generateBatchId` had the same defect via `Date.now() + Math.random()`
+  (the surrounding `sha256` added no entropy).
+
+  All five now route through a new `lib/util/id.js` (`uuid4`, `randomHex`) backed
+  by `bsv.crypto.Random`, matching what `GDAF`'s attestation signer already did.
+  **Output formats are unchanged** (`urn:uuid:` v4, `reg_` + 16 hex, `audit_` +
+  12 hex, 16 hex), so stored identifiers and consumers are unaffected. The
+  `// Non-security: identifier collision avoidance only` comments at these sites
+  asserted the opposite of the truth and are gone.
+
+  Not addressed: `_generateAuditId` remains 48 bits, which bounds a compliance
+  audit log at roughly 16M entries before a ~50% chance of a collision silently
+  overwriting a record. Widening it is a format change and was left as a call for
+  the maintainers.
+
+### Fixed
+
+- **`npm test` now runs against an installed copy of the package.**
+  `test/build/esm_wrapper.js` required `scripts/gen-esm-wrapper`, which is dev
+  tooling and is not published. Since `.mocharc.json` globs `test/**/*.js`, that
+  one unresolvable require aborted the whole run before a single test executed —
+  so the suite the package deliberately ships was dead on arrival in the tarball.
+  The two checks that regenerate and diff `index.mjs` can only run from a
+  checkout and now skip when the generator is absent; the ESM import checks, which
+  are the ones meaningful to a consumer, run everywhere. Verified by packing,
+  installing and running the suite from the tarball: 4463 passing, 2 pending.
+
+- **`ECDSA` no longer reuses a nonce when one instance signs twice.** `k` persisted
+  on the instance across `sign()` calls (`set()` deliberately carried it, and
+  `_findSignature` only derived a nonce when `!this.k`), so the documented
+  build-an-instance-and-`set()` idiom signed a second message with the *same* `k`:
+
+  ```js
+  const e = ECDSA().set({ privkey })
+  e.set({ hashbuf: h1 }).sign()   // k derived and cached
+  e.set({ hashbuf: h2 }).sign()   // same k, same r
+  ```
+
+  Two signatures over different messages under one nonce reveal the private key by
+  elementary algebra; this was verified with a repro that recovers the signer's WIF
+  from the two signatures. `signRandomK()` was worse — it assigned `this.k`, so any
+  later `sign()` on that instance silently reused the random nonce. `k` now carries
+  a freshness bit: every assignment path (`ecdsa.k = ...`, `set({k})`, `randomK()`,
+  `deterministicK()`) marks it fresh, and a signature consumes it, so the next
+  `sign()` derives a new RFC 6979 nonce instead of reusing a spent one. No internal
+  call site was affected — each constructs a fresh `ECDSA` per signature — so this
+  changes no signature this library previously produced. Backward compatible: an
+  explicitly supplied `k` is still honoured for one signature (RFC 6979 test
+  vectors included), and signing the same message still yields the same signature.
+  Inherited from upstream bsv.
+
+- **`SmartVerify.smartVerify()` now rejects malleated (high-S) signatures instead
+  of accepting them.** The function canonicalized `s` and then verified the
+  *rewritten* signature — but ECDSA accepts `s` and `n-s` equally, so the
+  canonicalization was a no-op that made every high-S signature return `true`. A
+  caller using the hardened module as a low-S gate (its stated contract: "valid
+  **and** canonical", its header: "malleability protection") received no protection
+  while believing otherwise. It now returns `false` for `s > n/2`, matching the
+  neighbouring `isCanonical()`. `canonicalize()` is unchanged — it is honestly
+  named and still rewrites.
+
+  **Breaking:** code relying on `smartVerify` to accept and silently normalize
+  high-S signatures must canonicalize first (`SmartVerify.canonicalize(sig)`) or
+  use `ECDSA.verify`, which is unchanged and still accepts either form. The test
+  asserting the old behaviour ("accepts a malleated (high-S) signature as valid but
+  canonicalizes it") encoded the bug as intent and has been inverted.
+
 ## [7.0.2] - 2026-07-16
 
 ### Fixed
