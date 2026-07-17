@@ -2,9 +2,13 @@
 
 var _ = require('../../lib/util/_')
 var should = require('chai').should()
+var expect = require('chai').expect
 var bsv = require('../..')
 var BN = bsv.crypto.BN
 var Signature = bsv.crypto.Signature
+var ECDSA = bsv.crypto.ECDSA
+var Hash = bsv.crypto.Hash
+var PrivateKey = bsv.PrivateKey
 var JSUtil = bsv.util.js
 var Interpreter = bsv.Script.Interpreter
 
@@ -188,6 +192,83 @@ describe('Signature', function () {
       var sig = Buffer.from(sighex, 'hex')
       var parsed = Signature.parseDER(sig, false)
       should.exist(parsed)
+    })
+
+    it('reports sneg for a padded s', function () {
+      // 02 21 00ab.. — s carries the pad that clears its high bit.
+      var sighex = '304502203e4516da7253cf068effec6b95c41221c0cf3a8e6ccb8cbf1725b562e9afde2c' +
+        '022100ab1e3da73d67e32045a20e0b999e049978ea8d6ee5480d485fcf2ce0d03b2ef0'
+      var parsed = Signature.parseDER(Buffer.from(sighex, 'hex'))
+      parsed.sbuf[0].should.equal(0x00)
+      parsed.sneg.should.equal(true)
+      parsed.rneg.should.equal(false)
+    })
+  })
+
+  describe('#parseDER canonicality', function () {
+    // A non-canonical INTEGER is a second encoding of the same number, i.e. a
+    // malleable signature. Strict (the default, used by fromDER/fromString and
+    // so by credential/proof verification) rejects them; non-strict must keep
+    // accepting them, because signatures already on chain are not canonical and
+    // fromTxFormat has to parse them.
+    var cases = [
+      { name: 'r negative (high bit set, unpadded)', hex: '3006' + '0201ff' + '020101', err: /Value of r is negative/ },
+      { name: 's negative (high bit set, unpadded)', hex: '3006' + '020101' + '0201ff', err: /Value of s is negative/ },
+      { name: 'r excessively padded', hex: '3007' + '02020011' + '020101', err: /Value of r is excessively padded/ },
+      { name: 's excessively padded', hex: '3007' + '020101' + '02020011', err: /Value of s is excessively padded/ },
+      { name: 'r zero-length', hex: '3005' + '0200' + '020101', err: /Length of r is zero/ },
+      { name: 's zero-length', hex: '3005' + '020101' + '0200', err: /Length of s is zero/ }
+    ]
+
+    cases.forEach(function (c) {
+      it('strict rejects ' + c.name, function () {
+        expect(function () {
+          Signature.parseDER(Buffer.from(c.hex, 'hex'))
+        }).to.throw(c.err)
+      })
+
+      it('non-strict still accepts ' + c.name + ' (chain compatibility)', function () {
+        should.exist(Signature.parseDER(Buffer.from(c.hex, 'hex'), false))
+      })
+    })
+
+    it('strict accepts a minimally padded integer', function () {
+      // 0x00ff is canonical: the pad is required to clear the high bit.
+      should.exist(Signature.parseDER(Buffer.from('3008020200ff020200ff', 'hex')))
+    })
+
+    it('strict accepts a canonical zero integer', function () {
+      should.exist(Signature.parseDER(Buffer.from('3006020100020100', 'hex')))
+    })
+
+    it('rejects a malleated re-encoding while the original still verifies', function () {
+      var privkey = new PrivateKey()
+      var hashbuf = Hash.sha256(Buffer.from('der canonicality'))
+      var sig = ECDSA.sign(hashbuf, privkey)
+      var der = sig.toDER()
+
+      ECDSA.verify(hashbuf, Signature.fromDER(der), privkey.toPublicKey()).should.equal(true)
+
+      // Re-encode r with one pad byte more than DER allows: same r, different
+      // bytes. The extra zero goes on top of the canonical encoding, so this is
+      // excess padding whether or not r needed a pad to begin with.
+      var canonical = function (nbuf) {
+        return (nbuf[0] & 0x80) ? Buffer.concat([Buffer.from([0x00]), nbuf]) : nbuf
+      }
+      var padded = Buffer.concat([Buffer.from([0x00]), canonical(sig.r.toBuffer())])
+      var sEnc = canonical(sig.s.toBuffer())
+      var body = Buffer.concat([
+        Buffer.from([0x02, padded.length]), padded,
+        Buffer.from([0x02, sEnc.length]), sEnc
+      ])
+      var malleated = Buffer.concat([Buffer.from([0x30, body.length]), body])
+
+      malleated.toString('hex').should.not.equal(der.toString('hex'))
+      expect(function () {
+        Signature.fromDER(malleated)
+      }).to.throw(/excessively padded/)
+      // The same bytes remain parseable on the non-strict (chain) path.
+      Signature.parseDER(malleated, false).r.eq(sig.r).should.equal(true)
     })
   })
 

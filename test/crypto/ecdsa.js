@@ -117,6 +117,79 @@ describe('ECDSA', function () {
     })
   })
 
+  describe('nonce reuse', function () {
+    // Signing two different messages under one nonce reveals the private key.
+    var N = point.getN()
+    var h1 = Hash.sha256(Buffer.from('pay alice 1 coin'))
+    var h2 = Hash.sha256(Buffer.from('pay bob 2 coins'))
+
+    var freshSigner = function () {
+      return ECDSA().set({
+        privkey: new Privkey(BN.fromBuffer(Buffer.from(
+          'fee0a1f7afebf9d2a5a80c0c98a31c709681cce195cbcd06342b517970c0be1e', 'hex')))
+      })
+    }
+
+    it('does not reuse k when one instance signs two different messages', function () {
+      var e = freshSigner()
+      var sig1 = e.set({ hashbuf: h1 }).sign().sig
+      var k1 = e.k
+      var sig2 = e.set({ hashbuf: h2 }).sign().sig
+      var k2 = e.k;
+      (k1.cmp(k2) === 0).should.equal(false)
+      sig1.r.eq(sig2.r).should.equal(false)
+    })
+
+    it('does not reuse k across signRandomK calls on one instance', function () {
+      var e = freshSigner()
+      var sig1 = e.set({ hashbuf: h1 }).signRandomK().sig
+      var sig2 = e.set({ hashbuf: h2 }).sign().sig
+      sig1.r.eq(sig2.r).should.equal(false)
+    })
+
+    it('does not leak the private key from two signatures by one instance', function () {
+      var e = freshSigner()
+      var d = e.privkey.bn
+      var sig1 = e.set({ hashbuf: h1 }).sign().sig
+      var sig2 = e.set({ hashbuf: h2 }).sign().sig
+
+      // toLowS may have flipped either s, so try every sign combination.
+      var red = BN.red(N)
+      var inv = function (x) { return x.toRed(red).redInvm().fromRed() }
+      var mul = function (a, b) { return a.toRed(red).redMul(b.toRed(red)).fromRed() }
+      var e1 = BN.fromBuffer(h1)
+      var e2 = BN.fromBuffer(h2)
+      var recovered = false
+      ;[1, -1].forEach(function (f1) {
+        ;[1, -1].forEach(function (f2) {
+          var S1 = f1 === 1 ? sig1.s : N.sub(sig1.s)
+          var S2 = f2 === 1 ? sig2.s : N.sub(sig2.s)
+          var diff = S1.sub(S2).umod(N)
+          if (diff.isZero()) return
+          var k = mul(e1.sub(e2).umod(N), inv(diff))
+          var guess = mul(S1.mul(k).umod(N).sub(e1).umod(N), inv(sig1.r))
+          if (guess.toString(16) === d.toString(16)) recovered = true
+        })
+      })
+      recovered.should.equal(false)
+    })
+
+    it('still honours an explicitly supplied k for a single signature', function () {
+      var k = new BN('114860389168127852803919605627759231199925249596762615988727970217268189974335', 10)
+      var a = freshSigner().set({ hashbuf: h1, k: k })
+      var b = freshSigner().set({ hashbuf: h1, k: k })
+      a.sign().sig.r.eq(b.sign().sig.r).should.equal(true)
+      a.k.eq(k).should.equal(true)
+    })
+
+    it('signs the same message deterministically across instances', function () {
+      var a = freshSigner().set({ hashbuf: h1 }).sign().sig
+      var b = freshSigner().set({ hashbuf: h1 }).sign().sig
+      a.r.eq(b.r).should.equal(true)
+      a.s.eq(b.s).should.equal(true)
+    })
+  })
+
   describe('#toPublicKey', function () {
     it('should calculate the correct public key', function () {
       ecdsa.k = new BN('114860389168127852803919605627759231199925249596762615988727970217268189974335', 10)

@@ -1237,8 +1237,10 @@ describe('Script', function () {
       Script(s2).getSignatureOperationsCount(false).should.equal(20)
     })
     it('should handle P2SH-multisig-in scripts from utility', function () {
-      // create a well-formed signature, does not need to match pubkeys
-      var signature = bsv.crypto.Signature.fromString('30060201FF0201FF')
+      // create a well-formed signature, does not need to match pubkeys.
+      // r and s are 0x00ff: the pad is required, as a bare 0xff would have its
+      // high bit set and so would not be a canonical DER integer.
+      var signature = bsv.crypto.Signature.fromString('3008020200FF020200FF')
       var signatures = [ signature.toBuffer() ]
       var p2sh = Script.buildP2SHMultisigIn(pubKeyHexes, 1, signatures, {})
       p2sh.getSignatureOperationsCount(true).should.equal(0)

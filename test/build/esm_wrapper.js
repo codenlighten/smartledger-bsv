@@ -16,10 +16,17 @@ var fs = require('fs')
 var path = require('path')
 var execFileSync = require('child_process').execFileSync
 var spawnSync = require('child_process').spawnSync
-var gen = require('../../scripts/gen-esm-wrapper')
 
 var ROOT = path.resolve(__dirname, '../..')
 var MJS = path.join(ROOT, 'index.mjs')
+
+// scripts/ is dev tooling and is not published, so the two checks that
+// regenerate index.mjs can only run from a checkout. The ESM import checks below
+// run everywhere, including against an installed copy. Presence is tested rather
+// than try/catch'd so a broken generator still fails loudly in the repo.
+var GEN = path.join(ROOT, 'scripts', 'gen-esm-wrapper.js')
+var gen = fs.existsSync(GEN) ? require(GEN) : null
+var itFromCheckout = gen ? it : it.skip
 
 function runEsm (body) {
   return execFileSync(process.execPath, ['--input-type=module', '-e', body],
@@ -27,12 +34,12 @@ function runEsm (body) {
 }
 
 describe('ESM wrapper (index.mjs)', function () {
-  it('is in sync with the CJS surface (no drift)', function () {
+  itFromCheckout('is in sync with the CJS surface (no drift)', function () {
     var onDisk = fs.readFileSync(MJS, 'utf8')
     onDisk.should.equal(gen.generate())
   })
 
-  it('exports every non-accessor top-level member as a named binding', function () {
+  itFromCheckout('exports every non-accessor top-level member as a named binding', function () {
     var bsv = require('../..')
     var names = gen.exportableNames(bsv)
     names.length.should.be.above(100)
