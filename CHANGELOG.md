@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0] - 2026-07-17
+
+Six security fixes from an audit of the crypto core. Four change verification
+behaviour; see **Breaking** at the end of this section before upgrading.
+
 ### Fixed (security)
 
 - **Strict DER parsing now actually enforces canonical INTEGERs.**
@@ -87,18 +92,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   **Breaking** for callers relying on it to normalize in place.
 
-### Fixed
-
-- **`npm test` now runs against an installed copy of the package.**
-  `test/build/esm_wrapper.js` required `scripts/gen-esm-wrapper`, which is dev
-  tooling and is not published. Since `.mocharc.json` globs `test/**/*.js`, that
-  one unresolvable require aborted the whole run before a single test executed —
-  so the suite the package deliberately ships was dead on arrival in the tarball.
-  The two checks that regenerate and diff `index.mjs` can only run from a
-  checkout and now skip when the generator is absent; the ESM import checks, which
-  are the ones meaningful to a consumer, run everywhere. Verified by packing,
-  installing and running the suite from the tarball: 4463 passing, 2 pending.
-
 - **`ECDSA` no longer reuses a nonce when one instance signs twice.** `k` persisted
   on the instance across `sign()` calls (`set()` deliberately carried it, and
   `_findSignature` only derived a nonce when `!this.k`), so the documented
@@ -138,6 +131,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   use `ECDSA.verify`, which is unchanged and still accepts either form. The test
   asserting the old behaviour ("accepts a malleated (high-S) signature as valid but
   canonicalizes it") encoded the bug as intent and has been inverted.
+
+### Fixed
+
+- **`npm test` now runs against an installed copy of the package.**
+  `test/build/esm_wrapper.js` required `scripts/gen-esm-wrapper`, which is dev
+  tooling and is not published. Since `.mocharc.json` globs `test/**/*.js`, that
+  one unresolvable require aborted the whole run before a single test executed —
+  so the suite the package deliberately ships was dead on arrival in the tarball.
+  The two checks that regenerate and diff `index.mjs` can only run from a
+  checkout and now skip when the generator is absent; the ESM import checks, which
+  are the ones meaningful to a consumer, run everywhere. Verified by packing,
+  installing and running the suite from the tarball: 4463 passing, 2 pending.
 
 ## [7.0.2] - 2026-07-16
 
