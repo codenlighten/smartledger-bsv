@@ -69,6 +69,52 @@ describe('SmartLedger Security Patches', function () {
       // change which key/message the signature is valid for.
       canonical.r.cmp(highS.r).should.equal(0)
     })
+
+    it('toCanonical() returns a new signature and leaves the original alone', function () {
+      var sig = ECDSA.sign(hash, privateKey)
+      var n = Point.getN()
+      var lowS = sig.s.lte(n.shrn(1)) ? sig.s : n.sub(sig.s)
+      var highS = new Signature({ r: sig.r, s: n.sub(lowS) })
+      var before = highS.s.toString()
+
+      var canonical = highS.toCanonical()
+      canonical.should.not.equal(highS)
+      highS.s.toString().should.equal(before)
+    })
+  })
+
+  describe('applySecurityPatches', function () {
+    var highSig = function () {
+      var sig = ECDSA.sign(hash, privateKey)
+      var n = Point.getN()
+      var lowS = sig.s.lte(n.shrn(1)) ? sig.s : n.sub(sig.s)
+      return new Signature({ r: sig.r, s: n.sub(lowS) })
+    }
+
+    it('accepts a canonical signature and returns it for chaining', function () {
+      var sig = ECDSA.sign(hash, privateKey)
+      sig.applySecurityPatches().should.equal(sig)
+    })
+
+    it('rejects a non-canonical (high-S) signature rather than rewriting it', function () {
+      // Rewriting s to n-s cannot protect against malleability: the rewritten
+      // signature verifies exactly as the original, so silently normalizing only
+      // hides from the caller that the signature was malleated.
+      var highS = highSig()
+      var before = highS.s.toString()
+
+      expect(function () { highS.applySecurityPatches() }).to.throw(/non-canonical/)
+      highS.s.toString().should.equal(before)
+    })
+
+    it('rejects zero and out-of-range components', function () {
+      expect(function () {
+        new Signature({ r: new BN(0), s: new BN(1) }).applySecurityPatches()
+      }).to.throw(/zero r or s/)
+      expect(function () {
+        new Signature({ r: new BN(1), s: Point.getN() }).applySecurityPatches()
+      }).to.throw(/out of range/)
+    })
   })
 
   describe('SmartVerify Enhanced Validation', function () {
