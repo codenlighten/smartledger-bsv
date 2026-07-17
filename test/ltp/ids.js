@@ -17,7 +17,7 @@ describe('LTP identifiers', function () {
     { name: 'Right._generateUUID', fn: function () { return bsv.LTP.Right._generateUUID() }, format: UUID_V4 },
     { name: 'Obligation._generateUUID', fn: function () { return bsv.LTP.Obligation._generateUUID() }, format: UUID_V4 },
     { name: 'Registry._generateRegistryId', fn: function () { return bsv.LTP.Registry._generateRegistryId() }, format: /^reg_[0-9a-f]{16}$/ },
-    { name: 'Registry._generateAuditId', fn: function () { return bsv.LTP.Registry._generateAuditId() }, format: /^audit_[0-9a-f]{12}$/ },
+    { name: 'Registry._generateAuditId', fn: function () { return bsv.LTP.Registry._generateAuditId() }, format: /^audit_[0-9a-f]{32}$/ },
     { name: 'Claim._generateBatchId', fn: function () { return bsv.LTP.Claim._generateBatchId() }, format: /^[0-9a-f]{16}$/ }
   ]
 
