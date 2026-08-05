@@ -29,7 +29,8 @@ var script = Ord.buildInscription({
 })
 var output = Ord.createInscriptionOutput({ address: ownerAddress, contentType: 'image/png', content: pngBuffer })
 
-// Parse it back.
+// Parse it back. `lock` is the whole script minus the envelope: the 1Sat spec allows the
+// locking script to be prepended OR appended, and both are recovered.
 var insc = Ord.parseInscription(script)      // { contentType, content, contentText, lock }
 Ord.isInscription(script)                    // true
 
@@ -39,6 +40,28 @@ var outs = Ord.batchInscriptionOutputs([
   { address: b, contentType: 'text/plain', content: 'b' }
 ])
 ```
+
+### Arguments are checked, because an inscription is permanent
+
+`content` may be any data — a string or a `Buffer` of arbitrary bytes, under any MIME
+type. What the builder will not do is guess, because every guess it used to make wrote
+something other than what the caller asked for onto a permanent record:
+
+| Call | Before | Now |
+| --- | --- | --- |
+| `content` omitted | built a valid-looking script inscribing **nothing** | throws, and names the field you passed instead (`data`, `body`, `payload`, …) |
+| `content: {…}` or a number | inscribed `[object Object]` / `"42"` | throws; encode it yourself (`JSON.stringify`, `Buffer.from`) |
+| `Buffer` content, no `contentType` | labelled it `text/plain` | throws — bytes carry no hint about what they are |
+| empty `lock` | emitted an **anyone-can-spend** ordinal | throws unless you pass `allowEmptyLock: true` |
+| both `lock` and `address` | silently used `lock` | throws — they name different owners |
+| `satoshis: 0` | built a 0-sat output carrying no ordinal | throws; must be a positive integer |
+
+Deliberate cases are still expressible: pass `content: ''` for an empty payload, and
+`allowEmptyLock: true` when you are appending the envelope to a lock you supply yourself
+(this is how the OrdLock listing carries its inline inscription).
+
+The default `contentType` of `text/plain` still applies to **string** content, which is
+the common case and is truthfully described by it.
 
 ## Marketplace: the OrdLock covenant
 
