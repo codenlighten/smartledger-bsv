@@ -7,6 +7,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.2.0] - 2026-08-05
+
+Extends the 7.0.1/7.0.2 silent-argument sweep into `lib/ordinals/`, which the earlier
+pass did not cover, and fixes a parser bug found while checking the module against the
+1Sat specification. Several calls that previously succeeded now throw; see **Breaking**
+at the end of this section.
+
+The unifying defect: an inscription is permanent, and every one of these paths committed
+something other than what the caller asked for, with no error and a script that looked
+correct afterwards.
+
+### Fixed
+
+- **`Ordinals.buildInscription` no longer inscribes an empty payload when `content` is
+  omitted.** `toBuf(params.content)` mapped a missing value to a zero-length Buffer, so
+  `buildInscription({ address, contentType })` returned a well-formed inscription script
+  carrying nothing — `isInscription()` reported `true`, `createInscriptionOutput` wrapped
+  it in a spendable 1-sat output, and the mistake was only visible after broadcast. This
+  was reported from the field by a caller whose own builder names the field `data`:
+  passing `data` produced a script **byte-identical** to omitting the content entirely.
+  `content` is now required, and the error names the field that was passed instead when
+  it is one of the obvious aliases (`data`, `body`, `payload`, `text`, `message`). An
+  explicit `content: ''` still builds an empty payload, so a deliberate one remains
+  expressible; only absence is rejected.
+
+- **Non-string, non-Buffer content is rejected instead of stringified.** `String(v)`
+  turned an object into the literal text `[object Object]`, an array into `1,2`, and
+  `false` into `"false"` — permanently. Only strings and Buffers are accepted; callers
+  encode their own values (`JSON.stringify`, `Buffer.from`). Content may still be
+  *arbitrary binary under any MIME type* — that is unchanged and is the point of the
+  format; what is gone is the guessing.
+
+- **Buffer content now requires an explicit `contentType`.** It previously defaulted to
+  `text/plain`, mislabelling binary — a PNG inscribed as text. Bytes carry no hint about
+  what they are, so the caller must say. The `text/plain` default still applies to string
+  content, where it is truthful. An empty or non-string `contentType` is also rejected
+  rather than silently replaced by the default.
+
+- **An empty base lock is rejected: it produced an anyone-can-spend ordinal.** With no
+  base lock the script is just the inert envelope — `OP_FALSE OP_IF` skips to `OP_ENDIF`,
+  so whatever the spender pushes is the final stack and *any* spender succeeds. The 1Sat
+  specification is explicit that a locking script "cannot be omitted entirely". Callers
+  legitimately building an envelope to append to their own script (as the OrdLock listing
+  does for its inline inscription) pass `{ allowEmptyLock: true }`, matching the existing
+  `{ allowNonEnforcing: true }` precedent. The regression test proves the unguarded script
+  really is anyone-can-spend by satisfying it through the interpreter with `OP_1`.
+
+- **Passing both `lock` and `address` throws instead of silently ignoring `address`.**
+  They name different owners; resolving that by precedence meant a caller who supplied
+  both got an ordinal owned by whichever one the implementation preferred.
+
+- **`createInscriptionOutput` validates `satoshis`.** `Output` already rejected negatives
+  and fractions, but `0` and the string `'1'` passed through — a 0-sat output carries no
+  ordinal at all. It must now be a positive integer; the default of 1 is unchanged.
+
+- **`parseInscription` recovers a locking script that follows the envelope.** The 1Sat
+  spec allows the lock to be *prepended or appended* ("A locking script (typically P2PKH)
+  is then prepended/appended to the inscription script, optionally separated by
+  OP_CODESEPARATOR"), but the parser took only the chunks *before* the envelope as the
+  lock and discarded everything after `OP_ENDIF`. For the appended form it therefore
+  reported `lock` as an **empty script** while `isInscription` returned `true` — telling a
+  wallet inspecting a third-party ordinal that an owned output had no locking script, the
+  exact inverse of the guard above. `lock` is now the whole script minus the envelope, in
+  script order. A separating `OP_CODESEPARATOR` is kept, because it genuinely runs and
+  affects the sighash. The common prepended form is unchanged.
+
+### Changed
+
+- `bsv.d.ts`: `InscriptionParams.content` is now required rather than optional, so
+  TypeScript callers get the original bug as a **compile error**; added `allowEmptyLock`;
+  documented that `lock` and `address` are mutually exclusive and that `contentType` is
+  required for Buffer content. Verified under `tsc --strict`.
+
+### Breaking
+
+Calls that previously returned a script and now throw: `content` omitted, `content` that
+is not a string or Buffer, Buffer content without a `contentType`, an empty or non-string
+`contentType`, an empty base lock without `allowEmptyLock`, `lock` and `address` together,
+and a `satoshis` value that is not a positive integer. Each produced an inscription that
+did not match the caller's intent, so code hitting one of these was already broken; the
+change is that it now fails at build time rather than on chain.
+
+`parseInscription(...).lock` now includes script chunks that follow the envelope. Code
+that relied on the previous value for the appended form was reading an empty script.
+
+Suite 4485 → 4502.
+
 ## [7.1.0] - 2026-07-17
 
 Six security fixes from an audit of the crypto core. Four change verification

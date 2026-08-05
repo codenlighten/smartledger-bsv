@@ -68,4 +68,158 @@ describe('Ordinals inscriptions', function () {
     Ord.parseInscription(outs[0].script).contentText.should.equal('a')
     Ord.parseInscription(outs[1].script).contentText.should.equal('b')
   })
+
+  // The 1Sat spec allows the locking script to be prepended OR appended to the
+  // envelope. The parser only ever looked before it, so an appended lock was dropped
+  // and an owned ordinal was reported as carrying no locking script at all.
+  describe('recovers the lock wherever the spec allows it to sit', function () {
+    var p2pkh = bsv.Script.buildPublicKeyHashOut(address)
+
+    function concat () {
+      var out = new bsv.Script()
+      Array.prototype.slice.call(arguments).forEach(function (part) {
+        part.chunks.forEach(function (c) { out.chunks.push(c) })
+      })
+      return out
+    }
+
+    function envelope () {
+      return Ord.buildInscription({
+        lock: new bsv.Script(), allowEmptyLock: true, contentType: 'text/plain', content: 'hello'
+      })
+    }
+
+    it('recovers a lock that precedes the envelope', function () {
+      var parsed = Ord.parseInscription(concat(p2pkh, envelope()))
+      parsed.lock.toHex().should.equal(p2pkh.toHex())
+      parsed.contentText.should.equal('hello')
+    })
+
+    it('recovers a lock that follows the envelope', function () {
+      var parsed = Ord.parseInscription(concat(envelope(), p2pkh))
+      parsed.lock.toHex().should.equal(p2pkh.toHex())
+      parsed.contentText.should.equal('hello')
+    })
+
+    it('keeps a separating OP_CODESEPARATOR, which really does run', function () {
+      var sep = concat(p2pkh, new bsv.Script().add(bsv.Opcode.OP_CODESEPARATOR), envelope())
+      var parsed = Ord.parseInscription(sep)
+      parsed.lock.chunks.length.should.equal(p2pkh.chunks.length + 1)
+      parsed.contentText.should.equal('hello')
+    })
+
+    it('still reports no lock when there genuinely is none', function () {
+      Ord.parseInscription(envelope()).lock.chunks.length.should.equal(0)
+    })
+  })
+
+  // Every case below used to succeed and emit a well-formed script that inscribed
+  // something other than what the caller asked for. An inscription is permanent, so
+  // each one now fails loudly at build time instead of on-chain.
+  describe('rejects arguments that would silently inscribe the wrong thing', function () {
+    it('throws when content is omitted rather than inscribing an empty payload', function () {
+      (function () {
+        Ord.buildInscription({ address: address, contentType: 'text/plain' })
+      }).should.throw(/requires `content`/)
+    })
+
+    it('names the field the caller actually passed', function () {
+      // The real-world report: a wallet whose own builder calls the field `data`.
+      (function () {
+        Ord.buildInscription({ address: address, contentType: 'text/plain', data: 'hello world' })
+      }).should.throw(/received `data`, which is not read/)
+    })
+
+    it('still allows an explicitly empty payload', function () {
+      var s = Ord.buildInscription({ address: address, contentType: 'text/plain', content: '' })
+      Ord.parseInscription(s).content.length.should.equal(0)
+    })
+
+    it('throws rather than stringifying an object into the payload', function () {
+      // String({}) is '[object Object]' — permanent, and never intended.
+      (function () {
+        Ord.buildInscription({ address: address, contentType: 'text/plain', content: { a: 1 } })
+      }).should.throw(/content must be a string or Buffer, got an object/)
+    })
+
+    it('throws on any non-string, non-Buffer content', function () {
+      [42, true, null, ['a'], undefined].forEach(function (v) {
+        (function () {
+          Ord.buildInscription({ address: address, contentType: 'text/plain', content: v })
+        }).should.throw(Error)
+      })
+    })
+
+    it('requires a contentType for Buffer content instead of labelling it text/plain', function () {
+      var png = Buffer.from([0x89, 0x50, 0x4e, 0x47])
+      ;(function () {
+        Ord.buildInscription({ address: address, content: png })
+      }).should.throw(/contentType is required when content is a Buffer/)
+      // Declared explicitly, it builds.
+      var s = Ord.buildInscription({ address: address, contentType: 'image/png', content: png })
+      Ord.parseInscription(s).contentType.should.equal('image/png')
+    })
+
+    it('keeps the text/plain default for string content', function () {
+      var s = Ord.buildInscription({ address: address, content: 'hi' })
+      Ord.parseInscription(s).contentType.should.equal('text/plain')
+    })
+
+    it('throws on an empty or non-string contentType', function () {
+      (function () {
+        Ord.buildInscription({ address: address, contentType: '', content: 'x' })
+      }).should.throw(/contentType must not be empty/)
+      ;(function () {
+        Ord.buildInscription({ address: address, contentType: {}, content: 'x' })
+      }).should.throw(/contentType must be a string or Buffer/)
+    })
+
+    it('throws on an empty base lock, which would be anyone-can-spend', function () {
+      // With no base lock the script is just the inert envelope: OP_FALSE OP_IF skips
+      // to OP_ENDIF, so whatever the spender pushed is the final stack and any spender
+      // succeeds. Proven below rather than asserted.
+      (function () {
+        Ord.buildInscription({ lock: Buffer.alloc(0), contentType: 'text/plain', content: 'x' })
+      }).should.throw(/spendable by anyone/)
+    })
+
+    it('proves the empty-lock script really is anyone-can-spend', function () {
+      var envelope = Ord.buildInscription({
+        lock: new bsv.Script(), allowEmptyLock: true, contentType: 'text/plain', content: 'x'
+      })
+      // An unlocking script from a key unrelated to `address` satisfies it.
+      var unlock = new bsv.Script().add(bsv.Opcode.OP_1)
+      var interp = new bsv.Script.Interpreter()
+      var ok = interp.verify(unlock, envelope, new bsv.Transaction(), 0, 0)
+      ok.should.equal(true)
+    })
+
+    it('permits an empty lock only when the caller opts in', function () {
+      var s = Ord.buildInscription({
+        lock: new bsv.Script(), allowEmptyLock: true, contentType: 'text/plain', content: 'x'
+      })
+      Ord.isInscription(s).should.equal(true)
+    })
+
+    it('throws when both lock and address are given instead of ignoring one', function () {
+      var lock = bsv.Script.buildPublicKeyHashOut(address)
+      var other = bsv.PrivateKey.fromRandom().toAddress()
+      ;(function () {
+        Ord.buildInscription({ lock: lock, address: other, contentType: 'text/plain', content: 'x' })
+      }).should.throw(/not both/)
+    })
+
+    it('rejects a satoshi amount that carries no ordinal', function () {
+      [0, '1', 1.5, -1].forEach(function (v) {
+        (function () {
+          Ord.createInscriptionOutput({
+            address: address, contentType: 'text/plain', content: 'x', satoshis: v
+          })
+        }).should.throw(Error)
+      })
+      Ord.createInscriptionOutput({
+        address: address, contentType: 'text/plain', content: 'x'
+      }).satoshis.should.equal(1)
+    })
+  })
 })

@@ -1033,10 +1033,26 @@ declare module '@smartledger/bsv' {
 
     export namespace Ordinals {
         interface InscriptionParams {
+            /**
+             * The inscription body. Required — omitting it used to emit a well-formed
+             * script carrying an empty payload. Pass '' for a deliberately empty one.
+             */
+            content: string | Buffer;
+            /**
+             * Defaults to 'text/plain' for string content; required when `content` is a
+             * Buffer, whose bytes carry no hint about what they are.
+             */
             contentType?: string | Buffer;
-            content?: string | Buffer;
+            /** Base locking script. Mutually exclusive with `address`; one is required. */
             lock?: Script | Buffer | string;
+            /** P2PKH owner. Mutually exclusive with `lock`; one is required. */
             address?: Address | string;
+            /**
+             * Permit an empty base lock. Without it an empty lock throws: the envelope is
+             * inert, so a script with no base lock is spendable by anyone.
+             */
+            allowEmptyLock?: boolean;
+            /** Defaults to 1. Must be a positive integer. */
             satoshis?: number;
         }
         interface ParsedInscription {
