@@ -1,0 +1,63 @@
+version: 2
+
+# Dependency update PRs. Note that this file configures *version updates* only;
+# security alerts are a separate repository setting (Settings → Code security →
+# Dependabot alerts) and must be enabled there.
+#
+# A caveat specific to this repository: the 16 browser bundles are committed, and
+# CI's "Build & bundle integrity" job rebuilds them and asserts the result is
+# byte-identical to what is checked in. A bump to any dependency that esbuild
+# inlines (the browserify shims, `events`, `bn.js`, `bs58`, ...) therefore turns
+# that job red until the bundles are regenerated with `npm run build-all` and
+# committed onto the Dependabot branch. That is the intended signal, not a
+# misconfiguration: a dependency that changes bundle bytes changes what we ship,
+# and a human should look at the diff before it goes out.
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # Test/lint/build tooling moves together; these never reach consumers, so
+      # one PR per week for the whole toolchain is enough.
+      dev-tooling:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # `standard@12` is pinned deliberately: the lint ratchet in
+      # `scripts/lint-ratchet.js` grandfathers 10,188 legacy violations across
+      # 123 files as per-file counts measured against this exact version
+      # (`.lint-baseline.json`), and CI blocks on any file gaining one more.
+      # A major upgrade re-measures every one of those counts. Upgrading it
+      # rewrites the entire baseline and is a deliberate project, not a
+      # dependency bump. Track it in the roadmap instead.
+      - dependency-name: standard
+        update-types:
+          - version-update:semver-major
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions:
+        patterns:
+          - "*"
