@@ -216,7 +216,122 @@ describe('Ordinals BSV-20 fungible tokens', function () {
         B.isBsv20(B.buildMint({ address: address, tick: 'ORDI', amt: '1' })).should.equal(true)
         B.isBsv20(B.buildTransfer({ address: address, id: OUTPOINT, amt: '1' })).should.equal(true)
         B.isBsv20(B.buildDeployMint({ address: address, amt: '1000' })).should.equal(true)
+        B.isBsv20(B.buildBurn({ address: address, id: OUTPOINT, amt: '1' })).should.equal(true)
+        B.isBsv20(B.buildAuth({ address: address, id: OUTPOINT })).should.equal(true)
+        B.isBsv20(B.buildDeployAuth({ address: address, sym: 'STABLE' })).should.equal(true)
       })
+    })
+  })
+
+  // BSV-21 authority model: deploy+auth creates no supply, an auth output carries the right
+  // to mint, and mint names its token by `id`. Previously only the fixed-supply deploy+mint
+  // path could be built, so these operations could be read but never written.
+  describe('BSV-21 authority operations', function () {
+    var OUTPOINT = '3b31'.repeat(16) + '_0'
+
+    it('mints by id, which requires an auth input on chain', function () {
+      var p = B.parseBsv20(B.buildMint({ address: address, id: OUTPOINT, amt: '1000000' }))
+      p.op.should.equal('mint')
+      p.id.should.equal(OUTPOINT)
+      p.amt.should.equal('1000000')
+      ;(p.tick === undefined).should.equal(true)
+    })
+
+    it('leaves the v1 ticker mint byte-for-byte unchanged', function () {
+      var p = B.parseBsv20(B.buildMint({ address: address, tick: 'ORDI', amt: '1000' }))
+      JSON.stringify(p).should.equal('{"p":"bsv-20","op":"mint","tick":"ORDI","amt":"1000"}')
+    })
+
+    it('refuses to guess which token an operation means', function () {
+      // Naming both used to silently drop the tick — a different token, not a preference.
+      (function () {
+        B.buildMint({ address: address, tick: 'ORDI', id: OUTPOINT, amt: '1' })
+      }).should.throw(/not both/)
+      ;(function () {
+        B.buildTransfer({ address: address, tick: 'ORDI', id: OUTPOINT, amt: '1' })
+      }).should.throw(/not both/)
+      ;(function () {
+        B.buildMint({ address: address, amt: '1' })
+      }).should.throw(/requires `tick` \(v1\) or `id`/)
+    })
+
+    it('builds a burn', function () {
+      var p = B.parseBsv20(B.buildBurn({ address: address, id: OUTPOINT, amt: '5' }))
+      p.op.should.equal('burn')
+      p.id.should.equal(OUTPOINT)
+      p.amt.should.equal('5')
+    })
+
+    it('rejects a ticker burn, which the spec does not define', function () {
+      (function () {
+        B.buildBurn({ address: address, tick: 'ORDI', amt: '5' })
+      }).should.throw(/BSV-21 operation/)
+    })
+
+    it('builds deploy+auth with no supply', function () {
+      var p = B.parseBsv20(B.buildDeployAuth({ address: address, sym: 'STABLE', dec: 6 }))
+      p.op.should.equal('deploy+auth')
+      p.sym.should.equal('STABLE')
+      p.dec.should.equal('6')
+      ;(p.amt === undefined).should.equal(true)
+      // Every field is optional.
+      B.parseBsv20(B.buildDeployAuth({ address: address })).op.should.equal('deploy+auth')
+    })
+
+    it('builds an auth output carrying no amount', function () {
+      var p = B.parseBsv20(B.buildAuth({ address: address, id: OUTPOINT }))
+      p.op.should.equal('auth')
+      p.id.should.equal(OUTPOINT)
+      ;(p.amt === undefined).should.equal(true)
+    })
+
+    it('refuses to attach an amt where the spec forbids one', function () {
+      (function () {
+        B.buildAuth({ address: address, id: OUTPOINT, amt: '1' })
+      }).should.throw(/must not carry an amt/)
+      ;(function () {
+        B.buildDeployAuth({ address: address, sym: 'X', amt: '1' })
+      }).should.throw(/must not carry an amt/)
+    })
+
+    it('applies the same amount rules as the other operations', function () {
+      (function () {
+        B.buildBurn({ address: address, id: OUTPOINT, amt: '0' })
+      }).should.throw(/greater than zero/)
+      ;(function () {
+        B.buildBurn({ address: address, id: OUTPOINT, amt: '9'.repeat(26) })
+      }).should.throw(/exceeds the uint64 maximum/)
+      ;(function () {
+        B.buildMint({ address: address, id: 'notanid', amt: '1' })
+      }).should.throw(/<txid>/)
+      ;(function () {
+        B.buildDeployAuth({ address: address, sym: {} })
+      }).should.throw(/sym must be a string/)
+    })
+
+    it('builds 1-sat outputs for each new operation', function () {
+      var outs = [
+        B.createBurnOutput({ address: address, id: OUTPOINT, amt: '5' }),
+        B.createAuthOutput({ address: address, id: OUTPOINT }),
+        B.createDeployAuthOutput({ address: address, sym: 'STABLE' })
+      ]
+      outs.forEach(function (o) {
+        o.satoshis.should.equal(1)
+        B.isBsv20(o.script).should.equal(true)
+      })
+    })
+
+    it('round-trips a full authority lifecycle', function () {
+      // deploy+auth -> auth output delegating mint rights -> mint by id -> burn.
+      var deploy = B.parseBsv20(B.buildDeployAuth({ address: address, sym: 'GOLD', dec: 8 }))
+      var auth = B.parseBsv20(B.buildAuth({ address: address, id: OUTPOINT }))
+      var mint = B.parseBsv20(B.buildMint({ address: address, id: OUTPOINT, amt: '1000' }))
+      var burn = B.parseBsv20(B.buildBurn({ address: address, id: OUTPOINT, amt: '400' }))
+      deploy.op.should.equal('deploy+auth')
+      auth.op.should.equal('auth')
+      mint.amt.should.equal('1000')
+      burn.amt.should.equal('400')
+      ;[deploy, auth, mint, burn].forEach(function (p) { p.p.should.equal('bsv-20') })
     })
   })
 })
