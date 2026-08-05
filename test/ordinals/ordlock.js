@@ -549,4 +549,75 @@ describe('Ordinals OrdLock — code-review regressions', function () {
     })
     Ord.parseOrdLock(lock).totalPrice.should.equal(777)
   })
+
+  // parseOrdLock recovers terms from the script's shape. Shape alone proves nothing: a
+  // script wearing the same opcode arrangement without the OP_PUSH_TX covenant enforces no
+  // payment, and reporting a seller and a price for it invents a listing that does not
+  // exist. The terms are therefore verified by rebuilding the listing and comparing bytes.
+  describe('is a verifier, not a shape matcher', function () {
+    var attacker = bsv.PrivateKey.fromBuffer(Buffer.alloc(32, 9))
+
+    // Wears the fingerprint parseOrdLock keys off: a top-level OP_IF with a 20-byte push,
+    // and OP_TOALTSTACK <blob> OP_CAT OP_SWAP in the OP_ELSE branch. Enforces nothing.
+    function fabricatedListing () {
+      var payout = new bsv.Transaction.Output({
+        script: bsv.Script.buildPublicKeyHashOut(attacker.toAddress()),
+        satoshis: 100000000
+      })
+      var s = new bsv.Script()
+      s.add(bsv.Opcode.OP_IF)
+      s.add(attacker.toAddress().hashBuffer)
+      s.add(bsv.Opcode.OP_DROP)
+      s.add(bsv.Opcode.OP_ELSE)
+      s.add(bsv.Opcode.OP_TOALTSTACK)
+      s.add(payout.toBufferWriter().toBuffer())
+      s.add(bsv.Opcode.OP_CAT)
+      s.add(bsv.Opcode.OP_SWAP)
+      s.add(bsv.Opcode.OP_ENDIF)
+      s.add(bsv.Opcode.OP_TRUE)
+      return s
+    }
+
+    it('rejects a fabricated listing that enforces no payment', function () {
+      var fake = fabricatedListing()
+      Ord.isOrdLock(fake).should.equal(false)
+      ;(Ord.parseOrdLock(fake) === null).should.equal(true)
+    })
+
+    it('proves the fabricated listing really is spendable for free', function () {
+      // Without this, the test above only shows we reject *something*.
+      var interp = new bsv.Script.Interpreter()
+      var unlock = new bsv.Script().add(bsv.Opcode.OP_1)
+      var spent = interp.verify(unlock, fabricatedListing(), new bsv.Transaction(), 0, 0)
+      spent.should.equal(true)
+    })
+
+    it('rejects a genuine listing with anything appended', function () {
+      var real = Ord.buildOrdLock({ seller: owner.toAddress(), price: 50000 })
+      var tampered = bsv.Script.fromHex(real.toHex()).add(bsv.Opcode.OP_NOP)
+      Ord.isOrdLock(tampered).should.equal(false)
+    })
+
+    it('still accepts every genuine listing shape', function () {
+      var simple = Ord.buildOrdLock({ seller: owner.toAddress(), price: 50000 })
+      Ord.parseOrdLock(simple).totalPrice.should.equal(50000)
+
+      var withInsc = Ord.buildOrdLock({
+        seller: owner.toAddress(),
+        price: 777,
+        inscription: { contentType: 'text/plain', content: 'for sale' }
+      })
+      var parsed = Ord.parseOrdLock(withInsc)
+      parsed.totalPrice.should.equal(777)
+      parsed.inscription.contentText.should.equal('for sale')
+
+      var multi = Ord.buildOrdLock({
+        seller: owner.toAddress(),
+        price: 1000,
+        royalties: [{ address: attacker.toAddress(), satoshis: 50 }]
+      })
+      Ord.parseOrdLock(multi).payOutputs.length.should.equal(2)
+      Ord.parseOrdLock(multi).totalPrice.should.equal(1050)
+    })
+  })
 })

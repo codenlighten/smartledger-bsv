@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.3.0] - 2026-08-05
+
+Conformance pass over the rest of `lib/ordinals/`, checked against the published
+1Sat Ordinals specification rather than against our own tests. `parseOrdLock` and
+`parseBsv20` both reported validity they did not enforce; the builders emitted
+payloads the spec rejects. Some calls that previously succeeded now throw — see
+**Breaking**.
+
+### Fixed (security)
+
+- **`parseOrdLock` / `isOrdLock` verify the covenant instead of matching a shape.**
+  Both recovered a listing's terms from the script's *arrangement of opcodes* — a
+  top-level `OP_IF` with a 20-byte push, and `OP_TOALTSTACK <blob> OP_CAT OP_SWAP`
+  in the `OP_ELSE` branch — and reported a seller and a price on that basis alone.
+  A script wearing that arrangement while containing **no `OP_PUSH_TX` covenant at
+  all** was therefore reported as a genuine listing: the regression test builds one
+  that ends in `OP_TRUE`, gets `isOrdLock` → `true` with an attacker-chosen seller
+  address and a 1 BSV price, and then proves through the interpreter that the
+  ordinal is spendable **for free**. A marketplace UI reading listings this way
+  displays fabricated offers.
+
+  The recovered terms are now verified by reconstruction: the listing is rebuilt
+  from the recovered seller / payment outputs / inscription via `buildOrdLock` and
+  must match the input byte-for-byte. A non-null result means the purchase branch
+  genuinely binds the payment into `hashOutputs`. Every listing this library builds
+  — simple, multi-output royalty/fee, and inscribe-and-list — still parses.
+
+- **`parseBsv20` / `isBsv20` enforce the validity they document.** Both were
+  documented to report whether input "carries a **valid** BSV-20 inscription" but
+  checked only that `p === 'bsv-20'` and that `op` was a string, so
+  `{p:'bsv-20', op:'transfer'}` — no amount, no token — and even
+  `{p:'bsv-20', op:'not-an-op'}` returned `true`. The operation must now be one the
+  specification defines and must carry that operation's required fields, with
+  `tick` / `id` / amounts / `dec` well-formed. Operations this library does not yet
+  build are still read: `burn`, `auth` and `deploy+auth` parse. Non-canonical
+  amounts (leading zeros) are tolerated when reading, since other people's payloads
+  are not ours to reject over formatting.
+
+### Fixed
+
+- **`lim: 0` is accepted; the spec defines it as unlimited.** The deploy builder ran
+  `lim` through the strictly-positive check used for `max` and `amt`, so the legal
+  value documented as "0 or omitted = unlimited" threw `lim must be greater than
+  zero` — there was no way to state an unlimited per-mint cap explicitly.
+
+- **Amounts are bounded by uint64.** `amt`, `max` and `lim` are "strings
+  representing uint64" (max `18446744073709551615`), but any length of digit string
+  was accepted and emitted — a 26-digit supply produced valid JSON that indexers
+  discard, burning the tokens. Values above `2^64-1` are now rejected, and exactly
+  `2^64-1` is accepted. A *numeric* amount above `Number.MAX_SAFE_INTEGER` is also
+  rejected rather than silently rounded to a different number than the caller passed;
+  pass it as a string.
+
+- **`sym` and `icon` reject non-strings instead of stringifying them.** Both ran
+  through `String()`, so `sym: {}` wrote the literal text `[object Object]` into a
+  permanent token payload — the same coercion class fixed in `inscription.js` in
+  7.2.0, which that sweep did not reach. `icon` must additionally be an outpoint
+  reference (`<txid>_<vout>`), which is what the specification defines it as.
+
+### Changed
+
+- Two tests asserted that 26-digit amounts round-trip. Their intent — amounts beyond
+  2^53 stay exact as strings and are never coerced to JS numbers — is right and is
+  preserved, but the magnitude was out of spec and would have been burned on chain;
+  they now use `18446744073709551615`, which is both far beyond 2^53 and the largest
+  amount the spec permits.
+
+- Documented in `lib/ordinals/README.md` that this OrdLock, while semantically the
+  widely deployed ordinal-lock pattern (`hash256(destOutput ‖ payOutput ‖
+  trailingOutputs) == hashOutputs` under `SIGHASH_ALL|ANYONECANPAY`, generalized to
+  multiple payment outputs), is built on our `OP_PUSH_TX` core rather than compiled
+  from the sCrypt `OrdinalLock` contract — so the bytes differ and listings are not
+  interchangeable with that template.
+
+### Breaking
+
+`buildDeploy`/`buildMint`/`buildTransfer`/`buildDeployMint` now throw on amounts above
+uint64, numeric amounts above `Number.MAX_SAFE_INTEGER`, non-string `sym`/`icon`, and an
+`icon` that is not an outpoint. Each previously emitted a payload the network does not
+honour.
+
+`parseBsv20` returns `null` — and `isBsv20` `false` — for payloads that were previously
+returned but are not valid: unknown operations, missing required fields, a `transfer`
+naming both `tick` and `id`, `auth`/`deploy+auth` carrying `amt`, malformed `tick`/`id`,
+out-of-range `dec`, and over-uint64 amounts.
+
+`parseOrdLock` returns `null` for any script that is not byte-identical to a listing this
+library would build. Callers relying on it to describe arbitrary scripts were being told
+about listings that did not exist.
+
+Suite 4502 → 4525.
+
 ## [7.2.0] - 2026-08-05
 
 Extends the 7.0.1/7.0.2 silent-argument sweep into `lib/ordinals/`, which the earlier
