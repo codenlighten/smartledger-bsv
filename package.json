@@ -204,7 +204,7 @@
     "bs58": "=4.0.1",
     "clone-deep": "^4.0.1",
     "hash.js": "^1.1.7",
-    "inherits": "2.0.3",
+    "inherits": "2.0.4",
     "secrets.js-grempe": "^2.0.0",
     "unorm": "1.4.1"
   },
