@@ -1169,7 +1169,7 @@ declare module '@smartledger/bsv' {
             /** A parsed BSV-20 payload. Amounts are integer strings (may exceed 2^53). */
             interface Payload {
                 p: 'bsv-20';
-                op: 'deploy' | 'mint' | 'transfer' | 'deploy+mint' | string;
+                op: 'deploy' | 'mint' | 'transfer' | 'deploy+mint' | 'deploy+auth' | 'auth' | 'burn' | string;
                 tick?: string;
                 id?: string;
                 amt?: string;
@@ -1182,16 +1182,31 @@ declare module '@smartledger/bsv' {
             const CONTENT_TYPE: string;
             /** Deploy a v1 (ticker) token. */
             function buildDeploy(params: Owner & { tick: string; max: IntLike; lim?: IntLike; dec?: IntLike }): Script;
-            /** Mint an amount of a v1 (ticker) token. */
-            function buildMint(params: Owner & { tick: string; amt: IntLike }): Script;
+            /**
+             * Mint an amount of a token — `tick` (v1) or `id` (BSV-21, which additionally
+             * requires an auth input to be spent). Exactly one of the two.
+             */
+            function buildMint(params: Owner & { amt: IntLike; tick?: string; id?: string }): Script;
             /** Transfer an amount of a token — provide `tick` (v1) or `id` (v2 / BSV-21). */
             function buildTransfer(params: Owner & { amt: IntLike; tick?: string; id?: string }): Script;
             /** Deploy + mint a BSV-21 (id-based) supply in one operation. */
             function buildDeployMint(params: Owner & { amt: IntLike; dec?: IntLike; sym?: string; icon?: string }): Script;
+            /** Burn an amount of a BSV-21 token. Id-based only — the spec defines no ticker form. */
+            function buildBurn(params: Owner & { id: string; amt: IntLike }): Script;
+            /**
+             * Deploy a BSV-21 token under a mint AUTHORITY rather than a fixed supply.
+             * No supply is created here and `amt` must not be present.
+             */
+            function buildDeployAuth(params: Owner & { sym?: string; dec?: IntLike; icon?: string }): Script;
+            /** Mint authority for a BSV-21 token; carries no amount. */
+            function buildAuth(params: Owner & { id: string }): Script;
             function createDeployOutput(params: Owner & { tick: string; max: IntLike; lim?: IntLike; dec?: IntLike }): Transaction.Output;
-            function createMintOutput(params: Owner & { tick: string; amt: IntLike }): Transaction.Output;
+            function createMintOutput(params: Owner & { amt: IntLike; tick?: string; id?: string }): Transaction.Output;
             function createTransferOutput(params: Owner & { amt: IntLike; tick?: string; id?: string }): Transaction.Output;
             function createDeployMintOutput(params: Owner & { amt: IntLike; dec?: IntLike; sym?: string; icon?: string }): Transaction.Output;
+            function createBurnOutput(params: Owner & { id: string; amt: IntLike }): Transaction.Output;
+            function createDeployAuthOutput(params: Owner & { sym?: string; dec?: IntLike; icon?: string }): Transaction.Output;
+            function createAuthOutput(params: Owner & { id: string }): Transaction.Output;
             /** Parse a BSV-20 payload from a script, JSON string, or object; null if none. */
             function parseBsv20(input: Script | Buffer | string | object): Payload | null;
             /** True if the input carries a valid BSV-20 inscription. */

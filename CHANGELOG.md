@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.4.0] - 2026-08-05
+
+Completes BSV-21 coverage. 7.3.0 taught the parser every operation the specification
+defines; this release lets you *build* them too, so the authority-based token model is
+usable end to end rather than only readable.
+
+### Added
+
+- **`BSV20.buildAuth` / `buildDeployAuth` / `buildBurn`**, with matching
+  `createAuthOutput` / `createDeployAuthOutput` / `createBurnOutput` 1-sat output helpers.
+  These complete the BSV-21 authority model, which is the current standard (v1 tickers
+  are deprecated):
+
+  - `deploy+auth` declares a token with **no supply** — `amt` is forbidden, and minting
+    happens later against the deploy's outpoint.
+  - `auth` marks an output as carrying the right to mint, which "can be split, combined,
+    or transferred to delegate minting authority". It carries no amount.
+  - `burn` retires an amount of a BSV-21 token. Id-based only: the specification defines
+    no ticker form, and a `tick` is rejected with a message saying so rather than being
+    quietly reinterpreted.
+
+- **`buildMint` accepts `id`**, so a BSV-21 token can be minted against its outpoint
+  (`{p, op:'mint', id, amt}`, which requires an auth input to be spent on chain). Only
+  the v1 ticker form was previously expressible, which meant a token deployed under the
+  authority model could be read but never minted. The v1 ticker path is byte-for-byte
+  unchanged — a regression test pins the exact emitted JSON.
+
+### Fixed
+
+- **`buildTransfer` no longer silently drops `tick` when `id` is also given.** It
+  preferred `id` and discarded the ticker, but those name *different tokens*, so the
+  caller got a transfer of something other than what they asked for. Both `buildMint` and
+  `buildTransfer` now require exactly one of the two and say which is missing when neither
+  is supplied. Same silent-argument family as 7.0.1, 7.0.2, 7.2.0 and 7.3.0.
+
+### Changed
+
+- `bsv.d.ts`: `buildMint` takes `{amt, tick?, id?}`; the new builders and output helpers
+  are declared; `Payload.op` lists `deploy+auth`, `auth` and `burn`. Verified under
+  `tsc --strict` — valid calls compile, and omitting the required `id` on `buildAuth` is
+  a compile error.
+
+Suite 4525 → 4536.
+
 ## [7.3.0] - 2026-08-05
 
 Conformance pass over the rest of `lib/ordinals/`, checked against the published

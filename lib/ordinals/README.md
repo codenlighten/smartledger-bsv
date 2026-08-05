@@ -176,9 +176,16 @@ B.buildDeploy({ address: owner, tick: 'ORDI', max: '21000000', lim: '1000', dec:
 B.buildMint({ address: owner, tick: 'ORDI', amt: '1000' })
 B.buildTransfer({ address: newOwner, tick: 'ORDI', amt: '250' })
 
-// v2 / BSV-21: deploy+mint a supply, transfer by id.
+// v2 / BSV-21, fixed supply: deploy+mint, then transfer by id.
 B.buildDeployMint({ address: owner, amt: '1000000', dec: 8, sym: 'XYZ' })
 B.buildTransfer({ address: newOwner, id: deployTxid + '_0', amt: '5' })
+
+// v2 / BSV-21, authority model: no supply at deploy; an auth output carries the right
+// to mint, and minting names the token by id (and needs an auth input on chain).
+B.buildDeployAuth({ address: owner, sym: 'STABLE', dec: 6 })
+B.buildAuth({ address: minter, id: deployTxid + '_0' })       // delegate mint authority
+B.buildMint({ address: holder, id: deployTxid + '_0', amt: '1000000' })
+B.buildBurn({ address: holder, id: deployTxid + '_0', amt: '400' })
 
 // 1-sat outputs and parsing.
 var out = B.createMintOutput({ address: owner, tick: 'ORDI', amt: '1' })
@@ -201,10 +208,12 @@ it — so a stray object can no longer be written as the literal text `[object O
 **`parseBsv20` / `isBsv20` enforce validity rather than assuming it.** The operation must be
 one the spec defines and must carry the fields that operation requires — a `transfer` with no
 amount and no token, an `auth` carrying `amt` (which the spec forbids), an over-uint64 amount,
-or an unknown `op` all return `null`. Operations this library does not yet *build* are still
-*read*: `burn`, `auth`, and `deploy+auth` parse correctly. Non-canonical amounts (leading
-zeros) are tolerated when reading other people's payloads, though our builders always emit
-canonical ones.
+or an unknown `op` all return `null`. Every operation the spec defines is both built and
+read. Non-canonical amounts (leading zeros) are tolerated when reading other people's
+payloads, though our builders always emit canonical ones.
+
+An operation names its token by `tick` (v1) **or** `id` (BSV-21), never both — passing both
+throws rather than silently picking one, since they are different tokens.
 
 Balance tracking is an indexer concern — this module builds and reads the on-chain payloads.
 
@@ -222,5 +231,6 @@ Balance tracking is an indexer concern — this module builds and reads the on-c
 | `payOutputFor` | build a P2PKH payment output |
 | `ORDLOCK_SIGHASH` | `SIGHASH_ALL\|ANYONECANPAY\|FORKID` (0xc1) |
 | `BSV20.buildDeploy` / `buildMint` / `buildTransfer` / `buildDeployMint` | build BSV-20/21 token inscriptions |
+| `BSV20.buildDeployAuth` / `buildAuth` / `buildBurn` | BSV-21 authority model: deploy without supply, delegate mint rights, burn |
 | `BSV20.create*Output` | 1-sat token outputs |
 | `BSV20.parseBsv20`, `BSV20.isBsv20` | read a token payload back |
