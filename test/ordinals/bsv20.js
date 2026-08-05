@@ -56,7 +56,9 @@ describe('Ordinals BSV-20 fungible tokens', function () {
   })
 
   it('preserves integer amounts larger than 2^53 exactly (string, never a JS number)', function () {
-    var huge = '99999999999999999999999999'
+    // uint64 max: far beyond 2^53, and the largest amount the spec allows. The value this
+    // used to test (26 digits) exceeded uint64 and would have been burned by an indexer.
+    var huge = '18446744073709551615'
     var p = B.parseBsv20(B.buildMint({ address: address, tick: 'BIG', amt: huge }))
     p.amt.should.equal(huge)
   })
@@ -72,7 +74,7 @@ describe('Ordinals BSV-20 fungible tokens', function () {
     B.parseBsv20(B.buildMint({ address: address, tick: 'ORDI', amt: '007' })).amt.should.equal('7')
     B.parseBsv20(B.buildDeploy({ address: address, tick: 'ORDI', max: '000100' })).max.should.equal('100')
     // canonicalization does not corrupt a huge value
-    var huge = '90000000000000000000000000'
+    var huge = '18446744073709551615'
     B.parseBsv20(B.buildMint({ address: address, tick: 'ORDI', amt: '0' + huge })).amt.should.equal(huge)
   })
 
@@ -121,6 +123,100 @@ describe('Ordinals BSV-20 fungible tokens', function () {
     })
     it('requires an owner (address or lock)', function () {
       ;(function () { B.buildMint({ tick: 'ORDI', amt: '1' }) }).should.throw(/address or a lock/)
+    })
+  })
+
+  // Checked against the BSV-20 / BSV-21 specification at docs.1satordinals.com.
+  describe('specification conformance', function () {
+    var OUTPOINT = '3b31'.repeat(16) + '_0'
+    var UINT64_MAX = '18446744073709551615'
+
+    it('accepts lim: 0, which the spec defines as unlimited', function () {
+      // "lim | No | String | Per-mint limit; 0 or omitted = unlimited"
+      B.parseBsv20(B.buildDeploy({ address: address, tick: 'ORDI', max: '21000000', lim: 0 }))
+        .lim.should.equal('0')
+      B.parseBsv20(B.buildDeploy({ address: address, tick: 'ORDI', max: '21000000', lim: '0' }))
+        .lim.should.equal('0')
+    })
+
+    it('accepts an amount of exactly uint64 max but rejects one above it', function () {
+      // "Amounts in BSV-21: strings representing uint64" — larger values are emitted
+      // happily as JSON and then discarded by indexers, burning the tokens.
+      B.parseBsv20(B.buildDeploy({ address: address, tick: 'ORDI', max: UINT64_MAX }))
+        .max.should.equal(UINT64_MAX)
+      ;(function () {
+        B.buildDeploy({ address: address, tick: 'ORDI', max: '18446744073709551616' })
+      }).should.throw(/exceeds the uint64 maximum/)
+      ;(function () {
+        B.buildMint({ address: address, tick: 'ORDI', amt: '9'.repeat(26) })
+      }).should.throw(/exceeds the uint64 maximum/)
+    })
+
+    it('rejects a numeric amount past 2^53, which is already imprecise', function () {
+      (function () {
+        B.buildMint({ address: address, tick: 'ORDI', amt: 1e17 })
+      }).should.throw(/MAX_SAFE_INTEGER/)
+    })
+
+    it('rejects non-string sym / icon instead of stringifying them', function () {
+      (function () {
+        B.buildDeployMint({ address: address, amt: '100', sym: {} })
+      }).should.throw(/sym must be a string, got an object/)
+      ;(function () {
+        B.buildDeployMint({ address: address, amt: '100', icon: 42 })
+      }).should.throw(/icon must be a string/)
+    })
+
+    it('requires icon to be an outpoint reference, as the spec defines it', function () {
+      (function () {
+        B.buildDeployMint({ address: address, amt: '100', icon: 'https://example.com/i.png' })
+      }).should.throw(/outpoint reference/)
+      B.parseBsv20(B.buildDeployMint({ address: address, amt: '100', icon: OUTPOINT }))
+        .icon.should.equal(OUTPOINT)
+    })
+
+    // parseBsv20/isBsv20 are documented to report VALIDITY. They previously returned any
+    // JSON object carrying p:'bsv-20' and a string op, including payloads no indexer acts on.
+    describe('parseBsv20 enforces the validity it reports', function () {
+      function rejects (label, payload) {
+        it('rejects ' + label, function () {
+          var json = JSON.stringify(payload)
+          B.isBsv20(json).should.equal(false)
+          ;(B.parseBsv20(json) === null).should.equal(true)
+        })
+      }
+      rejects('a transfer with no amount and no token', { p: 'bsv-20', op: 'transfer' })
+      rejects('a mint with no amount', { p: 'bsv-20', op: 'mint', tick: 'ORDI' })
+      rejects('a deploy with no max', { p: 'bsv-20', op: 'deploy', tick: 'ORDI' })
+      rejects('an operation the spec does not define', { p: 'bsv-20', op: 'not-an-op' })
+      rejects('a transfer naming both tick and id', { p: 'bsv-20', op: 'transfer', tick: 'A', id: OUTPOINT, amt: '1' })
+      rejects('an auth carrying amt, which the spec forbids', { p: 'bsv-20', op: 'auth', id: OUTPOINT, amt: '1' })
+      rejects('a deploy+auth carrying amt, which the spec forbids', { p: 'bsv-20', op: 'deploy+auth', amt: '1' })
+      rejects('a ticker longer than 4 bytes', { p: 'bsv-20', op: 'mint', tick: 'TOOLONG', amt: '1' })
+      rejects('a malformed token id', { p: 'bsv-20', op: 'transfer', id: 'nope', amt: '1' })
+      rejects('an amount above uint64', { p: 'bsv-20', op: 'mint', tick: 'A', amt: '9'.repeat(26) })
+      rejects('dec out of range', { p: 'bsv-20', op: 'deploy', tick: 'A', max: '1', dec: '19' })
+
+      it('accepts the spec operations this library does not yet emit', function () {
+        // Reading the chain is not the same as writing it: burn/auth/deploy+auth are valid
+        // BSV-21 and must be recognised even though there is no builder for them yet.
+        B.isBsv20(JSON.stringify({ p: 'bsv-20', op: 'burn', id: OUTPOINT, amt: '5' })).should.equal(true)
+        B.isBsv20(JSON.stringify({ p: 'bsv-20', op: 'auth', id: OUTPOINT })).should.equal(true)
+        B.isBsv20(JSON.stringify({ p: 'bsv-20', op: 'deploy+auth', sym: 'STABLE' })).should.equal(true)
+      })
+
+      it('tolerates a non-canonical on-chain amount when reading', function () {
+        // Our builder emits canonical amounts, but other people's payloads are not ours
+        // to reject over leading zeros.
+        B.isBsv20(JSON.stringify({ p: 'bsv-20', op: 'mint', tick: 'A', amt: '007' })).should.equal(true)
+      })
+
+      it('still round-trips everything this library builds', function () {
+        B.isBsv20(B.buildDeploy({ address: address, tick: 'ORDI', max: '21000000' })).should.equal(true)
+        B.isBsv20(B.buildMint({ address: address, tick: 'ORDI', amt: '1' })).should.equal(true)
+        B.isBsv20(B.buildTransfer({ address: address, id: OUTPOINT, amt: '1' })).should.equal(true)
+        B.isBsv20(B.buildDeployMint({ address: address, amt: '1000' })).should.equal(true)
+      })
     })
   })
 })

@@ -113,6 +113,22 @@ var terms = Ord.parseOrdLock(script)
 // }
 ```
 
+**`parseOrdLock` verifies, it does not pattern-match.** The terms are recovered from the
+script's shape and then checked by reconstruction: the listing is rebuilt from the recovered
+seller / payments / inscription and must match the input byte-for-byte. A script that merely
+wears the same arrangement of opcodes — without the `OP_PUSH_TX` covenant that actually binds
+the payment into `hashOutputs` — is rejected. So a non-null result means the purchase branch
+really does enforce payment, and a UI can display the price without inventing a listing that
+does not exist.
+
+> **Interoperability.** This is *this library's* OrdLock. Semantically it is the widely
+> deployed ordinal-lock pattern — `hash256(destOutput ‖ payOutput ‖ trailingOutputs) ==
+> hashOutputs` under `SIGHASH_ALL|ANYONECANPAY` — generalized to multiple payment outputs.
+> But it is built on our audited `OP_PUSH_TX` core rather than compiled from the sCrypt
+> `OrdinalLock` contract, so **the script bytes differ and listings are not interchangeable
+> with that template**: `parseOrdLock` reads listings this library built, not arbitrary
+> marketplace listings.
+
 ### Buy (purchase side)
 
 ```js
@@ -171,9 +187,26 @@ B.parseBsv20(script)                  // { p:'bsv-20', op:'mint', tick:'ORDI', a
 B.parseBsv20('{"p":"bsv-20","op":"mint","tick":"ORDI","amt":"1"}')  // also accepts JSON / objects
 ```
 
-Builders validate their inputs (ticker ≤ 4 bytes, non-negative integer amounts, `dec` 0–18,
-well-formed BSV-21 `id`) and throw on bad data. Balance tracking is an indexer concern —
-this module builds and reads the on-chain payloads.
+Builders validate their inputs against the specification and throw on bad data: ticker ≤ 4
+bytes, `dec` 0–18, well-formed BSV-21 `id`, and amounts that are non-negative integers
+**within uint64** (`amt`/`max`/`lim` are "strings representing uint64" — a larger value is
+valid JSON that indexers discard, burning the tokens). A numeric amount past
+`Number.MAX_SAFE_INTEGER` is rejected rather than silently rounded; pass a string. `sym` and
+`icon` must be strings — `icon` an outpoint reference (`<txid>_<vout>`), as the spec defines
+it — so a stray object can no longer be written as the literal text `[object Object]`.
+
+`lim: 0` is accepted and means *unlimited*, per the spec ("0 or omitted = unlimited"); only
+`max`/`amt` must be greater than zero.
+
+**`parseBsv20` / `isBsv20` enforce validity rather than assuming it.** The operation must be
+one the spec defines and must carry the fields that operation requires — a `transfer` with no
+amount and no token, an `auth` carrying `amt` (which the spec forbids), an over-uint64 amount,
+or an unknown `op` all return `null`. Operations this library does not yet *build* are still
+*read*: `burn`, `auth`, and `deploy+auth` parse correctly. Non-canonical amounts (leading
+zeros) are tolerated when reading other people's payloads, though our builders always emit
+canonical ones.
+
+Balance tracking is an indexer concern — this module builds and reads the on-chain payloads.
 
 ## API
 
@@ -182,7 +215,7 @@ this module builds and reads the on-chain payloads.
 | `buildInscription`, `createInscriptionOutput`, `batchInscriptionOutputs` | build inscription scripts / outputs |
 | `parseInscription`, `isInscription` | read an inscription back |
 | `buildOrdLock`, `listInscriptionOutput` | build an OrdLock listing script / 1-sat output |
-| `parseOrdLock`, `isOrdLock` | recover a listing's seller, payments, price, inscription |
+| `parseOrdLock`, `isOrdLock` | recover a listing's seller, payments, price, inscription — **verified**, see below |
 | `buildListingTx` | assemble a signed listing tx (P2PKH ordinal → OrdLock) |
 | `buildPurchaseTx` | assemble a signed purchase tx from a listing UTXO + buyer coins |
 | `purchaseOrdLock`, `cancelOrdLock` | build unlock scripts for a spend you assemble |
