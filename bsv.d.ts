@@ -344,20 +344,33 @@ declare module '@smartledger/bsv' {
         namespace Interpreter {
             const SCRIPT_ENABLE_SIGHASH_FORKID: any;
 
-            // Pre-Genesis consensus caps (defaults: 520 / 4 / 201).
+            // Pre-Genesis consensus caps (defaults: 520 / 4 / 201 / 10,000).
             // Mutable: see useGenesisLimits() for a one-call opt-in.
             let MAX_SCRIPT_ELEMENT_SIZE: number;
             let MAXIMUM_ELEMENT_SIZE: number;
             let MAX_OPS_PER_SCRIPT: number;
+            /** Total serialized script size. Anything larger fails SCRIPT_ERR_SCRIPT_SIZE. */
+            let MAX_SCRIPT_SIZE: number;
+
+            interface Limits {
+                maxScriptElementSize: number;
+                maximumElementSize: number;
+                maxOpsPerScript: number;
+                maxScriptSize: number;
+            }
 
             /**
              * Opt into post-Genesis BSV consensus limits (no caps on stack
-             * element size, script-number width, or opcode count). Mutates
-             * Interpreter-wide static state — call once at app startup.
-             * Pass an explicit `max` (e.g. 64 KB) when verifying scripts
-             * from untrusted sources.
+             * element size, script-number width, opcode count, or total script
+             * size). Mutates Interpreter-wide static state — call once at app
+             * startup. Pass an explicit `max` (e.g. 64 KB) when verifying
+             * scripts from untrusted sources.
              */
             function useGenesisLimits(max?: number): typeof Interpreter;
+            /** Capture the four caps, for restoring with setLimits(). */
+            function getLimits(): Limits;
+            /** Restore caps captured by getLimits(). */
+            function setLimits(limits: Partial<Limits>): typeof Interpreter;
         }
 
         function Interpreter(): {
