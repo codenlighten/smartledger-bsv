@@ -28,13 +28,11 @@ describe('Ordinals OrdLock marketplace', function () {
   var saved
 
   before(function () {
-    saved = { el: I.MAX_SCRIPT_ELEMENT_SIZE, num: I.MAXIMUM_ELEMENT_SIZE, ops: I.MAX_OPS_PER_SCRIPT }
+    saved = I.getLimits()
     SC.enableGenesis()
   })
   after(function () {
-    I.MAX_SCRIPT_ELEMENT_SIZE = saved.el
-    I.MAXIMUM_ELEMENT_SIZE = saved.num
-    I.MAX_OPS_PER_SCRIPT = saved.ops
+    I.setLimits(saved)
   })
 
   var seller = PrivateKey.fromRandom()
@@ -173,13 +171,11 @@ describe('Ordinals OrdLock — multi-output payments (royalties + marketplace fe
   var I = bsv.Script.Interpreter
   var saved
   before(function () {
-    saved = { el: I.MAX_SCRIPT_ELEMENT_SIZE, num: I.MAXIMUM_ELEMENT_SIZE, ops: I.MAX_OPS_PER_SCRIPT }
+    saved = I.getLimits()
     SC.enableGenesis()
   })
   after(function () {
-    I.MAX_SCRIPT_ELEMENT_SIZE = saved.el
-    I.MAXIMUM_ELEMENT_SIZE = saved.num
-    I.MAX_OPS_PER_SCRIPT = saved.ops
+    I.setLimits(saved)
   })
 
   var seller = PrivateKey.fromRandom()
@@ -290,13 +286,11 @@ describe('Ordinals OrdLock — buildPurchaseTx (end-to-end)', function () {
   var I = bsv.Script.Interpreter
   var saved
   before(function () {
-    saved = { el: I.MAX_SCRIPT_ELEMENT_SIZE, num: I.MAXIMUM_ELEMENT_SIZE, ops: I.MAX_OPS_PER_SCRIPT }
+    saved = I.getLimits()
     SC.enableGenesis()
   })
   after(function () {
-    I.MAX_SCRIPT_ELEMENT_SIZE = saved.el
-    I.MAXIMUM_ELEMENT_SIZE = saved.num
-    I.MAX_OPS_PER_SCRIPT = saved.ops
+    I.setLimits(saved)
   })
 
   var seller = PrivateKey.fromRandom()
@@ -386,13 +380,11 @@ describe('Ordinals OrdLock — full lifecycle (list -> buy / cancel)', function 
   var I = bsv.Script.Interpreter
   var saved
   before(function () {
-    saved = { el: I.MAX_SCRIPT_ELEMENT_SIZE, num: I.MAXIMUM_ELEMENT_SIZE, ops: I.MAX_OPS_PER_SCRIPT }
+    saved = I.getLimits()
     SC.enableGenesis()
   })
   after(function () {
-    I.MAX_SCRIPT_ELEMENT_SIZE = saved.el
-    I.MAXIMUM_ELEMENT_SIZE = saved.num
-    I.MAX_OPS_PER_SCRIPT = saved.ops
+    I.setLimits(saved)
   })
 
   var owner = PrivateKey.fromRandom() // current ordinal owner / seller
@@ -486,13 +478,11 @@ describe('Ordinals OrdLock — code-review regressions', function () {
   var I = bsv.Script.Interpreter
   var saved
   before(function () {
-    saved = { el: I.MAX_SCRIPT_ELEMENT_SIZE, num: I.MAXIMUM_ELEMENT_SIZE, ops: I.MAX_OPS_PER_SCRIPT }
+    saved = I.getLimits()
     SC.enableGenesis()
   })
   after(function () {
-    I.MAX_SCRIPT_ELEMENT_SIZE = saved.el
-    I.MAXIMUM_ELEMENT_SIZE = saved.num
-    I.MAX_OPS_PER_SCRIPT = saved.ops
+    I.setLimits(saved)
   })
 
   var owner = PrivateKey.fromRandom()

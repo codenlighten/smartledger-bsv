@@ -17,13 +17,11 @@ describe('SmartContract covenant DSL + debugger (v4.5.0)', function () {
   var I = bsv.Script.Interpreter
   var saved
   before(function () {
-    saved = { el: I.MAX_SCRIPT_ELEMENT_SIZE, num: I.MAXIMUM_ELEMENT_SIZE, ops: I.MAX_OPS_PER_SCRIPT }
+    saved = I.getLimits()
     SC.enableGenesis()
   })
   after(function () {
-    I.MAX_SCRIPT_ELEMENT_SIZE = saved.el
-    I.MAXIMUM_ELEMENT_SIZE = saved.num
-    I.MAX_OPS_PER_SCRIPT = saved.ops
+    I.setLimits(saved)
   })
 
   var alice = PrivateKey.fromRandom()

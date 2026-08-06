@@ -32,13 +32,11 @@ describe('Configurable SIGHASH — SINGLE|ANYONECANPAY marketplace covenant', fu
   var flag = P.SIGHASH_SINGLE_ANYONECANPAY_FORKID // 0xc3
 
   before(function () {
-    saved = { el: I.MAX_SCRIPT_ELEMENT_SIZE, num: I.MAXIMUM_ELEMENT_SIZE, ops: I.MAX_OPS_PER_SCRIPT }
+    saved = I.getLimits()
     SC.enableGenesis()
   })
   after(function () {
-    I.MAX_SCRIPT_ELEMENT_SIZE = saved.el
-    I.MAXIMUM_ELEMENT_SIZE = saved.num
-    I.MAX_OPS_PER_SCRIPT = saved.ops
+    I.setLimits(saved)
   })
 
   // Lock: authenticate the pushed preimage under `flag`, assert the flag, succeed.

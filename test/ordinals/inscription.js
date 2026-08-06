@@ -222,4 +222,98 @@ describe('Ordinals inscriptions', function () {
       }).satoshis.should.equal(1)
     })
   })
+
+  // The case that motivated making the script-size cap configurable: transferring a
+  // large inscription. The envelope is inert, so the spend is an ordinary P2PKH — but
+  // the interpreter could not even load the script, because total script size was a
+  // hard-coded 10,000 bytes that useGenesisLimits() did not lift.
+  describe('transferring a large inscription', function () {
+    var I = bsv.Script.Interpreter
+    var Sighash = bsv.Transaction.Sighash
+    var BN = bsv.crypto.BN
+    var SIGHASH = bsv.crypto.Signature.SIGHASH_ALL | bsv.crypto.Signature.SIGHASH_FORKID
+    var FLAGS = I.SCRIPT_VERIFY_STRICTENC | I.SCRIPT_ENABLE_SIGHASH_FORKID
+    var saved
+
+    beforeEach(function () { saved = I.getLimits() })
+    afterEach(function () { I.setLimits(saved) })
+
+    // A signed transfer of a `kb`-sized inscription to a new owner.
+    function transfer (kb) {
+      var owner = bsv.PrivateKey.fromBuffer(Buffer.alloc(32, 11))
+      var recipient = bsv.PrivateKey.fromBuffer(Buffer.alloc(32, 22))
+      var lock = Ord.buildInscription({
+        address: owner.toAddress(),
+        contentType: 'image/png',
+        content: bsv.crypto.Random.getRandomBuffer(kb * 1024)
+      })
+      var spend = new bsv.Transaction()
+      spend.addInput(new bsv.Transaction.Input({
+        prevTxId: 'aa'.repeat(32), outputIndex: 0, script: bsv.Script.empty()
+      }), lock, 1)
+      spend.addOutput(new bsv.Transaction.Output({
+        script: bsv.Script.buildPublicKeyHashOut(recipient.toAddress()), satoshis: 1
+      }))
+      // Sign over the FULL previous locking script — envelope included. That is the
+      // script code the network uses; signing the base lock alone yields a signature
+      // that verifies against its own preimage and nothing else.
+      var sig = Sighash.sign(spend, owner, SIGHASH, 0, lock, new BN(1), FLAGS)
+      var unlock = new bsv.Script()
+        .add(Buffer.concat([sig.toDER(), Buffer.from([SIGHASH])]))
+        .add(owner.toPublicKey().toBuffer())
+      spend.inputs[0].setScript(unlock)
+      return { lock: lock, unlock: unlock, spend: spend, sig: sig, owner: owner }
+    }
+
+    function evaluate (t) {
+      var interp = new I()
+      var ok = interp.verify(t.unlock, t.lock, t.spend, 0, FLAGS, new BN(1))
+      return { ok: ok, err: interp.errstr }
+    }
+
+    it('cannot be evaluated under pre-Genesis limits — two separate caps bite', function () {
+      // Under 10 KB the script loads and the 520-byte push cap rejects the content...
+      var small = evaluate(transfer(3))
+      small.ok.should.equal(false)
+      small.err.should.equal('SCRIPT_ERR_PUSH_SIZE')
+      // ...over 10 KB it never gets that far: evaluate() refuses the script outright.
+      // This is the cap useGenesisLimits() could not lift.
+      var big = evaluate(transfer(50))
+      big.ok.should.equal(false)
+      big.err.should.equal('SCRIPT_ERR_SCRIPT_SIZE')
+    })
+
+    it('evaluates once Genesis limits are enabled', function () {
+      bsv.SmartContract.enableGenesis()
+      var t = transfer(50)
+      t.lock.toBuffer().length.should.be.above(10000) // past the old hard-coded cap
+      evaluate(t).ok.should.equal(true)
+    })
+
+    it('agrees with a direct signature check against the sighash', function () {
+      // The fallback used when the interpreter cannot run: verify the signature over
+      // the sighash directly. It must agree with the interpreter where both work.
+      bsv.SmartContract.enableGenesis()
+      var t = transfer(50)
+      var hash = Sighash.sighash(t.spend, SIGHASH, 0, t.lock, new BN(1), FLAGS)
+      var sigOk = bsv.crypto.ECDSA.verify(hash, t.sig, t.owner.toPublicKey(), 'little')
+      sigOk.should.equal(true)
+      evaluate(t).ok.should.equal(true)
+    })
+
+    it('rejects a signature made over the base lock instead of the full script', function () {
+      bsv.SmartContract.enableGenesis()
+      var t = transfer(50)
+      var baseLock = bsv.Script.buildPublicKeyHashOut(t.owner.toAddress())
+      var wrong = Sighash.sign(t.spend, t.owner, SIGHASH, 0, baseLock, new BN(1), FLAGS)
+      var hash = Sighash.sighash(t.spend, SIGHASH, 0, t.lock, new BN(1), FLAGS)
+      // Verifies against its own (wrong) preimage, but not the one the network checks.
+      bsv.crypto.ECDSA.verify(hash, wrong, t.owner.toPublicKey(), 'little').should.equal(false)
+      t.spend.inputs[0].setScript(new bsv.Script()
+        .add(Buffer.concat([wrong.toDER(), Buffer.from([SIGHASH])]))
+        .add(t.owner.toPublicKey().toBuffer()))
+      var interp = new I()
+      interp.verify(t.spend.inputs[0].script, t.lock, t.spend, 0, FLAGS, new BN(1)).should.equal(false)
+    })
+  })
 })

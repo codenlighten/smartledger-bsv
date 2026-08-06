@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.0] - 2026-08-05
+
+### Fixed
+
+- **`useGenesisLimits()` now lifts the total script size cap, which it previously
+  could not.** The cap was a literal inside `Interpreter.prototype.evaluate`,
+  carrying its own `// TODO: script size should be configurable. no magic numbers`:
+
+  ```js
+  if (this.script.toBuffer().length > 10000) {
+  ```
+
+  So a caller who opted into post-Genesis limits still hit a **pre-Genesis 10,000
+  byte ceiling** — the function said "post-Genesis limits" and enforced one of the
+  limits Genesis removed. Any script above 10 KB failed `SCRIPT_ERR_SCRIPT_SIZE`
+  no matter what was asked for, which put a sizeable 1Sat Ordinals inscription out
+  of reach of the interpreter entirely: transferring one could not be verified by
+  this library at all, in any version, and callers were pushed into checking the
+  ECDSA signature against the sighash by hand.
+
+  The cap is now `Interpreter.MAX_SCRIPT_SIZE`, still defaulting to the
+  pre-Genesis 10,000, and `useGenesisLimits()` raises it along with the other
+  three. Two limits bite at different sizes and the regression test pins both: a
+  3 KB inscription loads and fails on the 520-byte push cap
+  (`SCRIPT_ERR_PUSH_SIZE`), while a 50 KB one is refused before evaluation begins
+  (`SCRIPT_ERR_SCRIPT_SIZE`).
+
+### Added
+
+- **`Interpreter.getLimits()` / `Interpreter.setLimits()`** — capture and restore
+  the four caps as a unit. The caps are process-wide statics, so anything that
+  raises them must put them back or it silently changes the rules for unrelated
+  code later in the same process. Five test files were each restoring three caps
+  by hand, which would have quietly leaked the new fourth one into the bitcoind
+  consensus fixtures; they now use the pair.
+
+- Regression coverage for the case that prompted this: signing a large inscription
+  transfer over the **full previous locking script** (envelope included, which is
+  the script code the network uses), verifying it through the interpreter under
+  Genesis limits, and confirming the interpreter agrees with a direct
+  signature-against-sighash check. A companion test asserts the trap: a signature
+  made over the **base lock alone** verifies against its own preimage and fails the
+  real one, so that mistake cannot pass unnoticed.
+
+### Note on defaults
+
+Post-Genesis limits remain **opt-in**. Making them the default was measured, not
+assumed: it fails **19 bitcoind consensus fixtures** that assert oversized pushes,
+excess opcodes and oversized numerics must be rejected. Those fixtures encode
+pre-Genesis consensus and share the same process-wide statics, so the default
+cannot move while the caps are global. Making the limits per-`Interpreter` policy
+is the real fix and is deliberately not attempted here — it changes a
+consensus-critical evaluation path and deserves its own change.
+
+Suite 4536 → 4544.
+
 ## [7.4.0] - 2026-08-05
 
 Completes BSV-21 coverage. 7.3.0 taught the parser every operation the specification
