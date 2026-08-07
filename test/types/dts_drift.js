@@ -45,7 +45,9 @@ function collectDeclaredPaths (source) {
       } else if (ts.isClassDeclaration(node) && node.name) {
         paths.push(prefix.concat(node.name.text))
       } else if (ts.isFunctionDeclaration(node) && node.name) {
-        paths.push(prefix.concat(node.name.text))
+        var p = prefix.concat(node.name.text)
+        p.returnType = node.type ? node.type.getText() : null
+        paths.push(p)
       } else if (ts.isVariableStatement(node)) {
         node.declarationList.declarations.forEach(function (d) {
           if (ts.isIdentifier(d.name)) paths.push(prefix.concat(d.name.text))
@@ -88,6 +90,26 @@ describe('types: bsv.d.ts does not drift from runtime', function () {
     { label: 'Ordinals.BSV20', obj: bsv.Ordinals && bsv.Ordinals.BSV20, decl: 'Ordinals.BSV20' },
     { label: 'SPV', obj: bsv.SPV, decl: 'SPV' }
   ]
+
+  // An `async` runtime function declared with a non-Promise return type is the most
+  // dangerous kind of drift, because the type checker actively hides the bug rather than
+  // merely failing to catch it: `StatusList.getCredentialStatusEntry` was declared
+  // `: CredentialStatus` while being async, so `if (fn(...) === 'revoked')` compiled clean
+  // and was ALWAYS false — every revoked credential passed as valid.
+  it('no async runtime function is declared with a synchronous return type', function () {
+    var lies = []
+    declaredPaths.forEach(function (segs) {
+      if (!segs.returnType) return
+      var fn = resolve(bsv, segs)
+      if (typeof fn !== 'function') return
+      var isAsync = fn.constructor && fn.constructor.name === 'AsyncFunction'
+      var declaresPromise = /\bPromise\s*</.test(segs.returnType)
+      if (isAsync && !declaresPromise) {
+        lies.push(segs.join('.') + ' is async but is declared `: ' + segs.returnType + '`')
+      }
+    })
+    lies.should.deep.equal([], 'these declarations hide a Promise:\n  ' + lies.join('\n  '))
+  })
 
   AUDITED.forEach(function (ns) {
     it('every runtime function on ' + ns.label + ' is declared in bsv.d.ts', function () {
