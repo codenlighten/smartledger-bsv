@@ -77,7 +77,7 @@
   "lib/gdaf/did-resolver.js": 63,
   "lib/gdaf/index.js": 40,
   "lib/gdaf/schema-validator.js": 58,
-  "lib/gdaf/smartledger-anchor.js": 84,
+  "lib/gdaf/smartledger-anchor.js": 83,
   "lib/gdaf/zk-prover.js": 96,
   "lib/ltp/anchor.js": 84,
   "lib/ltp/claim.js": 141,

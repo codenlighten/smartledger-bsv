@@ -176,19 +176,30 @@ declare module '@smartledger/bsv' {
         toAddress(): Address;
         toPublicKey(): PublicKey;
         toString(): string;
-        toObject(): object;
-        toJSON(): object;
+        /** Deliberate export, INCLUDING the secret scalar. Round-trips with fromObject(). */
+        toObject(): { bn: string; compressed: boolean; network: string };
+        /**
+         * What JSON.stringify() calls — the scalar is REDACTED. Use toObject() or toWIF()
+         * when you actually intend to export the secret.
+         */
+        toJSON(): { bn: '[REDACTED]'; compressed: boolean; network: string };
         toWIF(): string;
         toHex(): string;
         toBigNumber(): any; //BN;
         toBuffer(): Buffer;
         inspect(): string;
 
-        static fromString(str: string): PrivateKey;
-        static fromWIF(str: string): PrivateKey;
-        static fromRandom(netowrk?: string): PrivateKey;
-        static fromBuffer(buf: Buffer, network: string | Networks.Network): PrivateKey;
-        static fromHex(hex: string, network: string | Networks.Network): PrivateKey;
+        /**
+         * From a WIF string, or a hex-encoded scalar. `network` is honoured; for a WIF,
+         * which encodes its own network, a conflicting value throws.
+         */
+        static fromString(str: string, network?: string | Networks.Network): PrivateKey;
+        static fromWIF(str: string, network?: string | Networks.Network): PrivateKey;
+        static fromRandom(network?: string): PrivateKey;
+        /** `compressed` defaults to true, matching every other constructor path. */
+        static fromBuffer(buf: Buffer, network?: string | Networks.Network, compressed?: boolean): PrivateKey;
+        /** `compressed` defaults to true, matching every other constructor path. */
+        static fromHex(hex: string, network?: string | Networks.Network, compressed?: boolean): PrivateKey;
         static getValidationError(data: string): any | null;
         static isValid(data: string): boolean;
     }
@@ -712,6 +723,24 @@ declare module '@smartledger/bsv' {
 
     // -------- GDAF (Global Digital Attestation Framework) ---------------
 
+    /** A spendable output supplied to the anchoring helpers. */
+    export interface Utxo {
+        txId: string;
+        outputIndex: number;
+        script: string;
+        satoshis: number;
+    }
+
+    export interface AnchorOptions {
+        /** UTXOs funding the anchor transaction. */
+        utxos?: Utxo[];
+        /**
+         * Serialised into the OP_RETURN: PUBLIC AND PERMANENT. Anchoring a PrivateKey, or
+         * any key-shaped field (`bn`, `wif`, `privateJwk`, `seed`, `xprv`, ...), throws.
+         */
+        metadata?: object;
+    }
+
     export class GDAF {
         constructor(options?: {
             attestationSigner?: object;
@@ -747,10 +776,15 @@ declare module '@smartledger/bsv' {
         verifyMembershipProof(proof: object, validSet: string[]): boolean;
 
         // Anchoring
-        anchorCredential(credential: object, privateKey: PrivateKey, options?: object): object;
-        anchorBatch(credentials: object[], privateKey: PrivateKey, options?: object): object;
-        registerDID(did: string, didDocument: object, privateKey: PrivateKey, options?: object): object;
-        revokeCredential(credentialId: string, reason: string, privateKey: PrivateKey, options?: object): object;
+        /**
+         * Anchor options. `metadata` is JSON-serialised into the OP_RETURN and is therefore
+         * PUBLIC AND PERMANENT — anchoring anything key-shaped throws. A bare UTXO array is
+         * also accepted in place of this object.
+         */
+        anchorCredential(credentialHash: string | Buffer, privateKey: PrivateKey, options?: AnchorOptions | Utxo[]): Promise<object>;
+        anchorBatch(credentialHashes: Array<string | Buffer>, privateKey: PrivateKey, options?: AnchorOptions | Utxo[]): Promise<object>;
+        registerDID(did: string, didDocument: object, privateKey: PrivateKey, options?: AnchorOptions | Utxo[]): Promise<object>;
+        revokeCredential(credentialId: string, reason: string, privateKey: PrivateKey, options?: AnchorOptions | Utxo[]): Promise<object>;
         queryAnchoredData(hash: string): object;
 
         // Schemas

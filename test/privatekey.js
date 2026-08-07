@@ -205,7 +205,13 @@ describe('PrivateKey', function () {
         network: 'livenet'
       })
       var key = PrivateKey.fromObject(JSON.parse(json))
-      JSON.stringify(key).should.equal(json)
+      // toObject() is the deliberate export and still round-trips exactly...
+      JSON.stringify(key.toObject()).should.equal(json)
+      // ...but JSON.stringify() must NOT emit the secret. This test used to assert that
+      // it did, which is how a private key reached an OP_RETURN via the GDAF anchor path:
+      // anything that stringified an object holding a key published the scalar.
+      JSON.parse(JSON.stringify(key)).bn.should.equal('[REDACTED]')
+      JSON.stringify(key).indexOf('96c13222').should.equal(-1)
     })
 
     it('should input/output json', function () {
@@ -215,7 +221,13 @@ describe('PrivateKey', function () {
         network: 'livenet'
       })
       var key = PrivateKey.fromJSON(JSON.parse(json))
-      JSON.stringify(key).should.equal(json)
+      // toObject() is the deliberate export and still round-trips exactly...
+      JSON.stringify(key.toObject()).should.equal(json)
+      // ...but JSON.stringify() must NOT emit the secret. This test used to assert that
+      // it did, which is how a private key reached an OP_RETURN via the GDAF anchor path:
+      // anything that stringified an object holding a key published the scalar.
+      JSON.parse(JSON.stringify(key)).bn.should.equal('[REDACTED]')
+      JSON.stringify(key).indexOf('96c13222').should.equal(-1)
     })
 
     it('input json should correctly initialize network field', function () {
@@ -426,5 +438,70 @@ describe('PrivateKey', function () {
   it('creates an address as expected from WIF, testnet', function () {
     var privkey = new PrivateKey('92VYMmwFLXRwXn5688edGxYYgMFsc3fUXYhGp17WocQhU6zG1kd')
     privkey.publicKey.toAddress().toString().should.equal('moiAvLUw16qgrwhFGo1eDnXHC2wPMYiv7Y')
+  })
+  // Reported from the field against 7.4.0 and reproduced here. Each of these returned a
+  // DIFFERENT key or address than the caller asked for, silently.
+  describe('argument handling that used to produce the wrong key', function () {
+    var HEX = '0000000000000000000000000000000000000000000000000000000000000001'
+
+    it('honours the network passed to fromString instead of discarding it', function () {
+      // Returned a livenet key — and therefore a MAINNET address — so funds sent to it
+      // landed on the wrong network.
+      var k = PrivateKey.fromString(HEX, 'testnet')
+      k.network.name.should.equal('testnet')
+      k.toAddress().toString().should.equal(new PrivateKey(HEX, 'testnet').toAddress().toString())
+    })
+
+    it('agrees with the constructor for WIF input', function () {
+      var wif = new PrivateKey(HEX, 'testnet').toWIF()
+      PrivateKey.fromString(wif).toWIF().should.equal(wif)
+      PrivateKey.fromString(wif, 'testnet').toWIF().should.equal(wif)
+    })
+
+    it('rejects a network that contradicts the WIF rather than ignoring it', function () {
+      var wif = new PrivateKey(HEX, 'testnet').toWIF()
+      ;(function () { PrivateKey.fromString(wif, 'livenet') }).should.throw()
+    })
+
+    it('fromHex and the constructor return the SAME key', function () {
+      // These disagreed on the compression flag, so the same input produced two different
+      // addresses and two different WIFs. Restore by the wrong route, derive an address
+      // you never funded.
+      var a = new PrivateKey(HEX)
+      var b = PrivateKey.fromHex(HEX)
+      var c = PrivateKey.fromBuffer(Buffer.from(HEX, 'hex'))
+      b.compressed.should.equal(a.compressed)
+      b.toWIF().should.equal(a.toWIF())
+      b.toAddress().toString().should.equal(a.toAddress().toString())
+      c.toWIF().should.equal(a.toWIF())
+    })
+
+    it('still allows the legacy uncompressed form explicitly', function () {
+      PrivateKey.fromHex(HEX, null, false).compressed.should.equal(false)
+      PrivateKey.fromBuffer(Buffer.from(HEX, 'hex'), null, false).compressed.should.equal(false)
+    })
+  })
+
+  // JSON.stringify() on a key — or on any object holding one — used to emit the secret
+  // scalar. That is how a private key reached an OP_RETURN through the GDAF anchor path.
+  describe('does not leak the secret through JSON', function () {
+    it('redacts bn from JSON.stringify', function () {
+      var k = new PrivateKey()
+      var scalar = k.bn.toString('hex')
+      JSON.stringify(k).indexOf(scalar).should.equal(-1)
+      JSON.parse(JSON.stringify(k)).bn.should.equal('[REDACTED]')
+    })
+
+    it('redacts it when the key is nested inside another object', function () {
+      var k = new PrivateKey()
+      var payload = JSON.stringify({ context: { signer: k } })
+      payload.indexOf(k.bn.toString('hex')).should.equal(-1)
+    })
+
+    it('keeps toObject() exact, so deliberate export still round-trips', function () {
+      var k = new PrivateKey()
+      k.toObject().bn.should.equal(k.bn.toString('hex'))
+      PrivateKey.fromObject(k.toObject()).toWIF().should.equal(k.toWIF())
+    })
   })
 })
