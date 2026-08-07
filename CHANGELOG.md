@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.3] - 2026-08-07
+
+### Fixed (security)
+
+- **The anchor key-material guard added in 7.5.1 detected by field name only, which
+  was wrong in both directions.** It refused `{ d: '2026-01-01' }` — telling the
+  caller their date looked like a private key — while publishing a real WIF stored
+  under `note`, an `xprv` under `ref`, or a BIP39 mnemonic under `memo`, because
+  those field names were not on the list. Naming a secret innocuously is exactly
+  what an accidental leak looks like, so name-matching alone could not close the
+  hole it was written for.
+
+  Detection is now by value as well as name, on three independent signals:
+
+  1. **The anchor's own signing key**, in any representation (WIF, hex scalar, the
+     `bn`), is refused wherever it appears. This is the defect the guard exists for,
+     and knowing our own key makes a bare hex scalar catchable at all.
+  2. **Self-identifying secrets** — a WIF that decodes, an `xprv`/`tprv` that parses,
+     a BIP39 phrase that passes wordlist *and* checksum — are refused under **any**
+     field name, at any depth, including inside arrays.
+  3. **Field names**: always for `bn`/`wif`/`privateKey`/`xprv`/`mnemonic`/…, and for
+     ambiguous names (`d`, `seed`, `secret`, `key`) only when the value also decodes
+     as a private key.
+
+  A bare 64-character hex string that is *not* our own key is deliberately still
+  accepted: it cannot be distinguished from a SHA-256 digest, and anchoring a
+  document hash is what this module is for. Public material — addresses, public
+  keys, `xpub` — is accepted, since an anchor legitimately references it.
+
+  15 regression tests pin both directions, including the four leaks the previous
+  guard allowed and the two false positives it produced.
+
+Suite 4579 → 4594.
+
 ## [7.5.2] - 2026-08-06
 
 The rest of the field review that produced 7.5.1: declarations that disagreed with
