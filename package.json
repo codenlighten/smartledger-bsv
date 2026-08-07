@@ -223,7 +223,7 @@
     "assert": "^2.1.0",
     "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
-    "chai": "4.2.0",
+    "chai": "6.2.2",
     "crypto-browserify": "^3.12.1",
     "esbuild": "^0.28.1",
     "events": "^3.3.0",
