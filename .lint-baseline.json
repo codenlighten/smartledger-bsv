@@ -1,6 +1,5 @@
 {
   "bin/cli.js": 31,
-  "bsv.bundle.js": 1,
   "bundle-entry.js": 1,
   "covenant-entry.js": 1,
   "debug/debug_sighash.js": 1,

@@ -13,16 +13,34 @@
 
 var fs = require('fs')
 var path = require('path')
-var standard = require('standard')
+// standard@12 exports the linter directly and takes a callback; standard@16+ ships an
+// ES-module interop wrapper (the real API hangs off `.default`) and returns a Promise.
+// Support both so the ratchet survives the upgrade in either direction.
+var standardModule = require('standard')
+var standard = standardModule.default || standardModule
 
 var ROOT = path.resolve(__dirname, '..')
 var BASELINE = path.join(ROOT, '.lint-baseline.json')
 
 function rel (p) { return path.relative(ROOT, p).split(path.sep).join('/') }
 
+/** Lint the whole project, bridging the callback (v12) and Promise (v16+) APIs. */
+function lintAll (cb) {
+  // v12 treats an empty file list as "everything"; v16+ rejects it with
+  // "No files matching '.' were found", so pass an explicit recursive glob there.
+  var isPromiseApi = standardModule.default != null
+  var files = isPromiseApi ? ['**/*.js'] : []
+  var opts = { cwd: ROOT }
+  if (!isPromiseApi) return standard.lintFiles(files, opts, cb)
+  // v16+ resolves to the ESLint results ARRAY; v12 called back with `{ results: [...] }`.
+  standard.lintFiles(files, opts).then(function (res) {
+    cb(null, Array.isArray(res) ? { results: res } : res)
+  }, cb)
+}
+
 // Per-file violation counts + the messages themselves (for reporting regressions).
 function collect (cb) {
-  standard.lintFiles([], { cwd: ROOT }, function (err, res) {
+  lintAll(function (err, res) {
     if (err) return cb(err)
     var counts = {}
     var messages = {}

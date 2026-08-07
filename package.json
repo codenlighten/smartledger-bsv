@@ -250,7 +250,9 @@
       "it"
     ],
     "ignore": [
-      "dist/**"
+      "dist/**",
+      "bsv.bundle.js",
+      "*.min.js"
     ]
   }
 }
