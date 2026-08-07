@@ -7,6 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.1] - 2026-08-06
+
+Three defects reported from the field against 7.4.0, each reproduced here before
+being fixed. All three return or publish a key other than the one the caller
+intended. **Anyone using `GDAF.anchorCredential` or `anchorBatch` should treat any
+key passed to them as compromised and rotate it.**
+
+### Fixed (security)
+
+- **`GDAF.anchorCredential` and `anchorBatch` published the caller's private key in
+  the OP_RETURN.** The wrappers take `(payload, privateKey, options)` while the
+  underlying `SmartLedgerAnchor` methods take `(payload, metadata, utxos)`, and every
+  wrapper forwarded `privateKey` into a slot that is not a key. For these two it
+  landed in `metadata`, which is `JSON.stringify`-ed straight into the anchor payload
+  — and `PrivateKey.prototype.toJSON` emitted the secret scalar as hex. The key was
+  therefore recoverable from chain data: reconstructing it from the OP_RETURN yields
+  an **identical WIF and address**, so an observer can spend the funds.
+
+  The anchor already holds the key it was constructed with, so the wrappers no longer
+  forward it. `options` is now `{ utxos, metadata }`; a bare UTXO array is still
+  accepted, since that was the only shape that previously produced a transaction.
+  `registerDID` and `revokeCredential` shared the argument-order defect but put the
+  key in the `utxos` slot, where they died on `utxos.reduce` — they never leaked, and
+  are corrected too.
+
+  Defence in depth: `_createAnchorPayload` now refuses to serialise a `PrivateKey`
+  instance or any key-shaped field (`bn`, `wif`, `privateJwk`, `seed`, `xprv`, ...),
+  so reaching the payload builder with key material fails loudly instead of
+  broadcasting it.
+
+- **`PrivateKey.prototype.toJSON` no longer emits the secret scalar.** It was the same
+  function as `toObject`, so *anything* that stringified a key — a log line, an error
+  dump, a request body, or the anchor path above — published it. `JSON.stringify(key)`
+  now yields `bn: '[REDACTED]'`. `toObject()` is unchanged and remains the deliberate
+  export, so `PrivateKey.fromObject(key.toObject())` still round-trips exactly.
+
+- **`PrivateKey.fromString(str, network)` honours `network` instead of discarding it.**
+  It accepted the argument and ignored it, so `fromString(hex, 'testnet')` returned a
+  livenet key and therefore a **mainnet address** — funds sent there land on the wrong
+  network. The failure was intermittent because `toAddress(network)` does honour its
+  own argument. For a WIF, which encodes its own network, a conflicting `network` now
+  throws rather than being silently overridden.
+
+- **`PrivateKey.fromHex` / `fromBuffer` agree with the constructor.**
+  `_transformBNBuffer` hardcoded `compressed: false` while every other path — random
+  keys, hex strings, compressed WIF — produced `true`, so `PrivateKey.fromHex(h)` and
+  `new PrivateKey(h)` returned **different addresses and different WIFs for identical
+  input**. Restore a key by the wrong route and you derive an address you never funded.
+  A raw 32-byte scalar carries no compression information, so the default now matches
+  the rest of the library; pass `compressed = false` explicitly for the legacy form.
+
+### Changed
+
+- `bsv.d.ts`: `fromString`/`fromWIF` take an optional `network`; `fromHex`/`fromBuffer`
+  take optional `network` and `compressed`; `toObject()` and `toJSON()` have distinct
+  return types so the redaction is visible to TypeScript; the GDAF anchoring methods
+  declare `AnchorOptions | Utxo[]` and return `Promise`. Verified under `tsc --strict`.
+
+- Two tests asserted that `JSON.stringify(privateKey)` emits the scalar, encoding the
+  unsafe behaviour as intent. They now assert the opposite, while still checking that
+  `toObject()` round-trips exactly.
+
+### Breaking
+
+`JSON.stringify(privateKey)` no longer contains the key; use `toObject()` or `toWIF()`
+where the export is intended. `PrivateKey.fromHex`/`fromBuffer` on a 32-byte scalar now
+default to compressed, changing the derived address and WIF — pass `false` for the old
+behaviour. The GDAF anchoring wrappers no longer accept a private key in the `options`
+position, and reject key material in `metadata`.
+
+Suite 4544 → 4559.
+
 ## [7.5.0] - 2026-08-05
 
 ### Fixed
