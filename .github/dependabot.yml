@@ -68,6 +68,25 @@ updates:
         update-types:
           - version-update:semver-major
 
+      # `bn.js` is held at 4.x, and the `=4.12.3` pin in package.json is load-bearing
+      # for DEDUPLICATION, not just stability. A full v4->v5 semantic review was done
+      # (see docs/BN_JS_V5_REVIEW.md): correctness is not the blocker — 11,071
+      # differential checks across both versions produced ZERO differences, including
+      # ECDSA DER bytes, WIF/addresses, script numbers and HD derivation, and every
+      # documented v5 breaking change lands on an API this library never calls.
+      #
+      # The blocker is bundle size. At root 4.12.3 npm satisfies the transitive `^4`
+      # consumers (asn1.js, miller-rabin, public-encrypt, diffie-hellman) from the
+      # hoisted copy, so the browser bundle inlines 2 copies of bn.js. At root 5.x
+      # those consumers each get a nested 4.12.5 and the bundle inlines 5, costing
+      # +132 KB (+10%) on every browser consumer for no functional gain.
+      #
+      # Revisit when the crypto-browserify chain moves to `^5`: the dedupe restores
+      # and the upgrade becomes free.
+      - dependency-name: bn.js
+        update-types:
+          - version-update:semver-major
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
