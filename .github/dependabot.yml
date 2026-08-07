@@ -46,6 +46,28 @@ updates:
         update-types:
           - version-update:semver-major
 
+      # `jose@6` is WebCrypto-only, and WebCrypto has no secp256k1 — so it has
+      # DROPPED ES256K. Verified against 6.2.7: ES256 and ES384 generate, ES256K
+      # raises `Invalid or unsupported JWK "alg" Parameter value`. The two
+      # ES256K cases in test/vcjwt/interop.js fail as a result, and those tests
+      # exist to prove an INDEPENDENT JOSE implementation can verify tokens we
+      # issue. ES256K is the algorithm for Bitcoin keys, so upgrading would
+      # delete the exact guarantee this dependency is here to provide.
+      # Revisit if jose regains ES256K. See PR #65.
+      - dependency-name: jose
+        update-types:
+          - version-update:semver-major
+
+      # `typescript@7` (the native port) ships NO compiler API — the npm package
+      # exports only `version` and `versionMajorMinor`; `createSourceFile`,
+      # `ScriptTarget` and `SyntaxKind` are all undefined. test/types/dts_drift.js
+      # parses bsv.d.ts through the TypeScript AST to assert every declared symbol
+      # exists at runtime, and it is the only thing keeping the hand-curated
+      # bsv.d.ts honest. Revisit when the compiler API returns. See PR #66.
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

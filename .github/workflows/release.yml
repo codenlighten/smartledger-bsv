@@ -33,13 +33,13 @@ jobs:
     name: Publish to npm (with provenance)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Node 20
         # Build/parity stay on Node 20 (matches the committed bundles). registry-url points
         # npm at npmjs.org in .npmrc (needed for the OIDC exchange); no token is supplied —
         # OIDC trusted publishing mints a short-lived one.
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
