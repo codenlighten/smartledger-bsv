@@ -253,10 +253,43 @@ describe('PrivateKey', function () {
       }).to.not.throw()
     })
 
-    it('also accepts an object as argument', function () {
+    // This asserted that feeding toJSON() output back into fromObject does NOT throw.
+    // Since 7.5.1 toJSON() redacts the secret, and bn.js 4 silently SKIPS characters it
+    // cannot parse instead of failing — so the round-trip returned a DIFFERENT key
+    // (a deterministic ~40-bit one, trivially recoverable by anyone) with no error at
+    // all. The old expectation encoded that as intended behaviour; it is now inverted.
+    it('refuses to rebuild a key from redacted toJSON() output', function () {
       expect(function () {
         return PrivateKey.fromObject(new PrivateKey().toJSON())
-      }).to.not.throw()
+      }).to.throw(/REDACTED/)
+    })
+
+    it('round-trips exactly through toObject(), which is the real export', function () {
+      var key = new PrivateKey()
+      PrivateKey.fromObject(key.toObject()).toWIF().should.equal(key.toWIF())
+    })
+
+    it('rejects a malformed bn instead of silently deriving another key', function () {
+      // bn.js 4 parses '[REDACTED]' as 768491671261 rather than erroring.
+      var cases = ['zzzz', '[REDACTED]', 'nothex', '12g4']
+      cases.forEach(function (bad) {
+        expect(function () {
+          return PrivateKey.fromObject({ bn: bad, compressed: true, network: 'livenet' })
+        }).to.throw(/Invalid private key/)
+      })
+    })
+
+    it('rejects a bn outside the valid key range', function () {
+      expect(function () {
+        return PrivateKey.fromObject({ bn: '00'.repeat(32), compressed: true, network: 'livenet' })
+      }).to.throw(/outside the range/)
+      expect(function () {
+        return PrivateKey.fromObject({
+          bn: 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364142',
+          compressed: true,
+          network: 'livenet'
+        })
+      }).to.throw(/outside the range/)
     })
   })
 
