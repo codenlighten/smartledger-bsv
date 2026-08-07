@@ -230,6 +230,11 @@ declare module '@smartledger/bsv' {
         static isValid(data: string): boolean;
     }
 
+    /**
+     * Callable with or without `new` — `bsv.Message(msg)` is the form the docs and
+     * examples use, and was previously untyped.
+     */
+    export function Message(message: string | Buffer): Message;
     export class Message {
         constructor(message: string | Buffer);
 
@@ -344,7 +349,13 @@ declare module '@smartledger/bsv' {
         function buildP2SHMultisigIn(pubkeys: PublicKey[], threshold: number, signatures: Buffer[], opts: object): Script;
         function buildPublicKeyHashOut(address: Address): Script;
         function buildPublicKeyOut(pubkey: PublicKey): Script;
+        /**
+         * Bare `OP_RETURN <data>`. Prefer buildSafeDataOut: a bare OP_RETURN is not
+         * provably unspendable.
+         */
         function buildDataOut(data: string | Buffer, encoding?: string): Script;
+        /** `OP_FALSE OP_RETURN <data>` — provably unspendable. Partner of isSafeDataOut(). */
+        function buildSafeDataOut(data: string | Buffer, encoding?: string): Script;
         function buildScriptHashOut(script: Script): Script;
         function buildPublicKeyIn(signature: crypto.Signature | Buffer, sigtype: number): Script;
         function buildPublicKeyHashIn(publicKey: PublicKey, signature: crypto.Signature | Buffer, sigtype: number): Script;
@@ -468,7 +479,7 @@ declare module '@smartledger/bsv' {
 
         function add(data: any): Network;
         function remove(network: Network): void;
-        function get(args: string | number | Network, keys: string | string[]): Network;
+        function get(args: string | number | Network, keys?: string | string[]): Network;
     }
 
     export class Address {
@@ -624,27 +635,55 @@ declare module '@smartledger/bsv' {
 
     // -------- StatusList2021 --------------------------------------------
 
-    export type CredentialStatus = 'valid' | 'revoked' | 'suspended' | string;
+    /**
+     * 'suspended' is part of the StatusList2021 vocabulary but is NOT writable here:
+     * this implementation hardcodes statusPurpose 'revocation' and uses one bit, so
+     * updateStatusList throws on it rather than recording a suspension as a revocation.
+     */
+    export type CredentialStatus = 'valid' | 'revoked' | 'suspended';
 
     export namespace StatusList {
+        /**
+         * Reading revocation state verifies the list JWT's signature and pins its issuer;
+         * both are required and were previously absent from these declarations.
+         */
+        interface StatusListReadParams {
+            listVcJwt: string;
+            index: number;
+            /** Required: the issuer this list must be signed by. */
+            expectedIssuerDid: string;
+            /** Supply exactly one key source. */
+            didResolver?: (did: string) => Promise<{ jwks: { keys: Jwk[] } }>;
+            issuerJwks?: { keys: Jwk[] };
+            issuerPublicJwk?: Jwk;
+            allowedAlgs?: string[];
+        }
         function createStatusList(params: {
             issuerDid: string;
             privateJwk: Jwk;
             listId?: string;
             listSize?: number;
         }): Promise<{ listVcJwt: string; listId: string }>;
-        function updateStatusList(params: {
-            listVcJwt: string;
-            index: number;
+        /**
+         * Verifying the existing list before building on it requires pinning its issuer,
+         * so `expectedIssuerDid` plus one key source are mandatory at runtime.
+         */
+        function updateStatusList(params: StatusListReadParams & {
             status: CredentialStatus;
             privateJwk: Jwk;
         }): Promise<{ listVcJwt: string }>;
-        function getCredentialStatusEntry(params: { listVcJwt: string; index: number }): CredentialStatus;
+        /**
+         * ASYNC — returns a Promise. Declared synchronous until 7.5.2, which meant
+         * `if (getCredentialStatusEntry(...) === 'revoked')` type-checked and was ALWAYS
+         * false, so every revoked credential passed. Await it.
+         */
+        function getCredentialStatusEntry(params: StatusListReadParams): Promise<CredentialStatus>;
     }
 
     // -------- Anchor (top-level hash anchoring) -------------------------
 
-    export type AnchorKind = 'VC_ANCHOR_SHA256' | 'STATUSLIST_SHA256' | 'PRESENTATION_SHA256' | string;
+    /** Closed set: the runtime rejects anything else with "Invalid kind. Must be one of: ...". */
+    export type AnchorKind = 'VC_ANCHOR_SHA256' | 'STATUSLIST_SHA256' | 'PRESENTATION_SHA256';
 
     export interface AnchorPayload {
         json: object;
@@ -942,7 +981,8 @@ declare module '@smartledger/bsv' {
         /** Perpetually Enforcing Locking Script: every spend recreates the same script (value - fee). */
         function perpetualCovenant(fee: number): Script;
         /** Stateful ownership token (NFT) locking script. */
-        function ownershipToken(fee: number, ownerHash: Buffer): Script;
+        /** Alias of SmartContract.Token.ownershipToken, authorizer included. */
+        function ownershipToken(fee: number, ownerHash: Buffer, auth?: SmartContract.Authorizer): Script;
         /** OP_PUSH_TX value/output covenant: coins can only go where the covenant says. */
         function valueCovenant(expectedHashOutputs: Buffer): Script;
         /** Ordinal covenant locking script (value-preserving; safe for 1-sat ordinals). */
@@ -1009,8 +1049,12 @@ declare module '@smartledger/bsv' {
         namespace Authorizers {
             /** Single-key (default): owner id = HASH160(pubkey). */
             function singleKey(): Authorizer;
-            /** m-of-n multisig authorizer. */
-            function multisig(m: number, keys: PublicKey[]): Authorizer;
+            /**
+             * m-of-n multisig authorizer. `nKeys` is the NUMBER of keys, not the keys —
+             * the descriptor supplies them at spend time. (Locks.multisig genuinely does
+             * take keys, which is what made this easy to walk into.)
+             */
+            function multisig(m: number, nKeys: number): Authorizer;
             /** Arbitrary predicate authorizer over a fixed 20-byte commitment. */
             function predicate(commit: Buffer, emit: (script: Script) => Script): Authorizer;
         }
@@ -1360,7 +1404,8 @@ declare module '@smartledger/bsv' {
     export function getClaimSchemaNames(): string[];
     export function getClaimSchema(schemaName: string): object;
     export function createClaimTemplate(schemaName: string): object;
-    export function canonicalizeClaim(claim: object): object;
+    /** Returns the canonical JSON STRING, not an object. */
+    export function canonicalizeClaim(claim: object): string;
     export function hashClaim(claim: object): string;
     export function addCustomClaimSchema(name: string, schema: object): void;
 

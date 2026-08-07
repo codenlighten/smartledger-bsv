@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.2] - 2026-08-06
+
+The rest of the field review that produced 7.5.1: declarations that disagreed with
+the code. Most are declaration-only, but four cases needed the **runtime** to change,
+because a declaration matching the old behaviour would have been documenting a bug.
+
+### Fixed (security)
+
+- **`StatusList.getCredentialStatusEntry` was declared synchronous but is `async`.** So
+  `if (getCredentialStatusEntry(...) === 'revoked')` type-checked cleanly and compared a
+  `Promise` to a string — always false. **Every revoked credential passed as valid**, and
+  the type checker was what hid it. It now declares `Promise<CredentialStatus>`, which
+  turns that comparison into a compile error (`'Promise<string>' and '"revoked"' have no
+  overlap`).
+
+- **`updateStatusList` no longer records a suspension as a revocation.** `'suspended'`
+  set the *same bit* as `'revoked'` and read back as `'revoked'`, so a temporary
+  suspension was silently written — and later reported — as a permanent revocation. This
+  implementation hardcodes `statusPurpose: 'revocation'` and uses one bit, so there is
+  nowhere for suspension to go; it now throws, naming the limitation, instead of writing
+  the wrong state.
+
+- **`SmartContract.ownershipToken` dropped its authorizer.** The top-level alias was
+  `function (fee, ownerPubKeyHash)` and called through with only those two arguments, so
+  a **co-signed token built via this path came out single-key** — the authorizer was
+  accepted and discarded. Same silent-argument family as 7.0.1, 7.0.2, 7.2.0, 7.3.0 and
+  7.4.0.
+
+### Fixed
+
+- **`Authorizers.multisig(m, nKeys)` rejects an array.** `nKeys` is a count, but passing
+  keys made `m > nKeys` compare a number to an array — which coerces to `NaN`, so the
+  guard passed and an authorizer was built with the array spliced into its name. It now
+  throws and names the fix. (`Locks.multisig` genuinely does take keys, which is what
+  made this easy to walk into.)
+
+- **Sub-path imports resolve.** `@smartledger/bsv/didweb` and ten siblings were
+  `MODULE_NOT_FOUND`: the `exports` map had no aliases for the `*-entry.js` files, so
+  documented deep imports could not be loaded at all. Eleven aliases added.
+
+- **`securityFeatures` no longer claims `'elliptic-patches'`**, which it advertised long
+  after `elliptic` stopped being a dependency. It is the string a compliance reviewer
+  reads, so it now lists what is actually shipped.
+
+### Changed
+
+Declarations corrected to match the runtime: `Authorizers.multisig(m, nKeys: number)`;
+`AnchorKind` and `CredentialStatus` closed (both were `| string` while the runtime
+enforces a fixed set); `Script.buildSafeDataOut` declared (it was missing while
+`isSafeDataOut` was present, steering TypeScript users to `buildDataOut`, whose bare
+`OP_RETURN` is not provably unspendable); `Message` typed as callable without `new`, the
+form the examples use; `canonicalizeClaim` returns `string`, not `object`;
+`Networks.get`'s `keys` optional; both `ownershipToken` overloads take the authorizer;
+`StatusListReadParams` added so the mandatory `expectedIssuerDid` and key source are
+visible rather than surfacing as a runtime throw.
+
+### Added
+
+- **The type-drift gate now catches async-declared-as-sync.** `test/types/dts_drift.js`
+  compares each declared return type against the runtime function's
+  `constructor.name === 'AsyncFunction'`, so a declaration can no longer hide a Promise.
+  Verified adversarially: reverting the `getCredentialStatusEntry` declaration makes the
+  gate fail. This is the class that produced the revocation bypass above, so it is now
+  mechanically impossible to reintroduce.
+
+- `test/types/surface_honesty.js` covers the runtime-side fixes, including all eleven
+  sub-path entry points.
+
+### Breaking
+
+`updateStatusList` throws on `status: 'suspended'` instead of writing the revocation bit.
+`Authorizers.multisig` throws when handed an array. `AnchorKind` and `CredentialStatus`
+no longer accept arbitrary strings in TypeScript.
+
+Suite 4559 → 4579.
+
 ## [7.5.1] - 2026-08-06
 
 Three defects reported from the field against 7.4.0, each reproduced here before

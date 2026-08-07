@@ -57,7 +57,10 @@ bsv.securityFeatures = [
   'canonical-signatures',
   'malleability-protection',
   'enhanced-validation',
-  'elliptic-patches'
+  // 'elliptic-patches' was listed here long after `elliptic` stopped being a dependency.
+  // This array is what a compliance reviewer reads, so it states what is actually true.
+  'audited-noble-curves',
+  'fail-closed-verification'
 ]
 
 // crypto
