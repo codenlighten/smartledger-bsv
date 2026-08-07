@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.5] - 2026-08-07
+
+### Fixed (security)
+
+- **`PrivateKey.fromObject` silently returned a different key when given malformed
+  input.** `bn.js@4` *skips* characters it cannot parse instead of failing, so a
+  malformed `bn` never raised — it produced whatever the surviving characters
+  happened to encode. Combined with the `toJSON` redaction added in 7.5.1, the most
+  natural persist/restore round-trip
+
+  ```js
+  PrivateKey.fromObject(JSON.parse(JSON.stringify(key)))
+  ```
+
+  parsed the marker `'[REDACTED]'` as `768491671261` and returned a valid-looking
+  key of roughly **40 bits** — with no error, a different WIF, and a different
+  address. Anyone performing that round-trip and funding the resulting address
+  would lose the funds: the value is deterministic and derivable by anyone who
+  knows the marker.
+
+  `_transformObject` now validates before parsing: `bn` must be a non-empty
+  hexadecimal string, must not be the redaction marker (which raises a message
+  pointing at `toObject()`/`toWIF()`), and must fall inside the valid key range
+  (non-zero, below *n*). `toObject()` round-trips exactly, as before, and the
+  redaction marker is now a single shared constant so the emitter and the guard
+  cannot drift apart.
+
+  Found while evaluating the `bn.js` 4 → 5 bump: v5 rejects the input correctly, so
+  the one suite failure under it was this latent defect surfacing, not an
+  incompatibility. The fix is in this library's validation and does not depend on
+  upgrading `bn.js`.
+
+- The test asserting `fromObject(key.toJSON())` "does not throw" encoded the broken
+  behaviour as intent and has been inverted, alongside regression tests for
+  non-hex input, the redaction marker, zero, and *n*.
+
+Suite 4594 → 4597.
+
 ## [7.5.4] - 2026-08-07
 
 Dependency maintenance, with each update tested in isolation rather than merged on
