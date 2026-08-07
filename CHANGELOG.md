@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.4] - 2026-08-07
+
+Dependency maintenance, with each update tested in isolation rather than merged on
+green CI alone. Two proposed majors were rejected for concrete reasons and are now
+pinned.
+
+### Changed
+
+- `inherits` 2.0.3 → 2.0.4 and `unorm` 1.4.1 → 1.6.0 (both runtime dependencies, so
+  the 16 browser bundles are regenerated here). `unorm` performs the NFKD
+  normalisation BIP39 depends on; verified unchanged, including the full-width
+  katakana case (`ｶﾞ` → `ガ`) that normalisation bugs surface in.
+- `chai` 4.2.0 → 6.2.2 (dev). Full suite passes unmodified.
+- `actions/checkout` and `actions/setup-node` v5 → v7.
+
+### Not upgraded, and why
+
+- **`jose` is pinned to `^5`.** v6 is WebCrypto-only and WebCrypto has no secp256k1,
+  so it has dropped **ES256K**. Verified against 6.2.7: `ES256` and `ES384` generate,
+  `ES256K` raises `Invalid or unsupported JWK "alg" Parameter value`. The two ES256K
+  cases in `test/vcjwt/interop.js` fail under it — and those tests exist to prove an
+  *independent* JOSE implementation can verify tokens this library issues. ES256K is
+  the algorithm for Bitcoin keys, so the upgrade would delete the guarantee the
+  dependency is there to provide.
+
+- **`typescript` is pinned to `^5`.** The 7.x npm package ships no compiler API: it
+  exports only `version` and `versionMajorMinor`, with `createSourceFile`,
+  `ScriptTarget` and `SyntaxKind` all `undefined`. `test/types/dts_drift.js` parses
+  `bsv.d.ts` through the TypeScript AST to assert every declared symbol exists at
+  runtime, and it is the only thing keeping the hand-curated `bsv.d.ts` honest.
+
+Both reasons are recorded in `.github/dependabot.yml` so the bumps are not reproposed.
+
+### Security posture note
+
+Dependabot alerts are now enabled on the repository. The 13 open alerts are **all in
+the development toolchain** — `js-yaml`, `brace-expansion`, `tmp` and
+`serialize-javascript` reached through `mocha`, `standard`, `eslint` and `inquirer`.
+`npm audit --omit=dev` reports **0 vulnerabilities**, and the browserify shims flagged
+via `crypto-browserify` (`browserify-sign`, `create-ecdh`, `elliptic`) are stubbed out
+by the esbuild config and appear **zero times** in the shipped bundles. Clearing the
+remainder requires major upgrades of `mocha` and `standard`; the latter is gated on
+the lint-ratchet baseline and is tracked as its own piece of work.
+
 ## [7.5.3] - 2026-08-07
 
 ### Fixed (security)
