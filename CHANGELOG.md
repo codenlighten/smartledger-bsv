@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.8] - 2026-08-07
+
+### Fixed
+
+- **Directory deep imports under `lib/` did not resolve.** The `exports` map carried
+  `"./lib/*": "./lib/*.js"`, which maps `lib/script` to `lib/script.js` — a file that
+  does not exist, since `script` is a directory. So
+  `require('@smartledger/bsv/lib/script')` raised `MODULE_NOT_FOUND`, and the same
+  applied to all 16 directory modules (`ordinals`, `smart_contract`, `transaction`,
+  `gdaf`, `ltp`, `spv`, `mnemonic`, `vcjwt`, …). Only the explicit
+  `lib/script/index.js` form worked.
+
+  Each directory that has an `index.js` now has an explicit entry pointing at it.
+  Non-pattern keys take priority over patterns in Node's resolution, so directories
+  resolve through these while files continue to use `"./lib/*"`. Both CommonJS
+  `require` and ESM `import` are covered, since the map governs both.
+
+  Node's fallback-array form (`["./lib/*.js", "./lib/*/index.js"]`) was tried first and
+  does **not** work: Node falls through on an *invalid* target, not on a missing file.
+
+  The regression test enumerates `lib/` at runtime rather than hard-coding names, so a
+  new directory module cannot be added without also being exported, and asserts the
+  bare and explicit forms return the *same* module object (one cache entry, not two).
+
+  This is the resolution gap behind the reproduction in the 7.5.7 report: the literal
+  line `require('@smartledger/bsv/lib/script')` failed here before it could reach the
+  require-cycle defect that release fixed.
+
+Suite 4601 → 4603.
+
 ## [7.5.7] - 2026-08-07
 
 ### Fixed
