@@ -2,7 +2,15 @@
 
 var bsv = module.exports
 
-// Initialize dependencies first to avoid circular dependency issues.
+// `bsv.deps` is a legacy compatibility surface, retained as public API.
+//
+// It previously had to be initialized FIRST because modules under lib/ read
+// `bsv.deps._` and friends back off the package root while index.js was still
+// executing — 45 files required the root, so load order was load-bearing.
+// Those cycles were removed: every module under lib/ now requires its
+// dependencies directly, and nothing in lib/ reads bsv.deps any more.
+// The property stays because external consumers may use it; removing it is a
+// breaking change deferred to the next major.
 //
 // `bn.js`, `bs58`, and `elliptic` are declared runtime deps in
 // package.json. In Node they MUST be installed — silently swallowing
