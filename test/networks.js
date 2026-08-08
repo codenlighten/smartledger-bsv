@@ -159,4 +159,49 @@ describe('Networks', function () {
     var fn = function () { networks.testnet.name = 'livenet' }
     expect(fn).to.throw(TypeError)
   })
+  // The `cashAddrPrefixArray` getter has three branches; only the STN one reached for
+  // the helper on the STN data object instead of the module-level function, so reading
+  // it with STN enabled threw `STN.cashAddrPrefixToArray is not a function`. The tests
+  // above cover `cashAddrPrefix` (the string) but never the array getter, which is why
+  // a live TypeError survived a 4,597-test suite.
+  describe('cashAddrPrefixArray across the regtest/stn toggles', function () {
+    // enableStn/enableRegtest mutate the shared testnet object, so without a reset the
+    // flags leak into every later test in the run.
+    afterEach(function () {
+      networks.disableStn()
+      networks.disableRegtest()
+    })
+
+    function assertPrefixArray (arr) {
+      Array.isArray(arr).should.equal(true)
+      arr.length.should.be.above(0)
+      arr.forEach(function (n) { n.should.be.a('number') })
+    }
+
+    it('works with stn enabled', function () {
+      networks.enableStn()
+      assertPrefixArray(networks.testnet.cashAddrPrefixArray)
+    })
+
+    it('works with regtest enabled', function () {
+      networks.enableRegtest()
+      assertPrefixArray(networks.testnet.cashAddrPrefixArray)
+    })
+
+    it('works with neither enabled', function () {
+      assertPrefixArray(networks.testnet.cashAddrPrefixArray)
+    })
+
+    it('returns a different prefix array per mode', function () {
+      var plain = networks.testnet.cashAddrPrefixArray.join(',')
+      networks.enableStn()
+      var stn = networks.testnet.cashAddrPrefixArray.join(',')
+      networks.disableStn()
+      networks.enableRegtest()
+      var regtest = networks.testnet.cashAddrPrefixArray.join(',')
+      stn.should.not.equal(plain)
+      regtest.should.not.equal(plain)
+      stn.should.not.equal(regtest)
+    })
+  })
 })

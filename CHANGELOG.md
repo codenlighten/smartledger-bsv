@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.6] - 2026-08-07
+
+### Fixed
+
+- **`cashAddrPrefixArray` threw whenever STN was enabled.** The getter's STN branch
+  called `STN.cashAddrPrefixToArray(...)`, but `STN` is a plain data object with no
+  methods — the two sibling branches correctly call the module-level function of that
+  name. Reading `Networks.testnet.cashAddrPrefixArray` after `Networks.enableStn()`
+  raised `TypeError: STN.cashAddrPrefixToArray is not a function`. Live, not latent.
+
+  Nothing caught it because nothing exercised the path: the existing network tests
+  assert on `cashAddrPrefix` (the string) and never read the array getter. Four
+  regression tests now cover all three branches plus the fact that each mode yields a
+  distinct prefix array, and they were confirmed to fail against the unpatched getter
+  rather than passing vacuously. They reset both toggles in `afterEach`, since
+  `enableStn`/`enableRegtest` mutate the shared `testnet` object and otherwise leak
+  into later tests.
+
+### Changed (no behavioural difference)
+
+Two defects that were correct by accident, corrected so the code states its intent.
+Both were verified to leave output unchanged before being touched.
+
+- **`Hash.hmac`** tested `key < blocksize` — a `Buffer` compared against a number,
+  which is always `false`, so the zero-padding branch never ran. The result was right
+  anyway: the XOR loop indexes past a short key and `x ^ undefined === x ^ 0`, exactly
+  what padding produces. Now `key.length < blocksize`. HMAC output is **byte-identical**
+  across 48 vectors spanning short, block-sized and over-length keys, in both the Node
+  and browser implementations.
+
+- **`BN.prototype.toSMBigEndian`** used `&` (bitwise) between two comparisons rather
+  than `&&`. It worked because `===` binds tighter than `&` and `true & true` is `1`.
+  Now `&&`.
+
+Reported with a reproduction and a correct diagnosis in
+`BUG-networks-stn-cashaddrprefixarray.md`; each claim was reproduced here before being
+acted on. Suite 4597 → 4601.
+
 ## [7.5.5] - 2026-08-07
 
 ### Fixed (security)
