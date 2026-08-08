@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.7] - 2026-08-07
+
+### Fixed
+
+- **`Address` threw whenever `lib/script` was required before `lib/address`.**
+  The two modules form a require cycle, and `address.js` ended with the usual idiom
+  — export yourself, then `var Script = require('./script')`. That only holds when
+  `address` loads first. Reaching `lib/script` first meant the require returned
+  script's **partially initialised** exports (`{}`), the captured binding stayed `{}`
+  forever, and every `instanceof Script` raised
+  `TypeError: Right-hand side of 'instanceof' is not callable`. `var` hoisting hid it,
+  since the name is in scope for the functions defined above the assignment.
+
+  This was reachable, not theoretical: deep imports are public API through the
+  `exports` map (`"./lib/*"`), so requiring `lib/script` first is a supported way to
+  use the package. Both `Address.fromScript(script)` and `new Address(script)` threw,
+  reaching the check through `_transformScript` and `_classifyArguments` respectively.
+
+  `Script` is now resolved at call time through a small accessor rather than captured
+  at module scope. `require` is cached, so it costs nothing, and by the time any of
+  these functions run the module is complete — which keeps `instanceof` **exact**
+  rather than loosening the check to a structural duck-type that a non-Script object
+  could satisfy.
+
+- **`scripts/check-address-load-order.js`** guards it, wired into CI and available as
+  `npm run check:load-order`. It deliberately lives outside mocha: the check must clear
+  `require.cache`, which would invalidate every module reference an in-process suite is
+  holding. It exercises `fromScript`, the constructor **and** `payingTo` — the first
+  two reach the check by different paths, and `payingTo` reaches the `Script`
+  constructor itself. Confirmed to fail against the unpatched module rather than
+  passing vacuously.
+
+Reported with an accurate reproduction and diagnosis in
+`BUG-address-load-order-instanceof.md`. Suite 4601 (unchanged — the guard is a
+standalone script, by necessity).
+
 ## [7.5.6] - 2026-08-07
 
 ### Fixed
