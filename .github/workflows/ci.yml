@@ -328,6 +328,15 @@ jobs:
       - name: Lint — audited modules (blocking, must be pristine)
         run: npx standard lib/ordinals lib/spv lib/smart_contract/pushtx.js lib/smart_contract/token.js test/ordinals test/security test/types build/esbuild.js build/esbuild test/build
 
+      - name: Address/Script require-cycle load order (blocking)
+        # `address` and `script` are a require cycle. Capturing the partner at module
+        # scope only works when address loads first; reaching lib/script first left the
+        # binding as `{}` and every `instanceof Script` threw. Deep imports are public
+        # API via the exports map, so that order is supported and the failure was
+        # reachable. This cannot live in mocha — it clears require.cache, which
+        # invalidates every module reference an in-process suite is holding.
+        run: npm run check:load-order
+
       - name: Lint ratchet — no NEW violations repo-wide (blocking)
         # Grandfathers the standard@12 legacy baseline (.lint-baseline.json) but fails on
         # any file that gains a new violation, so the whole repo is gated without the big
