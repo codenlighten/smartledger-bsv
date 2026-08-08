@@ -58,6 +58,8 @@
   "scripts": {
     "lint": "standard",
     "check:load-order": "node scripts/check-address-load-order.js",
+    "conformance": "node conformance/verify.js",
+    "conformance:generate": "node conformance/generate.js",
     "lint:ratchet": "node scripts/lint-ratchet.js",
     "lint:ratchet:update": "node scripts/lint-ratchet.js --update",
     "test": "mocha",
