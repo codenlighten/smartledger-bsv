@@ -10,6 +10,7 @@
 // condition in a child process so the dual-ready "." entry can't silently rot.
 
 require('chai').should()
+var fs = require('fs')
 var path = require('path')
 var execFileSync = require('child_process').execFileSync
 
@@ -36,6 +37,31 @@ describe('7.0 exports map resolution', function () {
     var noExt = require(N + '/lib/crypto/ecdsa')
     withExt.should.be.a('function')
     noExt.should.equal(withExt) // same module, one cache entry
+  })
+
+  // `./lib/*` maps to `./lib/*.js`, so a DIRECTORY module (lib/script, lib/ordinals,
+  // ...) did not resolve at all — `require('@smartledger/bsv/lib/script')` raised
+  // MODULE_NOT_FOUND, because there is no lib/script.js. Explicit entries now point each
+  // directory at its index.js. Every directory under lib/ that has one is listed, so a
+  // new module cannot be added without also being exported.
+  it('resolves every lib/ directory module by its bare directory name', function () {
+    var libDir = path.join(ROOT, 'lib')
+    var dirs = fs.readdirSync(libDir).filter(function (d) {
+      return fs.existsSync(path.join(libDir, d, 'index.js'))
+    })
+    dirs.length.should.be.above(0)
+    dirs.forEach(function (d) {
+      var bare = require(N + '/lib/' + d)
+      var explicit = require(N + '/lib/' + d + '/index.js')
+      ;(bare === explicit).should.equal(true) // same module, one cache entry
+    })
+  })
+
+  it('still resolves lib/ FILE modules, which share the same pattern', function () {
+    var noExt = require(N + '/lib/address')
+    var withExt = require(N + '/lib/address.js')
+    ;(noExt === withExt).should.equal(true)
+    noExt.should.be.a('function')
   })
 
   it('serves the full browser bundle over a subpath (loaded in isolation)', function () {
