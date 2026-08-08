@@ -333,7 +333,7 @@ jobs:
         run: npm run conformance
 
       - name: Lint — audited modules (blocking, must be pristine)
-        run: npx standard lib/ordinals lib/spv lib/smart_contract/pushtx.js lib/smart_contract/token.js test/ordinals test/security test/types build/esbuild.js build/esbuild test/build conformance
+        run: npx standard lib/ordinals lib/spv lib/covenant lib/smart_contract/token.js test/ordinals test/security test/types build/esbuild.js build/esbuild test/build conformance
 
       - name: Address/Script require-cycle load order (blocking)
         # `address` and `script` are a require cycle. Capturing the partner at module
