@@ -44,18 +44,95 @@ function polyfillPlugin (mode) {
   }
 }
 
-// Externalise the bsv root (require('../..') / require('../index.js') / etc.) to the global
-// `bsv` — the webpack `externals: { … : 'bsv' }` behaviour for feature bundles.
+// Map a lib/ module to the expression that retrieves it from the global `bsv`.
+// Feature bundles resolve shared primitives through this table instead of
+// bundling their own copy.
+//
+// This exists because modules under lib/ used to reach the shared primitives by
+// requiring the package ROOT, and this plugin externalised that single require.
+// Those root requires were removed (they made module load order load-bearing and
+// blocked any move to ESM), so each module now imports what it needs directly —
+// which means the externalisation has to happen per module rather than once.
+//
+// Getting this wrong is not merely a size regression. If a feature bundle embeds
+// its own PrivateKey class, a key constructed by bsv.min.js fails `instanceof`
+// inside that bundle, and index.js's versionGuard reports two library instances.
+const GLOBAL_BSV = '(typeof globalThis!=="undefined"?globalThis:(typeof self!=="undefined"?self:window)).bsv'
+const LIB_GLOBALS = {
+  'address': 'Address',
+  'opcode': 'Opcode',
+  'networks': 'Networks',
+  'privatekey': 'PrivateKey',
+  'publickey': 'PublicKey',
+  'hdprivatekey': 'HDPrivateKey',
+  'hdpublickey': 'HDPublicKey',
+  'script': 'Script',
+  'script/index': 'Script',
+  'script/interpreter': 'Script.Interpreter',
+  'transaction': 'Transaction',
+  'transaction/index': 'Transaction',
+  'transaction/input': 'Transaction.Input',
+  'transaction/output': 'Transaction.Output',
+  'transaction/sighash': 'Transaction.sighash',
+  'transaction/unspentoutput': 'Transaction.UnspentOutput',
+  'crypto/bn': 'crypto.BN',
+  'crypto/ecdsa': 'crypto.ECDSA',
+  'crypto/hash': 'crypto.Hash',
+  'crypto/point': 'crypto.Point',
+  'crypto/random': 'crypto.Random',
+  'crypto/signature': 'crypto.Signature',
+  'encoding/base58': 'encoding.Base58',
+  'encoding/base58check': 'encoding.Base58Check',
+  'encoding/bufferreader': 'encoding.BufferReader',
+  'encoding/bufferwriter': 'encoding.BufferWriter',
+  'encoding/varint': 'encoding.Varint',
+  'errors': 'errors',
+  'errors/index': 'errors',
+  'util/js': 'util.js',
+  'util/preconditions': 'util.preconditions',
+  'block': 'Block',
+  'block/index': 'Block',
+  'block/blockheader': 'BlockHeader',
+  'block/merkleblock': 'MerkleBlock'
+  // Deliberately NOT mapped: lib/util/_.js. Its only global alias is the legacy
+  // `bsv.deps._`, which is slated for removal in the next major; the bundles
+  // should not be the thing keeping it alive. It is ~1.7 KB, has no dependencies
+  // and no identity semantics (pure isString/isNumber-style predicates), so a
+  // duplicate copy in the message/mnemonic bundles is harmless — unlike a
+  // duplicate PrivateKey, which would break instanceof across bundles.
+}
+
+const LIB_DIR = path.join(ROOT, 'lib')
+
+// Turn an absolute resolved path into its lib-relative key ('crypto/hash').
+function libKey (resolved) {
+  if (resolved.indexOf(LIB_DIR + path.sep) !== 0) return null
+  return resolved.slice(LIB_DIR.length + 1).replace(/\\/g, '/').replace(/\.js$/, '')
+}
+
+// Externalise the bsv root (require('../..') / require('../index.js') / etc.) and the
+// individual lib/ primitives to the global `bsv` — the webpack
+// `externals: { … : 'bsv' }` behaviour for feature bundles.
 function externalBsvPlugin () {
   return {
     name: 'external-bsv',
     setup (build) {
       build.onResolve({ filter: /^\.\.?[\\/]/ }, (a) => {
         const resolved = path.resolve(a.resolveDir, a.path)
-        if (resolved === BSV_INDEX || resolved === ROOT) return { path: a.path, namespace: 'bsv-global' }
+        if (resolved === BSV_INDEX || resolved === ROOT) {
+          return { path: a.path, namespace: 'bsv-global' }
+        }
+        const key = libKey(resolved)
+        if (key && LIB_GLOBALS[key]) {
+          return { path: LIB_GLOBALS[key], namespace: 'bsv-global-member' }
+        }
       })
       build.onLoad({ filter: /.*/, namespace: 'bsv-global' }, () => ({
-        contents: 'module.exports=(typeof globalThis!=="undefined"?globalThis:(typeof self!=="undefined"?self:window)).bsv',
+        contents: 'module.exports=' + GLOBAL_BSV,
+        loader: 'js'
+      }))
+      build.onLoad({ filter: /.*/, namespace: 'bsv-global-member' }, (a) => ({
+        contents: 'module.exports=' + GLOBAL_BSV + '.' + a.path,
         loader: 'js'
       }))
     }
@@ -105,6 +182,9 @@ function buildOne (cfg, opts) {
     inject: [path.join(__dirname, 'esbuild/globals.js')],
     define: { global: 'globalThis' },
     footer: { js: umdFooter(cfg.global) },
+    // Opt-in build graph, used to assert that feature bundles externalise the
+    // shared primitives instead of embedding a second copy of them.
+    metafile: opts.metafile === true,
     write: opts.write !== false,
     outfile: opts.write === false ? undefined : path.join(ROOT, cfg.file),
     logLevel: opts.logLevel || 'warning'
