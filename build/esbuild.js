@@ -182,8 +182,9 @@ function buildOne (cfg, opts) {
     inject: [path.join(__dirname, 'esbuild/globals.js')],
     define: { global: 'globalThis' },
     footer: { js: umdFooter(cfg.global) },
-    // Opt-in build graph, used to assert that feature bundles externalise the
-    // shared primitives instead of embedding a second copy of them.
+    // Opt-in build graph. test/build/bundle_externals.js consumes it to assert that
+    // feature bundles externalise the shared primitives instead of embedding a second
+    // copy — this comment used to claim that assertion existed when nothing performed it.
     metafile: opts.metafile === true,
     write: opts.write !== false,
     outfile: opts.write === false ? undefined : path.join(ROOT, cfg.file),
@@ -200,7 +201,7 @@ function buildAll () {
   return Promise.all(BUNDLES.map(function (c) { return buildOne(c) }))
 }
 
-module.exports = { buildFullBundle, buildAll, buildOne, BUNDLES }
+module.exports = { buildFullBundle, buildAll, buildOne, BUNDLES, LIB_GLOBALS }
 
 if (require.main === module) {
   buildAll().then(function () {
