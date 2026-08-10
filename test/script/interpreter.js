@@ -643,10 +643,9 @@ describe('Interpreter', function () {
   //  - Chronicle reassigned 0xb3-0xb7 to OP_SUBSTR/OP_LEFT/OP_RIGHT/OP_LSHIFTNUM/
   //    OP_RSHIFTNUM, so Core's NOP4..NOP8 no longer exist as no-ops. Vectors that
   //    expect those bytes to do nothing now fail here: 0xb3-0xb5 consume stack as
-  //    string ops (INVALID_STACK_OPERATION), and 0xb6/0xb7 are rejected outright
-  //    (BAD_OPCODE) because the shift SEMANTICS are deliberately unimplemented —
-  //    the spec underdetermines them, and validating wrongly is worse than
-  //    refusing. This is a real consensus divergence from Core, not a quirk.
+  //    string ops (INVALID_STACK_OPERATION). 0xb6/0xb7 are NOT divergent: they are
+  //    upgradable NOPs until Chronicle activates, exactly as in SV Node and Core,
+  //    and only perform a shift under SCRIPT_ENABLE_CHRONICLE.
   //    (0xba is no longer a NOP either; it is unassigned, which now AGREES with
   //    Core, so its former override has been removed.)
   var BSV_DIVERGENCES = {
@@ -670,11 +669,7 @@ describe('Interpreter', function () {
     "'NOP_1_to_10' NOP1 CHECKLOCKTIMEVERIFY CHECKSEQUENCEVERIFY NOP4 NOP5 NOP6 NOP7 NOP8 NOP9 NOP10|'NOP_1_to_10' EQUAL|P2SH,STRICTENC": 'SCRIPT_ERR_INVALID_STACK_OPERATION',
     'NOP|NOP4 1|P2SH,STRICTENC': 'SCRIPT_ERR_INVALID_STACK_OPERATION',
     'NOP|NOP5 1|P2SH,STRICTENC': 'SCRIPT_ERR_INVALID_STACK_OPERATION',
-    'NOP|NOP6 1|P2SH,STRICTENC': 'SCRIPT_ERR_INVALID_STACK_OPERATION',
-    'NOP|NOP7 1|P2SH,STRICTENC': 'SCRIPT_ERR_BAD_OPCODE',
-    'NOP|NOP8 1|P2SH,STRICTENC': 'SCRIPT_ERR_BAD_OPCODE',
-    '0x47 0x3044022018a2a81a93add5cb5f5da76305718e4ea66045ec4888b28d84cb22fae7f4645b02201e6daa5ed5d2e4b2b2027cf7ffd43d8d9844dd49f74ef86899ec8e669dfd39aa01 NOP8 0x23 0x2103363d90d447b00c9c99ceac05b6262ee053441c7e55552ffe526bad8f83ff4640ac|HASH160 0x14 0x215640c2f72f0d16b4eced26762035a42ffed39a EQUAL|': 'SCRIPT_ERR_BAD_OPCODE',
-    '0x47 0x304402203e4516da7253cf068effec6b95c41221c0cf3a8e6ccb8cbf1725b562e9afde2c022054e1c258c2981cdfba5df1f46661fb6541c44f77ca0092f3600331abfffb125101 NOP8|0x21 0x03363d90d447b00c9c99ceac05b6262ee053441c7e55552ffe526bad8f83ff4640 CHECKSIG|': 'SCRIPT_ERR_BAD_OPCODE'
+    'NOP|NOP6 1|P2SH,STRICTENC': 'SCRIPT_ERR_INVALID_STACK_OPERATION'
   }
 
   describe('bitcoind script evaluation fixtures', function () {
