@@ -58,9 +58,19 @@ is not.
 | Component | Status | Reason |
 | --- | --- | --- |
 | `@noble/curves`, `@noble/hashes`, `@noble/ciphers` | Already audited | The primitives come from the Noble libraries, which **Cure53 has audited and published on**. We do not implement curve or hash arithmetic ourselves. State this explicitly to vendors — otherwise they price work we do not need. |
-| `lib/smart_contract/`, `lib/ltp/`, `lib/gdaf/`, `lib/ordinals/`, `lib/block/` and 12 smaller modules | Excluded | Application layer, 24,195 lines. Written in-house and covered by adversarial tests. Worth a separate engagement; including it here would blur the question in §1. |
+| `lib/smart_contract/`, `lib/ltp/`, `lib/gdaf/`, `lib/ordinals/`, `lib/block/`, plus 9 further directories and 6 top-level files | Excluded | Application layer, 22,699 lines — 18,435 in the five named modules and 4,264 in the remainder. Written in-house and covered by adversarial tests. Worth a separate engagement; including it here would blur the question in §1. |
 
-Totals: `lib/` is 35,934 lines across 122 files. Core + optional = 13,235.
+Totals reconcile against `lib/`, which is 35,934 lines across 122 files:
+
+```
+tier 1      11,739
+tier 2       1,496
+excluded    22,699
+            ------
+total       35,934
+```
+
+Core + optional = 13,235.
 
 ## 4. What an auditor gets on day one
 
@@ -68,7 +78,10 @@ Each of these should *reduce* the quote — they remove discovery work.
 
 - **`docs/THREAT_MODEL.md`** — every claimed security property mapped to the adversarial
   test that proves it, with honest known limitations. Test paths are gate-checked by
-  `test/security/threat_model_coverage.js`, so the document cannot drift from the suite.
+  `test/security/threat_model_coverage.js`, so the document cannot cite tests that no
+  longer exist. Scope that honestly: the gate asserts existence and a minimum citation
+  count, not that the cited tests still assert anything — a test gutted in place would
+  pass it.
 - **`npm run conformance`** — 452 cases across 13 suites, freezing observable behaviour
   so any change surfaces as a diff. A second, independently written implementation
   (`smartledger-bsv-core`, the TypeScript port) agrees on all 452.
@@ -118,10 +131,10 @@ Scope, and we would like these priced separately:
   Tier 2 — 1,496 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
   decoding surface.
 
-JavaScript (CommonJS), Node 20+. The code is public.
+JavaScript (CommonJS), Node >= 20.19. The code is public.
 
 Explicitly out of scope: elliptic-curve and hash primitives, which are supplied
-by the Noble libraries and already audited; and our 24,000-line application
+by the Noble libraries and already audited; and our 22,699-line application
 layer (credentials, tokens, ordinals), which we would treat as a separate
 engagement.
 
@@ -146,24 +159,40 @@ SmartLedger Technology
 
 ## 7. Reproducing the measurements
 
+Every figure in this document, including the excluded total, must come out of this
+script. **Derive the excluded count as the complement — never by subtracting tier 1
+alone.** The first draft did exactly that, double-counted tier 2, and published parts
+summing to 37,430 against a 35,934 whole; §7 could not catch it because it reproduced
+every figure except the wrong one.
+
 ```sh
-# Tier 1 directories
-for d in lib/crypto lib/transaction lib/script; do
+lines () { find "$@" -name '*.js' -exec cat {} + | wc -l; }
+
+TIER1_DIRS="lib/crypto lib/transaction lib/script"
+TIER1_FILES="lib/privatekey.js lib/publickey.js lib/address.js \
+             lib/hdprivatekey.js lib/hdpublickey.js lib/opcode.js lib/networks.js"
+TIER2_DIRS="lib/encoding lib/mnemonic lib/ecies"
+
+# Per-module breakdown for the scope tables
+for d in $TIER1_DIRS $TIER2_DIRS; do
   printf '%-18s %3s files %6s lines\n' "$d" \
-    "$(find $d -name '*.js' | wc -l)" \
-    "$(find $d -name '*.js' -exec cat {} + | wc -l)"
+    "$(find $d -name '*.js' | wc -l)" "$(lines $d)"
 done
+wc -l $TIER1_FILES
 
-# Tier 1 top-level files
-wc -l lib/privatekey.js lib/publickey.js lib/address.js \
-      lib/hdprivatekey.js lib/hdpublickey.js lib/opcode.js lib/networks.js
+# Totals, with the excluded count derived as the complement
+TOTAL=$(lines lib)
+T1=$(( $(lines $TIER1_DIRS) + $(cat $TIER1_FILES | wc -l) ))
+T2=$(lines $TIER2_DIRS)
+EXCLUDED=$(( TOTAL - T1 - T2 ))
 
-# Tier 2
-for d in lib/encoding lib/mnemonic lib/ecies; do
-  printf '%-18s %6s lines\n' "$d" "$(find $d -name '*.js' -exec cat {} + | wc -l)"
-done
+printf 'tier 1    %6s\ntier 2    %6s\nexcluded  %6s\n          ------\ntotal     %6s\n' \
+  "$T1" "$T2" "$EXCLUDED" "$TOTAL"
 
-# lib/ total
-find lib -name '*.js' | wc -l
-find lib -name '*.js' -exec cat {} + | wc -l
+# Fails loudly if the three tiers stop reconciling. The non-zero check matters:
+# run from the wrong directory every figure is 0, and 0+0+0 reconciles vacuously.
+[ "$TOTAL" -gt 0 ] || echo "MISMATCH — run this from the repo root"
+[ $(( T1 + T2 + EXCLUDED )) -eq "$TOTAL" ] || echo "MISMATCH — do not send"
+
+find lib -name '*.js' | wc -l   # file count
 ```
