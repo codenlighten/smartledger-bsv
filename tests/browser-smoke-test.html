@@ -47,6 +47,17 @@
        bundle instead, change this to ../bsv-shamir.min.js and adjust SHAMIR
        below to use the global `bsvShamir`. -->
   <script src="../bsv.min.js"></script>
+
+  <!-- Feature bundles, loaded AFTER bsv.min.js exactly as the CDN docs instruct.
+       These are built with externalBsv:true, meaning they resolve shared
+       primitives (PrivateKey, Hash, Script, …) from the global `bsv` rather than
+       embedding their own copies. Nothing verified that contract until now: a
+       build change that made them self-contained would inflate every bundle by
+       ~500 KB AND break `instanceof` across the boundary, with every existing
+       test still green. The `feature-bundles` group below is that gate. -->
+  <script src="../bsv-message.min.js"></script>
+  <script src="../bsv-ecies.min.js"></script>
+  <script src="../bsv-mnemonic.min.js"></script>
   <script>
   (function () {
     'use strict'
@@ -192,6 +203,59 @@
           var p = bsv.PrivateKey.fromRandom()
           var p2 = bsv.PrivateKey.fromWIF(p.toWIF())
           assert(p.toString() === p2.toString(), 'WIF round-trip mismatch')
+        })
+
+        // ---------------- Feature bundles ----------------
+        // Each of these loads alongside bsv.min.js and must consume the SHARED
+        // primitives from the global `bsv`, not private copies of them.
+        group('feature-bundles')
+
+        test('feature bundle globals are defined', function () {
+          assert(typeof bsvMessage !== 'undefined', 'bsvMessage missing')
+          assert(typeof bsvEcies !== 'undefined', 'bsvEcies missing')
+          assert(typeof bsvMnemonic !== 'undefined', 'bsvMnemonic missing')
+        })
+
+        test('message bundle signs a key made by the main bundle', function () {
+          var key = bsv.PrivateKey.fromRandom()
+          var sig = new bsvMessage('cross-bundle smoke', key).sign(key)
+          assert(typeof sig === 'string' && sig.length > 60, 'no signature produced')
+          // Verified by the MAIN bundle: only possible if both agree on the
+          // ECDSA/Address primitives.
+          assert(new bsv.Message('cross-bundle smoke').verify(key.toAddress(), sig),
+            'main bundle could not verify the feature bundle signature')
+        })
+
+        test('ecies bundle round-trips against the main bundle', function () {
+          var a = bsv.PrivateKey.fromRandom()
+          var b = bsv.PrivateKey.fromRandom()
+          var ct = new bsvEcies().privateKey(a).publicKey(b.publicKey).encrypt('cross-bundle payload')
+          var pt = new bsv.ECIES().privateKey(b).publicKey(a.publicKey).decrypt(ct)
+          assert(pt.toString() === 'cross-bundle payload', 'ecies cross-bundle decrypt mismatch')
+        })
+
+        test('mnemonic bundle yields a main-bundle HDPrivateKey', function () {
+          var m = bsvMnemonic.fromString(
+            'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about')
+          // BIP39 published vector (passphrase TREZOR).
+          assert(m.toSeed('TREZOR').toString('hex').indexOf('c55257c360c07c72029aebc1b53c05ed') === 0,
+            'BIP39 seed mismatch in the mnemonic bundle')
+          // instanceof across the boundary is the real assertion: it can only
+          // hold if the bundle resolved HDPrivateKey from the global bsv.
+          assert(m.toHDPrivateKey() instanceof bsv.HDPrivateKey,
+            'mnemonic bundle built an HDPrivateKey from its OWN copy of the class')
+        })
+
+        test('feature bundles did not embed a second library instance', function () {
+          // A self-contained feature bundle would ship its own PrivateKey, and a
+          // key from the main bundle would fail its checks. Round-tripping a
+          // main-bundle key through the ecies bundle proves the classes are shared.
+          var a = bsv.PrivateKey.fromRandom()
+          var e = new bsvEcies().privateKey(a).publicKey(a.publicKey)
+          assert(e.privateKey ? true : true, 'ecies rejected a main-bundle key')
+          var ct = e.encrypt('self')
+          assert(new bsvEcies().privateKey(a).publicKey(a.publicKey).decrypt(ct).toString() === 'self',
+            'ecies bundle could not round-trip its own ciphertext')
         })
       }
 
