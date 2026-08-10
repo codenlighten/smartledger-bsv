@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.8.1] - 2026-08-10
+
+Bundle-only re-release of 7.8.0. No source, API or behaviour change — see
+[7.7.1] for the full explanation; the same stale `bn.js@4.12.3` in a local
+`node_modules` produced non-reproducible bundles here too.
+
+Published under the `bundles-7.8` dist-tag so `latest` continues to point at the
+newest release.
+
 ## [7.8.0] - 2026-08-10
 
 `OP_LSHIFTNUM` / `OP_RSHIFTNUM` are implemented, and **7.6.0's fail-closed posture for
