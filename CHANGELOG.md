@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.10.0] - 2026-08-10
+
+Internal restructuring with no API change, plus a conformance corpus and two
+repairs to the gate that guards it.
+
+### Changed
+
+- **The 45 package-root require cycles in `lib/` are gone.** Modules now require
+  each other directly instead of reaching back through the package root
+  (`require('../..')`). That pattern is what made module load order matter: a
+  consumer who reached `lib/script` before `lib/address` got a partially
+  initialised namespace, which is the class of bug 7.5.7 fixed for one file. This
+  removes the cause rather than another symptom — `check-address-load-order`
+  passes on this branch independently of that fix.
+
+- **OP_PUSH_TX primitives moved to `lib/covenant/`**, breaking the last dependency
+  from core code into the application layer (`lib/ordinals` needed them too). The
+  old paths remain as shims, because deep imports such as
+  `require('@smartledger/bsv/lib/smart_contract/covenant_helpers')` are public API
+  through the `exports` map. `./lib/covenant` is a new public subpath.
+
+- **Feature bundles are thin again.** Each externalises the shared primitives per
+  module rather than embedding a second copy.
+
+- **`aes-js` dropped** — it was an unused dependency.
+
+### Added
+
+- **A conformance corpus** (`npm run conformance`): 371 cases across 11 suites,
+  freezing observable behaviour so a change to it surfaces as a diff. Rejections
+  are recorded as first-class outcomes, so a fix of the form "reject what used to
+  be accepted" shows up as an outcome flip rather than disappearing.
+
+  Worth stating its limit plainly, because this release is a good illustration: a
+  frozen corpus detects a **change**, never a pre-existing wrong assumption. It is
+  a regression net, not a correctness oracle.
+
+### Fixed
+
+- **`conformance/verify.js` passed when a fixture was missing.** A suite with no
+  fixture was noted and skipped, so the run still printed `PASS` and exited 0.
+  With the corpus a blocking CI gate, a fixture that was deleted or never
+  committed would have dropped silently out of it. It now fails, as does a
+  mistyped `--suite`, and `PASS` is no longer printed on a failed run.
+
+- **`conformance/generate.js` corrupted its own manifest.** `MANIFEST.json` was
+  written from the *filtered* suite list, so regenerating a single suite replaced
+  the whole-corpus record with `suiteCount: 1` — erasing the only artifact that
+  would reveal a fixture had gone missing. It is now derived from the fixtures on
+  disk, carrying per-suite provenance and `lastVerifiedBy`.
+
+- **The corpus harness could not parse Core's `NOP4`..`NOP8` names**, which
+  surfaced as `threw:Error` on eighteen vendored vectors. Left unfixed, the
+  regenerated fixtures would have frozen a *harness* defect as expected library
+  behaviour.
+
+Suite 4641. In-repo corpus 371/371; the independent corpus in
+`@smartledger/bsv-core` reports 452/452.
+
 ## [7.9.0] - 2026-08-10
 
 Five divergences from the SV Node source (checked at tag **v1.2.0**), and the
