@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.10.1] - 2026-08-10
+
+The three remaining findings from the #85 review. All three are cases of something
+that *looked* like it checked a property and did not — the same class the corpus and
+the bundle-parity gate keep surfacing.
+
+### Fixed
+
+- **The browser smoke test's cross-bundle assertion was a tautology.** In the one test
+  named `feature bundles did not embed a second library instance`, the assertion read
+  `assert(e.privateKey ? true : true, ...)` — it could not fail. Everything else in it
+  stayed inside the ecies bundle, so it would have passed unchanged even if that bundle
+  shipped a private copy of every primitive.
+
+  `ECIES.prototype.privateKey` does `this._privateKey = PrivateKey(hex)`, constructing
+  from the class *it* resolved, so `e._privateKey instanceof bsv.PrivateKey` is the real
+  test — the same shape as the neighbouring mnemonic case. Verified to fail when the
+  class identity is wrong.
+
+- **`build/esbuild.js`'s `metafile` option claimed an assertion that did not exist.**
+  Its comment said it was "used to assert that feature bundles externalise the shared
+  primitives", but nothing consumed it — `grep -rn metafile` returned only the option.
+  `test/build/bundle_externals.js` is now that consumer, and asserts three things:
+
+  - no module mapped by `LIB_GLOBALS` appears as a bundled input. This is derived from
+    the same table the build uses, so it cannot drift out of step with it;
+  - each bundle's `lib/` inputs are pinned, because `LIB_GLOBALS` is deliberately not
+    exhaustive — a feature bundle *should* carry its own feature code, so anything new
+    appearing is either growth or a leak, and a human decides which;
+  - nothing but two documented helpers is duplicated across bundles.
+
+  Verified by removing `privatekey` from `LIB_GLOBALS`: the test immediately reports
+  `bsv-ecies.min.js unexpectedly embeds lib/privatekey.js` and one more.
+
+- **`lib/covenant-interface.js` held the last package-root require in `lib/`**, justified
+  by a comment claiming "this file is reached while index.js is still initializing". That
+  is not true — nothing in `index.js` or under `lib/` requires this module, only two
+  files in `examples/` — and the property it assigned was never read internally. It is
+  now a lazy getter, so `interface.bsv` keeps working while the require costs nothing
+  for everyone else, and the refactor in 7.10.0 is complete: no package-root require in
+  `lib/` executes at load.
+
+Suite 4643 → 4645. Browser smoke 25/25, corpus 371/371, bundles unchanged.
+
 ## [7.10.0] - 2026-08-10
 
 Internal restructuring with no API change, plus a conformance corpus and two

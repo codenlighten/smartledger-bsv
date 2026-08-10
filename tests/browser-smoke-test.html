@@ -247,12 +247,20 @@
         })
 
         test('feature bundles did not embed a second library instance', function () {
-          // A self-contained feature bundle would ship its own PrivateKey, and a
-          // key from the main bundle would fail its checks. Round-tripping a
-          // main-bundle key through the ecies bundle proves the classes are shared.
+          // This assertion used to be `assert(e.privateKey ? true : true, ...)` — a
+          // tautology that could not fail, in the one test named for the property it
+          // was meant to prove. Everything else here stays inside the ecies bundle,
+          // so it would have passed unchanged even if that bundle shipped a private
+          // copy of every primitive.
+          //
+          // ECIES.prototype.privateKey does `this._privateKey = PrivateKey(hex)`,
+          // constructing from the class IT resolved. So instanceof against the main
+          // bundle's class is the real test — the same shape as the mnemonic case
+          // above, and it can only hold if the bundle took PrivateKey from global bsv.
           var a = bsv.PrivateKey.fromRandom()
           var e = new bsvEcies().privateKey(a).publicKey(a.publicKey)
-          assert(e.privateKey ? true : true, 'ecies rejected a main-bundle key')
+          assert(e._privateKey instanceof bsv.PrivateKey,
+            'ecies bundle built a PrivateKey from its OWN copy of the class')
           var ct = e.encrypt('self')
           assert(new bsvEcies().privateKey(a).publicKey(a.publicKey).decrypt(ct).toString() === 'self',
             'ecies bundle could not round-trip its own ciphertext')
