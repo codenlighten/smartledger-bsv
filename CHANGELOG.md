@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.8.0] - 2026-08-10
+
+`OP_LSHIFTNUM` / `OP_RSHIFTNUM` are implemented, and **7.6.0's fail-closed posture for
+their bytes is corrected**. Both come from reading the SV Node implementation
+([`src/script/interpreter.cpp`](https://github.com/bitcoin-sv/bitcoin-sv/blob/master/src/script/interpreter.cpp),
+with the arithmetic in `src/script/script_num.cpp` and `src/big_int.cpp`) rather than
+inferring from the one-sentence spec.
+
+### Fixed
+
+- **Bytes 182/183 are upgradable NOPs before Chronicle, not errors.** 7.6.0 made them
+  reject unconditionally, on the reasoning that refusing to validate is safer than
+  validating wrongly. The node does something else:
+
+  ```cpp
+  if(!utxo_after_chronicle)
+  {
+      if(IsDiscourageUpgradableNops(flags))
+          return SCRIPT_ERR_DISCOURAGE_UPGRADABLE_NOPS;
+      else
+          break;          // no-op
+  }
+  ```
+
+  So this library was rejecting scripts the network accepts — a false negative, which
+  is the mirror image of the defect 7.6.0 set out to fix rather than a cure for it. In
+  fairness to the original code, byte 182 behaving as a no-op was *correct* before
+  Chronicle; the real defect was that it would have stayed a no-op *after* activation,
+  silently skipping the shift. Two of the `BSV_DIVERGENCES` entries added in 7.6.0 are
+  removed as a result: this library now agrees with Bitcoin Core on those vectors again.
+
+### Added
+
+- **`OP_LSHIFTNUM` / `OP_RSHIFTNUM` under `SCRIPT_ENABLE_CHRONICLE`.** Every question
+  the spec left open is answered by the implementation:
+
+  - **Operand order** — `// (x n -- out)`: the shift *count* is on top, the value beneath.
+  - **Negative counts** — `if(n < 0) return SCRIPT_ERR_INVALID_NUMBER_RANGE`.
+  - **"Preserving sign"** — sign-magnitude, and the right shift **truncates toward
+    zero**: `"Mathematical division by 2^bit_shift, rounding toward zero ... For
+    negative values: n / 2^k = -((-n) >> k)"`. So `-5 1 OP_RSHIFTNUM` is **-2, not -3**;
+    a two's-complement arithmetic shift would floor. The bignum path agrees — it is
+    OpenSSL `BN_rshift` on a sign-magnitude value. This is the same convention as
+    `OP_DIV` and `OP_2DIV`, and there is a test asserting all three agree.
+  - **Oversized counts** — right shift past the bit length is `0` (not an error); left
+    shift raises overflow, bounded *before* shifting (`current_size + shift_bytes >
+    max_length`) so a huge count cannot allocate a huge number on its way to rejection.
+  - **Result encoding** — minimal, via the script-number encoder, bounded by the
+    script-number width.
+
+### Note on the conformance corpus
+
+The independent Chronicle corpus in `@smartledger/bsv-core` pins *that* library's
+fail-closed choice for these bytes, so it now reports 6 differences against this one —
+all of them cases where this library matches SV Node and the corpus does not, including
+a shrinking rather than growing set of divergences from Bitcoin Core. `CHRONICLE.md`
+there reaches the same conclusion 7.6.0 did and is equally out of date; the node source
+settles it.
+
+17 → 26 tests in `test/script/chronicle.js`, each mapped to a specific line of the C++.
+Suite 4629 → 4638.
+
 ## [7.7.0] - 2026-08-10
 
 Completes the BSV **Chronicle** script surface. 7.6.0 fixed the opcode *numbering*

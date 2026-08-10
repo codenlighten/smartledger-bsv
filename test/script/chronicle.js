@@ -164,6 +164,102 @@ describe('Chronicle script surface', function () {
     })
   })
 
+  // Ported from SV Node src/script/interpreter.cpp (OP_LSHIFTNUM / OP_RSHIFTNUM) and
+  // the CScriptNum / bsv::bint arithmetic behind it. Each case below corresponds to a
+  // specific line of that implementation, so a divergence shows up as a named failure.
+  describe('OP_LSHIFTNUM / OP_RSHIFTNUM', function () {
+    // Push x then n then the opcode: the node's comment is literally `(x n -- out)`,
+    // so the COUNT is on top.
+    function shift (x, n, op, flags) {
+      return run(function (s) {
+        s.add(new BN(x).toScriptNumBuffer()).add(new BN(n).toScriptNumBuffer()).add(op)
+      }, { flags: flags == null ? CHRONICLE : flags })
+    }
+    function value (x, n, op) {
+      var r = shift(x, n, op)
+      return r.stack[r.stack.length - 1]
+    }
+    // A zero result makes the script fail EVAL_FALSE, so compare against OP_0 instead.
+    function isZero (x, n, op) {
+      return run(function (s) {
+        s.add(new BN(x).toScriptNumBuffer()).add(new BN(n).toScriptNumBuffer()).add(op)
+          .add(Opcode.OP_0).add(Opcode.OP_EQUAL)
+      }).verified
+    }
+
+    it('are upgradable NOPs before Chronicle, as the node has them', function () {
+      // if(!utxo_after_chronicle) { ... else break; }  — a no-op, NOT an error.
+      // Rejecting here would refuse scripts the network accepts.
+      var r = shift(8, 1, Opcode.OP_LSHIFTNUM, 0)
+      r.verified.should.equal(true)
+      r.stack.should.deep.equal(['8', '1']) // untouched: no shift, nothing popped
+    })
+
+    it('honour DISCOURAGE_UPGRADABLE_NOPS before Chronicle', function () {
+      var r = shift(8, 1, Opcode.OP_LSHIFTNUM, Interpreter.SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS)
+      r.verified.should.equal(false)
+      r.errstr.should.match(/DISCOURAGE_UPGRADABLE_NOPS/)
+    })
+
+    it('left shift multiplies by 2^n, carrying the sign', function () {
+      value(1, 4, Opcode.OP_LSHIFTNUM).should.equal('16')
+      value(3, 3, Opcode.OP_LSHIFTNUM).should.equal('24')
+      value(1, 0, Opcode.OP_LSHIFTNUM).should.equal('1')
+      value(-1, 4, Opcode.OP_LSHIFTNUM).should.equal('-16')
+      value(-3, 3, Opcode.OP_LSHIFTNUM).should.equal('-24')
+    })
+
+    it('right shift TRUNCATES TOWARD ZERO, which is the whole of "preserving sign"', function () {
+      // The node spells this out: "Mathematical division by 2^bit_shift, rounding
+      // toward zero ... For negative values: n / 2^k = -((-n) >> k)". A two's
+      // complement arithmetic shift would FLOOR instead, giving -3 and -4 here.
+      value(-5, 1, Opcode.OP_RSHIFTNUM).should.equal('-2')
+      value(-7, 1, Opcode.OP_RSHIFTNUM).should.equal('-3')
+      value(5, 1, Opcode.OP_RSHIFTNUM).should.equal('2')
+      value(-1000, 3, Opcode.OP_RSHIFTNUM).should.equal('-125')
+    })
+
+    it('agrees with OP_DIV by 2^n, the same convention as OP_2DIV', function () {
+      [5, -5, 7, -7, 1000, -1000].forEach(function (x) {
+        var viaShift = value(x, 1, Opcode.OP_RSHIFTNUM)
+        var viaDiv = run(function (s) {
+          s.add(new BN(x).toScriptNumBuffer()).add(new BN(2).toScriptNumBuffer()).add(Opcode.OP_DIV)
+        })
+        viaShift.should.equal(viaDiv.stack[viaDiv.stack.length - 1])
+      })
+    })
+
+    it('rejects a negative shift count', function () {
+      // if(n < 0) return SCRIPT_ERR_INVALID_NUMBER_RANGE
+      ;[Opcode.OP_LSHIFTNUM, Opcode.OP_RSHIFTNUM].forEach(function (op) {
+        var r = shift(8, -1, op)
+        r.verified.should.equal(false)
+        r.errstr.should.match(/INVALID_NUMBER_RANGE/)
+      })
+    })
+
+    it('right shift past the bit length is zero, not an error', function () {
+      isZero(5, 1000, Opcode.OP_RSHIFTNUM).should.equal(true)
+      isZero(-5, 1000, Opcode.OP_RSHIFTNUM).should.equal(true) // and no negative zero
+      isZero(1, 1, Opcode.OP_RSHIFTNUM).should.equal(true)
+      isZero(-1, 1, Opcode.OP_RSHIFTNUM).should.equal(true)
+    })
+
+    it('left shift overflows rather than growing without bound', function () {
+      // CScriptNum bounds this BEFORE shifting (current_size + shift_bytes >
+      // max_length), so a huge count cannot allocate a huge number first.
+      var r = shift(5, 1000, Opcode.OP_LSHIFTNUM)
+      r.verified.should.equal(false)
+      r.errstr.should.match(/OVERFLOW/)
+    })
+
+    it('fails on a short stack', function () {
+      var r = run(function (s) { s.add(new BN(1).toScriptNumBuffer()).add(Opcode.OP_LSHIFTNUM) })
+      r.verified.should.equal(false)
+      r.errstr.should.match(/INVALID_STACK_OPERATION/)
+    })
+  })
+
   describe('SIGHASH_CHRONICLE selects the original digest algorithm', function () {
     function fixture () {
       var key = bsv.PrivateKey.fromBuffer(Buffer.alloc(32, 5))
