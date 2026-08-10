@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.6.0] - 2026-08-10
+
+### Fixed (consensus)
+
+- **Bytes 182/183 verified scripts that did nothing.** Chronicle reassigns five
+  bytes and the spec fixes the mapping itself by naming which NOP each one used to
+  be — 179 `OP_SUBSTR` (was `OP_NOP4`) … 182 `OP_LSHIFTNUM` (was `OP_NOP7`), 183
+  `OP_RSHIFTNUM` (was `OP_NOP8`). This table instead slid the NOP names *upward*,
+  which put `OP_NOP4`/`OP_NOP5` on the shift opcodes' bytes and invented
+  `OP_NOP8`–`OP_NOP10` at 186–188, three bytes that are not opcodes at all.
+
+  The consequence was the worst kind of bug: byte 182 parsed as an upgradable NOP,
+  so a script using `OP_LSHIFTNUM` **verified as true with both operands still on
+  the stack** — a shift that never happened, reported as success. Not an error: a
+  wrong answer, from a validation library, on a consensus path. A Chronicle node
+  evaluating the same script computes a shifted value.
+
+  ```
+  before: byte 182 with 08 01 on the stack -> verifies TRUE, stack unchanged
+  after:  byte 182 -> SCRIPT_ERR_BAD_OPCODE
+          byte 183 -> SCRIPT_ERR_BAD_OPCODE
+          byte 184 -> no-op (OP_NOP9)      byte 185 -> no-op (OP_NOP10)
+          bytes 186+ -> SCRIPT_ERR_BAD_OPCODE
+  ```
+
+  **The shift semantics are deliberately NOT implemented.** The published spec is one
+  sentence and leaves at least four things undetermined — operand order, what
+  "preserving sign" means for sign-magnitude script numbers, out-of-range shift
+  counts, and result encoding. Guessing any of them produces confident wrong answers,
+  which is the failure mode this entry begins with. Refusing to validate is safe;
+  validating wrongly is not.
+
+### Breaking
+
+`Opcode.OP_NOP4` … `OP_NOP8` no longer exist — Chronicle reassigned their bytes.
+`OP_NOP9`/`OP_NOP10` move from 187/188 to their real numbers 184/185, and 186–188
+are unassigned. Scripts using bytes 182/183 or 186–188 are now rejected instead of
+treated as no-ops.
+
+The vendored `script_tests.json` is untouched: the test harness resolves Core's
+`NOP4`..`NOP8` names to **Core's bytes**, so each vector still assembles the exact
+script Core meant and the divergence is recorded rather than hidden. Ten vectors move
+into `BSV_DIVERGENCES`; one (`1 0xba`) moves *out*, because 186 is now unassigned here
+as it is in Core — this change removes a divergence as well as adding them.
+
+Cross-checked against the independent Chronicle conformance suite in
+`@smartledger/bsv-core`: divergences fall **25 → 14**, and
+`bitcoind script_tests: divergence from Core is exactly the known set` now passes, so
+this library's Core-divergence set matches that implementation's exactly. The 14
+remaining are `SCRIPT_ENABLE_CHRONICLE`-gated features (`OP_2MUL`, `OP_2DIV`,
+`OP_VER`, `OP_VERIF`, `OP_VERNOTIF`, the `0x20` sighash flag) that this library does
+not implement at all — a separate piece of work, not a defect.
+
+Suite 4603 → 4604.
+
 ## [7.5.8] - 2026-08-07
 
 ### Fixed

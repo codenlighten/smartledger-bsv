@@ -83,15 +83,40 @@ describe('Opcode', function () {
   })
 
   describe('@map', function () {
-    it('should have a map containing 121 elements', function () {
-      Object.keys(Opcode.map).length.should.equal(121)
+    it('should have a map containing 118 elements', function () {
+      Object.keys(Opcode.map).length.should.equal(118)
     })
   })
 
   describe('@reverseMap', function () {
     it('should exist and have op 185', function () {
       should.exist(Opcode.reverseMap)
-      Opcode.reverseMap[185].should.equal('OP_NOP7')
+      Opcode.reverseMap[185].should.equal('OP_NOP10')
+    })
+
+    // Chronicle reassigns 179-183 and names which NOP each byte used to be, so
+    // OP_NOP4..OP_NOP8 cease to exist and OP_NOP9/OP_NOP10 keep their own numbers.
+    // Pinning the whole range by name catches a future edit sliding them again —
+    // which is how 182 came to parse as a no-op and verify a shift that never ran.
+    it('assigns the Chronicle range exactly, with no invented NOPs above it', function () {
+      var expected = {
+        179: 'OP_SUBSTR',
+        180: 'OP_LEFT',
+        181: 'OP_RIGHT',
+        182: 'OP_LSHIFTNUM',
+        183: 'OP_RSHIFTNUM',
+        184: 'OP_NOP9',
+        185: 'OP_NOP10'
+      }
+      Object.keys(expected).forEach(function (b) {
+        Opcode.reverseMap[b].should.equal(expected[b])
+      })
+      ;[186, 187, 188].forEach(function (b) {
+        should.not.exist(Opcode.reverseMap[b])
+      })
+      ;['OP_NOP4', 'OP_NOP5', 'OP_NOP6', 'OP_NOP7', 'OP_NOP8'].forEach(function (n) {
+        should.not.exist(Opcode.map[n])
+      })
     })
   })
   var smallints = [

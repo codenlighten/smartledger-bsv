@@ -701,10 +701,11 @@ describe('Script', function () {
 
   describe('#add and #prepend', function () {
     it('should add these ops', function () {
-      // 186 (0xba) is OP_NOP8 in this build's opcode table — the NOPs are
-      // shifted up by 3 to make room for the OP_SUBSTR/OP_LEFT/OP_RIGHT string
-      // ops at 0xb3-0xb5 (see lib/opcode.js) — so it disassembles by name.
-      Script().add(1).add(10).add(186).toString().should.equal('0x01 0x0a OP_NOP8')
+      // 185 (0xb9) is OP_NOP10, the highest byte Chronicle still assigns, so it
+      // disassembles by name. 186 is unassigned and renders as a raw byte — the
+      // NOP names are no longer slid upward past 185 (see lib/opcode.js).
+      Script().add(1).add(10).add(185).toString().should.equal('0x01 0x0a OP_NOP10')
+      Script().add(1).add(10).add(186).toString().should.equal('0x01 0x0a 0xba')
       Script().add(1000).toString().should.equal('0x03e8')
       Script().add('OP_CHECKMULTISIG').toString().should.equal('OP_CHECKMULTISIG')
       Script().add('OP_1').add('OP_2').toString().should.equal('OP_1 OP_2')
