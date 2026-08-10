@@ -5,8 +5,8 @@
   ],
   "lastVerifiedBy": "v7.10.1",
   "node": "v22.23.2",
-  "suiteCount": 12,
-  "caseCount": 424,
+  "suiteCount": 13,
+  "caseCount": 452,
   "rejectCount": 76,
   "suites": [
     {
@@ -53,6 +53,11 @@
       "suite": "keys",
       "cases": 42,
       "throws": 16
+    },
+    {
+      "suite": "networks",
+      "cases": 28,
+      "throws": 0
     },
     {
       "suite": "script",
