@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.7.1] - 2026-08-10
+
+Bundle-only re-release of 7.7.0. No source, API or behaviour change.
+
+The 16 browser bundles shipped in 7.7.0 were built from a stale local
+`node_modules` holding `bn.js@4.12.3` while the lockfile pins `4.12.5`, so they
+were not reproducible from the declared dependencies and the repository's
+bundle-parity gate was red at merge. They are rebuilt here against the locked
+set.
+
+Functionally nothing moves — 4.12.3 and 4.12.5 were differential-tested at
+11,071 checks with zero differences (`docs/BN_JS_V5_REVIEW.md`), and only
+esbuild's identifier mangling differs. This restores **reproducibility**, not
+correctness. Node consumers were never affected; `lib/` was always built from
+source.
+
+Published under the `bundles-7.7` dist-tag so `latest` continues to point at the
+newest release.
+
 ## [7.7.0] - 2026-08-10
 
 Completes the BSV **Chronicle** script surface. 7.6.0 fixed the opcode *numbering*
