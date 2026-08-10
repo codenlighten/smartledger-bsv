@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.6.1] - 2026-08-10
+
+Three call-shape defects, each found by the TypeScript compiler objecting during the
+`bsv-core` port. Two were live. Each was reproduced against the published package
+before being fixed.
+
+### Fixed
+
+- **`Transaction#fromObject` threw when given a Transaction.** The branch that exists
+  specifically to accept one read `transaction.toObject()` — the variable declared on
+  the line above and still `undefined` — instead of `arg.toObject()`. So the only input
+  the `checkArgument` directly above it explicitly admits was the only one that could
+  not work:
+
+  ```
+  new bsv.Transaction().fromObject(someTransaction)
+  TypeError: Cannot read properties of undefined (reading 'toObject')
+  ```
+
+  Nothing caught it because the plain-object branch is what every caller and every test
+  uses — it is what `toObject()`/`toJSON()` produce and what the docs show. The
+  `instanceof` branch was dead in practice.
+
+- **`OP_CHECKSEQUENCEVERIFY` failed every script it appeared in.** `checkSequence`
+  masked with `nSequence.and(nLockTimeMask)` where the mask is a plain number; bn.js
+  `and` requires a BN, so it threw `num.clone is not a function`. The interpreter's
+  `try`/`catch` swallowed that and reported `SCRIPT_ERR_UNKNOWN_ERROR`, so CSV scripts
+  failed with a misleading error rather than a verdict. The line immediately above does
+  the same masking correctly with JS numbers.
+
+  Scoped: reachable only with `SCRIPT_VERIFY_CHECKSEQUENCEVERIFY` set. Genesis reverted
+  CSV to `OP_NOP3` on BSV and the flag is off by default, so this affected callers
+  emulating pre-Genesis rules rather than normal BSV validation. `CHECKLOCKTIMEVERIFY`
+  was checked and does not share the defect.
+
+- **`sFromPreimage` called bn.js's native `toBuffer` signature** — `s.toBuffer('be', 32)`
+  — against the options-object form that `lib/crypto/bn.js` substitutes, so `'be'` landed
+  in `opts` and the length was ignored.
+
+  **Latent, not live**, and the reasoning is worth recording because it is not obvious:
+  `z` is filtered to a leading byte of `0x01..0x7f`, so `z` is in `[2**248, 2**255)`;
+  adding `Gx` (~0.476 · 2**256) never wraps; and the low-S check caps the result at
+  `n/2`. `s` therefore always lands in a band with a leading byte of `0x7a..0x7f` and is
+  always 32 bytes — verified over 62,000 candidates. Fixed anyway, because that safety
+  is an accident of two filters that have nothing to do with buffer length: widen the
+  MINIMALDATA range or drop low-S and the truncation becomes reachable, silently, inside
+  a covenant whose `DER_PREFIX` declares `s` to be exactly 32 bytes. `grind` now checks
+  the length rather than truthiness, since a short `s` would be truthy.
+
+Cross-checked against the independent Chronicle conformance corpus in
+`@smartledger/bsv-core`: divergences unchanged at 14/442, so none of this moved
+observable behaviour anywhere else. Suite 4604 → 4612.
+
 ## [7.6.0] - 2026-08-10
 
 ### Fixed (consensus)
