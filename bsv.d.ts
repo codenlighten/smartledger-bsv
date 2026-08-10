@@ -371,6 +371,21 @@ declare module '@smartledger/bsv' {
              * Off by default — enabling it changes script evaluation.
              */
             const SCRIPT_ENABLE_CHRONICLE: number;
+            /** Block height at which Chronicle activated on BSV mainnet (2026-04-07). */
+            const CHRONICLE_ACTIVATION_HEIGHT: number;
+            /**
+             * Script-verification flags matching BSV mainnet consensus.
+             *
+             * `verify()` itself defaults to no flags — a validator should state the
+             * consensus context it is validating against. This assembles that context
+             * correctly so callers do not have to.
+             *
+             * `afterChronicle` defaults to true; pass false to validate the spend of a
+             * pre-activation UTXO, which is the distinction the node makes per input.
+             * Note that script-number and element-size limits are statics raised by
+             * `useGenesisLimits()`, not flags.
+             */
+            function mainnetFlags(opts?: { afterChronicle?: boolean }): number;
 
             // Pre-Genesis consensus caps (defaults: 520 / 4 / 201 / 10,000).
             // Mutable: see useGenesisLimits() for a one-call opt-in.

@@ -56,8 +56,37 @@ describe('Chronicle script surface', function () {
       })
     })
 
-    it('is off by default, so none of this changes existing evaluation', function () {
-      (Interpreter.DEFAULT_FLAGS & CHRONICLE).should.equal(0)
+    // This assertion used to read `(Interpreter.DEFAULT_FLAGS & CHRONICLE).should.equal(0)`
+    // — and Interpreter.DEFAULT_FLAGS does not exist, so it evaluated `undefined & n`,
+    // which is 0 for every n. A tautology, written by me, in the same change that added
+    // the flag. What it MEANT to assert is that verify() enables nothing on its own.
+    it('is not enabled unless the caller asks: verify() defaults to no flags', function () {
+      // Deliberately NOT via run(): that helper defaults to CHRONICLE, so it would
+      // measure the helper rather than the library. Omit the argument entirely.
+      var script = new Script().add(Opcode.OP_VER)
+      var interp = new Interpreter()
+      var verified = interp.verify(new Script(), script, new bsv.Transaction(), 0)
+      verified.should.equal(false)
+      interp.errstr.should.match(/BAD_OPCODE/)
+    })
+
+    it('mainnetFlags() opts in, and can opt out for a pre-activation UTXO', function () {
+      // Chronicle gates PER UTXO in the node (`utxo_after_chronicle`), so the library
+      // cannot decide this globally — it can only make both answers easy to express.
+      (Interpreter.mainnetFlags() & CHRONICLE).should.not.equal(0)
+      ;(Interpreter.mainnetFlags({ afterChronicle: false }) & CHRONICLE).should.equal(0)
+      Interpreter.CHRONICLE_ACTIVATION_HEIGHT.should.equal(943816)
+    })
+
+    it('mainnetFlags() actually evaluates a Chronicle script', function () {
+      var r = run(function (s) { s.add(Opcode.OP_VER) },
+        { flags: Interpreter.mainnetFlags(), version: 7 })
+      r.stack[r.stack.length - 1].should.equal('7')
+
+      var pre = run(function (s) { s.add(Opcode.OP_VER) },
+        { flags: Interpreter.mainnetFlags({ afterChronicle: false }), version: 7 })
+      pre.verified.should.equal(false)
+      pre.errstr.should.match(/BAD_OPCODE/)
     })
   })
 
