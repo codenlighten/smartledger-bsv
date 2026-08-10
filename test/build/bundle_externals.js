@@ -68,9 +68,13 @@ describe('feature bundles externalise the shared primitives', function () {
   // from an externalised entry would bundle a second copy silently, with every existing
   // test green.
   it('contains only its own feature code, pinned per bundle', function () {
-    // Accepted in any bundle: a tiny lodash subset with no library state, deliberately
-    // duplicated rather than routed through the global.
-    var SHARED = ['lib/util/']
+    // Accepted in any bundle: stateless helpers, deliberately duplicated rather than
+    // routed through the global.
+    //
+    // Named FILES, not the directory. `lib/util/` as a prefix exempts anything added
+    // under it later, including something stateful — which is the property this test
+    // exists to prevent. Listing them means a new util file has to be considered.
+    var SHARED = ['lib/util/_.js', 'lib/util/preconditions.js', 'lib/util/js.js']
     var EXPECTED = {
       'bsv-ecies.min.js': ['lib/ecies/'],
       'bsv-message.min.js': ['lib/message/'],
