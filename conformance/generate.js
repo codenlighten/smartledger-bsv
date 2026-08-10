@@ -28,6 +28,44 @@ function parseArgs (argv) {
   return args
 }
 
+/**
+ * Derive the manifest from every fixture ON DISK, not from the suites just generated.
+ *
+ * Writing it from the filtered list meant `--suite=hash --force` — the documented
+ * single-suite flow — replaced the whole-corpus manifest with `suiteCount: 1`,
+ * discarding the record of the other ten suites. That matters more than it looks: the
+ * manifest is the only artifact that would reveal a fixture had gone missing, and this
+ * was the routine that erased the evidence. Each fixture carries its own `generatedBy`,
+ * so provenance survives per suite as the corpus is regenerated piecemeal.
+ */
+function buildManifest (bsv) {
+  var files = fs.readdirSync(FIXTURES_DIR)
+    .filter(function (f) { return f.endsWith('.json') && f !== 'MANIFEST.json' })
+    .sort()
+  var suites = []
+  var caseCount = 0
+  var rejectCount = 0
+  var generatedBy = {}
+  files.forEach(function (f) {
+    var fx = JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, f), 'utf8'))
+    var cases = fx.cases || {}
+    var throws = Object.keys(cases).filter(function (k) { return cases[k].outcome === 'throws' }).length
+    suites.push({ suite: fx.suite, cases: Object.keys(cases).length, throws: throws })
+    caseCount += Object.keys(cases).length
+    rejectCount += throws
+    if (fx.generatedBy) generatedBy[fx.generatedBy] = true
+  })
+  return {
+    generatedBy: Object.keys(generatedBy).sort(),
+    lastVerifiedBy: bsv.version || '(unknown)',
+    node: process.version,
+    suiteCount: suites.length,
+    caseCount: caseCount,
+    rejectCount: rejectCount,
+    suites: suites
+  }
+}
+
 async function main () {
   const args = parseArgs(process.argv)
   const libPath = args.lib ? path.resolve(args.lib) : path.join(__dirname, '..', 'index.js')
@@ -92,14 +130,7 @@ async function main () {
 
   fs.writeFileSync(
     path.join(FIXTURES_DIR, 'MANIFEST.json'),
-    JSON.stringify({
-      generatedBy: bsv.version || '(unknown)',
-      node: process.version,
-      suiteCount: suites.length,
-      caseCount: totalCases,
-      rejectCount: totalThrows,
-      suites: summary
-    }, null, 2) + '\n'
+    JSON.stringify(buildManifest(bsv), null, 2) + '\n'
   )
 
   console.log('')

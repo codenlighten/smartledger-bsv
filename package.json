@@ -31,6 +31,7 @@
     "./vcjwt": "./vcjwt-entry.js",
     "./lib/anchor": "./lib/anchor/index.js",
     "./lib/block": "./lib/block/index.js",
+    "./lib/covenant": "./lib/covenant/index.js",
     "./lib/didweb": "./lib/didweb/index.js",
     "./lib/ecies": "./lib/ecies/index.js",
     "./lib/errors": "./lib/errors/index.js",

@@ -1,6 +1,6 @@
 {
   "suite": "interpreter",
-  "generatedBy": "v7.5.5",
+  "generatedBy": "v7.9.0",
   "caseCount": 15,
   "cases": {
     "bitcoind script_tests (all)": {
@@ -590,10 +590,10 @@
         "581:fail:agrees:EVAL_FALSE",
         "582:fail:agrees:EVAL_FALSE",
         "583:fail:agrees:BAD_OPCODE",
-        "584:fail:agrees:BAD_OPCODE",
-        "585:fail:agrees:BAD_OPCODE",
-        "586:fail:agrees:BAD_OPCODE",
-        "587:fail:agrees:BAD_OPCODE",
+        "584:pass:DISAGREES:BAD_OPCODE",
+        "585:pass:DISAGREES:BAD_OPCODE",
+        "586:pass:DISAGREES:BAD_OPCODE",
+        "587:pass:DISAGREES:BAD_OPCODE",
         "588:fail:agrees:UNBALANCED_CONDITIONAL",
         "589:fail:agrees:UNBALANCED_CONDITIONAL",
         "590:fail:agrees:UNBALANCED_CONDITIONAL",
@@ -1027,7 +1027,7 @@
         "1018:fail:agrees:BAD_OPCODE",
         "1019:fail:agrees:BAD_OPCODE",
         "1020:fail:agrees:BAD_OPCODE",
-        "1021:pass:DISAGREES:BAD_OPCODE",
+        "1021:fail:agrees:BAD_OPCODE",
         "1022:fail:agrees:UNKNOWN_ERROR",
         "1023:fail:agrees:UNKNOWN_ERROR",
         "1024:fail:agrees:UNKNOWN_ERROR",
@@ -1345,6 +1345,10 @@
       "outcome": "ok",
       "value": {
         "cases": [
+          "584:BAD_OPCODE:VERIF illegal everywhere",
+          "585:BAD_OPCODE:VERIF illegal everywhere",
+          "586:BAD_OPCODE:VERNOTIF illegal everywhere",
+          "587:BAD_OPCODE:VERNOTIF illegal everywhere",
           "663:DISABLED_OPCODE:CAT disabled",
           "665:DISABLED_OPCODE:CAT disabled",
           "667:DISABLED_OPCODE:SPLIT disabled",
@@ -1357,10 +1361,9 @@
           "750:DISABLED_OPCODE:DIV disabled",
           "752:DISABLED_OPCODE:MOD disabled",
           "904:DISABLED_OPCODE:disabled",
-          "910:DISABLED_OPCODE:disabled",
-          "1021:BAD_OPCODE:0xba === FIRST_UNDEFINED_OP_VALUE"
+          "910:DISABLED_OPCODE:disabled"
         ],
-        "count": 14
+        "count": 17
       }
     },
     "castToBool cases": {
@@ -1582,6 +1585,7 @@
     "verify flag values": {
       "outcome": "ok",
       "value": {
+        "SCRIPT_ENABLE_CHRONICLE": 1048576,
         "SCRIPT_ENABLE_MAGNETIC_OPCODES": 524288,
         "SCRIPT_ENABLE_MONOLITH_OPCODES": 262144,
         "SCRIPT_ENABLE_REPLAY_PROTECTION": 131072,

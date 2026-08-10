@@ -1,6 +1,6 @@
 {
   "suite": "hash",
-  "generatedBy": "v7.5.5",
+  "generatedBy": "v7.9.0",
   "caseCount": 42,
   "cases": {
     "hmac rejects string key": {
