@@ -74,7 +74,12 @@ describe('feature bundles externalise the shared primitives', function () {
     // Named FILES, not the directory. `lib/util/` as a prefix exempts anything added
     // under it later, including something stateful — which is the property this test
     // exists to prevent. Listing them means a new util file has to be considered.
-    var SHARED = ['lib/util/_.js', 'lib/util/preconditions.js', 'lib/util/js.js']
+    //
+    // And listing ONLY what is actually embedded, for the same reason: naming a file
+    // that no bundle pulls in pre-approves it, so the consideration never happens.
+    // Measured — `lib/util/_.js` is the only one today. If a bundle starts needing
+    // another, this line should change in the same commit that causes it.
+    var SHARED = ['lib/util/_.js']
     var EXPECTED = {
       'bsv-ecies.min.js': ['lib/ecies/'],
       'bsv-message.min.js': ['lib/message/'],
