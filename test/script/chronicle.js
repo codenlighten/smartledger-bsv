@@ -114,32 +114,75 @@ describe('Chronicle script surface', function () {
   })
 
   describe('OP_VERIF / OP_VERNOTIF', function () {
-    it('are BAD_OPCODE without the flag EVEN IN AN UNEXECUTED BRANCH', function () {
-      // A rule Bitcoin applies to no other opcode, which is why the flag check sits
-      // outside the fExec guard. If it moved inside, this script would pass.
-      var r = run(function (s) {
+    it('without the flag, errors only in an EXECUTED branch', function () {
+      // Core treats OP_VERIF as illegal everywhere, including unexecuted
+      // branches — a rule it applies to no other opcode. BSV dropped that at
+      // Genesis, and the node is explicit:
+      //
+      //   if(!utxo_after_chronicle) {
+      //     if(utxo_after_genesis && !fExec) break;
+      //     else return SCRIPT_ERR_BAD_OPCODE;
+      //   }
+      //
+      // Asserting BAD_OPCODE here made this library reject scripts the network
+      // accepts.
+      var unexecuted = run(function (s) {
         s.add(Opcode.OP_0).add(Opcode.OP_IF).add(Opcode.OP_VERIF).add(Opcode.OP_ENDIF).add(Opcode.OP_1)
       }, { flags: 0 })
-      r.verified.should.equal(false)
-      r.errstr.should.match(/BAD_OPCODE/)
+      unexecuted.verified.should.equal(true)
+
+      var executed = run(function (s) {
+        s.add(Opcode.OP_1).add(Opcode.OP_VERIF).add(Opcode.OP_ENDIF)
+      }, { flags: 0 })
+      executed.verified.should.equal(false)
+      executed.errstr.should.match(/BAD_OPCODE/)
     })
 
-    it('OP_VERIF takes the branch when the top of stack equals the tx version', function () {
+    // The comparison is BYTE-WISE against the four little-endian version
+    // bytes, not numeric:
+    //
+    //   if(vch.size() == 4) { to_le(checker.Version(), val.data());
+    //                         fValue = std::ranges::equal(val, vch); }
+    //
+    // So a 1-byte script number never matches, however equal it looks
+    // numerically, and the idiomatic form is `OP_VER OP_VERIF`.
+    var LE = function (v) {
+      var b = Buffer.alloc(4)
+      b.writeInt32LE(v, 0)
+      return b
+    }
+
+    it('OP_VERIF takes the branch on a 4-byte little-endian version match', function () {
       var taken = run(function (s) {
-        s.add(new BN(2).toScriptNumBuffer()).add(Opcode.OP_VERIF).add(Opcode.OP_1).add(Opcode.OP_ENDIF)
+        s.add(LE(2)).add(Opcode.OP_VERIF).add(Opcode.OP_1).add(Opcode.OP_ENDIF)
       }, { version: 2 })
       taken.verified.should.equal(true)
 
       var notTaken = run(function (s) {
-        s.add(new BN(9).toScriptNumBuffer()).add(Opcode.OP_VERIF).add(Opcode.OP_1).add(Opcode.OP_ENDIF).add(Opcode.OP_1)
+        s.add(LE(9)).add(Opcode.OP_VERIF).add(Opcode.OP_1).add(Opcode.OP_ENDIF).add(Opcode.OP_1)
       }, { version: 2 })
       notTaken.verified.should.equal(true)
       notTaken.stack.length.should.equal(1) // only the trailing OP_1
     })
 
+    it('a numerically-equal operand of the wrong LENGTH does not match', function () {
+      var r = run(function (s) {
+        s.add(new BN(2).toScriptNumBuffer()).add(Opcode.OP_VERIF).add(Opcode.OP_1).add(Opcode.OP_ENDIF).add(Opcode.OP_1)
+      }, { version: 2 })
+      r.verified.should.equal(true)
+      r.stack.length.should.equal(1) // branch NOT taken
+    })
+
+    it('OP_VER feeds OP_VERIF directly', function () {
+      var r = run(function (s) {
+        s.add(Opcode.OP_VER).add(Opcode.OP_VERIF).add(Opcode.OP_1).add(Opcode.OP_ENDIF)
+      }, { version: 2 })
+      r.verified.should.equal(true)
+    })
+
     it('OP_VERNOTIF is its negation', function () {
       var r = run(function (s) {
-        s.add(new BN(9).toScriptNumBuffer()).add(Opcode.OP_VERNOTIF).add(Opcode.OP_1).add(Opcode.OP_ENDIF)
+        s.add(LE(9)).add(Opcode.OP_VERNOTIF).add(Opcode.OP_1).add(Opcode.OP_ENDIF)
       }, { version: 2 })
       r.verified.should.equal(true)
     })

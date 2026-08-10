@@ -649,6 +649,14 @@ describe('Interpreter', function () {
   //    (0xba is no longer a NOP either; it is unassigned, which now AGREES with
   //    Core, so its former override has been removed.)
   var BSV_DIVERGENCES = {
+    //  - OP_VERIF/OP_VERNOTIF are "illegal everywhere" in Core, including in an
+    //    unexecuted branch — a rule it applies to no other opcode. BSV dropped
+    //    that at Genesis: the node breaks when the branch is not executed and
+    //    the UTXO predates Chronicle. So these four verify here.
+    '0|IF VERIF ELSE 1 ENDIF|P2SH,STRICTENC': 'OK',
+    '0|IF ELSE 1 ELSE VERIF ENDIF|P2SH,STRICTENC': 'OK',
+    '0|IF VERNOTIF ELSE 1 ENDIF|P2SH,STRICTENC': 'OK',
+    '0|IF ELSE 1 ELSE VERNOTIF ENDIF|P2SH,STRICTENC': 'OK',
     "'a' 'b'|CAT|P2SH,STRICTENC": 'OK',
     "'a' 'b' 0|IF CAT ELSE 1 ENDIF|P2SH,STRICTENC": 'OK',
     "'abc' 1|SPLIT|P2SH,STRICTENC": 'OK',
@@ -661,15 +669,10 @@ describe('Interpreter', function () {
     '2 2 0 IF DIV ELSE 1 ENDIF|NOP|P2SH,STRICTENC': 'OK',
     '2 2 0 IF MOD ELSE 1 ENDIF|NOP|P2SH,STRICTENC': 'OK',
     '2 DUP DIV|1 EQUAL|P2SH,STRICTENC': 'OK',
-    '7 3 MOD|1 EQUAL|P2SH,STRICTENC': 'OK',
+    '7 3 MOD|1 EQUAL|P2SH,STRICTENC': 'OK'
 
     // Chronicle byte reassignment (see the note above). Values are the BSV error,
     // recorded for documentation; the harness only distinguishes 'OK' from not-'OK'.
-    '1|NOP1 CHECKLOCKTIMEVERIFY CHECKSEQUENCEVERIFY NOP4 NOP5 NOP6 NOP7 NOP8 NOP9 NOP10 1 EQUAL|P2SH,STRICTENC': 'SCRIPT_ERR_INVALID_STACK_OPERATION',
-    "'NOP_1_to_10' NOP1 CHECKLOCKTIMEVERIFY CHECKSEQUENCEVERIFY NOP4 NOP5 NOP6 NOP7 NOP8 NOP9 NOP10|'NOP_1_to_10' EQUAL|P2SH,STRICTENC": 'SCRIPT_ERR_INVALID_STACK_OPERATION',
-    'NOP|NOP4 1|P2SH,STRICTENC': 'SCRIPT_ERR_INVALID_STACK_OPERATION',
-    'NOP|NOP5 1|P2SH,STRICTENC': 'SCRIPT_ERR_INVALID_STACK_OPERATION',
-    'NOP|NOP6 1|P2SH,STRICTENC': 'SCRIPT_ERR_INVALID_STACK_OPERATION'
   }
 
   describe('bitcoind script evaluation fixtures', function () {
