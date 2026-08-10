@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.7.0] - 2026-08-10
+
+Completes the BSV **Chronicle** script surface. 7.6.0 fixed the opcode *numbering*
+so the reassigned bytes fail closed; this adds the behaviour behind an explicit
+`SCRIPT_ENABLE_CHRONICLE` flag.
+
+### Added
+
+- **`Interpreter.SCRIPT_ENABLE_CHRONICLE`** (`1 << 20`). Off by default — enabling it
+  changes script evaluation, so it is an opt-in exactly like the Monolith and Magnetic
+  flags.
+
+- **`OP_2MUL` / `OP_2DIV`**, restored behind the flag. Without it they remain
+  `SCRIPT_ERR_DISABLED_OPCODE`, and "disabled" is deliberately stronger than
+  "unimplemented": a disabled opcode fails the script even in an **unexecuted** branch,
+  which is why the gate lives in `isOpcodeDisabled` rather than the evaluation switch.
+  `OP_2DIV` truncates toward zero — `-5 OP_2DIV` is `-2`, not `-3` — so it agrees with
+  `x 2 OP_DIV`; pinned over negative and odd values, which is where a rounding change
+  would otherwise hide. (`bn.js` `shrn` is unusable here: it asserts on negatives.)
+
+- **`OP_VER` / `OP_VERIF` / `OP_VERNOTIF`**, behind the same flag. `OP_VER` pushes the
+  executing transaction's version. `OP_VERIF` is an `IF` whose condition is "top of
+  stack equals the transaction version", closed by `OP_ENDIF`; `OP_VERNOTIF` is its
+  negation.
+
+  Two details worth recording. Before Chronicle, `OP_VERIF`/`OP_VERNOTIF` are invalid
+  **even in an unexecuted branch** — a rule Bitcoin applies to no other opcode — so the
+  flag check sits deliberately *outside* the `fExec` guard, preserving it. And
+  `OP_VERIF` **pops** its operand, mirroring `OP_IF`: the spec describes the comparison
+  but not the stack effect, and an `IF` that left its condition behind would unbalance
+  every script using it. That is an inference, and it has its own test so a correction
+  surfaces as a failure.
+
+- **`Signature.SIGHASH_CHRONICLE`** (`0x20`), selecting the Original Transaction Digest
+  Algorithm. It **overrides** `SIGHASH_FORKID` rather than merely coexisting with it:
+  FORKID is set on essentially every BSV signature written since 2018, so a bit that
+  only applied when FORKID was absent could never select OTDA in practice. Gated on
+  `SCRIPT_ENABLE_CHRONICLE` because before the upgrade the `0x20` bit means nothing —
+  BIP-143 signatures already exist whose type byte happens to set it, and honouring it
+  unconditionally would silently reinterpret those as OTDA.
+
+### Verification
+
+17 new tests in `test/script/chronicle.js` pin both states: every feature above with
+the flag on, **and** the unchanged default with it off. Against the independent
+Chronicle conformance corpus in `@smartledger/bsv-core`, divergences fall **14 → 1**,
+and that one is Node echoing an assertion's source text (`assert(Buffer.isBuffer(buf))`
+vs `(Buffer.isBuffer(buf))`) — a difference in how the two codebases wrote the same
+check, not behaviour. Under the default comparison the corpus reports
+**PASS: 442/442**.
+
+Suite 4612 → 4629.
+
 ## [7.6.2] - 2026-08-10
 
 ### Changed

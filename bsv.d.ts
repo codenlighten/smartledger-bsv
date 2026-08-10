@@ -365,6 +365,12 @@ declare module '@smartledger/bsv' {
         function empty(): Script;
         namespace Interpreter {
             const SCRIPT_ENABLE_SIGHASH_FORKID: any;
+            /**
+             * Chronicle: restores OP_2MUL/OP_2DIV, gives OP_VER/OP_VERIF/OP_VERNOTIF
+             * meaning, and lets SIGHASH_CHRONICLE select the original digest.
+             * Off by default — enabling it changes script evaluation.
+             */
+            const SCRIPT_ENABLE_CHRONICLE: number;
 
             // Pre-Genesis consensus caps (defaults: 520 / 4 / 201 / 10,000).
             // Mutable: see useGenesisLimits() for a one-call opt-in.
