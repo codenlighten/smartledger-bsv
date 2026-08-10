@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.9.0] - 2026-08-10
+
+Five divergences from the SV Node source (checked at tag **v1.2.0**), and the
+consequence closing one of them exposed.
+
+### Fixed (consensus)
+
+- **`OP_SUBSTR`/`OP_LEFT`/`OP_RIGHT` ran unconditionally.** The node treats bytes
+  `0xb3`–`0xb5` as upgradable NOPs until Chronicle activates. This library executed
+  them regardless, consuming stack where the network does nothing — reachable today,
+  since those bytes are live NOPs.
+
+- **Out-of-range string-op arguments were clamped instead of rejected.** The node:
+  `if(offset < 0 || offset >= size || len < 0 || len > size - offset) return
+  SCRIPT_ERR_INVALID_NUMBER_RANGE`. Measured before the fix, `'hi' 1 9 OP_SUBSTR`
+  yielded `'i'` and the script **succeeded**. Note `offset >= size` is strict — a begin
+  index at the end is an error, not an empty result.
+
+- **`OP_VER` pushed a script number** where the node builds a `sizeof(tx_version)`
+  vector and `to_le`s into it: `01000000`, not `01`.
+
+- **`OP_VERIF` compared numerically.** The node requires exactly four bytes and
+  compares byte-wise (`if(vch.size() == 4) … std::ranges::equal(val, vch)`), so a
+  1-byte script number never matches however equal it looks. `OP_2 OP_VERIF` against
+  version 2 was true here and false on the node; `OP_VER OP_VERIF` is the idiomatic
+  form.
+
+- **`OP_VERIF` in an unexecuted branch returned `BAD_OPCODE`.** Core treats it as
+  illegal everywhere — a rule it applies to no other opcode — but BSV drops that at
+  Genesis and the node breaks instead. Asserting the Core rule made this library reject
+  scripts the network accepts. (This corrects an assertion added in 7.7.0.)
+
+Also taken from the source: MINIMALIF applies only to `OP_IF`/`OP_NOTIF`, never to the
+`OP_VER` family.
+
+### Consequence worth reading
+
+Closing the gating divergence surfaced something the old behaviour was hiding.
+`pushTxCore` emits `OP_RIGHT`/`OP_LEFT` — see `extractHashOutputs` and
+`assertSighashType` — so **OP_PUSH_TX covenants built by this library cannot be spent
+on a pre-Chronicle chain**. Confirmed end to end: an OrdLock purchase verifies with
+`SCRIPT_ENABLE_CHRONICLE` and fails `SCRIPT_ERR_EQUALVERIFY` without it.
+
+That was invisible *because* the interpreter ran the string opcodes unconditionally:
+the library was more permissive than the network, so the covenant and OrdLock suites
+passed against a validator that did not match consensus. `covenant_helpers.flags()` now
+sets the flag explicitly, so the dependency is stated rather than assumed. Whether that
+tooling should target pre- or post-activation is a product decision this does not make.
+
+### Breaking
+
+Scripts using `OP_SUBSTR`/`OP_LEFT`/`OP_RIGHT` now require `SCRIPT_ENABLE_CHRONICLE` to
+execute; without it they are no-ops, as on the network. Out-of-range arguments error
+rather than clamping. `OP_VER` pushes four bytes. `OP_VERIF` needs a 4-byte operand.
+
+With this release the independent conformance corpus in `@smartledger/bsv-core` — whose
+Chronicle fixtures have been regenerated against the same source — reports
+**PASS: 452/452** across all 13 suites. The two implementations agree completely.
+
+Suite 4638 → 4641.
+
 ## [7.8.0] - 2026-08-10
 
 `OP_LSHIFTNUM` / `OP_RSHIFTNUM` are implemented, and **7.6.0's fail-closed posture for
