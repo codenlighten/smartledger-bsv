@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.6.2] - 2026-08-10
+
+### Changed
+
+- `bn.js` 4.12.3 → 4.12.5 (patch within v4). Differential-tested against the real
+  `lib/crypto/bn.js` wrapper using the harness from `docs/BN_JS_V5_REVIEW.md`:
+  **11,071 checks, zero differences**, including ECDSA DER bytes, WIF, addresses,
+  script numbers and HD derivation. The exact pin is retained — it is load-bearing for
+  deduplication, and 4.12.5 is what the transitive `^4` consumers already resolve to,
+  so the browser bundle still inlines two copies rather than five. `bn.js` majors
+  remain ignored for the reasons in that review.
+
+Published so `main` and npm stay in step; no behaviour change.
+
 ## [7.6.1] - 2026-08-10
 
 Three call-shape defects, each found by the TypeScript compiler objecting during the
