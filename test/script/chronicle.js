@@ -35,7 +35,10 @@ function run (build, opts) {
   return {
     verified: verified,
     errstr: interp.errstr || '',
-    stack: (interp.stack || []).map(function (b) { return BN.fromScriptNumBuffer(b).toString() })
+    stack: (interp.stack || []).map(function (b) { return BN.fromScriptNumBuffer(b).toString() }),
+    // The raw bytes as well: several Chronicle behaviours are about WIDTH, not
+    // value, and a script-number reading collapses that distinction.
+    raw: (interp.stack || []).map(function (b) { return Buffer.from(b) })
   }
 }
 
@@ -109,6 +112,11 @@ describe('Chronicle script surface', function () {
       ;[1, 2, 10].forEach(function (v) {
         var r = run(function (s) { s.add(Opcode.OP_VER) }, { version: v })
         r.stack[r.stack.length - 1].should.equal(String(v))
+        // LENGTH too, not just the numeric reading. `01000000` and `01` both read
+        // as 1, so the value check alone passes whether OP_VER pushes four
+        // little-endian bytes or a minimally-encoded script number — and pushing
+        // the script number was the bug fixed in #95.
+        r.raw[r.raw.length - 1].length.should.equal(4)
       })
     })
   })
