@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.11.0] - 2026-08-10
+
+### The Chronicle default, decided
+
+Chronicle activated on BSV mainnet at block **943,816** on 2026-04-07, so a caller
+validating anything created since needs its rules. The obvious move was to enable
+`SCRIPT_ENABLE_CHRONICLE` by default. That is the wrong shape, and the reason is in the
+node: it gates on `utxo_after_chronicle` — a property of **the output being spent**, not
+of the chain or the validator. Both answers stay correct forever, because pre-activation
+UTXOs remain spendable. A library-wide default would be a guess about the caller's input.
+
+There is also no default to flip: `verify()` falls back to `0`, enabling no optional
+feature at all, exactly as it does for FORKID, P2SH and CLTV. That is deliberate — a
+validator should state the consensus context it is validating against.
+
+**So the flag stays opt-in, and the real gap is fixed instead: callers had nothing
+correct to opt into.** Assembling the flag set by hand invites getting it wrong, and
+wrong here means a verdict that disagrees with the network.
+
+### Added
+
+- **`Interpreter.mainnetFlags({ afterChronicle })`** — the verification flags matching
+  BSV mainnet consensus. `afterChronicle` defaults to `true`, since every output created
+  since April is subject to Chronicle; pass `false` to validate the spend of a
+  pre-activation UTXO, which is the same distinction the node makes per input.
+
+  Script-number and element-size limits are deliberately **not** included: they are
+  process-wide statics raised by `useGenesisLimits()`, not flags. A post-Genesis
+  validator needs both, and the docstring says so.
+
+- **`Interpreter.CHRONICLE_ACTIVATION_HEIGHT`** (943816), recorded so the per-UTXO
+  question has an answer in the library rather than in a changelog.
+
+### Fixed
+
+- **A tautology in this project's own test suite, written in 7.7.0.** The assertion
+  `(Interpreter.DEFAULT_FLAGS & CHRONICLE).should.equal(0)` was meant to prove the flag
+  is off unless requested. `Interpreter.DEFAULT_FLAGS` does not exist, so it evaluated
+  `undefined & n` — zero for every `n`, and unfailable. It now calls `verify()` with the
+  flags argument omitted and asserts `BAD_OPCODE`, which is what it always meant.
+
+  Noted plainly because 7.10.1 fixed three checks of exactly this shape in other
+  people's code, and this one was mine.
+
+Suite 4647.
+
 ## [7.10.1] - 2026-08-10
 
 The three remaining findings from the #85 review. All three are cases of something
