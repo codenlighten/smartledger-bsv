@@ -2,7 +2,12 @@
 
 var chai = require('chai')
 var expect = chai.expect
-var cloneDeep = require('clone-deep')
+/* global structuredClone */
+// structuredClone, not the former clone-deep dependency: the fixture below is plain
+// JSON (strings and numbers), where the two are equivalent. The interpreter's stack
+// clone is NOT — it holds Buffers, which structuredClone would return as Uint8Array.
+// The global comment is for standard@12's eslint, which predates the API.
+var cloneDeep = structuredClone
 
 var bsv = require('../..')
 var UnspentOutput = bsv.Transaction.UnspentOutput
