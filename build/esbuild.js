@@ -18,8 +18,14 @@ const EMPTY = path.join(__dirname, 'esbuild/empty.js')
 const BUILTIN = /^(crypto|stream|assert|util|zlib|vm|buffer|path|http|https|os|url|fs|net|tls|readline|child_process)$/
 
 // full (bundlePolyfills): real browserify shims; unused server-only built-ins -> empty.
+//
+// `crypto` is our own three-function shim rather than crypto-browserify. The full shim
+// pulled AES, DES, Diffie-Hellman, RSA and an ASN.1 parser into every bundle for code we
+// never call, and depended on browserify-sign/create-ecdh, whose `elliptic` has an
+// advisory with no fix — which is why this file used to stub those two by hand. That
+// stub is gone; test/build/bundle_crypto_shim.js now asserts the graph stays clean.
 const FULL_SHIM = {
-  crypto: R('crypto-browserify'),
+  crypto: path.join(__dirname, 'esbuild/crypto-shim.js'),
   stream: R('stream-browserify'),
   assert: R('assert/'),
   util: R('util/'),
@@ -38,8 +44,6 @@ function polyfillPlugin (mode) {
       const shim = mode === 'stub' ? STUB_SHIM : FULL_SHIM
       build.onResolve({ filter: BUILTIN }, (a) => ({ path: shim[a.path] || EMPTY }))
       build.onResolve({ filter: /^process(\/browser)?$/ }, () => ({ path: R('process/browser') }))
-      // keep `elliptic` out of the bundle (webpack aliased browserify-sign / create-ecdh -> false)
-      build.onResolve({ filter: /^(browserify-sign|create-ecdh)(\/|$)/ }, () => ({ path: EMPTY }))
     }
   }
 }
