@@ -5,8 +5,7 @@ cryptographic core, and carries the enquiry text to send to vendors. It exists s
 every vendor prices the *same* thing, and so that the reasoning behind the scope
 boundary survives past the engagement that prompted it.
 
-Measured against **v7.12.0**, 2026-08-10 (`lib/` is byte-identical to v7.11.0, where these
-figures were first taken). Re-measure before sending if the version has
+Measured against **v7.13.0**, 2026-08-11. Re-measure before sending if the version has
 moved (`docs/AUDIT_SCOPE.md` is not covered by a drift gate).
 
 ## 1. The question we are asking
@@ -30,24 +29,24 @@ testing.
 Two tiers, to be **priced separately** so the boundary can be drawn against a number
 rather than before seeing one.
 
-### Tier 1 — core, 11,739 lines across 33 files
+### Tier 1 — core, 11,879 lines across 33 files
 
 | Module | Lines | Why it matters |
 | --- | ---: | --- |
-| `lib/script/` | 3,375 | Consensus script interpreter. Divergence from the node means accepting a transaction the network rejects, or the reverse. |
+| `lib/script/` | 3,394 | Consensus script interpreter. Divergence from the node means accepting a transaction the network rejects, or the reverse. |
 | `lib/transaction/` | 2,767 | Sighash construction and signing — both BIP-143 and the Original Transaction Digest Algorithm. |
-| `lib/crypto/` | 2,378 | ECDSA, nonce derivation, signature encoding, the script-number type. |
+| `lib/crypto/` | 2,499 | ECDSA, nonce derivation, signature encoding, the script-number type. |
 | `lib/hdprivatekey.js`, `lib/hdpublickey.js` | 1,168 | BIP-32 derivation, including hardened paths. |
 | `lib/privatekey.js`, `lib/publickey.js` | 843 | Key construction, serialisation, WIF. Recent defects here produced a *different* key without error. |
 | `lib/address.js` | 543 | Address derivation and network binding. |
 | `lib/networks.js`, `lib/opcode.js` | 665 | Network parameters and the opcode table, which BSV upgrades have reassigned. |
 
-### Tier 2 — optional, 1,496 lines
+### Tier 2 — optional, 1,607 lines
 
 | Module | Lines | Why it may belong in scope |
 | --- | ---: | --- |
-| `lib/encoding/` | 644 | Base58Check, varint and buffer readers — the parsing surface untrusted bytes hit first. |
-| `lib/mnemonic/` | 544 | BIP-39 seed derivation. Small, but a weakness here compromises every key beneath it. |
+| `lib/encoding/` | 708 | Base58Check, varint and buffer readers — the parsing surface untrusted bytes hit first. |
+| `lib/mnemonic/` | 591 | BIP-39 seed derivation. Small, but a weakness here compromises every key beneath it. |
 | `lib/ecies/` | 308 | Encryption built on audited primitives; the composition is ours. |
 
 Tier 2 is cryptographic rather than application code, so excluding it is a **budget
@@ -59,19 +58,19 @@ is not.
 | Component | Status | Reason |
 | --- | --- | --- |
 | `@noble/curves`, `@noble/hashes`, `@noble/ciphers` | Already audited | The primitives come from the Noble libraries, which **Cure53 has audited and published on**. We do not implement curve or hash arithmetic ourselves. State this explicitly to vendors — otherwise they price work we do not need. |
-| `lib/smart_contract/`, `lib/ltp/`, `lib/gdaf/`, `lib/ordinals/`, `lib/block/`, plus 9 further directories and 6 top-level files | Excluded | Application layer, 22,699 lines — 18,435 in the five named modules and 4,264 in the remainder. Written in-house and covered by adversarial tests. Worth a separate engagement; including it here would blur the question in §1. |
+| `lib/smart_contract/`, `lib/ltp/`, `lib/gdaf/`, `lib/ordinals/`, `lib/block/`, plus 9 further directories and 6 top-level files | Excluded | Application layer, 22,815 lines — 18,435 in the five named modules and 4,380 in the remainder. Written in-house and covered by adversarial tests. Worth a separate engagement; including it here would blur the question in §1. |
 
-Totals reconcile against `lib/`, which is 35,934 lines across 122 files:
+Totals reconcile against `lib/`, which is 36,301 lines across 123 files:
 
 ```
-tier 1      11,739
-tier 2       1,496
-excluded    22,699
+tier 1      11,879
+tier 2       1,607
+excluded    22,815
             ------
-total       35,934
+total       36,301
 ```
 
-Core + optional = 13,235.
+Core + optional = 13,486.
 
 ## 4. What an auditor gets on day one
 
@@ -125,17 +124,17 @@ seeking a quote for an independent security review of its cryptographic core.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 11,739 lines, 33 files. Script interpreter, sighash and signing,
+  Tier 1 — 11,879 lines, 33 files. Script interpreter, sighash and signing,
   ECDSA and signature encoding, BIP-32 derivation, key and address
   construction.
 
-  Tier 2 — 1,496 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
+  Tier 2 — 1,607 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
   decoding surface.
 
 JavaScript (CommonJS), Node >= 20.19. The code is public.
 
 Explicitly out of scope: elliptic-curve and hash primitives, which are supplied
-by the Noble libraries and already audited; and our 22,699-line application
+by the Noble libraries and already audited; and our 22,815-line application
 layer (credentials, tokens, ordinals), which we would treat as a separate
 engagement.
 
@@ -163,7 +162,7 @@ SmartLedger Technology
 Every figure in this document, including the excluded total, must come out of this
 script. **Derive the excluded count as the complement — never by subtracting tier 1
 alone.** The first draft did exactly that, double-counted tier 2, and published parts
-summing to 37,430 against a 35,934 whole; §7 could not catch it because it reproduced
+summing to 37,430 against a 36,301 whole; §7 could not catch it because it reproduced
 every figure except the wrong one.
 
 ```sh

@@ -7,6 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.13.0] - 2026-08-11
+
+Two of the three fixes below came from another team building a React Native keystore on
+this library. Both were reproduced here before being acted on.
+
+### The CSPRNG no longer guesses its environment
+
+**This is the one to read.** `Random.getRandomBuffer` chose its backend by testing
+`process.browser` — a Browserify-era convention that is **undefined in React Native,
+Deno, Cloudflare Workers and Bun**. Every one of those fell through to the Node branch
+and called `require('crypto').randomBytes`. In React Native that fails outright at best;
+at worst something in the dependency graph has registered a partial crypto shim —
+rn-nodeify and several RN starter templates do exactly this — and a weak `randomBytes`
+makes `PrivateKey.fromRandom()` silently produce guessable keys.
+
+`globalThis.crypto.getRandomValues` is now tried first, covering browsers, Node >= 19,
+Deno, Workers, Bun, and React Native with `react-native-get-random-values`. Node crypto
+remains a fallback. **If neither exists, it throws** — a key library must never return
+bytes it cannot vouch for. `getRandomBufferBrowser` also read a bare `window`, which does
+not exist in Workers or React Native; it reads `globalThis` now.
+
+Requests above WebCrypto's 65,536-byte per-call limit are filled in chunks, and a test
+asserts the tail past that boundary is real entropy rather than zero padding.
+
+On Node the bytes now come from `globalThis.crypto` rather than `crypto.randomBytes`.
+Both are the same OS CSPRNG, but it is a behaviour change, hence the minor bump.
+
+### Hash and PBKDF2 backends are chosen by capability
+
+`lib/crypto/hash.js` and `lib/mnemonic/pbkdf2.js` carried the identical defect.
+`process.browser` no longer appears anywhere in `lib/`.
+
+Node's implementations stay *preferred* rather than being replaced by `@noble/hashes`
+outright: measured sha256 is at parity for 32-byte inputs (1.17x) but ~10x for 64 KB and
+above, which is block parsing and document anchoring. The unconditional reach for node
+crypto was the bug, not its use.
+
+The probe checks **correctness, not existence** — digests are verified against
+known-answer vectors, `ripemd160` is probed separately because OpenSSL 3 moved it to the
+legacy provider, and PBKDF2 checks `createHmac('sha512')` against RFC 4231 case 1. A
+shim that returns wrong digests is rejected in favour of the audited pure-JS path,
+because a wrong hash is invisible until it matters.
+
+### did:web verification relationships are no longer collapsed
+
+DID Core defines `authentication` and `assertionMethod` to be distinct: one proves who
+you are now, the other makes a claim that outlives the session. `buildDidWebDocuments`
+cross-listed every key into both, so a caller could not express "this key may log in but
+may not make assertions". Keys now take an optional `relationships` array; omitting it
+reproduces the previous document exactly, key order included.
+
+`rotateIssuerKey` had the worse version: it rewrote **both** relationships whatever was
+being rotated, so replacing a compromised authentication key invalidated every statement
+the issuer had ever signed. Rotation is now scoped to `newKey.relationships`, and
+relationships outside that scope carry across from an optional `currentDocument` along
+with the verification methods they still reference. Without a `currentDocument` the
+output is unchanged.
+
+### Runtime dependencies: 10 -> 5
+
+`unorm`, `hash.js`, `inherits`, `clone-deep` and `bs58` (with `base-x`) are replaced by
+in-tree equivalents. What remains is `bn.js`, `secrets.js-grempe` and the three `@noble`
+packages — every dependency is now either audited cryptography or a deliberate separate
+decision. `bsv.min.js` drops another 155 KB (1,187,504 -> 1,032,437);
+`bsv-mnemonic.min.js` -30%.
+
+Each replacement was differentially tested against the thing it replaced *before* the
+dependency was removed: base58 over 20,336 encode/decode round-trips covering every
+leading-zero count 0-8, and the hashes over 192 comparisons against the Node path
+including the 55/56/64/119/128-byte block boundaries. `bsv.deps.bs58` is kept as a
+facade over the new encoder, since it is a public escape hatch.
+
 ## [7.12.0] - 2026-08-10
 
 ### The browser bundles lose a fifth of their weight
