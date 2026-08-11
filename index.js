@@ -24,14 +24,22 @@ bsv.deps = bsv.deps || {}
 bsv.deps._ = require('./lib/util/_')
 bsv.deps.Buffer = (typeof Buffer !== 'undefined') ? Buffer : null
 
+// `bsv.deps.bs58` is kept as a compatible facade rather than the `bs58` package, which
+// this library no longer depends on — the encoder now lives in lib/encoding/base58.js.
+// The contract callers rely on is unchanged: `encode(Buffer) -> string` and
+// `decode(string) -> bytes` (a Buffer, which is a Uint8Array, as bs58 also returned).
+var Base58Dep = require('./lib/encoding/base58')
+bsv.deps.bs58 = {
+  encode: Base58Dep.encode,
+  decode: Base58Dep.decode
+}
+
 if (typeof window === 'undefined') {
   // Node — hard require; failure means broken install.
   bsv.deps.bnjs = require('bn.js')
-  bsv.deps.bs58 = require('bs58')
 } else {
   // Browser — bundler-resolved; tolerate absence individually.
   try { bsv.deps.bnjs = require('bn.js') } catch (e) { /* polyfilled by bundler */ }
-  try { bsv.deps.bs58 = require('bs58') } catch (e) { /* polyfilled by bundler */ }
 }
 
 // module information (./version is generated from package.json by the `version` npm hook;
