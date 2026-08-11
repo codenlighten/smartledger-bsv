@@ -1,6 +1,6 @@
 'use strict'
 
-/* global describe, it */
+/* global describe, it, beforeEach, afterEach */
 
 // The BSV Chronicle script surface: OP_2MUL/OP_2DIV restored, OP_VER/OP_VERIF/
 // OP_VERNOTIF given meaning, and SIGHASH_CHRONICLE selecting the Original
@@ -393,6 +393,85 @@ describe('Chronicle script surface', function () {
       )
       var forcedOtda = bsv.Transaction.sighash.sighash(f.tx, withBit, 0, f.sub, f.amt, 0)
       viaForkId.toString('hex').should.not.equal(forcedOtda.toString('hex'))
+    })
+  })
+
+  describe('mainnet consensus helpers', function () {
+    var BN2 = bsv.crypto.BN
+
+    // useMainnetConsensus() mutates process-wide statics, so the limits are saved
+    // and restored around every case here. Without this the raised caps leak into
+    // every later test in the run — 27 of them, when it was first written.
+    var savedLimits
+    beforeEach(function () { savedLimits = Interpreter.getLimits() })
+    afterEach(function () { Interpreter.setLimits(savedLimits) })
+
+    // Genesis reverted CLTV/CSV to OP_NOP2/OP_NOP3, and the node ignores their flags
+    // once the UTXO is post-Genesis:
+    //   if (!(flags & SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY) || utxo_after_genesis)
+    // Including them made mainnetFlags() reject scripts mainnet accepts.
+    it('mainnetFlags omits CLTV and CSV', function () {
+      var f = Interpreter.mainnetFlags()
+      ;(f & Interpreter.SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY).should.equal(0)
+      ;(f & Interpreter.SCRIPT_VERIFY_CHECKSEQUENCEVERIFY).should.equal(0)
+    })
+
+    it('mainnetFlags accepts a CLTV script, as mainnet does', function () {
+      var lock = new Script()
+        .add(new BN2(500000000).toScriptNumBuffer())
+        .add(Opcode.OP_CHECKLOCKTIMEVERIFY)
+        .add(Opcode.OP_DROP)
+        .add(Opcode.OP_1)
+      var tx = new bsv.Transaction()
+      tx.version = 2
+      var interp = new Interpreter()
+      interp.verify(new Script(), lock, tx, 0, Interpreter.mainnetFlags(), new BN2(0))
+        .should.equal(true)
+      interp.errstr.should.equal('')
+    })
+
+    it('mainnetFlags accepts a CSV script, as mainnet does', function () {
+      var lock = new Script()
+        .add(new BN2(1000).toScriptNumBuffer())
+        .add(Opcode.OP_CHECKSEQUENCEVERIFY)
+        .add(Opcode.OP_DROP)
+        .add(Opcode.OP_1)
+      var tx = new bsv.Transaction()
+      tx.version = 2
+      var interp = new Interpreter()
+      interp.verify(new Script(), lock, tx, 0, Interpreter.mainnetFlags(), new BN2(0))
+        .should.equal(true)
+    })
+
+    // The flags still exist for pre-Genesis emulation — that capability is retained,
+    // it is simply not what mainnet does.
+    it('the CLTV flag still enforces when a caller asks for it', function () {
+      var lock = new Script()
+        .add(new BN2(500000000).toScriptNumBuffer())
+        .add(Opcode.OP_CHECKLOCKTIMEVERIFY)
+        .add(Opcode.OP_DROP)
+        .add(Opcode.OP_1)
+      var tx = new bsv.Transaction()
+      tx.version = 2
+      var interp = new Interpreter()
+      interp.verify(new Script(), lock, tx, 0,
+        Interpreter.SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY, new BN2(0)).should.equal(false)
+      interp.errstr.should.match(/UNSATISFIED_LOCKTIME/)
+    })
+
+    // Flags and limits are separate mechanisms; mainnetFlags() cannot set the statics.
+    // A script over the pre-Genesis 10,000-byte cap is valid on mainnet.
+    it('useMainnetConsensus lifts the limits that mainnetFlags cannot', function () {
+      var big = new Script()
+      for (var i = 0; i < 400; i++) big.add(Buffer.alloc(30, 1)).add(Opcode.OP_DROP)
+      big.add(Opcode.OP_1)
+      big.toBuffer().length.should.be.above(10000)
+
+      var flags = Interpreter.useMainnetConsensus()
+      var interp = new Interpreter()
+      interp.verify(new Script(), big, new bsv.Transaction(), 0, flags, new BN2(0))
+        .should.equal(true)
+      Interpreter.MAX_SCRIPT_SIZE.should.be.above(10000)
     })
   })
 })
