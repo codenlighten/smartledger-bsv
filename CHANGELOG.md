@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.12.0] - 2026-08-10
+
+### The browser bundles lose a fifth of their weight
+
+`crypto-browserify` is a faithful shim for the whole of Node's `crypto`, and the browser
+build used it for the `crypto` built-in. Faithful is the problem: every bundle carried
+AES, DES, Diffie-Hellman, RSA public-encrypt and an ASN.1 parser for code the library
+never calls. Reading the module graph rather than guessing, the bundles need exactly
+three entry points — `createHash` (`hash.node.js`, and the didweb / vcjwt / statuslist /
+anchor / gdaf modules, which `require('crypto')` unconditionally), `createHmac`
+(`mnemonic/pbkdf2.node.js`) and `randomBytes` (secrets.js-grempe's Shamir CSPRNG).
+
+`build/esbuild/crypto-shim.js` provides those three and nothing else. Fourteen packages
+leave the graph; `bsv.min.js` drops from 378 module inputs to 309, and the duplicate
+`bn.js` copy disappears with them.
+
+```
+bsv-anchor.min.js       341,349 →   167,670   -50.9%
+bsv-didweb.min.js       342,010 →   168,331   -50.8%
+bsv-vcjwt.min.js        343,018 →   169,332   -50.6%
+bsv-shamir.min.js       354,058 →   180,342   -49.1%
+bsv-statuslist.min.js   435,810 →   261,944   -39.9%
+bsv-mnemonic.min.js     636,824 →   463,208   -27.3%
+bsv-ltp.min.js          674,540 →   545,227   -19.2%
+bsv.min.js            1,317,994 → 1,187,504    -9.9%
+                      ─────────   ─────────
+total (16 bundles)    7,491,257 → 5,928,232   -20.9%
+```
+
+No API changes. Digests, signatures and Shamir shares are unchanged — the new shim is
+checked against node's own `crypto` for sha1/sha256/sha512/ripemd160 and HMAC-SHA512, and
+the built bundles were additionally verified against NIST SHA-256 known-answer vectors.
+
+`getRandomValues` is deliberately **not** exported. secrets.js prefers it over
+`randomBytes` when present, so exporting it would silently move the Shamir CSPRNG onto a
+different code path; `crypto-browserify` did not expose it either, so omitting it keeps
+the selection identical to every prior release.
+
+### Dependency advisories cleared
+
+Dev-dependency alerts went from 10 (6 high, 2 moderate, 2 low) to **zero**. The
+production tree audited clean throughout — `npm audit --omit=dev` was 0 before and after
+— so no published version was ever affected.
+
+The high and moderate findings (js-yaml, serialize-javascript, tmp) are closed with
+pinned `overrides`, because npm's own suggestions were all wrong: a semver-major jump to
+`standard@17`, a *downgrade* of crypto-browserify, and `mocha@11.3.0` when 11.8.0 was
+already installed. The js-yaml 3.x line has a 3.15.1 backport above the vulnerable range,
+so eslint and istanbul keep the 3.x API instead of being forced to 4.x where `safeLoad`
+no longer exists.
+
+The remaining low finding was `elliptic`, which has no patched version at all. It was
+never our EC implementation — that moved to `@noble/curves` — but arrived transitively
+through crypto-browserify. Removing that polyfill removed the chain entirely.
+
+### Testing
+
+`build/esbuild.js` used to keep `elliptic` out of the output with a hand-written
+`onResolve` stub. That stub is gone, replaced by `test/build/bundle_crypto_shim.js`,
+which asserts no bundle's module graph contains any part of the chain, pins the shim's
+exported surface, and compares its digests against node's. A stub goes silent when it
+stops matching; an assertion does not.
+
 ## [7.11.0] - 2026-08-10
 
 ### The Chronicle default, decided

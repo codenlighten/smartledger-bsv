@@ -5,7 +5,8 @@ cryptographic core, and carries the enquiry text to send to vendors. It exists s
 every vendor prices the *same* thing, and so that the reasoning behind the scope
 boundary survives past the engagement that prompted it.
 
-Measured against **v7.11.0**, 2026-08-10. Re-measure before sending if the version has
+Measured against **v7.12.0**, 2026-08-10 (`lib/` is byte-identical to v7.11.0, where these
+figures were first taken). Re-measure before sending if the version has
 moved (`docs/AUDIT_SCOPE.md` is not covered by a drift gate).
 
 ## 1. The question we are asking
