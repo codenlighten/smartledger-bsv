@@ -12,17 +12,12 @@
  * test/consensus/sv-script-vectors.js (which ratchets), so the progress report
  * and the regression gate cannot disagree about what passes.
  *
- * On expressing eras. The node decides most rules by the era of the *output
- * being spent*, carried in SCRIPT_UTXO_AFTER_GENESIS and
- * SCRIPT_UTXO_AFTER_CHRONICLE, and a few by the era of the *spending
- * transaction*, carried in SCRIPT_GENESIS and SCRIPT_CHRONICLE. This library
- * does not have those flags yet: Genesis is a process-wide opt-in through
- * useGenesisLimits(), which moves four numeric caps and cannot express a
- * behavioural rule such as Genesis allowing only one OP_ELSE per OP_IF.
+ * On eras. The node decides most rules by the era of the *output being spent*,
+ * carried in SCRIPT_UTXO_AFTER_GENESIS and SCRIPT_UTXO_AFTER_CHRONICLE, and a
+ * few by the era of the *spending transaction*, carried in SCRIPT_GENESIS and
+ * SCRIPT_CHRONICLE.
  *
- * So a row naming a Genesis era flag is run with useGenesisLimits() applied
- * and then restored, which is the nearest equivalent available. Where that is
- * not equivalent, the vector fails, and that is the measurement.
+ * Era flags are passed through as the node's own, which is what the rows name.
  */
 
 const bsv = require('..')
@@ -124,23 +119,23 @@ function parseRow (row) {
 
 function classifyFlags (flagStr) {
   let flags = OPCODE_BASELINE
-  let needsGenesis = false
   const unknown = []
   for (const raw of String(flagStr).split(',')) {
     const name = raw.trim()
     if (!name) continue
     if (FLAG_MAP[name] !== undefined) {
       flags |= Interpreter[FLAG_MAP[name]]
-    } else if (name === 'GENESIS' || name === 'UTXO_AFTER_GENESIS') {
-      needsGenesis = true
+    } else if (name === 'GENESIS') {
+      flags |= Interpreter.SCRIPT_GENESIS
+    } else if (name === 'UTXO_AFTER_GENESIS') {
+      flags |= Interpreter.SCRIPT_UTXO_AFTER_GENESIS
     } else if (name === 'UTXO_AFTER_CHRONICLE') {
-      needsGenesis = true // Chronicle outputs are necessarily post-Genesis
-      flags |= Interpreter.SCRIPT_ENABLE_CHRONICLE
+      flags |= Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE
     } else {
       unknown.push(name)
     }
   }
-  return { flags, needsGenesis, unknown }
+  return { flags, unknown }
 }
 
 /**
@@ -204,12 +199,6 @@ function runAll () {
     const cls = classifyFlags(row.flagStr)
     const expectOk = row.expected === 'OK'
 
-    // useGenesisLimits mutates process-wide statics, so the previous values
-    // are captured and put back; without that a Genesis row would silently
-    // change the rules for every row after it.
-    const saved = Interpreter.getLimits()
-    if (cls.needsGenesis) Interpreter.useGenesisLimits()
-
     let got = null
     let thrown = null
     try {
@@ -217,7 +206,6 @@ function runAll () {
     } catch (e) {
       thrown = e
     }
-    Interpreter.setLimits(saved)
 
     let reason = null
     let direction = null

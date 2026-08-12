@@ -1,6 +1,6 @@
 {
   "suite": "interpreter",
-  "generatedBy": "v7.9.0",
+  "generatedBy": "v7.13.0",
   "caseCount": 15,
   "cases": {
     "bitcoind script_tests (all)": {
@@ -1586,8 +1586,8 @@
       "outcome": "ok",
       "value": {
         "SCRIPT_ENABLE_CHRONICLE": 1048576,
-        "SCRIPT_ENABLE_MAGNETIC_OPCODES": 524288,
-        "SCRIPT_ENABLE_MONOLITH_OPCODES": 262144,
+        "SCRIPT_ENABLE_MAGNETIC_OPCODES": 4096,
+        "SCRIPT_ENABLE_MONOLITH_OPCODES": 2048,
         "SCRIPT_ENABLE_REPLAY_PROTECTION": 131072,
         "SCRIPT_ENABLE_SIGHASH_FORKID": 65536,
         "SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY": 512,

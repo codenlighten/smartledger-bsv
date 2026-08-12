@@ -35,7 +35,12 @@ function run (build, opts) {
   return {
     verified: verified,
     errstr: interp.errstr || '',
-    stack: (interp.stack || []).map(function (b) { return BN.fromScriptNumBuffer(b).toString() }),
+    // Read with the era's width, not BN's four-byte default: post-Genesis
+    // results are routinely wider than that, and a default-width read throws
+    // on them rather than reporting the value.
+    stack: (interp.stack || []).map(function (b) {
+      return BN.fromScriptNumBuffer(b, false, Math.max(b.length, 4)).toString()
+    }),
     // The raw bytes as well: several Chronicle behaviours are about WIDTH, not
     // value, and a script-number reading collapses that distinction.
     raw: (interp.stack || []).map(function (b) { return Buffer.from(b) })
@@ -328,9 +333,23 @@ describe('Chronicle script surface', function () {
     it('left shift overflows rather than growing without bound', function () {
       // CScriptNum bounds this BEFORE shifting (current_size + shift_bytes >
       // max_length), so a huge count cannot allocate a huge number first.
-      var r = shift(5, 1000, Opcode.OP_LSHIFTNUM)
+      //
+      // The count has to exceed the real bound to test that. Chronicle's
+      // max_length is 32,000,000 bytes, so 1000 bits — 125 bytes — is a
+      // perfectly valid post-Chronicle number and overflows only against the
+      // pre-Genesis four. This used to pass because the bound was four
+      // whatever the era.
+      var r = shift(5, 8 * Interpreter.MAX_SCRIPT_NUM_LENGTH_AFTER_CHRONICLE,
+        Opcode.OP_LSHIFTNUM)
       r.verified.should.equal(false)
       r.errstr.should.match(/OVERFLOW/)
+    })
+
+    it('leaves a shift inside the bound alone', function () {
+      // The counterpart: 1000 bits is valid post-Chronicle, and was not before.
+      var r = shift(5, 1000, Opcode.OP_LSHIFTNUM)
+      r.verified.should.equal(true)
+      r.raw[0].length.should.equal(126)
     })
 
     it('fails on a short stack', function () {
