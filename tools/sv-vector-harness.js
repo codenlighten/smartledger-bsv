@@ -1,0 +1,267 @@
+'use strict'
+
+/**
+ * Shared harness for the SV Node script vectors in test/data/bitcoin-sv.
+ *
+ * These are the reference node's own test data, copied verbatim, and they are
+ * the specification this interpreter is measured against. The corpus in
+ * test/data/bitcoind is Bitcoin Core's and encodes rules BSV abandoned at
+ * Genesis in 2020; it is not a consensus reference for this library.
+ *
+ * Used by tools/sv-vector-report.js (which reports) and
+ * test/consensus/sv-script-vectors.js (which ratchets), so the progress report
+ * and the regression gate cannot disagree about what passes.
+ *
+ * On expressing eras. The node decides most rules by the era of the *output
+ * being spent*, carried in SCRIPT_UTXO_AFTER_GENESIS and
+ * SCRIPT_UTXO_AFTER_CHRONICLE, and a few by the era of the *spending
+ * transaction*, carried in SCRIPT_GENESIS and SCRIPT_CHRONICLE. This library
+ * does not have those flags yet: Genesis is a process-wide opt-in through
+ * useGenesisLimits(), which moves four numeric caps and cannot express a
+ * behavioural rule such as Genesis allowing only one OP_ELSE per OP_IF.
+ *
+ * So a row naming a Genesis era flag is run with useGenesisLimits() applied
+ * and then restored, which is the nearest equivalent available. Where that is
+ * not equivalent, the vector fails, and that is the measurement.
+ */
+
+const bsv = require('..')
+const Script = bsv.Script
+const Opcode = bsv.Opcode
+const Interpreter = bsv.Script.Interpreter
+const Transaction = bsv.Transaction
+const BN = bsv.crypto.BN
+const BufferWriter = bsv.encoding.BufferWriter
+
+const rawVectors = require('../test/data/bitcoin-sv/script_tests.json')
+
+// Mapped by name rather than by value. This library assigns MONOLITH and
+// MAGNETIC to 1<<18 and 1<<19, which are the bits the node uses for
+// SCRIPT_GENESIS and SCRIPT_UTXO_AFTER_GENESIS, so mapping by value would
+// quietly mean something else.
+const FLAG_MAP = {
+  NONE: 'SCRIPT_VERIFY_NONE',
+  P2SH: 'SCRIPT_VERIFY_P2SH',
+  STRICTENC: 'SCRIPT_VERIFY_STRICTENC',
+  DERSIG: 'SCRIPT_VERIFY_DERSIG',
+  LOW_S: 'SCRIPT_VERIFY_LOW_S',
+  NULLDUMMY: 'SCRIPT_VERIFY_NULLDUMMY',
+  SIGPUSHONLY: 'SCRIPT_VERIFY_SIGPUSHONLY',
+  MINIMALDATA: 'SCRIPT_VERIFY_MINIMALDATA',
+  DISCOURAGE_UPGRADABLE_NOPS: 'SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS',
+  CLEANSTACK: 'SCRIPT_VERIFY_CLEANSTACK',
+  CHECKLOCKTIMEVERIFY: 'SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY',
+  CHECKSEQUENCEVERIFY: 'SCRIPT_VERIFY_CHECKSEQUENCEVERIFY',
+  MINIMALIF: 'SCRIPT_VERIFY_MINIMALIF',
+  NULLFAIL: 'SCRIPT_VERIFY_NULLFAIL',
+  COMPRESSED_PUBKEYTYPE: 'SCRIPT_VERIFY_COMPRESSED_PUBKEYTYPE',
+  SIGHASH_FORKID: 'SCRIPT_ENABLE_SIGHASH_FORKID',
+  REPLAY_PROTECTION: 'SCRIPT_ENABLE_REPLAY_PROTECTION',
+  MONOLITH_OPCODES: 'SCRIPT_ENABLE_MONOLITH_OPCODES',
+  MAGNETIC_OPCODES: 'SCRIPT_ENABLE_MAGNETIC_OPCODES'
+}
+
+// The corpus never names MONOLITH or MAGNETIC, because the node has no such
+// flags — those opcodes were restored on BSV in 2018 and are simply enabled.
+// This library still gates them, so they are enabled for every row; otherwise
+// the report is dominated by that difference rather than by consensus.
+// Requiring them is itself a divergence, counted separately rather than here.
+const OPCODE_BASELINE =
+  Interpreter.SCRIPT_ENABLE_MONOLITH_OPCODES | Interpreter.SCRIPT_ENABLE_MAGNETIC_OPCODES
+
+/** Parse a bitcoind-format script string, e.g. "0x47 0x3044... CHECKSIG". */
+function fromBitcoindString (str) {
+  const bw = new BufferWriter()
+  for (const token of String(str).split(' ')) {
+    if (token === '') continue
+    if (token[0] === '0' && token[1] === 'x') {
+      bw.write(Buffer.from(token.slice(2), 'hex'))
+    } else if (token[0] === "'") {
+      bw.write(Script().add(Buffer.from(token.slice(1, token.length - 1))).toBuffer())
+    } else if (typeof Opcode['OP_' + token] !== 'undefined') {
+      bw.writeUInt8(Opcode['OP_' + token])
+    } else if (typeof Opcode[token] === 'number') {
+      bw.writeUInt8(Opcode[token])
+    } else if (!isNaN(parseInt(token))) {
+      bw.write(Script().add(new BN(token).toScriptNumBuffer()).toBuffer())
+    } else {
+      const err = new Error('unknown script token: ' + token)
+      err.token = token
+      throw err
+    }
+  }
+  return Script.fromBuffer(bw.concat())
+}
+
+/**
+ * Row layout, from script_json_test in the node's src/test/script_tests.cpp:
+ *
+ *   [ [nValue]?, txnVersion, scriptSig, scriptPubKey, flags, expected, comment? ]
+ *
+ * nValue appears only where a row needs an amount and is array-wrapped in
+ * whole coins. txnVersion is the spending transaction's version, which
+ * Chronicle uses to gate its malleability relaxations — it is not padding and
+ * it is not an amount.
+ */
+function parseRow (row) {
+  let pos = 0
+  let value = 0
+  if (Array.isArray(row[0])) {
+    value = Math.round(parseFloat(row[0][0]) * 1e8)
+    pos++
+  }
+  if (row.length < 4 + pos) return null
+  return {
+    version: parseInt(row[pos], 10),
+    scriptSig: row[pos + 1],
+    scriptPubKey: row[pos + 2],
+    flagStr: row[pos + 3],
+    expected: row[pos + 4],
+    satoshis: value,
+    comment: row.slice(pos + 5).join(' ')
+  }
+}
+
+function classifyFlags (flagStr) {
+  let flags = OPCODE_BASELINE
+  let needsGenesis = false
+  const unknown = []
+  for (const raw of String(flagStr).split(',')) {
+    const name = raw.trim()
+    if (!name) continue
+    if (FLAG_MAP[name] !== undefined) {
+      flags |= Interpreter[FLAG_MAP[name]]
+    } else if (name === 'GENESIS' || name === 'UTXO_AFTER_GENESIS') {
+      needsGenesis = true
+    } else if (name === 'UTXO_AFTER_CHRONICLE') {
+      needsGenesis = true // Chronicle outputs are necessarily post-Genesis
+      flags |= Interpreter.SCRIPT_ENABLE_CHRONICLE
+    } else {
+      unknown.push(name)
+    }
+  }
+  return { flags, needsGenesis, unknown }
+}
+
+/**
+ * Build and verify the crediting/spending transaction pair, mirroring
+ * BuildCreditingTransaction and BuildSpendingTransaction in the node's
+ * src/test/script_tests.cpp. The crediting transaction is always version 1;
+ * only the spending transaction carries the version under test.
+ */
+function evaluate (row, flags) {
+  const scriptSig = fromBitcoindString(row.scriptSig)
+  const scriptPubKey = fromBitcoindString(row.scriptPubKey)
+
+  const credtx = new Transaction()
+  credtx.version = 1
+  credtx.nLockTime = 0
+  credtx.uncheckedAddInput(new Transaction.Input({
+    prevTxId: '0'.repeat(64),
+    outputIndex: 0xffffffff,
+    sequenceNumber: 0xffffffff,
+    script: Script('OP_0 OP_0')
+  }))
+  credtx.addOutput(new Transaction.Output({ script: scriptPubKey, satoshis: row.satoshis }))
+
+  const spendtx = new Transaction()
+  spendtx.version = row.version
+  spendtx.nLockTime = 0
+  spendtx.uncheckedAddInput(new Transaction.Input({
+    prevTxId: credtx.id.toString('hex'),
+    outputIndex: 0,
+    sequenceNumber: 0xffffffff,
+    script: scriptSig
+  }))
+  spendtx.addOutput(new Transaction.Output({ script: Script(), satoshis: row.satoshis }))
+
+  const interp = new Interpreter()
+  const ok = interp.verify(scriptSig, scriptPubKey, spendtx, 0, flags, new BN(row.satoshis))
+  return { ok, errstr: interp.errstr }
+}
+
+/** A stable id for a row, so a known-failure list survives reordering. */
+function vectorId (raw) {
+  return require('crypto').createHash('sha256')
+    .update(JSON.stringify(raw)).digest('hex').slice(0, 12)
+}
+
+/**
+ * Run every vector. Each result is
+ *
+ *   { id, row, passed, reason, direction, gotErrstr }
+ *
+ * `direction` is 'accept' where this library accepted a script the node
+ * rejects — the direction that can cost money — and 'reject' for the converse.
+ */
+function runAll () {
+  const results = []
+  for (const raw of rawVectors) {
+    if (!Array.isArray(raw) || raw.length < 4) continue
+    const row = parseRow(raw)
+    if (row === null) continue
+
+    const cls = classifyFlags(row.flagStr)
+    const expectOk = row.expected === 'OK'
+
+    // useGenesisLimits mutates process-wide statics, so the previous values
+    // are captured and put back; without that a Genesis row would silently
+    // change the rules for every row after it.
+    const saved = Interpreter.getLimits()
+    if (cls.needsGenesis) Interpreter.useGenesisLimits()
+
+    let got = null
+    let thrown = null
+    try {
+      got = evaluate(row, cls.flags)
+    } catch (e) {
+      thrown = e
+    }
+    Interpreter.setLimits(saved)
+
+    let reason = null
+    let direction = null
+    if (thrown !== null) {
+      reason = 'threw: ' + String(thrown.message).slice(0, 70)
+      direction = 'reject'
+    } else if (got.ok !== expectOk) {
+      if (expectOk) {
+        reason = 'expected OK, rejected with ' + got.errstr
+        direction = 'reject'
+      } else {
+        reason = 'expected ' + row.expected + ', but ACCEPTED'
+        direction = 'accept'
+      }
+    }
+
+    results.push({
+      id: vectorId(raw),
+      row,
+      unknownFlags: cls.unknown,
+      gotErrstr: got ? got.errstr : null,
+      passed: reason === null,
+      reason,
+      direction
+    })
+  }
+  return results
+}
+
+/** A one-line description of a row, for failure output. */
+function describe (row) {
+  return String(row.scriptSig).slice(0, 40) + ' | ' +
+    String(row.scriptPubKey).slice(0, 40) +
+    '  [' + row.flagStr + ']' +
+    (row.comment ? '  // ' + row.comment.slice(0, 50) : '')
+}
+
+module.exports = {
+  runAll,
+  evaluate,
+  describe,
+  parseRow,
+  vectorId,
+  classifyFlags,
+  fromBitcoindString,
+  FLAG_MAP
+}
