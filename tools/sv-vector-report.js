@@ -35,6 +35,27 @@ console.log('  false accepts (we accept, node rejects) :', accepts.length,
   accepts.length ? '  <- the direction that can cost money' : '')
 console.log('  false rejects (we reject, node accepts) :', rejects.length)
 
+const comparable = results.filter(r => r.codeMatches !== null)
+const wrongCode = comparable.filter(r => !r.codeMatches)
+const aliased = comparable.filter(r => r.codeMatches && r.gotCode !== r.expectedCode)
+console.log()
+console.log('--- result codes, on the', comparable.length, 'vectors the node rejects ---')
+console.log('  exact match                             :',
+  comparable.length - wrongCode.length - aliased.length)
+console.log('  matched via a documented narrower name  :', aliased.length)
+console.log('  wrong reason                            :', wrongCode.length,
+  wrongCode.length ? '  <- the outcome is right, the reason is not' : '')
+
+if (wrongCode.length) {
+  const byCode = {}
+  wrongCode.forEach(function (r) {
+    const key = r.expectedCode + '  <-  ' + (r.gotCode || '(none)')
+    byCode[key] = (byCode[key] || 0) + 1
+  })
+  Object.keys(byCode).sort((a, b) => byCode[b] - byCode[a])
+    .forEach(k => console.log(String(byCode[k]).padStart(5), k))
+}
+
 const byReason = {}
 failing.forEach(function (r) {
   const key = String(r.reason).replace(/vector.*/, '').slice(0, 62)

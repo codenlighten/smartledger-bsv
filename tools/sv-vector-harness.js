@@ -64,6 +64,45 @@ const FLAG_MAP = {
 const OPCODE_BASELINE =
   Interpreter.SCRIPT_ENABLE_MONOLITH_OPCODES | Interpreter.SCRIPT_ENABLE_MAGNETIC_OPCODES
 
+/**
+ * Result codes this library reports more narrowly than the node does, and the
+ * node code each stands for.
+ *
+ * Matching the node's accept/reject outcome is not the same as failing for the
+ * node's reason, and the gap between the two hid real bugs: a div-by-zero
+ * guard comparing a BN against the number 0, so that it never fired and bn.js
+ * asserted instead; script number decoding throwing past the evaluator into a
+ * generic catch; a truncated PUSHDATA doing the same. All three left the
+ * script failing, just not in the way the node fails it, so the outcome check
+ * stayed green through every one.
+ *
+ * This is a short statement of intent rather than a list of exempted vectors,
+ * and it ratchets both ways — an unlisted mismatch fails, and so does an alias
+ * no vector produces any more. Anything added here should be a name that says
+ * *more* than the node's, never a different failure wearing its label.
+ */
+const ERROR_CODE_ALIASES = {
+  EVAL_FALSE_IN_STACK: 'EVAL_FALSE',
+  EVAL_FALSE_NO_RESULT: 'EVAL_FALSE',
+  EVAL_FALSE_NO_P2SH_STACK: 'EVAL_FALSE',
+  EVAL_FALSE_IN_P2SH_STACK: 'EVAL_FALSE',
+  SIG_DER_INVALID_FORMAT: 'SIG_DER',
+  SIG_DER_HIGH_S: 'SIG_HIGH_S',
+  INVALID_OPERAND_SIZE: 'OPERAND_SIZE',
+  INVALID_SPLIT_RANGE: 'SPLIT_RANGE'
+}
+
+/** The bare result code, without the prefix or any appended detail. */
+function errorCode (errstr) {
+  return String(errstr || '').replace(/^SCRIPT_ERR_/, '').split(':')[0].trim()
+}
+
+/** Does what we reported match the node's `expected` code, or alias to it? */
+function errorCodeMatches (expected, errstr) {
+  const got = errorCode(errstr)
+  return got === expected || ERROR_CODE_ALIASES[got] === expected
+}
+
 /** Parse a bitcoind-format script string, e.g. "0x47 0x3044... CHECKSIG". */
 function fromBitcoindString (str) {
   const bw = new BufferWriter()
@@ -222,6 +261,10 @@ function runAll () {
       }
     }
 
+    // Only meaningful where the node rejects and so does this library: there
+    // is no code to compare on a row the node accepts, and a row whose outcome
+    // already disagrees is reported as that rather than twice.
+    const comparable = !expectOk && reason === null
     results.push({
       id: vectorId(raw),
       row,
@@ -229,7 +272,10 @@ function runAll () {
       gotErrstr: got ? got.errstr : null,
       passed: reason === null,
       reason,
-      direction
+      direction,
+      expectedCode: comparable ? row.expected : null,
+      gotCode: comparable ? errorCode(got.errstr) : null,
+      codeMatches: comparable ? errorCodeMatches(row.expected, got.errstr) : null
     })
   }
   return results
@@ -251,5 +297,8 @@ module.exports = {
   vectorId,
   classifyFlags,
   fromBitcoindString,
+  errorCode,
+  errorCodeMatches,
+  ERROR_CODE_ALIASES,
   FLAG_MAP
 }
