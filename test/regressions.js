@@ -176,5 +176,40 @@ describe('regressions', function () {
       verified.should.equal(false)
       interpreter.errstr.should.equal('SCRIPT_ERR_UNSATISFIED_LOCKTIME')
     })
+
+    // Same family as the bug above, and found the same way — a TypeError swallowed by
+    // the evaluator's try/catch and reported as SCRIPT_ERR_UNKNOWN_ERROR.
+    //
+    // `checkSequence` dereferenced `this.tx.inputs[this.nin]` as its FIRST statement, so
+    // verifying against a transaction with no input at that index threw
+    // "Cannot read properties of undefined (reading 'sequenceNumber')". It fails closed,
+    // but the error names the script when the real problem is the index.
+    //
+    // `checkLockTime` had the identical dereference; ordering hid it, because earlier
+    // comparisons returned false before reaching the line. Both are guarded now, and
+    // both report the consensus error a caller can act on.
+    ;[
+      ['OP_CHECKSEQUENCEVERIFY', 'SCRIPT_VERIFY_CHECKSEQUENCEVERIFY', 1000],
+      ['OP_CHECKLOCKTIMEVERIFY', 'SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY', 500000000]
+    ].forEach(function (c) {
+      it('reports a consensus error, not a TypeError, when there is no input at nin (' + c[0] + ')', function () {
+        var Interpreter = bsv.Script.Interpreter
+        var script = new bsv.Script()
+        script.add(new BN(c[2]).toScriptNumBuffer())
+        script.add(bsv.Opcode[c[0]])
+        script.add(bsv.Opcode.OP_DROP)
+        script.add(bsv.Opcode.OP_1)
+
+        var interpreter = new Interpreter()
+        // A transaction with no inputs at all; nin 0 does not exist.
+        var verified = interpreter.verify(
+          new bsv.Script(), script, new bsv.Transaction(), 0, Interpreter[c[1]], new BN(0)
+        )
+
+        verified.should.equal(false)
+        interpreter.errstr.should.equal('SCRIPT_ERR_UNSATISFIED_LOCKTIME')
+        interpreter.errstr.should.not.match(/UNKNOWN_ERROR|TypeError/)
+      })
+    })
   })
 })
