@@ -132,13 +132,39 @@ simply the wrong length or version, so `Base58Check` accepts them and the layer
 above is what refuses. A test asserting the checksum layer rejects them would
 be asserting something the corpus does not say.
 
-## What is not measured yet
+## Result codes
 
 Matching the node's accept/reject outcome is not the same as failing for the
-node's *reason*, and the gap between the two hides real bugs — a div-by-zero
-guard that never fired, a stack guard that set an error without returning and
-then crashed on the next line. Both left the script failing, just not in the
-way the node fails it, so an outcome-only check stays green.
+node's *reason*, and the gap between the two is where bugs live. Comparing the
+result code of all 600 rejected vectors found four, each of which left the
+script failing — so the outcome check stayed green through every one:
 
-The script gate compares outcomes only. Comparing the result code of every
-vector the node rejects is the next thing worth adding here.
+- a div-by-zero guard comparing a `BN` against the number `0`, so it never
+  fired and bn.js asserted instead
+- script number decoding throwing past the evaluator into a generic catch,
+  which is what 78 of the four hundred were
+- a truncated `PUSHDATA` doing the same
+- `OP_NUM2BIN` checking only the upper bound of its size argument, so a
+  negative size reported the wrong failure
+
+All 600 now match: 491 exactly, and 109 through `ERROR_CODE_ALIASES` in
+`tools/sv-vector-harness.js` — names this library reports more narrowly than
+the node, such as `EVAL_FALSE_IN_STACK` for `EVAL_FALSE`. That table is a short
+statement of intent rather than a list of exempted vectors, and it ratchets
+both ways: an unlisted mismatch fails, and so does an alias no vector produces
+any more, so an exemption cannot outlive its reason. Anything added to it
+should be a name that says *more* than the node's, never a different failure
+wearing its label.
+
+## What the vectors cannot reach
+
+Passing this corpus completely is not the same as matching the node. Reading
+the code alongside it found `OP_CAT` capping its result at the static 520-byte
+element size rather than the era-derived one, so after Genesis it rejected
+concatenations the network accepts — built from two 300-byte halves that are
+each legal on their own. It is the one opcode that can grow an element past the
+cap without ever pushing an oversized element, which is why no vector here
+covers it. `test/script/genesis_limits.js` holds it instead.
+
+Where a rule has no vector, the test that holds it belongs somewhere that says
+so.
