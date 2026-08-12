@@ -156,7 +156,7 @@ describe('Chronicle script surface', function () {
   })
 
   describe('OP_VERIF / OP_VERNOTIF', function () {
-    it('without the flag, errors only in an EXECUTED branch', function () {
+    it('after Genesis, errors only in an EXECUTED branch', function () {
       // Core treats OP_VERIF as illegal everywhere, including unexecuted
       // branches — a rule it applies to no other opcode. BSV dropped that at
       // Genesis, and the node is explicit:
@@ -166,12 +166,21 @@ describe('Chronicle script surface', function () {
       //     else return SCRIPT_ERR_BAD_OPCODE;
       //   }
       //
-      // Asserting BAD_OPCODE here made this library reject scripts the network
-      // accepts.
+      // Note the condition includes utxo_after_genesis, so the era has to be
+      // stated. Run without it, this is a pre-Genesis output, and then Core's
+      // rule is also BSV's: illegal everywhere, which the node's own corpus
+      // confirms for exactly these scripts.
       var unexecuted = run(function (s) {
         s.add(Opcode.OP_0).add(Opcode.OP_IF).add(Opcode.OP_VERIF).add(Opcode.OP_ENDIF).add(Opcode.OP_1)
-      }, { flags: 0 })
+      }, { flags: Interpreter.SCRIPT_UTXO_AFTER_GENESIS })
       unexecuted.verified.should.equal(true)
+
+      // Pre-Genesis the same script is invalid, unexecuted branch or not.
+      var preGenesis = run(function (s) {
+        s.add(Opcode.OP_0).add(Opcode.OP_IF).add(Opcode.OP_VERIF).add(Opcode.OP_ENDIF).add(Opcode.OP_1)
+      }, { flags: 0 })
+      preGenesis.verified.should.equal(false)
+      preGenesis.errstr.should.match(/BAD_OPCODE/)
 
       var executed = run(function (s) {
         s.add(Opcode.OP_1).add(Opcode.OP_VERIF).add(Opcode.OP_ENDIF)

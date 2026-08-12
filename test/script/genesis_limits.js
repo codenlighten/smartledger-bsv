@@ -24,7 +24,8 @@ describe('Interpreter post-Genesis limits', function () {
   it('keeps pre-Genesis defaults out of the box', function () {
     Interpreter.MAX_SCRIPT_ELEMENT_SIZE.should.equal(520)
     Interpreter.MAXIMUM_ELEMENT_SIZE.should.equal(4)
-    Interpreter.MAX_OPS_PER_SCRIPT.should.equal(201)
+    // 500, not Core's 201: BSV raised the limit before Genesis removed it.
+    Interpreter.MAX_OPS_PER_SCRIPT.should.equal(500)
   })
 
   it('useGenesisLimits() lifts all three caps', function () {
@@ -59,15 +60,17 @@ describe('Interpreter post-Genesis limits', function () {
   })
 
   // 220 OP_NOPs then OP_1 — more non-push opcodes than the 201 cap allows.
+  // Over BSV's pre-Genesis limit of 500. It used to be 220, which is over
+  // Core's 201 but comfortably inside what BSV allowed.
   var manyOps = new Script()
-  for (var i = 0; i < 220; i++) manyOps.add(Opcode.OP_NOP)
+  for (var i = 0; i < 520; i++) manyOps.add(Opcode.OP_NOP)
   manyOps.add(Opcode.OP_1)
 
-  it('rejects >201 opcodes under default limits', function () {
+  it('rejects more opcodes than the pre-Genesis limit allows', function () {
     run(manyOps).should.equal(false)
   })
 
-  it('allows >201 opcodes after useGenesisLimits()', function () {
+  it('allows them after useGenesisLimits()', function () {
     Interpreter.useGenesisLimits()
     run(manyOps).should.equal(true)
   })
