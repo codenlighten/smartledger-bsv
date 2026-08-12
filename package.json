@@ -61,6 +61,7 @@
     "check:load-order": "node scripts/check-address-load-order.js",
     "conformance": "node conformance/verify.js",
     "vectors:sv": "node tools/sv-vector-report.js",
+    "vectors:sv-tx": "node tools/sv-tx-report.js",
     "conformance:generate": "node conformance/generate.js",
     "lint:ratchet": "node scripts/lint-ratchet.js",
     "lint:ratchet:update": "node scripts/lint-ratchet.js --update",
