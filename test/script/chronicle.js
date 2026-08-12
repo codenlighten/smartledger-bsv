@@ -398,29 +398,54 @@ describe('Chronicle script surface', function () {
     it('OVERRIDES FORKID — otherwise the bit could never select OTDA in practice', function () {
       // FORKID is set on essentially every BSV signature written since 2018, so a
       // CHRONICLE bit that only applied when FORKID was absent would mean nothing.
+      //
+      // Stated against the algorithm rather than against the flag: the node
+      // routes on the bit alone, so with the bit set, enabling forkid makes no
+      // difference and the result is the original digest either way.
       var f = fixture()
       var type = Signature.SIGHASH_ALL | Signature.SIGHASH_FORKID | Signature.SIGHASH_CHRONICLE
-      var chronicle = bsv.Transaction.sighash.sighash(
-        f.tx, type, 0, f.sub, f.amt,
-        Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID | CHRONICLE
-      )
-      var bip143 = bsv.Transaction.sighash.sighash(
+      var withForkId = bsv.Transaction.sighash.sighash(
         f.tx, type, 0, f.sub, f.amt, Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID
       )
-      chronicle.toString('hex').should.not.equal(bip143.toString('hex'))
+      var forcedOtda = bsv.Transaction.sighash.sighash(f.tx, type, 0, f.sub, f.amt, 0)
+      withForkId.toString('hex').should.equal(forcedOtda.toString('hex'))
+
+      // And it does override: without the bit the same transaction takes BIP-143.
+      var withoutBit = Signature.SIGHASH_ALL | Signature.SIGHASH_FORKID
+      var bip143 = bsv.Transaction.sighash.sighash(
+        f.tx, withoutBit, 0, f.sub, f.amt, Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID
+      )
+      bip143.toString('hex').should.not.equal(withForkId.toString('hex'))
     })
 
-    it('is IGNORED without the flag, so existing BIP-143 signatures are unaffected', function () {
+    it('cannot be used outside Chronicle, so old BIP-143 signatures are unaffected', function () {
       // Before the upgrade the 0x20 bit means nothing, so signatures already exist
-      // whose type byte happens to set it. Honouring it unconditionally would
-      // reinterpret those as OTDA — a silent validity change on historic data.
-      var f = fixture()
-      var withBit = Signature.SIGHASH_ALL | Signature.SIGHASH_FORKID | Signature.SIGHASH_CHRONICLE
-      var viaForkId = bsv.Transaction.sighash.sighash(
-        f.tx, withBit, 0, f.sub, f.amt, Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID
-      )
-      var forcedOtda = bsv.Transaction.sighash.sighash(f.tx, withBit, 0, f.sub, f.amt, 0)
-      viaForkId.toString('hex').should.not.equal(forcedOtda.toString('hex'))
+      // whose type byte happens to set it. Reinterpreting those as OTDA would be
+      // a silent validity change on historic data.
+      //
+      // The node prevents that in CheckSignatureEncoding rather than in the
+      // digest function: a signature carrying the bit outside Chronicle is
+      // REJECTED, not reinterpreted, so it never reaches a digest at all. That
+      // is what lets SignatureHash() route on the bit alone, and gating the
+      // digest instead made 260 of the node's 1000 vectors disagree.
+      var priv = new bsv.PrivateKey()
+      var hashbuf = bsv.crypto.Hash.sha256(Buffer.from('chronicle bit'))
+      var type = Signature.SIGHASH_ALL | Signature.SIGHASH_FORKID | Signature.SIGHASH_CHRONICLE
+      var sig = bsv.crypto.ECDSA.sign(hashbuf, priv)
+      sig.nhashtype = type
+
+      var interp = new Interpreter()
+      interp.set({ flags: Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID | Interpreter.SCRIPT_VERIFY_STRICTENC })
+      interp.checkSignatureEncoding(sig.toTxFormat()).should.equal(false)
+      interp.errstr.should.equal('SCRIPT_ERR_ILLEGAL_CHRONICLE')
+
+      // With Chronicle in force it is allowed.
+      var ok = new Interpreter()
+      ok.set({
+        flags: Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID |
+          Interpreter.SCRIPT_VERIFY_STRICTENC | Interpreter.SCRIPT_CHRONICLE
+      })
+      ok.checkSignatureEncoding(sig.toTxFormat()).should.equal(true)
     })
   })
 
