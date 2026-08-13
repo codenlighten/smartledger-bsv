@@ -7,6 +7,112 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0] - 2026-08-13
+
+This library is now measured against the reference node's own consensus vectors, and its
+defaults describe BSV as the network actually runs it.
+
+Until this release the only consensus reference was the `script_tests.json` inherited
+from the upstream fork — Bitcoin Core vectors encoding rules BSV abandoned at Genesis in
+2020. Passing them completely said very little about whether this library agrees with the
+network. The first run against the node's own vectors scored **1426/1483 with 21 false
+accepts**: scripts this library accepted that BSV rejects.
+
+That is the direction that is hardest to catch. Nothing which tests this library against
+itself can see it, because the library is the thing being wrong.
+
+### BREAKING — read before upgrading
+
+**`verify()` with no flags now means BSV mainnet, not "no rules".**
+
+```js
+interp.verify(sig, pubkey, tx, nin)            // was: Bitcoin 2015; now: current mainnet
+interp.verify(sig, pubkey, tx, nin, 0)         // the old behaviour, stated explicitly
+Interpreter.mainnetFlags({ afterChronicle: false })   // pre-Chronicle UTXO
+```
+
+Spending a pre-activation output is now the case you state, because the era of the output
+being spent is the input the caller knows and the library cannot.
+
+**Two flag constants changed value.** The node assigns `1<<18` and `1<<19` to
+`SCRIPT_GENESIS` and `SCRIPT_UTXO_AFTER_GENESIS`, so ours had to vacate:
+
+```
+SCRIPT_ENABLE_MONOLITH_OPCODES   1<<18 → 1<<11
+SCRIPT_ENABLE_MAGNETIC_OPCODES   1<<19 → 1<<12
+```
+
+Anything using the named constants is unaffected. Anything that **persisted or hardcoded
+the numbers** must be updated: `262144` no longer means "Monolith opcodes", it now means
+`SCRIPT_GENESIS`, so an old stored value silently enables a different era model.
+
+**Other behaviour changes, all moving toward the node:**
+
+- a signature carrying `SIGHASH_CHRONICLE` outside Chronicle is now *rejected* rather
+  than reinterpreted, and a digest with that bit set selects the original algorithm
+- `MAX_OPS_PER_SCRIPT` is 500 (BSV's number), was 201 (Bitcoin Core's)
+- `OP_CAT` is no longer capped at 520 bytes after Genesis
+- `OP_MOD` reports `MOD_BY_ZERO`; `OP_DIV`/`OP_MOD` now actually detect a zero divisor
+- script number, truncated push and `OP_NUM2BIN` failures report the node's result code
+  instead of a generic `UNKNOWN_ERROR`
+
+### The vectors
+
+Copied verbatim from `bitcoin-sv/bitcoin-sv` v1.2.0, provenance recorded in
+`test/data/bitcoin-sv/README.md`.
+
+| | |
+| --- | --- |
+| script vectors | 1483/1483, 0 false accepts, 0 false rejects |
+| result codes | 600/600 (491 exact, 109 via documented aliases) |
+| transaction vectors | 161/161 |
+| digest vectors | 1000/1000, on both columns |
+
+```
+npm run vectors:sv           npm run vectors:sv-tx           npm run vectors:sv-sighash
+```
+
+### What they found
+
+**The era now travels in flags, as it does in the node.** Genesis was a process-wide
+opt-in mutating four static caps, and there were no `SCRIPT_GENESIS` /
+`SCRIPT_UTXO_AFTER_GENESIS` / `SCRIPT_UTXO_AFTER_CHRONICLE` flags at all, so rules gated
+on the era of the output being spent could not be expressed, let alone enforced.
+
+**Genesis allows only one `OP_ELSE` per `OP_IF`** — 17 of the 21 false accepts.
+
+**Genesis reverts CLTV/CSV to upgradable NOPs** — found by the *transaction* vectors, not
+the script ones, because the behaviour only appears once a real `nLockTime` and sequence
+exist. Four transactions the network accepts were being rejected.
+
+**Chronicle digest routing** — 260 of 1000 rows disagreed. `SIGHASH_CHRONICLE` was
+honoured only when `SCRIPT_ENABLE_CHRONICLE` was also set; the node routes on the bit
+alone and rejects a signature carrying it outside Chronicle as `ILLEGAL_CHRONICLE`.
+Rejected, not reinterpreted — a stronger protection, and it leaves the digest a function
+of the transaction rather than of a flag the node never consults.
+
+**Four bugs a pass/fail check is structurally blind to.** Matching the node's outcome is
+not failing for the node's *reason*. Comparing the result code of all 600 rejected
+vectors found a divide-by-zero guard written `bn2 === 0` where `bn2` is a `BN` (never
+true), script-number decoding escaping into a generic catch (78 vectors), a truncated
+`PUSHDATA` doing the same, and `OP_NUM2BIN` checking only the upper bound of its size
+argument. Every one left the script failing, so 1483/1483 stayed green throughout.
+
+### Also in this release
+
+`verify()`'s default set is derived from what the vector harness applies rather than
+assembled by judgement, which is why it includes the `MONOLITH`/`MAGNETIC` pair: BSV
+restored those opcodes in 2018 and the node does not gate them, so omitting them would
+make the default *stricter* than consensus.
+
+`useMainnetConsensus()` no longer raises the script-number bound to `0x7fffffff`. That
+ceiling made Chronicle's shift-overflow check unreachable, since it tests
+`current_size + shift_bytes > max_length`.
+
+Timelock checks report a consensus error instead of a `TypeError` when there is no input
+at `nin`. `checkSequence` dereferenced the input as its first statement; `checkLockTime`
+had the identical dereference, hidden only by statement order.
+
 ## [7.13.0] - 2026-08-11
 
 Two of the three fixes below came from another team building a React Native keystore on
