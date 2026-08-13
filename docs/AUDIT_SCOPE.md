@@ -5,7 +5,7 @@ cryptographic core, and carries the enquiry text to send to vendors. It exists s
 every vendor prices the *same* thing, and so that the reasoning behind the scope
 boundary survives past the engagement that prompted it.
 
-Measured against **v8.0.0**, 2026-08-13. Re-measure before sending if the version has
+Measured against **v8.0.1**, 2026-08-13. Re-measure before sending if the version has
 moved (`docs/AUDIT_SCOPE.md` is not covered by a drift gate).
 
 ## 1. The question we are asking
@@ -29,11 +29,11 @@ testing.
 Two tiers, to be **priced separately** so the boundary can be drawn against a number
 rather than before seeing one.
 
-### Tier 1 — core, 12,254 lines across 33 files
+### Tier 1 — core, 12,249 lines across 33 files
 
 | Module | Lines | Why it matters |
 | --- | ---: | --- |
-| `lib/script/` | 3,737 | Consensus script interpreter. Divergence from the node means accepting a transaction the network rejects, or the reverse. |
+| `lib/script/` | 3,732 | Consensus script interpreter. Divergence from the node means accepting a transaction the network rejects, or the reverse. |
 | `lib/transaction/` | 2,779 | Sighash construction and signing — both BIP-143 and the Original Transaction Digest Algorithm. |
 | `lib/crypto/` | 2,519 | ECDSA, nonce derivation, signature encoding, the script-number type. |
 | `lib/hdprivatekey.js`, `lib/hdpublickey.js` | 1,168 | BIP-32 derivation, including hardened paths. |
@@ -60,17 +60,17 @@ is not.
 | `@noble/curves`, `@noble/hashes`, `@noble/ciphers` | Already audited | The primitives come from the Noble libraries, which **Cure53 has audited and published on**. We do not implement curve or hash arithmetic ourselves. State this explicitly to vendors — otherwise they price work we do not need. |
 | `lib/smart_contract/`, `lib/ltp/`, `lib/gdaf/`, `lib/ordinals/`, `lib/block/`, plus 9 further directories and 6 top-level files | Excluded | Application layer, 22,815 lines — 18,435 in the five named modules and 4,380 in the remainder. Written in-house and covered by adversarial tests. Worth a separate engagement; including it here would blur the question in §1. |
 
-Totals reconcile against `lib/`, which is 36,676 lines across 123 files:
+Totals reconcile against `lib/`, which is 36,671 lines across 123 files:
 
 ```
-tier 1      12,254
+tier 1      12,249
 tier 2       1,607
 excluded    22,815
             ------
-total       36,676
+total       36,671
 ```
 
-Core + optional = 13,861.
+Core + optional = 13,856.
 
 ## 4. What an auditor gets on day one
 
@@ -133,7 +133,7 @@ seeking a quote for an independent security review of its cryptographic core.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 12,254 lines, 33 files. Script interpreter, sighash and signing,
+  Tier 1 — 12,249 lines, 33 files. Script interpreter, sighash and signing,
   ECDSA and signature encoding, BIP-32 derivation, key and address
   construction.
 
@@ -171,7 +171,7 @@ SmartLedger Technology
 Every figure in this document, including the excluded total, must come out of this
 script. **Derive the excluded count as the complement — never by subtracting tier 1
 alone.** The first draft did exactly that, double-counted tier 2, and published parts
-summing to 37,430 against a 36,676 whole; §7 could not catch it because it reproduced
+summing to 37,430 against a 36,671 whole; §7 could not catch it because it reproduced
 every figure except the wrong one.
 
 ```sh
