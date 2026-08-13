@@ -90,11 +90,23 @@ describe('Interpreter post-Genesis limits', function () {
     Interpreter.MAX_SCRIPT_SIZE.should.equal(10000)
   })
 
-  it('rejects a >10 KB script under default limits', function () {
+  // Intent inverted in 8.0.0. verify() now defaults to current mainnet, where Genesis
+  // removed the size cap, so a 20 KB script is accepted unless the caller asks for the
+  // pre-Genesis era. The cap is still enforced — it just has to be selected, which is
+  // what the following test asserts.
+  it('accepts a >10 KB script under the default (post-Genesis) rules', function () {
+    Interpreter.useGenesisLimits()
+    Interpreter.MAX_SCRIPT_SIZE = 10000 // the static cap is irrelevant post-Genesis
+    var interp = new Interpreter()
+    interp.verify(new Script(), scriptOfSize(20 * 1024)).should.equal(true)
+  })
+
+  it('rejects a >10 KB script when the pre-Genesis era is asked for', function () {
     Interpreter.useGenesisLimits() // lift element/ops caps so SIZE is what is under test
     Interpreter.MAX_SCRIPT_SIZE = 10000 // ...but keep the pre-Genesis size cap
     var interp = new Interpreter()
-    interp.verify(new Script(), scriptOfSize(20 * 1024)).should.equal(false)
+    // Flags omitted would mean post-Genesis; 0 selects the older rules explicitly.
+    interp.verify(new Script(), scriptOfSize(20 * 1024), new bsv.Transaction(), 0, 0).should.equal(false)
     interp.errstr.should.equal('SCRIPT_ERR_SCRIPT_SIZE')
   })
 

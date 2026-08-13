@@ -65,12 +65,25 @@ describe('Chronicle script surface', function () {
     // — and Interpreter.DEFAULT_FLAGS does not exist, so it evaluated `undefined & n`,
     // which is 0 for every n. A tautology, written by me, in the same change that added
     // the flag. What it MEANT to assert is that verify() enables nothing on its own.
-    it('is not enabled unless the caller asks: verify() defaults to no flags', function () {
-      // Deliberately NOT via run(): that helper defaults to CHRONICLE, so it would
+    // The intent inverted in 8.0.0. It used to assert that verify() enables nothing on
+    // its own, which was true and was the bug: a BSV library whose default described
+    // Bitcoin in 2015 accepted scripts the network rejects. The default is now current
+    // mainnet, so the assertion is that Chronicle IS on without being asked for.
+    it('is enabled by default, because mainnet has it', function () {
+      // Deliberately NOT via run(): that helper passes CHRONICLE explicitly, so it would
       // measure the helper rather than the library. Omit the argument entirely.
       var script = new Script().add(Opcode.OP_VER)
       var interp = new Interpreter()
-      var verified = interp.verify(new Script(), script, new bsv.Transaction(), 0)
+      interp.verify(new Script(), script, new bsv.Transaction(), 0)
+      // OP_VER is meaningful under Chronicle; BAD_OPCODE would mean it was not enabled.
+      ;(interp.errstr || '').should.not.match(/BAD_OPCODE/)
+      ;(Interpreter.currentConsensusFlags() & CHRONICLE).should.equal(CHRONICLE)
+    })
+
+    it('can still be turned off for a pre-activation UTXO', function () {
+      var script = new Script().add(Opcode.OP_VER)
+      var interp = new Interpreter()
+      var verified = interp.verify(new Script(), script, new bsv.Transaction(), 0, 0)
       verified.should.equal(false)
       interp.errstr.should.match(/BAD_OPCODE/)
     })
