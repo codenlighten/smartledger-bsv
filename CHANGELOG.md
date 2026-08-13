@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.1] - 2026-08-13
+
+### `mainnetFlags()` was applying 2019 limits
+
+8.0.0 made the interpreter's limits era-derived, but `mainnetFlags()` was written before
+the era model and never updated to carry the flags it depends on. It set
+`SCRIPT_ENABLE_CHRONICLE` and none of `SCRIPT_GENESIS`,
+`SCRIPT_UTXO_AFTER_GENESIS` or `SCRIPT_UTXO_AFTER_CHRONICLE`, so
+`Interpreter#maxScriptNumLength()` fell through to the pre-Genesis static. A validator
+built from the helper named after mainnet was applying the limits of 2019 — most sharply
+the 4-byte script-number bound, which is why post-Genesis contracts could not do
+arithmetic on satoshi amounts.
+
+```
+                                        8.0.0        8.0.1
+mainnetFlags({ afterChronicle: false })      4      750,000
+mainnetFlags()                               4   32,000,000
+```
+
+Genesis is unconditional in this helper: it activated in 2020 and nothing still spendable
+wants the older limits from something called `mainnetFlags`. `{ afterChronicle: false }`
+drops only the Chronicle pair.
+
+`useMainnetConsensus()` no longer pins `MAXIMUM_ELEMENT_SIZE`, and
+`Interpreter.DEFAULT_SCRIPT_NUM_LENGTH` is removed. That pin existed to stop
+`useGenesisLimits()` raising the bound to `0x7fffffff` and making Chronicle's
+shift-overflow check unreachable; with the era flags present that fallback is not
+consulted, so the symptom goes with the cause.
+
+### How the value was settled
+
+The node's vectors pin the pre-Genesis bound at 4 and are silent above it — all 22
+`SCRIPTNUM_OVERFLOW` rows carry `P2SH,STRICTENC` with no era flag, and no Genesis-era row
+exercises script-number width. Sweeping the static against the corpus: 1483/1483 at 4,
+and 1468/1483 with 15 false accepts at 8, 32 or 750,000, every one of them a pre-Genesis
+row. So the static could not be raised — and did not need to be, because 8.0.0 already
+derived the bound from the era.
+
+### Known sharp edge
+
+`useGenesisLimits()` still raises `MAXIMUM_ELEMENT_SIZE`, which is now only the
+pre-Genesis fallback. Calling it and then verifying with no era flag gets a corrupted
+bound. That combination is contradictory, but the edge is real and will be removed
+separately.
+
 ## [8.0.0] - 2026-08-13
 
 This library is now measured against the reference node's own consensus vectors, and its
