@@ -1,6 +1,6 @@
 {
   "suite": "networks",
-  "generatedBy": "v7.13.0",
+  "generatedBy": "v8.0.1",
   "caseCount": 28,
   "cases": {
     "alias is absent on every built-in network": {
