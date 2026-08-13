@@ -91,3 +91,70 @@ describe('verify() consensus defaults', function () {
     })
   })
 })
+
+// The script-number bound is era-derived, not a process-wide static.
+//
+// `mainnetFlags()` omitted every era flag except SCRIPT_ENABLE_CHRONICLE, so
+// `maxScriptNumLength()` fell back to the pre-Genesis 4 for a validator built from the
+// helper named after mainnet — while post-Genesis is 750,000 and post-Chronicle
+// 32,000,000. An earlier fix pinned MAXIMUM_ELEMENT_SIZE to stop useGenesisLimits()
+// raising it to 0x7fffffff and making Chronicle's shift-overflow check unreachable; that
+// treated the symptom rather than the missing flags.
+//
+// The node's vectors settle the pre-Genesis value at 4 and are silent above it: all 22
+// SCRIPTNUM_OVERFLOW rows carry P2SH,STRICTENC and no era flag, and raising the static
+// bound to 8 turns 15 of them into false accepts.
+describe('script-number bound follows the era', function () {
+  function boundFor (flags) {
+    var i = new Interpreter()
+    i.set({ flags: flags })
+    return i.maxScriptNumLength()
+  }
+
+  it('is 4 before Genesis, which the node vectors pin', function () {
+    boundFor(0).should.equal(4)
+  })
+
+  it('is the post-Genesis figure when only Genesis is asked for', function () {
+    boundFor(Interpreter.mainnetFlags({ afterChronicle: false }))
+      .should.equal(Interpreter.MAX_SCRIPT_NUM_LENGTH_AFTER_GENESIS)
+  })
+
+  it('is the post-Chronicle figure under mainnetFlags() and the default', function () {
+    boundFor(Interpreter.mainnetFlags())
+      .should.equal(Interpreter.MAX_SCRIPT_NUM_LENGTH_AFTER_CHRONICLE)
+    boundFor(Interpreter.currentConsensusFlags())
+      .should.equal(Interpreter.MAX_SCRIPT_NUM_LENGTH_AFTER_CHRONICLE)
+  })
+
+  // Genesis activated in 2020 and nothing still spendable predates it in a way that
+  // makes a mainnet helper want the older limits, so it is not opt-out-able here.
+  it('carries the Genesis era flags in mainnetFlags(), both variants', function () {
+    ;[Interpreter.mainnetFlags(), Interpreter.mainnetFlags({ afterChronicle: false })].forEach(function (f) {
+      (f & Interpreter.SCRIPT_GENESIS).should.equal(Interpreter.SCRIPT_GENESIS)
+      ;(f & Interpreter.SCRIPT_UTXO_AFTER_GENESIS).should.equal(Interpreter.SCRIPT_UTXO_AFTER_GENESIS)
+    })
+  })
+
+  it('drops only the Chronicle pair for a pre-activation UTXO', function () {
+    var pre = Interpreter.mainnetFlags({ afterChronicle: false })
+    ;(pre & Interpreter.SCRIPT_ENABLE_CHRONICLE).should.equal(0)
+    ;(pre & Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE).should.equal(0)
+  })
+
+  // useMainnetConsensus() must no longer pin the static; the flags carry the bound.
+  //
+  // The limits are process-wide statics, so this saves and restores them. Without the
+  // restore the raised caps leak into every later test in the same mocha process — 24 of
+  // them, when this was first written, including the inherited pre-Genesis bitcoind
+  // vectors. The same trap #114 hit and documented.
+  it('is not overridden by useMainnetConsensus()', function () {
+    var saved = Interpreter.getLimits()
+    try {
+      var flags = Interpreter.useMainnetConsensus()
+      boundFor(flags).should.equal(Interpreter.MAX_SCRIPT_NUM_LENGTH_AFTER_CHRONICLE)
+    } finally {
+      Interpreter.setLimits(saved)
+    }
+  })
+})
