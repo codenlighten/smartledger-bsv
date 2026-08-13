@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0] - 2026-08-13
+
+### `useGenesisLimits()` no longer raises the script-number bound
+
+It raised `MAXIMUM_ELEMENT_SIZE` along with the three size caps. That was right before the
+limits became era-derived, when it was the only way to reach post-Genesis arithmetic. It
+is not any more, and the raise had become purely harmful.
+
+`MAXIMUM_ELEMENT_SIZE` is CScriptNum's `max_length`, and since 8.0.0 it serves only as the
+**pre-Genesis fallback** for `maxScriptNumLength()` — post-Genesis is 750,000 and
+post-Chronicle 32,000,000, both reached through the era flags. So raising it could not
+enable post-Genesis arithmetic. It could only corrupt pre-Genesis validation:
+
+```
+5-byte operand under P2SH,STRICTENC
+
+  fresh process:            SCRIPT_ERR_SCRIPTNUM_OVERFLOW   (what the node says)
+  after useGenesisLimits(): ACCEPTED
+```
+
+A false accept, in the direction that can cost money, reached through a process-wide side
+effect on unrelated code later in the same process. The node's vectors agree
+independently: all 22 `SCRIPTNUM_OVERFLOW` rows are pre-Genesis, and raising this static
+turns 15 of them into false accepts.
+
+The three size caps still lift, so the documented reason to call the function is
+unaffected, and `setLimits()` can still set the bound explicitly.
+
+**Migration.** If you called `useGenesisLimits()` to get arithmetic wider than four bytes,
+ask for the era instead — `Interpreter.mainnetFlags()`, or simply omit the flags argument,
+which has defaulted to current mainnet since 8.0.0. Calling `useGenesisLimits()` for that
+purpose was already unsound, because it changed the rules for every later `verify()` in
+the process, including ones deliberately validating under pre-Genesis rules.
+
+Minor rather than patch: a public helper stops doing one of the four things it documented.
+
 ## [8.0.1] - 2026-08-13
 
 ### `mainnetFlags()` was applying 2019 limits
