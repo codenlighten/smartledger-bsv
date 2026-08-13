@@ -24,7 +24,8 @@ describe('Interpreter post-Genesis limits', function () {
   it('keeps pre-Genesis defaults out of the box', function () {
     Interpreter.MAX_SCRIPT_ELEMENT_SIZE.should.equal(520)
     Interpreter.MAXIMUM_ELEMENT_SIZE.should.equal(4)
-    Interpreter.MAX_OPS_PER_SCRIPT.should.equal(201)
+    // 500, not Core's 201: BSV raised the limit before Genesis removed it.
+    Interpreter.MAX_OPS_PER_SCRIPT.should.equal(500)
   })
 
   it('useGenesisLimits() lifts all three caps', function () {
@@ -59,15 +60,17 @@ describe('Interpreter post-Genesis limits', function () {
   })
 
   // 220 OP_NOPs then OP_1 — more non-push opcodes than the 201 cap allows.
+  // Over BSV's pre-Genesis limit of 500. It used to be 220, which is over
+  // Core's 201 but comfortably inside what BSV allowed.
   var manyOps = new Script()
-  for (var i = 0; i < 220; i++) manyOps.add(Opcode.OP_NOP)
+  for (var i = 0; i < 520; i++) manyOps.add(Opcode.OP_NOP)
   manyOps.add(Opcode.OP_1)
 
-  it('rejects >201 opcodes under default limits', function () {
+  it('rejects more opcodes than the pre-Genesis limit allows', function () {
     run(manyOps).should.equal(false)
   })
 
-  it('allows >201 opcodes after useGenesisLimits()', function () {
+  it('allows them after useGenesisLimits()', function () {
     Interpreter.useGenesisLimits()
     run(manyOps).should.equal(true)
   })
@@ -98,6 +101,47 @@ describe('Interpreter post-Genesis limits', function () {
   it('allows a >10 KB script after useGenesisLimits()', function () {
     Interpreter.useGenesisLimits()
     run(scriptOfSize(20 * 1024)).should.equal(true)
+  })
+
+  // Genesis lifted the 520-byte element cap, and OP_CAT is where an
+  // implementation is most likely to keep enforcing it: it is the one opcode
+  // that can grow an element past the limit from two legal halves. This read
+  // the static constant rather than the era-derived size, so it stayed capped
+  // at 520 after Genesis and rejected concatenations the network accepts.
+  //
+  // No vector in the SV corpus covers it, so the corpus passes completely
+  // either way. It is held here instead.
+  describe('OP_CAT and the element size cap', function () {
+    var MONOLITH = Interpreter.SCRIPT_ENABLE_MONOLITH_OPCODES
+
+    // Two 300-byte pushes: each is legal pre-Genesis, their concatenation is
+    // not. Nothing but the cap distinguishes the two cases below.
+    var cat = new Script()
+      .add(Buffer.alloc(300, 1))
+      .add(Buffer.alloc(300, 1))
+      .add(Opcode.OP_CAT)
+
+    function runWith (flags) {
+      var interp = new Interpreter()
+      var ok
+      try {
+        ok = interp.verify(new Script(), cat, new Transaction(), 0, flags)
+      } catch (e) {
+        ok = false
+      }
+      return { ok: ok, errstr: interp.errstr }
+    }
+
+    it('rejects a 600-byte concatenation before Genesis', function () {
+      var got = runWith(MONOLITH)
+      got.ok.should.equal(false)
+      got.errstr.should.equal('SCRIPT_ERR_PUSH_SIZE')
+    })
+
+    it('allows it after Genesis', function () {
+      var got = runWith(MONOLITH | Interpreter.SCRIPT_UTXO_AFTER_GENESIS)
+      got.ok.should.equal(true, 'rejected with ' + got.errstr)
+    })
   })
 
   it('useGenesisLimits raises all four caps, and getLimits/setLimits round-trip', function () {

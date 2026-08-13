@@ -35,7 +35,12 @@ function run (build, opts) {
   return {
     verified: verified,
     errstr: interp.errstr || '',
-    stack: (interp.stack || []).map(function (b) { return BN.fromScriptNumBuffer(b).toString() }),
+    // Read with the era's width, not BN's four-byte default: post-Genesis
+    // results are routinely wider than that, and a default-width read throws
+    // on them rather than reporting the value.
+    stack: (interp.stack || []).map(function (b) {
+      return BN.fromScriptNumBuffer(b, false, Math.max(b.length, 4)).toString()
+    }),
     // The raw bytes as well: several Chronicle behaviours are about WIDTH, not
     // value, and a script-number reading collapses that distinction.
     raw: (interp.stack || []).map(function (b) { return Buffer.from(b) })
@@ -151,7 +156,7 @@ describe('Chronicle script surface', function () {
   })
 
   describe('OP_VERIF / OP_VERNOTIF', function () {
-    it('without the flag, errors only in an EXECUTED branch', function () {
+    it('after Genesis, errors only in an EXECUTED branch', function () {
       // Core treats OP_VERIF as illegal everywhere, including unexecuted
       // branches — a rule it applies to no other opcode. BSV dropped that at
       // Genesis, and the node is explicit:
@@ -161,12 +166,21 @@ describe('Chronicle script surface', function () {
       //     else return SCRIPT_ERR_BAD_OPCODE;
       //   }
       //
-      // Asserting BAD_OPCODE here made this library reject scripts the network
-      // accepts.
+      // Note the condition includes utxo_after_genesis, so the era has to be
+      // stated. Run without it, this is a pre-Genesis output, and then Core's
+      // rule is also BSV's: illegal everywhere, which the node's own corpus
+      // confirms for exactly these scripts.
       var unexecuted = run(function (s) {
         s.add(Opcode.OP_0).add(Opcode.OP_IF).add(Opcode.OP_VERIF).add(Opcode.OP_ENDIF).add(Opcode.OP_1)
-      }, { flags: 0 })
+      }, { flags: Interpreter.SCRIPT_UTXO_AFTER_GENESIS })
       unexecuted.verified.should.equal(true)
+
+      // Pre-Genesis the same script is invalid, unexecuted branch or not.
+      var preGenesis = run(function (s) {
+        s.add(Opcode.OP_0).add(Opcode.OP_IF).add(Opcode.OP_VERIF).add(Opcode.OP_ENDIF).add(Opcode.OP_1)
+      }, { flags: 0 })
+      preGenesis.verified.should.equal(false)
+      preGenesis.errstr.should.match(/BAD_OPCODE/)
 
       var executed = run(function (s) {
         s.add(Opcode.OP_1).add(Opcode.OP_VERIF).add(Opcode.OP_ENDIF)
@@ -328,9 +342,23 @@ describe('Chronicle script surface', function () {
     it('left shift overflows rather than growing without bound', function () {
       // CScriptNum bounds this BEFORE shifting (current_size + shift_bytes >
       // max_length), so a huge count cannot allocate a huge number first.
-      var r = shift(5, 1000, Opcode.OP_LSHIFTNUM)
+      //
+      // The count has to exceed the real bound to test that. Chronicle's
+      // max_length is 32,000,000 bytes, so 1000 bits — 125 bytes — is a
+      // perfectly valid post-Chronicle number and overflows only against the
+      // pre-Genesis four. This used to pass because the bound was four
+      // whatever the era.
+      var r = shift(5, 8 * Interpreter.MAX_SCRIPT_NUM_LENGTH_AFTER_CHRONICLE,
+        Opcode.OP_LSHIFTNUM)
       r.verified.should.equal(false)
       r.errstr.should.match(/OVERFLOW/)
+    })
+
+    it('leaves a shift inside the bound alone', function () {
+      // The counterpart: 1000 bits is valid post-Chronicle, and was not before.
+      var r = shift(5, 1000, Opcode.OP_LSHIFTNUM)
+      r.verified.should.equal(true)
+      r.raw[0].length.should.equal(126)
     })
 
     it('fails on a short stack', function () {
@@ -370,29 +398,54 @@ describe('Chronicle script surface', function () {
     it('OVERRIDES FORKID — otherwise the bit could never select OTDA in practice', function () {
       // FORKID is set on essentially every BSV signature written since 2018, so a
       // CHRONICLE bit that only applied when FORKID was absent would mean nothing.
+      //
+      // Stated against the algorithm rather than against the flag: the node
+      // routes on the bit alone, so with the bit set, enabling forkid makes no
+      // difference and the result is the original digest either way.
       var f = fixture()
       var type = Signature.SIGHASH_ALL | Signature.SIGHASH_FORKID | Signature.SIGHASH_CHRONICLE
-      var chronicle = bsv.Transaction.sighash.sighash(
-        f.tx, type, 0, f.sub, f.amt,
-        Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID | CHRONICLE
-      )
-      var bip143 = bsv.Transaction.sighash.sighash(
+      var withForkId = bsv.Transaction.sighash.sighash(
         f.tx, type, 0, f.sub, f.amt, Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID
       )
-      chronicle.toString('hex').should.not.equal(bip143.toString('hex'))
+      var forcedOtda = bsv.Transaction.sighash.sighash(f.tx, type, 0, f.sub, f.amt, 0)
+      withForkId.toString('hex').should.equal(forcedOtda.toString('hex'))
+
+      // And it does override: without the bit the same transaction takes BIP-143.
+      var withoutBit = Signature.SIGHASH_ALL | Signature.SIGHASH_FORKID
+      var bip143 = bsv.Transaction.sighash.sighash(
+        f.tx, withoutBit, 0, f.sub, f.amt, Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID
+      )
+      bip143.toString('hex').should.not.equal(withForkId.toString('hex'))
     })
 
-    it('is IGNORED without the flag, so existing BIP-143 signatures are unaffected', function () {
+    it('cannot be used outside Chronicle, so old BIP-143 signatures are unaffected', function () {
       // Before the upgrade the 0x20 bit means nothing, so signatures already exist
-      // whose type byte happens to set it. Honouring it unconditionally would
-      // reinterpret those as OTDA — a silent validity change on historic data.
-      var f = fixture()
-      var withBit = Signature.SIGHASH_ALL | Signature.SIGHASH_FORKID | Signature.SIGHASH_CHRONICLE
-      var viaForkId = bsv.Transaction.sighash.sighash(
-        f.tx, withBit, 0, f.sub, f.amt, Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID
-      )
-      var forcedOtda = bsv.Transaction.sighash.sighash(f.tx, withBit, 0, f.sub, f.amt, 0)
-      viaForkId.toString('hex').should.not.equal(forcedOtda.toString('hex'))
+      // whose type byte happens to set it. Reinterpreting those as OTDA would be
+      // a silent validity change on historic data.
+      //
+      // The node prevents that in CheckSignatureEncoding rather than in the
+      // digest function: a signature carrying the bit outside Chronicle is
+      // REJECTED, not reinterpreted, so it never reaches a digest at all. That
+      // is what lets SignatureHash() route on the bit alone, and gating the
+      // digest instead made 260 of the node's 1000 vectors disagree.
+      var priv = new bsv.PrivateKey()
+      var hashbuf = bsv.crypto.Hash.sha256(Buffer.from('chronicle bit'))
+      var type = Signature.SIGHASH_ALL | Signature.SIGHASH_FORKID | Signature.SIGHASH_CHRONICLE
+      var sig = bsv.crypto.ECDSA.sign(hashbuf, priv)
+      sig.nhashtype = type
+
+      var interp = new Interpreter()
+      interp.set({ flags: Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID | Interpreter.SCRIPT_VERIFY_STRICTENC })
+      interp.checkSignatureEncoding(sig.toTxFormat()).should.equal(false)
+      interp.errstr.should.equal('SCRIPT_ERR_ILLEGAL_CHRONICLE')
+
+      // With Chronicle in force it is allowed.
+      var ok = new Interpreter()
+      ok.set({
+        flags: Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID |
+          Interpreter.SCRIPT_VERIFY_STRICTENC | Interpreter.SCRIPT_CHRONICLE
+      })
+      ok.checkSignatureEncoding(sig.toTxFormat()).should.equal(true)
     })
   })
 

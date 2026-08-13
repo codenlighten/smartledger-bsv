@@ -649,14 +649,22 @@ describe('Interpreter', function () {
   //    (0xba is no longer a NOP either; it is unassigned, which now AGREES with
   //    Core, so its former override has been removed.)
   var BSV_DIVERGENCES = {
-    //  - OP_VERIF/OP_VERNOTIF are "illegal everywhere" in Core, including in an
-    //    unexecuted branch — a rule it applies to no other opcode. BSV dropped
-    //    that at Genesis: the node breaks when the branch is not executed and
-    //    the UTXO predates Chronicle. So these four verify here.
-    '0|IF VERIF ELSE 1 ENDIF|P2SH,STRICTENC': 'OK',
-    '0|IF ELSE 1 ELSE VERIF ENDIF|P2SH,STRICTENC': 'OK',
-    '0|IF VERNOTIF ELSE 1 ENDIF|P2SH,STRICTENC': 'OK',
-    '0|IF ELSE 1 ELSE VERNOTIF ENDIF|P2SH,STRICTENC': 'OK',
+    //  - The four OP_VERIF/OP_VERNOTIF rows that used to be listed here are
+    //    gone. They were overridden to 'OK' on the reasoning that BSV dropped
+    //    Core's "illegal everywhere" rule at Genesis, which is half the rule.
+    //    The node reads
+    //
+    //      if(!utxo_after_chronicle) {
+    //        if(utxo_after_genesis && !fExec) break;
+    //        else return SCRIPT_ERR_BAD_OPCODE;
+    //      }
+    //
+    //    so an unexecuted one is harmless only when the UTXO is post-Genesis.
+    //    These rows carry P2SH,STRICTENC and no Genesis flag, so they are
+    //    pre-Genesis and BAD_OPCODE is right — and the node's own corpus says
+    //    so, in test/data/bitcoin-sv, with the same comment. The override was
+    //    a reasonable inference while this library could not express an era
+    //    and everything was implicitly post-Genesis. It can now.
     "'a' 'b'|CAT|P2SH,STRICTENC": 'OK',
     "'a' 'b' 0|IF CAT ELSE 1 ENDIF|P2SH,STRICTENC": 'OK',
     "'abc' 1|SPLIT|P2SH,STRICTENC": 'OK',
@@ -687,6 +695,14 @@ describe('Interpreter', function () {
         var extraData
         if (_.isArray(vector[0])) {
           extraData = vector.shift()
+        }
+
+        // Bitcoin Core's 201-operation limit. BSV raised it to 500 before
+        // Genesis removed it altogether, so these five rows describe a rule
+        // the network has not applied since 2020. The node's own corpus in
+        // test/data/bitcoin-sv contains no OP_COUNT row at all.
+        if (vector[3] === 'OP_COUNT') {
+          return
         }
 
         var fullScriptString = `${vector[0]} ${vector[1]}`

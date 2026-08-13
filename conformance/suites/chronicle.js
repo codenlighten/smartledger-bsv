@@ -125,7 +125,11 @@ function runChronicle (bsv, build, version) {
   return {
     verified,
     errstr: i.errstr || '',
-    stack: (i.stack || []).map((b) => bsv.crypto.BN.fromScriptNumBuffer(b).toString())
+    // Read at the item's own width. BN defaults to four bytes, which is the
+    // pre-Genesis bound; post-Chronicle a script number may be far wider, and
+    // a default-width read throws on one rather than reporting its value.
+    stack: (i.stack || []).map((b) =>
+      bsv.crypto.BN.fromScriptNumBuffer(b, false, Math.max(b.length, 4)).toString())
   }
 }
 

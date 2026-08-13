@@ -1,6 +1,6 @@
 {
   "suite": "hdkeys",
-  "generatedBy": "v7.9.0",
+  "generatedBy": "v7.13.0",
   "caseCount": 44,
   "cases": {
     "derive index 0x7fffffff": {
