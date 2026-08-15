@@ -151,7 +151,10 @@ jobs:
         # for the SV Node consensus vectors and their gates — 12 files, 836 KB,
         # which belong in the tarball for the same reason the test suite does:
         # a consumer can then check this library's consensus behaviour against
-        # the reference node's own data rather than taking it on trust.
+        # the reference node's own data rather than taking it on trust. Raised
+        # again for tools/ (10 files, 76 KB): the vectors are inert without the
+        # harnesses that run them, and test/consensus/ require()s them directly,
+        # so shipping one without the other left the shipped specs unrunnable.
         run: |
           npm pack --dry-run > /tmp/pack.log 2>&1
           tail -10 /tmp/pack.log
@@ -165,8 +168,8 @@ jobs:
           FILE_COUNT=$(grep -oE 'total files: [0-9]+' /tmp/pack.log | grep -oE '[0-9]+')
           UNPACKED_MB=$(grep -oE 'unpacked size: [0-9.]+ MB' /tmp/pack.log | grep -oE '[0-9.]+')
           echo "Tarball: $FILE_COUNT files, $UNPACKED_MB MB unpacked."
-          if [ -z "$FILE_COUNT" ] || [ "$FILE_COUNT" -gt 350 ]; then
-            echo "::error::Tarball file count ($FILE_COUNT) exceeds 350 — review additions."
+          if [ -z "$FILE_COUNT" ] || [ "$FILE_COUNT" -gt 370 ]; then
+            echo "::error::Tarball file count ($FILE_COUNT) exceeds 370 — review additions."
             exit 1
           fi
           # Use awk for float compare; ceiling is 14 MB (current ~11 MB)
