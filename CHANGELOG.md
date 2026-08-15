@@ -7,6 +7,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.2.0] - 2026-08-15
+
+Two independent reviews of 8.1.0, both acted on after reproducing every claim. Between
+them they found a proof system that verified nothing, a selective-disclosure scheme that
+leaked the fields it withheld, and a signature canonicalization no other implementation
+can reproduce. **4,469 tests passed with all of it in place**, because none of them
+touched those files.
+
+### `lib/gdaf/zk-prover.js` — verified nothing, and leaked what it hid
+
+This module had **zero test coverage**.
+
+**`verifyRangeProof` verified nothing.** It ended at `return proof.inRange === true` — a
+boolean the prover writes about itself. `valueCommitment` was never consulted, so any
+object of the right shape passed:
+
+```js
+{ type: 'RangeProof', range: { min: 18, max: 120 },
+  valueCommitment: '00…', proofHash: 'de…', inRange: true }   // → true
+```
+
+`verifyAgeProof` had the same shape: it accepted `meetsRequirement`, then checked only
+that `challengeResponse` was a non-empty string.
+
+Both now require the **opening**, check the commitment actually opens to the claimed
+value, and recompute the range or age rather than trusting the prover. Without an opening
+they return `false`, because nothing has been proven. The generators return the opening
+alongside the proof rather than inside it — embedding it would make every proof
+self-opening.
+
+**Selective disclosure leaked the withheld fields.** One salt covered every leaf and
+travelled in the proof, so the sibling hashes on the Merkle path could be brute-forced
+back into the hidden values. Disclosing only `credentialSubject.name` recovered `id`
+directly, and `partyAffiliation` with `eligible` from their shared parent node. Each leaf
+now carries its own salt, derived from a master that never leaves the generator, and only
+the disclosed leaves' salts travel in the proof.
+
+**A proof generated without an explicit salt could never verify.** The return used the
+`salt` argument — `undefined` when omitted — instead of the one `createMerkleTree`
+produced.
+
+**Nothing here is zero-knowledge**, and the module said otherwise in three places. These
+are hash commitments and a Merkle tree; the range and age commitments can only be checked
+by opening them, which reveals the committed value. The npm keyword
+`zero-knowledge-proofs` is replaced with `selective-disclosure`, the "Bulletproof-style"
+comment is corrected, and the docblock states the limitation plainly.
+
+21 tests where there were none, each pinning the attack rather than the fix.
+
+### GDAF canonicalization is now RFC 8785
+
+`_canonicalizeJSON` sorted keys and then rebuilt an object, which loses the sort: V8
+orders integer-like own properties numerically, ahead of string keys.
+
+```
+ours   {"2":"two","10":"ten"}
+JCS    {"10":"ten","2":"two"}      (UTF-16 code-unit order)
+```
+
+Within this library that was deterministic — signing and verification agreed, and no
+forgery follows. The failure is interoperability: GDAF credentials exist to be checked by
+other parties, and a JCS-conformant verifier in any language computes a different hash and
+rejects a valid signature.
+
+`_canonicalizeJCS` serializes directly rather than round-tripping through an object, so
+the order survives. Non-finite numbers now throw rather than serializing as `null`, which
+would silently sign a different document than the one supplied.
+
+**Migration is handled**: signing uses JCS, and verification tries JCS then the legacy
+form, so credentials, presentations and `rootHash` values written before this keep
+verifying. `1847`, `1847.0` and `1.847e3` still hash identically, which is correct rather
+than a weakness — they are the same IEEE-754 double — and a test pins it.
+
+### Packaging
+
+`files` shipped `test/` but not `tools/`, and three consensus specs require it. `tools/`
+now ships, and the tarball file-count guard is raised to 370 to accommodate it: the
+vectors are inert without the harnesses that run them.
+
+Note that a consumer still cannot run the shipped tests, because devDependencies are
+absent — whether `test/` should ship at all is a separate question.
+
 ## [8.1.0] - 2026-08-13
 
 ### `useGenesisLimits()` no longer raises the script-number bound
