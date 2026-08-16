@@ -152,19 +152,50 @@ later:
 - Round-trip the on-chain record for all three modes, and assert hybrid's pushes are
   32 bytes where full's are variable.
 
-## 7. Open questions to settle against the spec before coding
+## 7. Questions, settled against the full text
 
-- **Push 0 length.** The prefix is `"NOTARYHASH"`, which is 10 ASCII bytes; one reading of
-  the spec says 9. Confirm against the normative text before writing the parser — an
-  off-by-one here makes every record unparseable by other implementations.
-- Whether `hashAlgorithm` is constrained to `"SHA-256"` in v1 or open.
-- Whether `encoding` (`"raw"` / `"der"`) is normative for ECDSA, and which this library
-  should emit by default. Our `Signature.toDER()` and the compact form differ, and the
-  choice has to match what other implementations expect.
-- Whether batch certificates carry the full `anchor` object or only the `merkle` object
-  plus a shared anchor.
-- Whether the service model in the spec is required, or whether a self-notarizing caller
-  producing its own certificate is conformant.
+The spec is 8,514 bytes. These were resolved by reading all of it rather than querying it
+piecemeal — which is also how the first of them turned out to be an artifact of my own
+summarising rather than anything in the document.
+
+- **Push 0 is `"NOTARYHASH"`, 10 ASCII bytes** (`4e4f5441525948415348`). The spec states no
+  byte count for it anywhere; the "9 bytes" this section previously flagged came from a
+  summarisation step, not the normative text. Verified by fetching the raw file and
+  grepping it directly.
+- **`hashAlgorithm` is SHA-256** for every algorithm the spec lists — the Algorithms table
+  gives one hash for all three families. It is not stated to be closed, so the field stays
+  a string rather than an enum, but SHA-256 is the only conformant value in v1.
+- **The signer signs the 32-byte `payloadHash` directly** (§Algorithms): "post-quantum
+  schemes apply their own internal hashing". So ECDSA signs the digest as-is, with no
+  second hash. Getting this wrong produces signatures nothing else verifies.
+- **Batch certificates carry BOTH `anchor` and `merkle`** — the spec says a batched
+  certificate "additionally carries" the inclusion proof.
+- **The service is a role, not a requirement.** §What a certificate proves: "any party
+  holding a valid (hash, signature, publicKey) triple may re-anchor it; the attestation
+  remains valid". A self-notarizing caller producing its own certificate is conformant.
+- **`createdAt` is advisory for trust but load-bearing for the hash.** §Verification calls
+  it "an advisory client field only" — meaning proof-of-existence time comes from the
+  block, not from this field. It is still inside the canonical bytes as `createdAtUnix`,
+  so it cannot be altered after issuance.
+
+Still genuinely open, and not answerable from the text:
+
+- **`encoding`** is a required certificate field, but the spec never enumerates its values.
+  For `ECDSA-secp256k1` this library can emit DER or compact, and the choice has to match
+  what other implementations expect. **This needs an answer from the spec author before
+  Phase 3.**
+
+### The reference implementation
+
+§Implementations describes a reference service, client SDK and standalone verifier, with
+**published test vectors**: a complete certificate-with-SPV-envelope golden vector,
+`txidFromRawTx` against the Bitcoin genesis coinbase, and the Merkle fold against the real
+block-170 two-transaction proof.
+
+Those vectors are worth more than anything in §6, and should be wired in as gates before
+Phase 2 goes far. This module's characteristic failure is being self-consistent and wrong
+— every local test green, no other implementation agreeing — and a golden vector from a
+second implementation is the only thing that actually rules it out. Our own tests cannot.
 
 ## 8. Not in scope
 
