@@ -23,6 +23,7 @@ export const {
   Message,
   Mnemonic,
   Networks,
+  NotaryHash,
   Opcode,
   Ordinals,
   Output,
