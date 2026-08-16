@@ -155,6 +155,10 @@ jobs:
         # again for tools/ (10 files, 76 KB): the vectors are inert without the
         # harnesses that run them, and test/consensus/ require()s them directly,
         # so shipping one without the other left the shipped specs unrunnable.
+        # And again for lib/notaryhash + its tests (10 files): BRC-220 is a
+        # complete module rather than a file, and it ships for the same reason
+        # every other lib/ module does. 371 files at the time of writing, so the
+        # headroom below is deliberate rather than a ceiling to grow into.
         run: |
           npm pack --dry-run > /tmp/pack.log 2>&1
           tail -10 /tmp/pack.log
@@ -168,8 +172,8 @@ jobs:
           FILE_COUNT=$(grep -oE 'total files: [0-9]+' /tmp/pack.log | grep -oE '[0-9]+')
           UNPACKED_MB=$(grep -oE 'unpacked size: [0-9.]+ MB' /tmp/pack.log | grep -oE '[0-9.]+')
           echo "Tarball: $FILE_COUNT files, $UNPACKED_MB MB unpacked."
-          if [ -z "$FILE_COUNT" ] || [ "$FILE_COUNT" -gt 370 ]; then
-            echo "::error::Tarball file count ($FILE_COUNT) exceeds 370 — review additions."
+          if [ -z "$FILE_COUNT" ] || [ "$FILE_COUNT" -gt 385 ]; then
+            echo "::error::Tarball file count ($FILE_COUNT) exceeds 385 — review additions."
             exit 1
           fi
           # Use awk for float compare; ceiling is 14 MB (current ~11 MB)
