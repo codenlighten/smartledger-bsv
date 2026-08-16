@@ -277,7 +277,8 @@
       "beforeEach",
       "describe",
       "it",
-      "globalThis"
+      "globalThis",
+      "BigInt"
     ],
     "ignore": [
       "dist/**",
