@@ -7,6 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.3.0] - 2026-08-16
+
+### BRC-220 (NotaryHash)
+
+`bsv.NotaryHash` implements [BRC-220](https://github.com/bitcoin-sv/BRCs/blob/master/apps/0220.md)
+— privacy-preserving signed-hash notarization with SPV-verifiable certificates. A signer
+proves they signed a specific hash; the on-chain anchor fixes that proof in time; the
+document itself is never disclosed.
+
+Four of the five things the spec needs already existed here, which is why it lives in this
+library rather than a separate package: RFC 8785 canonicalization (added in 8.2.0 for an
+unrelated reason), SPV inclusion proofs in TSC format, a header-first trust model that
+already refused to take a provider's word, and `OP_FALSE OP_RETURN` with length-prefixed
+binary.
+
+```js
+var report = bsv.NotaryHash.verify(certificate, { header: independentlyObtainedHeader })
+// { valid, signature, proofIntegrity, anchor, batchInclusion, errors }
+```
+
+All three of the spec's validity checks, plus a fourth for batched certificates:
+
+1. **Signature** — offline, against the registered suite
+2. **Proof integrity** — the recomputed `proofHash` matches the certificate
+3. **Anchor** — SPV, against a block header the *caller* supplies
+4. **Batch inclusion** — the proof is one the on-chain root commits to
+
+`verify()` returns a report naming which check failed, because a bad signature and an
+unmined transaction need different fixes. `isValid()` is the strict boolean for `if (...)`.
+
+**This library never fetches a block header.** The spec says the verifier trusts only a
+header "obtained from any source it chooses"; quietly choosing one on the caller's behalf
+would restore exactly the trust the protocol removes. `verifyAnchorSPV` refuses to pass
+without one.
+
+**Post-quantum is deliberately not bundled.** The spec names ML-DSA and SLH-DSA, but
+`ECDSA-secp256k1` is first-class alongside them, so an ECDSA-only implementation is
+conformant. `@noble/post-quantum` is the one Noble package with no independent audit — its
+README says so — and is 0.x, 669 KB, and does not claim constant-time execution. Depending
+on it would forfeit the "primitives are already audited" property that `docs/AUDIT_SCOPE.md`
+relies on. Suites are registered instead:
+
+```js
+bsv.NotaryHash.registerSuite('ML-DSA-65', { verify: function (hash, sig, key) { … } })
+```
+
+An unregistered algorithm returns **false** — it does not fall through to a default, which
+for an `ML-DSA-65` certificate would be catastrophic. A suite's result is coerced with
+`=== true`, so one returning a truthy object cannot smuggle a pass through.
+
+**`encoding` is `"raw"`.** The spec requires the field but never enumerates its values, so
+this library defines them and proposes the definition upstream in
+`docs/BRC220_ENCODING_AMENDMENT.md`. For `ECDSA-secp256k1` that is 64 bytes of `r ‖ s`,
+because `proofHash` covers the signature bytes and DER is not canonical — measured over 200
+signatures from one key, DER came out at 69, 70 and 71 bytes, all of it legal. Low-S is
+required and rejected rather than normalised, since normalising changes bytes that are
+inside `proofHash`.
+
+**Batch mode uses RFC 6962**, which is a *third* Merkle tree in this repository and differs
+from both others — `lib/spv` is Bitcoin's (double-SHA, rightmost leaf duplicated) and
+`lib/gdaf/zk-prover.js` is single-SHA without domain separation. RFC 6962 domain-separates
+(`leaf = SHA256(0x00‖d)`, `node = SHA256(0x01‖l‖r)`) and never duplicates. All six published
+Certificate Transparency roots match.
+
+Design decisions are recorded in `docs/BRC220_PLAN.md`, including two open questions the
+spec does not answer: what a batch leaf contains (`proofHash` is the reading taken), and
+confirmation against the reference implementation's golden vector.
+
+### Dependencies
+
+`@noble/curves`, `@noble/hashes` and `@noble/ciphers` to 2.3.0. These are the signing and
+hashing primitives, so the evidence is a differential rather than a green suite: 1,638
+observable outputs were captured on 2.2.0 and recomputed on 2.3.0 — hashes over every input
+length 0–200, HMACs across four key shapes, 40 keys' worth of RFC-6979 signatures,
+addresses, DER encodings, BIP-32 derivations and point multiplication. All identical. The
+comparison was confirmed capable of failing: perturbing sha256 by one byte moves 695 lines.
+
+### Also
+
+RFC 8785 canonicalization moves from `lib/gdaf/attestation-signer.js` to `lib/util/jcs.js`,
+since two unrelated modules now need it and a notarization module reaching into the
+credentials module would be the wrong direction. `attestation-signer` delegates; behaviour
+unchanged.
+
 ## [8.2.0] - 2026-08-15
 
 Two independent reviews of 8.1.0, both acted on after reproducing every claim. Between
