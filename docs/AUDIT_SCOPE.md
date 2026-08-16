@@ -5,7 +5,7 @@ cryptographic core, and carries the enquiry text to send to vendors. It exists s
 every vendor prices the *same* thing, and so that the reasoning behind the scope
 boundary survives past the engagement that prompted it.
 
-Measured against **v8.2.0**, 2026-08-15. Re-measure before sending if the version has
+Measured against **v8.3.0**, 2026-08-16. Re-measure before sending if the version has
 moved (`docs/AUDIT_SCOPE.md` is not covered by a drift gate).
 
 ## 1. The question we are asking
@@ -58,16 +58,16 @@ is not.
 | Component | Status | Reason |
 | --- | --- | --- |
 | `@noble/curves`, `@noble/hashes`, `@noble/ciphers` | Already audited | The primitives come from the Noble libraries, which **Cure53 has audited and published on**. We do not implement curve or hash arithmetic ourselves. State this explicitly to vendors — otherwise they price work we do not need. |
-| `lib/smart_contract/`, `lib/ltp/`, `lib/gdaf/`, `lib/ordinals/`, `lib/block/`, plus 9 further directories and 6 top-level files | Excluded | Application layer, 23,016 lines — 18,636 in the five named modules and 4,380 in the remainder. Written in-house and covered by adversarial tests. Worth a separate engagement; including it here would blur the question in §1. |
+| `lib/smart_contract/`, `lib/ltp/`, `lib/gdaf/`, `lib/ordinals/`, `lib/block/`, plus 9 further directories and 6 top-level files | Excluded | Application layer, 24,447 lines — 18,600 in the five named modules and 5,847 in the remainder. Written in-house and covered by adversarial tests. Worth a separate engagement; including it here would blur the question in §1. |
 
-Totals reconcile against `lib/`, which is 36,891 lines across 123 files:
+Totals reconcile against `lib/`, which is 38,322 lines across 130 files:
 
 ```
 tier 1      12,268
 tier 2       1,607
-excluded    23,016
+excluded    24,447
             ------
-total       36,891
+total       38,322
 ```
 
 Core + optional = 13,875.
@@ -94,7 +94,7 @@ Each of these should *reduce* the quote — they remove discovery work.
 - **`npm run conformance`** — 452 cases across 13 suites, freezing observable behaviour
   so any change surfaces as a diff. A second, independently written implementation
   (`smartledger-bsv-core`, the TypeScript port) agrees on all 452.
-- **4,503 passing tests**, plus a reproducible-bundle gate, a require-cycle gate, and a
+- **4,626 passing tests**, plus a reproducible-bundle gate, a require-cycle gate, and a
   type-drift gate that parses the published types against the runtime.
 - **`SECURITY.md`** — a published advisory (GHSA-gw63-x79h-mhjc) and a changelog of
   security fixes with the reasoning for each.
@@ -143,7 +143,7 @@ Scope, and we would like these priced separately:
 JavaScript (CommonJS), Node >= 20.19. The code is public.
 
 Explicitly out of scope: elliptic-curve and hash primitives, which are supplied
-by the Noble libraries and already audited; and our 23,016-line application
+by the Noble libraries and already audited; and our 24,447-line application
 layer (credentials, tokens, ordinals), which we would treat as a separate
 engagement.
 
@@ -171,7 +171,7 @@ SmartLedger Technology
 Every figure in this document, including the excluded total, must come out of this
 script. **Derive the excluded count as the complement — never by subtracting tier 1
 alone.** The first draft did exactly that, double-counted tier 2, and published parts
-summing to 37,430 against a 36,891 whole; §7 could not catch it because it reproduced
+summing to 37,430 against a 38,322 whole; §7 could not catch it because it reproduced
 every figure except the wrong one.
 
 ```sh
