@@ -178,12 +178,31 @@ summarising rather than anything in the document.
   block, not from this field. It is still inside the canonical bytes as `createdAtUnix`,
   so it cannot be altered after issuance.
 
-Still genuinely open, and not answerable from the text:
+Decided, and proposed back to the spec:
 
-- **`encoding`** is a required certificate field, but the spec never enumerates its values.
-  For `ECDSA-secp256k1` this library can emit DER or compact, and the choice has to match
-  what other implementations expect. **This needs an answer from the spec author before
-  Phase 3.**
+- **`encoding` is `"raw"`.** The field is required by the spec but its values were never
+  enumerated, so this library defines them and proposes the definition upstream — see
+  `docs/BRC220_ENCODING_AMENDMENT.md`.
+
+  For `ECDSA-secp256k1` that is 64 bytes, `r ‖ s`, each a 32-byte big-endian integer, with
+  a 33-byte compressed public key. NOT DER, and not the 65-byte `toCompact` form, which
+  carries a recovery byte the certificate does not need because it already has the key.
+
+  The deciding argument is that `proofHash` covers `lp(signature)`, and **DER is not
+  canonical**. Measured over 200 signatures from one key: DER came out at 69, 70 and 71
+  bytes depending on leading-zero handling, all of it legal. Raw was 64 bytes every time.
+  The same signing act producing different `proofHash` values is precisely the failure the
+  binary encoding exists to prevent — it is why the spec already refuses `JSON.stringify`.
+
+  Two supporting reasons: ML-DSA and SLH-DSA have no DER form, so raw makes `encoding`
+  uniform across all sixteen algorithm identifiers instead of forcing per-algorithm
+  branching in every verifier; and the signature is detached over a digest rather than a
+  Bitcoin script signature, which is the ES256K/WebCrypto case, and both use `r ‖ s`.
+
+  **Low-S is required and must be rejected, not normalised.** `s` and `n − s` both verify
+  and hash differently, so without the rule two valid certificates exist for one signing
+  act. Normalising on receipt would change the signature bytes, which are inside
+  `proofHash`. This library already emits low-S and has `Signature.toCanonical()`.
 
 ### The reference implementation
 
