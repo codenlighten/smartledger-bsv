@@ -39,6 +39,7 @@
     "./lib/ltp": "./lib/ltp/index.js",
     "./lib/message": "./lib/message/index.js",
     "./lib/mnemonic": "./lib/mnemonic/index.js",
+    "./lib/notaryhash": "./lib/notaryhash/index.js",
     "./lib/ordinals": "./lib/ordinals/index.js",
     "./lib/script": "./lib/script/index.js",
     "./lib/smart_contract": "./lib/smart_contract/index.js",

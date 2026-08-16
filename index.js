@@ -115,6 +115,11 @@ bsv.Block = require('./lib/block')
 bsv.MerkleBlock = require('./lib/block/merkleblock')
 bsv.BlockHeader = require('./lib/block/blockheader')
 bsv.SPV = require('./lib/spv')
+
+// BRC-220 NotaryHash. Exposed only now that verification exists: build/parse alone would
+// let a caller construct a record whose proofHash means nothing, with nothing to stop
+// them. See docs/BRC220_PLAN.md.
+bsv.NotaryHash = require('./lib/notaryhash')
 bsv.HDPrivateKey = require('./lib/hdprivatekey.js')
 bsv.HDPublicKey = require('./lib/hdpublickey.js')
 bsv.Networks = require('./lib/networks')
