@@ -245,7 +245,7 @@
     "chai": "6.2.2",
     "create-hash": "^1.2.0",
     "create-hmac": "^1.1.7",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "events": "^3.3.0",
     "jose": "^5.10.0",
     "mocha": "^11.8.0",
