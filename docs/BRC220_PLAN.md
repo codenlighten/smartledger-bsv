@@ -173,6 +173,15 @@ summarising rather than anything in the document.
 - **The service is a role, not a requirement.** §What a certificate proves: "any party
   holding a valid (hash, signature, publicKey) triple may re-anchor it; the attestation
   remains valid". A self-notarizing caller producing its own certificate is conformant.
+- **The batch Merkle leaf is NOT settled by the spec — it is a choice this
+  implementation made.** §On-chain record writes `leaf = SHA256(0x00 ‖ d)`, but that is
+  RFC 6962's own generic notation for the construction and `d` is never bound to a value.
+  `canonicalBytes` appears once in the whole document, in the `proofHash` definition, and
+  nowhere in the batch text. We read `d` as `proofHash`; reading it as `canonicalBytes` is
+  equally sound and produces a different root, so the two do not interoperate. Recorded as
+  an ambiguity rather than a settled question, with proposed spec text in
+  [BRC220_BATCH_LEAF_AMENDMENT.md](BRC220_BATCH_LEAF_AMENDMENT.md) and enforcement in
+  `test/notaryhash/batch_leaf.js`. This is the second gap of the kind, after `encoding`.
 - **`createdAt` is advisory for trust but load-bearing for the hash.** §Verification calls
   it "an advisory client field only" — meaning proof-of-existence time comes from the
   block, not from this field. It is still inside the canonical bytes as `createdAtUnix`,
