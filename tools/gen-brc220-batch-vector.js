@@ -73,7 +73,19 @@ function derive (label, i) {
 function signRaw (payloadHash, privkey) {
   // set() rather than assigning fields directly: it derives `pubkey` from `privkey`,
   // which sign() requires. RFC 6979 makes this deterministic, so the vector reproduces.
-  var ecdsa = ECDSA().set({ hashbuf: payloadHash, endian: 'little', privkey: privkey })
+  //
+  // NO `endian` option. BRC-220 signs the 32-byte payloadHash directly, so the digest IS
+  // the scalar, big-endian. The first version of this file passed `endian: 'little'`,
+  // matching the verifier bug fixed in 8.3.1, and produced a "golden" vector whose five
+  // signatures no conformant implementation could verify — 0/5 under @noble/curves. A
+  // reference vector that is wrong is worse than no vector, because it is published as
+  // the thing to match.
+  //
+  // It survived review because the generator and the checker used the same signer, so
+  // both were wrong in the same direction. test/notaryhash/batch_vector.js now verifies
+  // every signature under @noble/curves as well, which is the assertion that fails if
+  // this line is ever changed back.
+  var ecdsa = ECDSA().set({ hashbuf: payloadHash, privkey: privkey })
   ecdsa.sign()
   var sig = ecdsa.sig
 

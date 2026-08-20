@@ -131,20 +131,34 @@ regenerates byte-identically and any implementation can rebuild it from scratch:
 - `createdAt` `i` = `2026-01-0(i+1)T00:00:00.000Z`
 - `algorithm` = `ECDSA-secp256k1`, `hashAlgorithm` = `SHA-256`, `encoding` = `"raw"`
 
+**Signing.** The signer signs the 32-byte `payloadHash` directly — the digest *is* the
+scalar, big-endian. RFC 6979 makes the nonce deterministic, so the signatures, and every
+hash derived from them, reproduce exactly.
+
+This matters more than it looks. The signature is inside `canonicalBytes`, which is inside
+`proofHash`, which is the leaf — so the signing convention determines the root. An earlier
+draft of this vector was generated against the byte-reversed convention that
+`@smartledger/bsv` 8.3.0 used when verifying, and produced five signatures that no
+conformant implementation could check (0/5 under `@noble/curves`), together with a root
+nobody else would compute. It was never published. The values below were generated at
+**8.3.1**, and `test/notaryhash/batch_vector.js` now verifies every signature under
+`@noble/curves` as well as under this library, because a generator and a checker that
+share a signer agree with each other whether or not they are right.
+
 The five `proofHash` values that result:
 
 | leafIndex | proofHash |
 | ---: | --- |
-| 0 | `8b23c518bcb3ac12ab4d9904f4bf015fc0abfff90a3622c31a12180a1e5c0a1b` |
-| 1 | `0dcf2b8e1df4cd0048eef13a00f798d48cf78ea3394dcc0eef278e6132bf7689` |
-| 2 | `619cc9a2d719132d57f065ff447215c2e4271fd585196dd39b61da39bb479b79` |
-| 3 | `7a90efb93045cfcab507568b0f9f63f7a9cc19dcc7ebb9f2da4319a430cd1af8` |
-| 4 | `d6d097fd0ca9b5e14d3b192933a73c2a848b0023a5c5d66c7a0c2d0bbf82de82` |
+| 0 | `83f3f73ebc5146b96cce1ee0b6ed4fd251a933a5332fbe5e5ab80da7920fe2c9` |
+| 1 | `29fca10808a3653efbe38abd5f0b926aa09f13bff7847475139a422869729e77` |
+| 2 | `3c44828bea3ca01dfcd5305a839ce02cc1e855f5a7c7028bb4931d42dea3aa2b` |
+| 3 | `0692e22da9b68634e5384bb012324c140c676d2301e078a67f17e335661a9565` |
+| 4 | `1a9c6bc1a6cf8319344ca8c30ca9e9eef8ab3df732748f6be2c824bb84ec0ca9` |
 
 **Merkle root (`d = proofHash`, this amendment):**
 
 ```
-b40c139ad6622a4d5b84535e023bb72053e26c3a73850433bfdc4cd635dbd7c3
+abb53eb3b2e3530d51685c6813bb85c85892d2f214c2dc504029d071434ac074
 ```
 
 The on-chain record tail is therefore `merkleRoot` above followed by
@@ -152,13 +166,13 @@ The on-chain record tail is therefore `merkleRoot` above followed by
 cheapest single value to check a split rule against — is one node:
 
 ```
-a48fb5559ff02e3dad92e0c650e7417ec991cdea5f23e103fec2d98d1bb544a6
+060ca4e4bbcb647ab0162bb027cd8f08c1577aaa7069166dd629a3df7e57befd
 ```
 
 **Merkle root under the rejected reading (`d = canonicalBytes`):**
 
 ```
-0a7cc97b213179e2fcb771361f4269ba571d27f5ae1d1d95b5a186e21671b9f3
+4a59ade74941e4d6ca4b7c9f610e0a01a0c3f24cfa94efe816e53ef85f99e324
 ```
 
 That second root is published deliberately. An implementation computing it has made the
