@@ -88,7 +88,20 @@ const NotaryHash = bsv.NotaryHash
 // 1. Hash the document. Only the hash is ever published.
 const payloadHash = bsv.crypto.Hash.sha256(Buffer.from(documentBytes))
 
-// 2. Sign the hash, then build the certificate. `build` computes proofHash over
+// 2. Sign the payloadHash DIRECTLY — no second hash, no Bitcoin sighash, and no
+//    `endian` option. The 32-byte digest is the scalar, big-endian, which is what
+//    every other ECDSA implementation does. Passing `endian: 'little'` here is
+//    Bitcoin's message-signing convention and produces a signature no conformant
+//    BRC-220 verifier will accept.
+const ecdsa = bsv.crypto.ECDSA().set({ hashbuf: payloadHash, privkey: key })
+ecdsa.sign()
+const signatureBuffer = Buffer.concat([          // 64 raw bytes, r || s
+  ecdsa.sig.r.toArrayLike(Buffer, 'be', 32),
+  ecdsa.sig.s.toArrayLike(Buffer, 'be', 32)
+])
+const publicKeyBuffer = key.toPublicKey().toBuffer()
+
+// 3. Build the certificate. `build` computes proofHash over
 //    the canonical bytes — the protocol prefix, version and timestamp are inside
 //    proofHash but never on chain, so the record alone cannot reconstruct it.
 const certificate = NotaryHash.Certificate.build({
@@ -102,7 +115,7 @@ const certificate = NotaryHash.Certificate.build({
   anchor: { txid: txid, blockHeight: height }
 })
 
-// 3. The output that goes on chain.
+// 4. The output that goes on chain.
 const script = NotaryHash.Script.build({
   mode: NotaryHash.MODE.FULL,
   algorithm: 'ECDSA-secp256k1',
@@ -113,7 +126,7 @@ const script = NotaryHash.Script.build({
   signature: signatureBuffer
 })
 
-// 4. Checks. Every verify entry point returns a STRICT boolean.
+// 5. Checks. Every verify entry point returns a STRICT boolean.
 NotaryHash.Certificate.proofHashMatches(certificate)  // proof integrity, offline
 NotaryHash.Script.isNotaryHash(script)                // is this a NotaryHash output
 NotaryHash.isValid(certificate, options)              // all three spec checks

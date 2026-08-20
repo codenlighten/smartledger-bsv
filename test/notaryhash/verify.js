@@ -41,8 +41,11 @@ describe('BRC-220 verification', function () {
     publicKey = key.toPublicKey().toBuffer()
     payloadHash = Hash.sha256(Buffer.from('the document nobody sees'))
 
-    // The signer signs the 32-byte payloadHash DIRECTLY — spec §Algorithms.
-    var ecdsa = bsv.crypto.ECDSA().set({ hashbuf: payloadHash, endian: 'little', privkey: key })
+    // The signer signs the 32-byte payloadHash DIRECTLY — spec §Algorithms. No endian
+    // option: the digest IS the scalar, big-endian. Until 8.3.1 this line passed
+    // `endian: 'little'` while the comment above it said "directly", and the suite
+    // reversed to match, so the two agreed with each other and with nothing else.
+    var ecdsa = bsv.crypto.ECDSA().set({ hashbuf: payloadHash, privkey: key })
     ecdsa.sign()
     signature = rawSig(ecdsa.sig)
 
