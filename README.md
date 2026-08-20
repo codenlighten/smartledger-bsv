@@ -2,37 +2,44 @@
 
 **🚀 Complete Bitcoin SV Development Framework with W3C Verifiable Credentials, DID:web, Legal Compliance, and 16 Flexible Loading Options**
 
-[![Version](https://img.shields.io/badge/version-5.4.0-blue.svg)](https://www.npmjs.com/package/@smartledger/bsv)
+[![Version](https://img.shields.io/badge/version-8.3.0-blue.svg)](https://www.npmjs.com/package/@smartledger/bsv)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![BSV](https://img.shields.io/badge/BSV-Compatible-orange.svg)](https://bitcoinsv.com/)
 [![Modular](https://img.shields.io/badge/Loading-Modular-purple.svg)](#-16-loading-options---choose-your-approach)
 [![W3C](https://img.shields.io/badge/W3C-Compliant-blueviolet.svg)](#-legally-recognizable-credentials-v34x)
 
-The most comprehensive and flexible Bitcoin SV library available. **In v5.x**:
-all secp256k1 cryptography runs on the audited, constant-time
-[`@noble`](https://github.com/paulmillr/noble-curves) suite (ECDSA, ECIES, key
-derivation) with `elliptic` removed; Shamir secret sharing on a vetted GF(2⁸)
-engine; JOSE-compliant VC-JWT — on top of the v4.x interpreter-verified covenant
-stack (OP_PUSH_TX, PELS, ownership tokens), legally-recognizable DID:web + VC-JWT
-toolkit, and 16 distribution methods. **v5.x is the only supported line — see
-[Upgrading to v5.0.0](#upgrading-to-v500-breaking-changes) when moving from 4.x.**
+A comprehensive Bitcoin SV library whose **defaults describe BSV as the network
+actually runs it**. Since 8.0.0 the script interpreter is measured against the
+reference node's own consensus vectors — 1483/1483, with zero false accepts —
+rather than against the Bitcoin Core vectors inherited from the upstream fork.
+All secp256k1 cryptography runs on the audited, constant-time
+[`@noble`](https://github.com/paulmillr/noble-curves) suite with `elliptic`
+removed, on top of the interpreter-verified covenant stack (OP_PUSH_TX, PELS,
+ownership tokens), a legally-recognizable DID:web + VC-JWT toolkit, and 16
+distribution methods.
 
-> **v5.4.0 (latest)**: all secp256k1 crypto on the audited `@noble` suite, with
-> `elliptic` now gone from the bundles too (`bsv.min.js` ~1.1MB, ~120–140KB
-> smaller per bundle); browser Shamir fixed and guarded by a headless-Chrome CI
-> check. See [CHANGELOG](./CHANGELOG.md).
+> **8.3.0 (latest)**: BRC-220 **NotaryHash** — privacy-preserving signed-hash
+> notarization with SPV-verifiable certificates, including RFC 6962 Merkle trees
+> for batch mode. See [NotaryHash](#-notaryhash-brc-220) and the
+> [CHANGELOG](./CHANGELOG.md).
+>
+> **8.0.0 was a breaking release.** `verify()` with no flags now means BSV
+> mainnet rather than "no rules", and two flag constants changed value. Read
+> [Upgrading to v8.0.0](#upgrading-to-v800-breaking-changes) before moving from
+> 7.x or earlier.
 
 ## **Interpreter-Verified Covenants**
 
-The full covenant stack now lives at `bsv.SmartContract`, builds on the
-post-Genesis script limits added in 4.1.0, and verifies end-to-end through
-`Script.Interpreter`. Every locking script has both a positive (must-accept)
-and negative (must-reject) test.
+The full covenant stack lives at `bsv.SmartContract` and verifies end-to-end
+through `Script.Interpreter`. Every locking script has both a positive
+(must-accept) and negative (must-reject) test.
 
 ```javascript
 const bsv = require('@smartledger/bsv')
 const SC = bsv.SmartContract
-SC.enableGenesis()                       // post-Genesis limits (OP_PUSH_TX needs them)
+SC.enableGenesis()   // OP_PUSH_TX needs the lifted element cap — but note this is
+                     // process-wide and weakens pre-Genesis validation. See
+                     // "Consensus defaults" below before calling it in an app.
 
 // Self-replicating covenant — every spend recreates the same script (value − fee).
 const lock = SC.perpetualCovenant(500)
@@ -44,8 +51,9 @@ const token = SC.ownershipToken(500, ownerHash) // ownerHash = SC.Token.ownerId(
 // Value covenant — forces spend outputs to match a specific hashOutputs.
 const vlock = SC.valueCovenant(SC.PushTx.hashOutputs(requiredOutputs))
 
-// Verify any locking script end-to-end through Script.Interpreter
-const ok = SC.verifyScript(unlockScript, lockingScript, tx, inputIndex, satoshis)
+// Verify any locking script end-to-end through Script.Interpreter.
+// Returns { ok, err } — `err` names the interpreter error when ok is false.
+const { ok, err } = SC.verifyScript(unlockScript, lockingScript, { tx, inputIndex, satoshis })
 ```
 
 **Available primitives under `bsv.SmartContract`:**
@@ -63,6 +71,81 @@ const ok = SC.verifyScript(unlockScript, lockingScript, tx, inputIndex, satoshis
 > is the intentionally public `a=k=1` construction, and low-S malleability is
 > left unenforced for the in-script signature.
 
+## 🔏 NotaryHash (BRC-220)
+
+[BRC-220](https://github.com/bitcoin-sv/BRCs/blob/master/apps/0220.md) notarizes a
+document by publishing a signed hash of it. The document itself never leaves your
+hands — what goes on chain is an `OP_FALSE OP_RETURN` record, and what a verifier
+receives is a certificate they can check offline plus an SPV proof they can check
+against block headers obtained independently.
+
+Available as `bsv.NotaryHash`, or `require('@smartledger/bsv/lib/notaryhash')`.
+
+```javascript
+const bsv = require('@smartledger/bsv')
+const NotaryHash = bsv.NotaryHash
+
+// 1. Hash the document. Only the hash is ever published.
+const payloadHash = bsv.crypto.Hash.sha256(Buffer.from(documentBytes))
+
+// 2. Sign the hash, then build the certificate. `build` computes proofHash over
+//    the canonical bytes — the protocol prefix, version and timestamp are inside
+//    proofHash but never on chain, so the record alone cannot reconstruct it.
+const certificate = NotaryHash.Certificate.build({
+  mode: NotaryHash.MODE.FULL,
+  algorithm: 'ECDSA-secp256k1',
+  hashAlgorithm: 'SHA-256',
+  payloadHash: payloadHash,
+  publicKey: publicKeyBuffer,
+  signature: signatureBuffer,
+  createdAt: new Date().toISOString(),
+  anchor: { txid: txid, blockHeight: height }
+})
+
+// 3. The output that goes on chain.
+const script = NotaryHash.Script.build({
+  mode: NotaryHash.MODE.FULL,
+  algorithm: 'ECDSA-secp256k1',
+  hashAlgorithm: 'SHA-256',
+  payloadHash: payloadHash,
+  proofHash: Buffer.from(certificate.proofHash, 'hex'),
+  publicKey: publicKeyBuffer,
+  signature: signatureBuffer
+})
+
+// 4. Checks. Every verify entry point returns a STRICT boolean.
+NotaryHash.Certificate.proofHashMatches(certificate)  // proof integrity, offline
+NotaryHash.Script.isNotaryHash(script)                // is this a NotaryHash output
+NotaryHash.isValid(certificate, options)              // all three spec checks
+```
+
+**Three modes**, chosen by how much you can afford on chain:
+
+| Mode | On chain | Use when |
+|---|---|---|
+| `MODE.FULL` | public key and signature in full | ECDSA, where both are small |
+| `MODE.HYBRID` | `sha256` of each instead | post-quantum signatures, which run to tens of KB |
+| `MODE.BATCH` | a 32-byte Merkle root and a `u32be` leaf count | notarizing many documents in one output |
+
+Batch mode uses **RFC 6962** Merkle trees — domain-separated leaves
+(`sha256(0x00‖d)`), internal nodes (`sha256(0x01‖L‖R)`), and a rightmost leaf that
+is *never* duplicated. This is deliberately not the Bitcoin tree in `lib/spv` nor
+the one in `lib/gdaf`; reusing either would produce a root no other BRC-220
+implementation computes. The batch leaf is a certificate's `proofHash` — see
+[`docs/BRC220_BATCH_LEAF_AMENDMENT.md`](./docs/BRC220_BATCH_LEAF_AMENDMENT.md).
+
+**Post-quantum signatures are supported but not bundled.** `ECDSA-secp256k1` is
+registered by default; ML-DSA and SLH-DSA are reached by registering a suite, so
+callers who do not need them pay nothing in bundle size or audit surface:
+
+```javascript
+NotaryHash.registerSuite('ML-DSA-65', {
+  verify: function (payloadHash, signature, publicKey) { /* ... */ }
+})
+```
+
+An unregistered `algorithm` fails; it never falls through to a default suite.
+
 ## 🆕 **Legally-Recognizable Credentials (v3.4.x+)**
 
 ### **Why This Matters**
@@ -76,8 +159,8 @@ const ok = SC.verifyScript(unlockScript, lockingScript, tx, inputIndex, satoshis
 ### **Quick Start - Issue Your First Verifiable Credential**
 
 ```bash
-# Install SmartLedger BSV v5.0.0
-npm install @smartledger/bsv@5.4.0
+# Install SmartLedger BSV
+npm install @smartledger/bsv
 
 # Initialize DID:web issuer (generates ES256 keys)
 npx smartledger-bsv didweb init --domain example.com --alg ES256
@@ -186,42 +269,42 @@ console.log('Status:', status) // 'revoked'
 ### **Core Modules**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv.min.js** | 1149KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@8.3.0/bsv.min.js` |
-| **bsv.bundle.js** | 1149KB | Everything in one file | `unpkg.com/@smartledger/bsv@8.3.0/bsv.bundle.js` |
+| **bsv.min.js** | 1039KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@8.3.0/bsv.min.js` |
+| **bsv.bundle.js** | 1039KB | Everything in one file | `unpkg.com/@smartledger/bsv@8.3.0/bsv.bundle.js` |
 
 ### **W3C Verifiable Credentials**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **🟢 bsv-didweb.min.js** | 315KB | **DID:web generation** | `unpkg.com/@smartledger/bsv@8.3.0/bsv-didweb.min.js` |
-| **🟢 bsv-vcjwt.min.js** | 315KB | **VC-JWT issue/verify** | `unpkg.com/@smartledger/bsv@8.3.0/bsv-vcjwt.min.js` |
-| **🟢 bsv-statuslist.min.js** | 415KB | **StatusList2021 revocation** | `unpkg.com/@smartledger/bsv@8.3.0/bsv-statuslist.min.js` |
-| **🟢 bsv-anchor.min.js** | 314KB | **BSV anchoring (hash-only)** | `unpkg.com/@smartledger/bsv@8.3.0/bsv-anchor.min.js` |
+| **🟢 bsv-didweb.min.js** | 166KB | **DID:web generation** | `unpkg.com/@smartledger/bsv@8.3.0/bsv-didweb.min.js` |
+| **🟢 bsv-vcjwt.min.js** | 166KB | **VC-JWT issue/verify** | `unpkg.com/@smartledger/bsv@8.3.0/bsv-vcjwt.min.js` |
+| **🟢 bsv-statuslist.min.js** | 256KB | **StatusList2021 revocation** | `unpkg.com/@smartledger/bsv@8.3.0/bsv-statuslist.min.js` |
+| **🟢 bsv-anchor.min.js** | 164KB | **BSV anchoring (hash-only)** | `unpkg.com/@smartledger/bsv@8.3.0/bsv-anchor.min.js` |
 
 ### **Smart Contract & Development**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-smartcontract.min.js** | 873KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@8.3.0/bsv-smartcontract.min.js` |
-| **bsv-covenant.min.js** | 873KB | Covenant operations | `unpkg.com/@smartledger/bsv@8.3.0/bsv-covenant.min.js` |
-| **bsv-script-helper.min.js** | 30KB | Custom script tools | `unpkg.com/@smartledger/bsv@8.3.0/bsv-script-helper.min.js` |
-| **bsv-security.min.js** | 30KB | Security enhancements | `unpkg.com/@smartledger/bsv@8.3.0/bsv-security.min.js` |
+| **bsv-smartcontract.min.js** | 140KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@8.3.0/bsv-smartcontract.min.js` |
+| **bsv-covenant.min.js** | 35KB | Covenant operations | `unpkg.com/@smartledger/bsv@8.3.0/bsv-covenant.min.js` |
+| **bsv-script-helper.min.js** | 33KB | Custom script tools | `unpkg.com/@smartledger/bsv@8.3.0/bsv-script-helper.min.js` |
+| **bsv-security.min.js** | 32KB | Security enhancements | `unpkg.com/@smartledger/bsv@8.3.0/bsv-security.min.js` |
 
 ### **Legal & Compliance**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-ltp.min.js** | 1149KB | Legal Token Protocol | `unpkg.com/@smartledger/bsv@8.3.0/bsv-ltp.min.js` |
-| **bsv-gdaf.min.js** | 1149KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@8.3.0/bsv-gdaf.min.js` |
+| **bsv-ltp.min.js** | 534KB | Legal Token Protocol | `unpkg.com/@smartledger/bsv@8.3.0/bsv-ltp.min.js` |
+| **bsv-gdaf.min.js** | 1039KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@8.3.0/bsv-gdaf.min.js` |
 
 ### **Advanced Cryptography**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-shamir.min.js** | 353KB | Threshold Cryptography | `unpkg.com/@smartledger/bsv@8.3.0/bsv-shamir.min.js` |
+| **bsv-shamir.min.js** | 177KB | Threshold Cryptography | `unpkg.com/@smartledger/bsv@8.3.0/bsv-shamir.min.js` |
 
 ### **Utilities**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-ecies.min.js** | 79KB | Encryption | `unpkg.com/@smartledger/bsv@8.3.0/bsv-ecies.min.js` |
-| **bsv-message.min.js** | 30KB | Message signing | `unpkg.com/@smartledger/bsv@8.3.0/bsv-message.min.js` |
-| **bsv-mnemonic.min.js** | 592KB | HD wallets | `unpkg.com/@smartledger/bsv@8.3.0/bsv-mnemonic.min.js` |
+| **bsv-ecies.min.js** | 137KB | Encryption | `unpkg.com/@smartledger/bsv@8.3.0/bsv-ecies.min.js` |
+| **bsv-message.min.js** | 34KB | Message signing | `unpkg.com/@smartledger/bsv@8.3.0/bsv-message.min.js` |
+| **bsv-mnemonic.min.js** | 320KB | HD wallets | `unpkg.com/@smartledger/bsv@8.3.0/bsv-mnemonic.min.js` |
 
 ## ⚡ **2-Minute Quick Start**
 
@@ -235,12 +318,11 @@ npm install @smartledger/bsv
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv.min.js"></script>
 ```
 
-> **🔒 v5.0.0 (production hardening — has breaking changes):** Shamir secret
-> sharing now runs on a vetted GF(2⁸) engine with authenticated shares; VC-JWT
-> signatures are now JOSE-compliant (IEEE P1363); VC-JWT verification pins the
-> algorithm; ECDSA low-S preserves `recoveryParam`; ECIES MAC check is
-> constant-time. **If you are upgrading from 4.x, read [Upgrading to v5.0.0](#upgrading-to-v500-breaking-changes) below.** Builds on the v4.x covenant,
-> DID:web + VC-JWT, StatusList2021, and BSV-anchoring toolkit. See CHANGELOG.
+> **🔒 Upgrading?** 8.0.0 changed what `verify()` means with no flags, and moved
+> two flag constants. Read [Upgrading to v8.0.0](#upgrading-to-v800-breaking-changes)
+> before moving from 7.x or earlier; the older
+> [v5.0.0 notes](#upgrading-to-v500-breaking-changes) still apply if you are coming
+> from 4.x.
 
 **Basic Transaction (30 seconds):**
 ```javascript
@@ -263,21 +345,22 @@ console.log('Transaction ID:', tx.id);
 
 **🆕 Legal Token Development (60 seconds):**
 ```javascript
-// Create legal property token
-const propertyToken = bsv.createPropertyToken({
-  propertyType: 'real_estate',
-  jurisdiction: 'us_delaware', 
-  legalDescription: 'Lot 15, Block 3, Subdivision ABC',
-  ownerIdentity: ownerDID
-});
+// Create a legal property-title token
+const result = bsv.LTP.createRightToken({
+  type: bsv.LTP.Right.RightTypes.PROPERTY_TITLE,
+  owner: ownerDID,
+  jurisdiction: 'us_delaware',
+  legalDescription: 'Lot 15, Block 3, Subdivision ABC'
+}, issuerPrivateKey);
+console.log(result.success, result.token.tokenHash);
 
 // Generate W3C Verifiable Credential
 const credential = bsv.createEmailCredential(
   issuerDID, subjectDID, 'user@example.com', issuerPrivateKey
 );
 
-// Threshold cryptography for secure key management
-const shares = bsv.splitSecret('private_key_backup', 5, 3); // 5 shares, 3 needed
+// Threshold cryptography — split(secret, threshold, shares)
+const shares = bsv.Shamir.split('private_key_backup', 3, 5); // 3 of 5 needed
 ```
 
 **🆕 Smart Contract Development (90 seconds):**
@@ -300,11 +383,11 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 ```
 
 **Next Steps:**
-- 📖 [SmartContract Guide](docs/SMART_CONTRACT_GUIDE.md)
-- ⚖️ [Legal Token Protocol Guide](docs/LTP_LEGAL_TOKENS_GUIDE.md)  
-- 🌐 [Digital Identity Guide](docs/GDAF_DIGITAL_ATTESTATION_GUIDE.md)
-- � [Threshold Cryptography Guide](docs/SHAMIR_SECRET_SHARING_GUIDE.md)
-- �️ [UTXO Manager Guide](docs/UTXO_MANAGER_GUIDE.md)
+- 📖 [SmartContract Guide](docs/advanced/SMART_CONTRACT_GUIDE.md)
+- ⚖️ [Legal Token Protocol Guide](docs/advanced/LEGAL_TOKEN_PROTOCOL.md)  
+- 🌐 [Digital Identity Guide](docs/technical/GDAF_DEVELOPER_INTERFACE.md)
+- 🔐 [Threshold Cryptography Guide](docs/technical/SHAMIR_INTEGRATION_SUMMARY.md)
+- 🗃️ [UTXO Manager Guide](docs/advanced/UTXO_MANAGER_GUIDE.md)
 - 💡 [Examples Directory](https://github.com/codenlighten/smartledger-bsv/tree/main/examples)
 
 ## 🔧 **API Reference**
@@ -314,23 +397,23 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 | **Core** | `new PrivateKey()` | Generate private key | `const key = new bsv.PrivateKey()` |
 | | `new Transaction()` | Create transaction | `const tx = new bsv.Transaction()` |
 | | `Script.fromASM()` | Parse script | `const script = bsv.Script.fromASM('OP_DUP')` |
-| **Covenant** | `CovenantInterface()` | Covenant development | `const covenant = new bsv.CovenantInterface()` |
-| | `createCovenantTransaction()` | Covenant transaction | `covenant.createCovenantTransaction(config)` |
-| | `getPreimage()` | BIP143 preimage | `covenant.getPreimage(tx, 0, script, sats)` |
-| **Custom Scripts** | `CustomScriptHelper()` | Script utilities | `const helper = new bsv.CustomScriptHelper()` |
-| | `createSignature()` | Manual signature | `helper.createSignature(tx, key, 0, script, sats)` |
-| | `createMultisigScript()` | Multi-signature | `helper.createMultisigScript([pk1, pk2], 2)` |
+| **Covenant** | `SmartContract.perpetualCovenant()` | Self-replicating covenant | `SC.perpetualCovenant(500)` |
+| | `SmartContract.verifyScript()` | Verify a script pair; returns `{ ok, err }` | `SC.verifyScript(unlock, lock, { tx, satoshis })` |
+| | `CustomScriptHelper.getPreimage()` | BIP143 preimage | `bsv.CustomScriptHelper.getPreimage(tx, 0, script, sats)` |
+| **Custom Scripts** | `CustomScriptHelper` | Script utilities — **all methods are static**, do not instantiate | `bsv.CustomScriptHelper.createDataScript(data)` |
+| | `createSignature()` | Manual signature | `bsv.CustomScriptHelper.createSignature(tx, key, 0, script, sats)` |
+| | `createMultisigScript()` | Multi-signature | `bsv.CustomScriptHelper.createMultisigScript(2, [pk1, pk2])` |
 | **Debug Tools** | `SmartContract.examineStack()` | Analyze script | `SmartContract.examineStack(script)` |
 | | `interpretScript()` | Execute script | `SmartContract.interpretScript(script)` |
 | | `getScriptMetrics()` | Performance data | `SmartContract.getScriptMetrics(script)` |
-| **Security (opt-in)** | `SmartVerify.verify()` | Hardened verify with strict input validation — call explicitly; default `signature.verify()` does NOT route through this | `SmartVerify.verify(sig, hash, pubkey)` |
-| | `EllipticFixed.sign()` | Canonicalized signing wrapper around elliptic | `EllipticFixed.sign(hash, privateKey)` |
+| **Security (opt-in)** | `SmartVerify.smartVerify()` | Hardened verify with strict input validation — call explicitly; default `signature.verify()` does NOT route through this | `bsv.SmartVerify.smartVerify(msgHash, sig, pubkey)` |
+| | `EllipticFixed.sign()` | Canonicalized signing wrapper over the `@noble` secp256k1 backend | `bsv.EllipticFixed.sign(hash, privateKey)` |
 
 > 💡 **Tip:** All methods include comprehensive error handling and validation. See [documentation links](#documentation) for detailed guides.
 
 ## 📚 **Quick Start Examples**
 
-### 🔧 **Basic Development** (~1.2MB total)
+### 🔧 **Basic Development** (~1.05MB total)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv-script-helper.min.js"></script>
@@ -340,7 +423,7 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 </script>
 ```
 
-### 🔒 **Smart Contract Development** (~2.8MB total — each bundle re-embeds core BSV)
+### 🔒 **Smart Contract Development** (~1.2MB total — each bundle re-embeds core BSV)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv-covenant.min.js"></script>
@@ -352,44 +435,45 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 </script>
 ```
 
-### 🆕 **Legal & Identity Development** (~3.4MB total — each bundle re-embeds core BSV)
+### 🆕 **Legal & Identity Development** (~2.55MB total — each bundle re-embeds core BSV)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv-ltp.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv-gdaf.min.js"></script>
 <script>
   // Legal Token Protocol
-  const propertyToken = bsv.createPropertyToken({
-    propertyType: 'real_estate', jurisdiction: 'us_delaware'
-  });
+  const result = bsv.LTP.createRightToken({
+    type: bsv.LTP.Right.RightTypes.PROPERTY_TITLE,
+    owner: ownerDID, jurisdiction: 'us_delaware'
+  }, key);
   
   // Digital Identity
   const credential = bsv.createEmailCredential(issuerDID, subjectDID, 'user@example.com', key);
 </script>
 ```
 
-### 🆕 **Security & Cryptography** (~1.5MB total)
+### 🆕 **Security & Cryptography** (~1.22MB total)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv-security.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv-shamir.min.js"></script>
 <script>
   // Threshold Cryptography
-  const shares = bsv.splitSecret('my_secret_key', 5, 3); // 5 shares, 3 needed
+  const shares = bsv.Shamir.split('my_secret_key', 3, 5); // 5 shares, any 3 recover
   
   // Enhanced Security
-  const verified = bsvSecurity.SmartVerify.verify(signature, hash, publicKey);
+  const verified = bsvSecurity.SmartVerify.smartVerify(hash, signature, publicKey);
 </script>
 ```
 
-### 🎯 **Everything Bundle** (~1.1MB)
+### 🎯 **Everything Bundle** (~1.02MB)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv.bundle.js"></script>
 <script>
   // Everything available immediately
-  const shares = bsv.splitSecret('secret', 5, 3);           // Shamir Secret Sharing
-  const credential = bsv.createDID(publicKey);              // Digital Identity
-  const propertyToken = bsv.createPropertyToken({...});    // Legal Tokens
+  const shares = bsv.Shamir.split('secret', 3, 5);            // Shamir Secret Sharing
+  const did = bsv.createDID(publicKey);                       // Digital Identity
+  const token = bsv.LTP.createRightToken({ /* ... */ }, key); // Legal Tokens
   const covenant = bsv.SmartContract.createCovenantBuilder(); // Smart Contracts
 </script>
 ```
@@ -397,10 +481,10 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 ## 🎯 **Key Features**
 
 ### 🚀 **Unique Capabilities** (Only Bitcoin Library with These Features)
-- ✅ **Legal Token Protocol**: Compliant tokenization of real-world assets → [Legal Guide](docs/LTP_LEGAL_TOKENS_GUIDE.md)
-- ✅ **Digital Identity Framework**: W3C Verifiable Credentials and DIDs → [Identity Guide](docs/GDAF_DIGITAL_ATTESTATION_GUIDE.md)
-- ✅ **Threshold Cryptography**: Shamir Secret Sharing for secure key management → [Cryptography Guide](docs/SHAMIR_SECRET_SHARING_GUIDE.md)
-- ✅ **Complete Smart Contract Suite**: 23+ production-ready covenant features → [SmartContract Guide](docs/SMART_CONTRACT_GUIDE.md)
+- ✅ **Legal Token Protocol**: Compliant tokenization of real-world assets → [Legal Guide](docs/advanced/LEGAL_TOKEN_PROTOCOL.md)
+- ✅ **Digital Identity Framework**: W3C Verifiable Credentials and DIDs → [Identity Guide](docs/technical/GDAF_DEVELOPER_INTERFACE.md)
+- ✅ **Threshold Cryptography**: Shamir Secret Sharing for secure key management → [Cryptography Guide](docs/technical/SHAMIR_INTEGRATION_SUMMARY.md)
+- ✅ **Complete Smart Contract Suite**: 23+ production-ready covenant features → [SmartContract Guide](docs/advanced/SMART_CONTRACT_GUIDE.md)
 
 ### 💼 **Core Library Excellence**
 - ✅ **Complete BSV API**: Full Bitcoin SV blockchain operations → [API Reference](#-api-reference)  
@@ -410,14 +494,14 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 - ✅ **Ultra-Low Fees**: 0.01 sats/byte configuration (91% fee reduction)
 
 ### 🛠️ **Advanced Development Tools**
-- 🔧 **JavaScript-to-Script**: High-level covenant development with 121 opcode mapping → [Covenant Guide](docs/ADVANCED_COVENANT_DEVELOPMENT.md)
-- 🔧 **UTXO Generator**: Create authentic test UTXOs for development → [UTXO Guide](docs/UTXO_MANAGER_GUIDE.md)
+- 🔧 **JavaScript-to-Script**: High-level covenant development with 121 opcode mapping → [Covenant Guide](docs/advanced/ADVANCED_COVENANT_DEVELOPMENT.md)
+- 🔧 **UTXO Generator**: Create authentic test UTXOs for development → [UTXO Guide](docs/advanced/UTXO_MANAGER_GUIDE.md)
 - 🔧 **Preimage Parser**: Complete BIP-143 field extraction and manipulation → [Preimage Tools](https://github.com/codenlighten/smartledger-bsv/tree/main/examples/preimage)
-- � **Debug Framework**: Script interpreter, stack examiner, and optimizer → [Debug Examples](https://github.com/codenlighten/smartledger-bsv/blob/main/tests/smartcontract-test.html)
-- � **PUSHTX Integration**: nChain techniques for advanced covenant patterns → [PUSHTX Insights](docs/pushtx-key-insights.md)
+- 🔧 **Debug Framework**: Script interpreter, stack examiner, and optimizer → [Debug Examples](https://github.com/codenlighten/smartledger-bsv/blob/main/tests/smartcontract-test.html)
+- 🔧 **PUSHTX Integration**: nChain techniques for advanced covenant patterns → [PUSHTX Insights](docs/pushtx-key-insights.md)
 
 ### 📦 **Flexible Architecture** 
-- 📦 **16 Modular Options**: Load only what you need (30KB to 1149KB) → [Loading Strategy](#-16-loading-options---choose-your-approach)
+- 📦 **16 Modular Options**: Load only what you need (32KB to 1039KB) → [Loading Strategy](#-16-loading-options---choose-your-approach)
 - 📦 **Standalone Modules**: Independent legal, identity, and crypto modules → [Standalone Test](https://github.com/codenlighten/smartledger-bsv/blob/main/tests/standalone-modules-test.html)
 - 📦 **Complete Bundle**: Everything in one file for convenience → [Bundle Demo](https://github.com/codenlighten/smartledger-bsv/blob/main/tests/bundle-demo.html)
 - 📦 **CDN Ready**: All modules available via unpkg and jsDelivr
@@ -429,14 +513,44 @@ const covenant = bsv.SmartContract.createCovenantBuilder()
 
 ### NPM Installation
 ```bash
-# Main package
 npm install @smartledger/bsv
-
-# Alternative package name (legacy)
-npm install smartledger-bsv
 ```
 
 > 📖 **Next Steps**: After installation, see [Loading Options](#-16-loading-options---choose-your-approach) to choose your distribution method
+
+### Upgrading to v8.0.0 (Breaking Changes)
+
+8.0.0 moved the defaults onto BSV as the network actually runs it. Two changes
+need action.
+
+**1. `verify()` with no flags now means BSV mainnet, not "no rules".**
+
+```javascript
+interp.verify(sig, pubkey, tx, nin)          // was: Bitcoin 2015; now: current mainnet
+interp.verify(sig, pubkey, tx, nin, 0)       // the old behaviour, stated explicitly
+
+// Spending a pre-Chronicle output — state the era of the output being spent,
+// because that is the input the caller knows and the library cannot infer.
+bsv.Script.Interpreter.mainnetFlags({ afterChronicle: false })
+```
+
+**2. Two flag constants changed numeric value.** The node assigns `1<<18` and
+`1<<19` to `SCRIPT_GENESIS` and `SCRIPT_UTXO_AFTER_GENESIS`, so ours had to move:
+
+```
+SCRIPT_ENABLE_MONOLITH_OPCODES   1<<18 → 1<<11
+SCRIPT_ENABLE_MAGNETIC_OPCODES   1<<19 → 1<<12
+```
+
+Code using the **named constants** is unaffected. Code that **persisted or
+hardcoded the numbers** must be updated: `262144` no longer means "Monolith
+opcodes", it now means `SCRIPT_GENESIS`, so a stored value silently selects a
+different era model.
+
+Also in 8.0.0: a signature carrying `SIGHASH_CHRONICLE` outside Chronicle is
+rejected rather than reinterpreted, and `MAX_OPS_PER_SCRIPT` is BSV's 500 rather
+than Bitcoin Core's 201. Full details in the
+[CHANGELOG](./CHANGELOG.md#800---2026-08-13).
 
 ### Upgrading to v5.0.0 (Breaking Changes)
 
@@ -462,9 +576,9 @@ breaking changes only affect data produced by older versions:
   outside `['ES256','ES256K']` (override via `opts.allowedAlgs`) and binds the
   key's curve to the algorithm — defense against alg-substitution attacks.
 - **Browser bundles changed size.** The full bundles ship a real `crypto`
-  polyfill so Shamir can source a CSPRNG (`bsv.min.js` ~937KB → ~1.1MB; it grew
-  in 5.0.0 then shrank again in 5.4.0 once `elliptic` was dropped from the
-  bundles). The dedicated single-feature module bundles are unaffected.
+  polyfill so Shamir can source a CSPRNG. Sizes have moved since; `bsv.min.js` is
+  ~1039KB at 8.3.0, after the ~20% reduction in 8.0.0. The dedicated
+  single-feature module bundles are unaffected.
 
 Full details in the [CHANGELOG](./CHANGELOG.md#500---2026-06-13).
 
@@ -482,17 +596,14 @@ const script = bsv.Script.fromASM('OP_1 OP_2 OP_ADD OP_3 OP_EQUAL');
 const metrics = bsv.SmartContract.getScriptMetrics(script);
 const stackInfo = bsv.SmartContract.examineStack(script);
 
-// Covenant development
-const covenant = new bsv.CovenantInterface();
-const contractTx = covenant.createCovenantTransaction({
-  inputs: [...],
-  outputs: [...]
-});
+// Covenant development — see bsv.SmartContract for the covenant stack
+const lock = bsv.SmartContract.perpetualCovenant(500);
+const { ok, err } = bsv.SmartContract.verifyScript(unlockScript, lock, { tx, satoshis });
 ```
 
 ### Browser CDN (Choose Your Loading Strategy)
 
-#### 1. **Minimal Setup** - Core + Script Helper (~1.2MB)
+#### 1. **Minimal Setup** - Core + Script Helper (~1.05MB)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv-script-helper.min.js"></script>
@@ -502,37 +613,40 @@ const contractTx = covenant.createCovenantTransaction({
 </script>
 ```
 
-#### 2. **DeFi Development** - Core + Covenants + Debug (~2.8MB — each bundle re-embeds core BSV)
+#### 2. **DeFi Development** - Core + Covenants + Debug (~1.2MB — each bundle re-embeds core BSV)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv-covenant.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv-smartcontract.min.js"></script>
 <script>
-  const covenant = new bsvCovenant.CovenantInterface();
-  const debugInfo = SmartContract.interpretScript(script);
-  const optimized = SmartContract.optimizeScript(script);
+  const lock = bsv.SmartContract.perpetualCovenant(500);
+  const debugInfo = bsv.SmartContract.interpretScript(script);
+  const optimized = bsv.SmartContract.optimizeScript(script);
 </script>
 ```
 
-#### 3. **Security First** - Core + Enhanced Security (~1.2MB)
+#### 3. **Security First** - Core + Enhanced Security (~1.05MB)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv.min.js"></script>
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv-security.min.js"></script>
 <script>
-  const verified = bsvSecurity.SmartVerify.verify(signature, hash, publicKey);
-  const enhanced = bsvSecurity.EllipticFixed.createSignature(privateKey, hash);
+  const verified = bsvSecurity.SmartVerify.smartVerify(hash, signature, publicKey);
+  const enhanced = bsvSecurity.EllipticFixed.sign(hash, privateKey);
 </script>
 ```
 
-#### 4. **Everything Bundle** - One File Solution (~1.1MB)
+#### 4. **Everything Bundle** - One File Solution (~1.02MB)
 ```html
 <script src="https://unpkg.com/@smartledger/bsv@8.3.0/bsv.bundle.js"></script>
 <script>
-  // Everything available under bsv namespace
-  const keys = bsv.SmartLedgerBundle.generateKeys();
-  const covenant = new bsv.CovenantInterface();
+  // Everything available under the bsv namespace
+  const key = bsv.PrivateKey.fromRandom();
+  const lock = bsv.SmartContract.perpetualCovenant(500);
   const message = new bsv.Message('Hello BSV');
-  const encrypted = bsv.ECIES.encrypt('secret', publicKey);
+  const encrypted = new bsv.ECIES()
+    .privateKey(key)
+    .publicKey(recipientPublicKey)
+    .encrypt('secret');
 </script>
 ```
 
@@ -581,27 +695,30 @@ const utxoManager = {
 ```javascript
 const bsv = require('@smartledger/bsv');
 
-// Create property rights token
-const propertyToken = bsv.createPropertyToken({
-  propertyType: 'real_estate',
+// Create a property-rights token. `type` must be one of LTP.Right.RightTypes —
+// an unrecognized type is rejected rather than silently accepted.
+const result = bsv.LTP.createRightToken({
+  type: bsv.LTP.Right.RightTypes.PROPERTY_TITLE,
+  owner: ownerDID,
   jurisdiction: 'us_delaware',
-  legalDescription: 'Lot 15, Block 3, Subdivision ABC',
-  ownerIdentity: ownerDID,
-  attestations: [titleAttestation, valuationAttestation]
-});
+  legalDescription: 'Lot 15, Block 3, Subdivision ABC'
+}, issuerPrivateKey);
 
-// Create obligation token  
-const obligation = bsv.createObligationToken({
+console.log(result.success);            // true
+console.log(result.token.tokenHash);    // hash committed by the token's proof
+
+// Obligation tokens
+const obligation = bsv.LTP.Obligation.prepareObligationToken({
   obligationType: 'payment',
   amount: 100000, // satoshis
-  dueDate: '2025-12-31',
+  dueDate: '2026-12-31',
   creditor: creditorDID,
   debtor: debtorDID
 });
 
-// Validate legal compliance
-const compliance = bsv.validateLegalCompliance(propertyToken, 'us_delaware');
-console.log('Legally compliant:', compliance.isValid);
+// Validate claim data against a registered schema
+// (schema names come from bsv.LTP.Claim.getSchemaNames())
+const validation = bsv.validateLegalClaim(claimData, schemaType);
 ```
 
 ### 🌐 Global Digital Attestation Framework (GDAF)
@@ -634,23 +751,20 @@ const gdaf = new bsv.GDAF({
 
 ### 🔐 Shamir Secret Sharing
 ```javascript
-// Split secret into threshold shares
+// Split a secret into threshold shares.
+// Signature is split(secret, threshold, shares) — THRESHOLD FIRST.
 const secret = 'my_private_key_backup';
-const shares = bsv.splitSecret(secret, 5, 3); // 5 shares, need 3 to reconstruct
+const shares = bsv.Shamir.split(secret, 3, 5); // 5 shares, any 3 reconstruct
 
 console.log('Generated', shares.length, 'shares');
-shares.forEach((share, i) => {
-  console.log(`Share ${i + 1}:`, share);
-});
 
-// Reconstruct secret from any 3 shares
-const reconstructed = bsv.reconstructSecret([shares[0], shares[2], shares[4]]);
-console.log('Secret recovered:', reconstructed === secret);
+// Reconstruct from any 3 shares
+const reconstructed = bsv.Shamir.combine([shares[0], shares[2], shares[4]]);
+console.log('Secret recovered:', reconstructed === secret); // true
 
 // Validate share integrity
 shares.forEach((share, i) => {
-  const isValid = bsv.validateShare(share);
-  console.log(`Share ${i + 1} valid:`, isValid);
+  console.log(`Share ${i + 1} valid:`, bsv.Shamir.verifyShare(share));
 });
 
 // Use cases: Key backup, multi-party security, recovery systems
@@ -677,7 +791,7 @@ const custom = new CovenantBuilder()
   .push(1);
 ```
 
-### Complete Opcode Mapping (121 Opcodes)
+### Complete Opcode Mapping (116 Opcodes)
 ```javascript
 const SmartContract = require('@smartledger/bsv/lib/smart_contract');
 
@@ -687,7 +801,7 @@ console.log(result.finalStack); // ['01'] - TRUE
 
 // Get comprehensive opcode information
 const opcodes = SmartContract.getOpcodeMap();
-console.log(Object.keys(opcodes).length); // 121 opcodes mapped
+console.log(Object.keys(opcodes).length); // 116 opcodes mapped
 ```
 
 ### BIP143 Preimage Parsing
@@ -702,7 +816,7 @@ console.log('Amount:', preimage.amountValue);         // BigInt accessor
 console.log('Valid structure:', preimage.isValid);    // Boolean validation
 ```
 
-### PUSHTX Covenants (nChain WP1605) — v4.2.0 API
+### PUSHTX Covenants (nChain WP1605)
 ```javascript
 const bsv = require('@smartledger/bsv')
 const SC = bsv.SmartContract
@@ -720,7 +834,7 @@ const requiredOutputs = [/* bsv.Transaction.Output objects */]
 const valueLock = SC.PushTx.valueCovenant(SC.PushTx.hashOutputs(requiredOutputs))
 ```
 
-### Perpetually Enforcing Locking Scripts (PELS) — v4.2.0 API
+### Perpetually Enforcing Locking Scripts (PELS)
 ```javascript
 // Self-replicating covenant: every spend must recreate the same script
 // (value − fee), reading its own code out of the authenticated preimage's
@@ -728,7 +842,7 @@ const valueLock = SC.PushTx.valueCovenant(SC.PushTx.hashOutputs(requiredOutputs)
 const pels = SC.perpetualCovenant(500)   // fee in satoshis deducted each hop
 ```
 
-### Ownership Tokens (NFT) — v4.2.0 API
+### Ownership Tokens (NFT)
 ```javascript
 // Stateful ownership token. Owner is carried as on-chain state (HASH160 of the
 // owner's public key); transfer requires the current owner's ECDSA SIGNATURE over
@@ -764,36 +878,47 @@ const multi = SC.Token.ownershipTokenMulti(ownerHash)
 const ok = SC.verifyScript(unlockScript, lockingScript, tx, inputIndex, satoshis)
 ```
 
-### Evaluating covenants locally — `Interpreter.useGenesisLimits()` (v4.1.0+)
+### Consensus defaults — BSV mainnet, no flags required (8.0.0+)
 
-The bundled `Script.Interpreter` defaults to **pre-Genesis** BSV consensus
-caps — 520-byte stack elements, 4-byte script numbers, 201 opcodes per
-script — which BSV removed at the Genesis upgrade (Feb 2020). Those caps
-make it impossible to evaluate this library's own flagship features:
-OP_PUSH_TX covenants push a ~585-byte preimage, do 32-byte modular
-arithmetic, and run a few hundred opcodes.
-
-Opt into post-Genesis rules with a single call at app startup:
+**Since 8.0.0 you do not opt in to BSV.** `verify()` with no flags means
+current BSV mainnet consensus, and `MAX_OPS_PER_SCRIPT` is BSV's 500 rather
+than Bitcoin Core's 201. Earlier versions defaulted to a 2015-era Bitcoin
+rule set and required an explicit call to reach post-Genesis behaviour; that
+is no longer the case.
 
 ```javascript
 const bsv = require('@smartledger/bsv');
-
-// Default: bound the limits to a safe ceiling (covers every covenant
-// pattern seen in production, blocks oversized-push memory DoS).
-bsv.Script.Interpreter.useGenesisLimits(64 * 1024);
-
-// Or, for fully unbounded (~2 GB) — only safe for trusted scripts:
-// bsv.Script.Interpreter.useGenesisLimits();
-
-// Now OP_PUSH_TX covenants verify locally:
 const interp = new bsv.Script.Interpreter();
-const ok = interp.verify(unlockScript, lockScript, tx, 0, flags, satoshisBN);
+
+// Current BSV mainnet — this is the default.
+const ok = interp.verify(unlockScript, lockScript, tx, 0, undefined, satoshisBN);
+
+// Spending a pre-Chronicle output: state the era of the output you are spending,
+// because the library cannot infer it.
+const flags = bsv.Script.Interpreter.mainnetFlags({ afterChronicle: false });
+const ok2 = interp.verify(unlockScript, lockScript, tx, 0, flags, satoshisBN);
+
+// The pre-8.0.0 "no rules" behaviour, if you genuinely want it, is now explicit:
+const ok3 = interp.verify(unlockScript, lockScript, tx, 0, 0, satoshisBN);
 ```
 
-This is a **process-wide** setting — once called, every subsequent
-`new Interpreter()` runs with lifted caps. Defaults are unchanged out of
-the box; if you don't call `useGenesisLimits()`, behavior is identical
-to pre-v4.1.0.
+**Covenants need no special setup.** The element and script-number caps are
+derived from the era flags, not from the `MAX_SCRIPT_ELEMENT_SIZE` static — which
+still reads 520 because it is only the pre-Genesis fallback. An OP_PUSH_TX
+covenant pushing a ~585-byte preimage verifies under the defaults:
+
+```javascript
+const interp = new bsv.Script.Interpreter();
+const ok = interp.verify(unlockScript, lockScript, tx, 0, undefined, satoshisBN);
+```
+
+> ⚠️ **`Interpreter.useGenesisLimits()` is legacy and should not be used to enable
+> covenants.** It cannot enable post-Genesis arithmetic — that comes from the era
+> flags — and because it mutates process-wide statics it *weakens* pre-Genesis
+> validation: raising `MAXIMUM_ELEMENT_SIZE` turns 15 of the reference node's 22
+> `SCRIPTNUM_OVERFLOW` vectors into false accepts. If you must call it, capture
+> and restore the caps around it with `Interpreter.getLimits()` /
+> `Interpreter.setLimits()`.
 
 ## 🛠️ Custom Scripts
 
@@ -842,10 +967,10 @@ canonical `unpkg.com/@smartledger/bsv@8.3.0/...` URLs.
 
 | Surface | Status | Notes |
 |---------|--------|-------|
-| `elliptic@6.6.1` (pinned) | upstream-patched | All known CVEs through 6.6.1 are fixed by elliptic itself. SmartLedger does not patch elliptic's source. |
+| secp256k1 primitives | `@noble/curves` | `elliptic` was removed entirely — it is not a dependency and is not in the bundles. The Noble suite carries a published Cure53 audit. |
 | Default `transaction.verify()` / `signature.verify()` / `Message().verify()` | uses BSV's own `lib/crypto/ecdsa.js` | This path does **not** import elliptic and is **not** routed through `SmartVerify` or `EllipticFixed`. |
 | `bsv.SmartVerify` (opt-in helper) | available | Hardened standalone verify: rejects `r=0`, `s=0`, `r≥n`, `s≥n`; canonicalizes `s` to low half. Built on BSV's own `BN`/`ECDSA`. You must call it explicitly. |
-| `bsv.EllipticFixed` (opt-in helper) | available | Wraps the elliptic `secp256k1` instance with the same input checks + low-`s` on sign. Only matters if you use elliptic directly. |
+| `bsv.EllipticFixed` (opt-in helper) | available | An elliptic-*compatible* secp256k1 surface — the name is kept for API compatibility, but it is backed by `@noble/curves`. Adds the same input checks plus low-`s` on sign. |
 | `signature.validate()` / `isCanonical()` / `toCanonical()` | available | Real methods on `bsv.Signature`. |
 | DER canonicalization on TX signing | available | BSV's signature path produces low-`s` DER by default. |
 | BIP143 preimage utilities | available | `lib/smart_contract/preimage.js` and `examples/preimage/`. |
@@ -864,8 +989,8 @@ const okDefault = bsv.crypto.ECDSA.verify(msgHashBuffer, signature, publicKey)
 
 ### What this library does **not** claim
 
-- It does not silently route every `verify()` call through `SmartVerify`. If you want the strict input validation on every verification, call `SmartVerify` explicitly or wrap `bsv.Signature.prototype.verify`.
-- It does not patch the elliptic library's source — the patches in `lib/crypto/elliptic-fixed.js` add input validation on top of an already-upstream-patched `elliptic@6.6.1`.
+- It does not silently route every `verify()` call through `SmartVerify`. If you want the strict input validation on every verification, call `SmartVerify` explicitly or wrap `bsv.crypto.ECDSA.prototype.verify`.
+- It no longer depends on `elliptic` at all. `lib/crypto/elliptic-fixed.js` keeps the name for API compatibility but is backed by `@noble/curves`; it adds input validation and low-`s` canonicalization on top of that.
 - It does not turn `bsv.isHardened = true` into an automatic guarantee. That property indicates the hardening helpers ship; whether they're used is up to your code.
 
 v4.0.0 fixed three critical, exploitable vulnerabilities in the GDAF
@@ -881,23 +1006,27 @@ and [SECURITY.md](./SECURITY.md) for the supported-versions policy.
 ## 📝 Changelog
 
 The authoritative version history lives in [CHANGELOG.md](./CHANGELOG.md).
-Highlights of the v4.x line:
+Highlights of the current line:
 
-- **[4.2.0](./CHANGELOG.md#420---2026-06-07)** — first-class
-  interpreter-verified covenants (`SmartContract.PushTx`, `PELS`,
-  `Token`, `Locks`, `verifyScript`) with positive + negative test coverage.
-- **[4.1.0](./CHANGELOG.md#410---2026-06-07)** — `Interpreter.useGenesisLimits()`
-  one-call opt-in for post-Genesis BSV consensus; latent
-  `MAXIMUM_ELEMENT_SIZE` bug fixed.
-- **[4.0.1](./CHANGELOG.md#401---2026-05-31)** — soft-deprecated
-  `bsv.SmartUTXO` (dev-only simulator on production surface);
-  `createMockUTXOs` bug fixes.
-- **[4.0.0](./CHANGELOG.md#400---2026-05-31)** — **security release.** Fixes
-  three exploitable credential-verification flaws in GDAF/VC-JWT and
-  removes a live mainnet WIF that shipped inside prior versions. All
-  ≤ 3.4.5 should be considered untrustworthy.
+- **[8.3.0](./CHANGELOG.md#830---2026-08-16)** — BRC-220 **NotaryHash**:
+  signed-hash notarization, SPV-verifiable certificates, a pluggable signature
+  suite registry, and RFC 6962 Merkle trees for batch mode.
+- **[8.2.0](./CHANGELOG.md#820---2026-08-15)** — RFC 8785 (JCS) canonical JSON
+  extracted to `lib/util/jcs.js`, so GDAF signatures verify under other
+  implementations.
+- **[8.1.0](./CHANGELOG.md#810---2026-08-13)** — `useGenesisLimits()` edge-case
+  fix.
+- **[8.0.0](./CHANGELOG.md#800---2026-08-13)** — **breaking.** Measured against
+  the reference node's own consensus vectors (1483/1483, from an initial
+  1426/1483 with 21 false accepts). `verify()` with no flags now means BSV
+  mainnet; `SCRIPT_ENABLE_MONOLITH_OPCODES` and `SCRIPT_ENABLE_MAGNETIC_OPCODES`
+  changed numeric value. See [Upgrading](#upgrading-to-v800-breaking-changes).
+- **[4.0.0](./CHANGELOG.md#400---2026-05-31)** — **security release.** Fixed
+  three exploitable credential-verification flaws in GDAF/VC-JWT and removed a
+  live mainnet WIF that shipped inside prior versions. All ≤ 3.4.5 should be
+  considered untrustworthy.
 
-Earlier 3.x changelog entries are preserved in `CHANGELOG.md`.
+Earlier entries are preserved in `CHANGELOG.md`.
 
 ---
 
@@ -975,6 +1104,6 @@ For security vulnerabilities, follow the disclosure process in
 
 ---
 
-**SmartLedger-BSV v4.2.1** — *Complete Bitcoin SV Development Framework*
+**SmartLedger-BSV v8.3.0** — *Complete Bitcoin SV Development Framework*
 
 Built with ❤️ for the Bitcoin SV ecosystem • 16 Loading Options • Interpreter-Verified Covenants
