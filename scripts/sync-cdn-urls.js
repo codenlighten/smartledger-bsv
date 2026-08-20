@@ -54,10 +54,22 @@ function collectTargets () {
   return targets
 }
 
+// The README also states the version in two places that are NOT URL pins, and for
+// five releases only the pins were rewritten — so the page advertised 5.4.0 while
+// linking 8.3.0 assets. Sync those here too; `npm run check:readme` fails the
+// release if either drifts, and a gate nobody can satisfy just gets deleted.
+const README_VERSION_RULES = [
+  { re: /(badge\/version-)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(-)/g, to: `$1${VERSION}$2` },
+  { re: /(\*\*SmartLedger-BSV v)\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(\*\*)/g, to: `$1${VERSION}$2` }
+]
+
 const changed = []
 for (const file of collectTargets()) {
   const before = fs.readFileSync(file, 'utf8')
-  const after = before.replace(PIN_RE, REPLACEMENT)
+  let after = before.replace(PIN_RE, REPLACEMENT)
+  if (path.basename(file) === 'README.md' && path.dirname(file) === ROOT) {
+    for (const rule of README_VERSION_RULES) after = after.replace(rule.re, rule.to)
+  }
   if (after !== before) {
     fs.writeFileSync(file, after)
     changed.push(path.relative(ROOT, file))
