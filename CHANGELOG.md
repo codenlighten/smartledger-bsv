@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.3.1] - 2026-08-20
+
+### Fixed — BRC-220 signature verification was not interoperable
+
+`lib/notaryhash/suites.js` set `endian: 'little'` before verifying, which made
+ECDSA reverse the 32-byte `payloadHash` before reducing it to a scalar. That is
+Bitcoin's message-signing convention, not this protocol's.
+
+The effect was on the **verify** side. A signature produced the way BRC-220
+describes — over the `payloadHash` directly — was **rejected**, and the only
+signatures accepted were ones made with bsv's own byte-reversed convention. In
+practice 8.3.0 could not verify a certificate from any other implementation.
+
+Signing was never affected: `ECDSA.sign(payloadHash, key)` already produced a
+conformant signature. Only the verifier disagreed with it.
+
+**If you issued certificates with 8.3.0**, they are fine — the signatures in them
+are whatever your signer produced. If you signed via `ECDSA` with
+`endian: 'little'` to satisfy the old verifier, those signatures are
+non-conformant and must be re-issued; 8.3.1 rejects them, deliberately, because
+accepting both conventions would mean two valid signatures exist for one signing
+act and both are inside `proofHash`.
+
+### Why the tests did not catch it
+
+Every NotaryHash test signed through `lib/crypto/ecdsa.js` and verified through a
+suite that used the same file, so the module and its tests were self-consistent
+and wrong together — the failure shape `test/notaryhash/encoding.js` warns about
+in its own header comment.
+
+`test/notaryhash/interop.js` is new and verifies against `@noble/curves`, which
+shares no verification code with ours. Reverting the one-line fix fails 9 tests.
+It also records the trap that made this slow to diagnose: noble v2 **prehashes by
+default**, so `secp256k1.sign(digest, key)` signs `sha256(digest)` and looks
+self-consistent while disagreeing with everyone; every call in that file passes
+`{ prehash: false }`.
+
+### Documentation
+
+- The README's NotaryHash example now shows the signing step explicitly, and says
+  why no `endian` option belongs there.
+
 ## [8.3.0] - 2026-08-16
 
 ### BRC-220 (NotaryHash)
