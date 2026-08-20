@@ -65,6 +65,7 @@
     "vectors:sv-tx": "node tools/sv-tx-report.js",
     "vectors:sv-sighash": "node tools/sv-sighash-report.js",
     "conformance:generate": "node conformance/generate.js",
+    "check:readme": "node scripts/check-readme-accuracy.js",
     "lint:ratchet": "node scripts/lint-ratchet.js",
     "lint:ratchet:update": "node scripts/lint-ratchet.js --update",
     "test": "mocha",
@@ -97,7 +98,7 @@
     "test:browser": "echo 'Open tests/standalone-modules-test.html in browser for comprehensive testing'",
     "test:bundle": "echo 'Open tests/bundle-completeness-test.html in browser to verify bundle completeness'",
     "preimage:extract": "node examples/preimage/extract_preimage_bidirectional.js",
-    "prepublishOnly": "npm run build-all",
+    "prepublishOnly": "npm run build-all && npm run check:readme",
     "sync-cdn": "node scripts/sync-cdn-urls.js",
     "version": "node scripts/sync-cdn-urls.js && node scripts/sync-version.js && node scripts/gen-esm-wrapper.js && git add README.md docs version.js index.mjs",
     "test:browser:ci": "node tests/browser-smoke-runner.js"
