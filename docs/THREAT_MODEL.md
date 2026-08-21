@@ -108,8 +108,16 @@ Node, or hostile browser extension is out of scope — see `SECURITY.md`).
 - **No published provenance yet.** Bundles are a reproducible build of source (see §4) but
   npm provenance attestation is pending a trusted-publisher registration (2FA-gated). This is
   a *supply-chain verifiability* gap, not a code vulnerability.
-- **Genesis limits.** Covenant scripts require post-Genesis limits (`SmartContract.enableGenesis()`);
-  the guarantees assume a post-Genesis BSV node.
+- **Time locks do not bind post-Genesis.** `SmartContract.Locks.timeLockCLTV` and the
+  timeout branch of `Locks.htlc` are gated by `OP_CHECKLOCKTIMEVERIFY`, which Genesis
+  reverted to an upgradable NOP for outputs created after it. On current mainnet these
+  enforce **nothing** and the coins are spendable immediately. Before 8.4.0 the covenant
+  harness verified under flags missing the era bits, so the library's own tests reported
+  enforcement that the network never provided — an instance of the §1 failure mode found
+  in our own code. Pinned now in `test/smart_contract/covenants.js`
+  ("CLTV does NOT bind post-Genesis").
+- **Consensus era.** Covenant guarantees assume current BSV mainnet; the harness verifies
+  under `Interpreter.mainnetFlags()` with no opt-in required (8.4.0+).
 
 ## 4. Supply chain / reproducible builds
 

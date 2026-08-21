@@ -37,9 +37,6 @@ through `Script.Interpreter`. Every locking script has both a positive
 ```javascript
 const bsv = require('@smartledger/bsv')
 const SC = bsv.SmartContract
-SC.enableGenesis()   // OP_PUSH_TX needs the lifted element cap — but note this is
-                     // process-wide and weakens pre-Genesis validation. See
-                     // "Consensus defaults" below before calling it in an app.
 
 // Self-replicating covenant — every spend recreates the same script (value − fee).
 const lock = SC.perpetualCovenant(500)
@@ -64,12 +61,19 @@ const { ok, err } = SC.verifyScript(unlockScript, lockingScript, { tx, inputInde
 | `PELS` | Perpetually Enforcing Locking Scripts — `perpetualCovenant(fee)` |
 | `Token` | Stateful ownership token (NFT) — `ownershipToken(fee, owner[, auth])`, `ownershipTokenMulti(owner[, auth])`, `ownerId(key)`, `unlockTransfer(...)`, `unlockTransferMulti(...)` |
 | `Authorizers` | Pluggable token ownership — `singleKey()`, `multisig(m, n)`, `predicate({...})` |
-| `Locks` | Hash-lock, P2PKH, CLTV time-lock, m-of-n multisig, HTLC |
+| `Locks` | Hash-lock, P2PKH, m-of-n multisig — plus CLTV time-lock and HTLC, whose **time locks do not bind post-Genesis**, see below |
 | `CovenantHelpers` | Consensus-flag `verify()` harness, raw BIP-143 preimage, signing, fund/spend scaffolding |
 
 > ⚠️ Research-grade. Review carefully before mainnet value: the OP_PUSH_TX key
 > is the intentionally public `a=k=1` construction, and low-S malleability is
 > left unenforced for the in-script signature.
+>
+> ⚠️ **`Locks.timeLockCLTV` and the timeout branch of `Locks.htlc` enforce nothing
+> on current mainnet.** Genesis reverted `OP_CHECKLOCKTIMEVERIFY` to an upgradable
+> NOP for outputs created after it, so the coins are spendable immediately by the
+> key holder. Before 8.4.0 this library's own harness verified under pre-Genesis
+> flags and reported the lock as holding; it never did on the network. Do not use
+> them to time-lock value.
 
 ## 🔏 NotaryHash (BRC-220)
 
@@ -833,7 +837,6 @@ console.log('Valid structure:', preimage.isValid);    // Boolean validation
 ```javascript
 const bsv = require('@smartledger/bsv')
 const SC = bsv.SmartContract
-SC.enableGenesis()                              // OP_PUSH_TX needs post-Genesis limits
 
 // Bare OP_PUSH_TX authenticator: unlocks only with the (grindable) preimage of
 // THIS transaction. Built from the nChain `a=k=1` public-key construction —
@@ -925,25 +928,30 @@ const interp = new bsv.Script.Interpreter();
 const ok = interp.verify(unlockScript, lockScript, tx, 0, undefined, satoshisBN);
 ```
 
-> ⚠️ **`Interpreter.useGenesisLimits()` is legacy and should not be used to enable
-> covenants.** It cannot enable post-Genesis arithmetic — that comes from the era
-> flags — and because it mutates process-wide statics it *weakens* pre-Genesis
+> ⚠️ **You no longer need to opt in to anything.** Since 8.4.0 the covenant harness
+> verifies under `Interpreter.mainnetFlags()`, whose era bits lift the pre-Genesis
+> element, opcode and script-size caps. `SmartContract.enableGenesis()` is a
+> deprecated no-op and can be deleted from your code.
+>
+> **`Interpreter.useGenesisLimits()` remains available but should not be used to
+> enable covenants.** It cannot enable post-Genesis arithmetic — that comes from the
+> era flags — and because it mutates process-wide statics it *weakens* pre-Genesis
 > validation: raising `MAXIMUM_ELEMENT_SIZE` turns 15 of the reference node's 22
-> `SCRIPTNUM_OVERFLOW` vectors into false accepts. If you must call it, capture
-> and restore the caps around it with `Interpreter.getLimits()` /
-> `Interpreter.setLimits()`.
+> `SCRIPTNUM_OVERFLOW` vectors into false accepts. If you must call it, capture and
+> restore the caps with `Interpreter.getLimits()` / `Interpreter.setLimits()`.
 
 ## 🛠️ Custom Scripts
 
 ### Multi-signature Scripts
 ```javascript
-const { CustomScriptHelper } = require('@smartledger/bsv/lib/custom-script-helper');
-const helper = new CustomScriptHelper();
+// The module exports the class itself, and every method is STATIC — do not
+// destructure a named export and do not instantiate.
+const CustomScriptHelper = require('@smartledger/bsv/lib/custom-script-helper');
 
-// Create 2-of-3 multisig script
-const multisigScript = helper.createMultisigScript([
+// Create 2-of-3 multisig script — signature is (m, publicKeys)
+const multisigScript = CustomScriptHelper.createMultisigScript(2, [
   publicKey1, publicKey2, publicKey3
-], 2);
+]);
 ```
 
 ### Timelock Contracts

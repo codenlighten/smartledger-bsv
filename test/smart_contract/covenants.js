@@ -21,15 +21,6 @@ var SATS = 100000
 describe('SmartContract covenants (v4.2.0)', function () {
   this.timeout(20000)
   var I = bsv.Script.Interpreter
-  var saved
-
-  before(function () {
-    saved = I.getLimits()
-    SC.enableGenesis() // OP_PUSH_TX covenants need post-Genesis limits
-  })
-  after(function () {
-    I.setLimits(saved)
-  })
 
   var alice = PrivateKey.fromRandom()
   var bob = PrivateKey.fromRandom()
@@ -59,18 +50,48 @@ describe('SmartContract covenants (v4.2.0)', function () {
       verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(true)
     })
 
-    it('CLTV accepts a matured spend and rejects an immature one', function () {
+    // CLTV accepts a matured spend. It does NOT reject an immature one on mainnet, and
+    // that is not a bug in this test — Genesis reverted OP_CHECKLOCKTIMEVERIFY to an
+    // upgradable NOP for outputs created after it (interpreter.js, the isAfterGenesis()
+    // short-circuit), so a post-Genesis script containing it enforces nothing.
+    //
+    // Until 8.4.0 this test asserted that the early spend was rejected, and it passed —
+    // because the covenant harness verified under flags that omitted the era bits, i.e.
+    // under 2019 rules. The library was reporting a guarantee mainnet does not provide.
+    // Both halves are pinned below so the real behaviour cannot drift back into looking
+    // like enforcement.
+    it('CLTV verifies a matured spend', function () {
       var lt = 800000
       var c = Locks.timeLockCLTV(alice, lt)
       var spend = spendOf(c.lock, SATS, [p2pkhOutput(alice, SATS - 500)])
       spend.nLockTime = lt; spend.inputs[0].sequenceNumber = 0xfffffffe
       spend.inputs[0].setScript(c.unlock(spend, SATS))
       verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(true)
+    })
 
-      spend = spendOf(c.lock, SATS, [p2pkhOutput(alice, SATS - 500)])
+    it('CLTV does NOT bind post-Genesis — an early spend is accepted on mainnet', function () {
+      var lt = 800000
+      var c = Locks.timeLockCLTV(alice, lt)
+      var spend = spendOf(c.lock, SATS, [p2pkhOutput(alice, SATS - 500)])
       spend.nLockTime = lt - 1; spend.inputs[0].sequenceNumber = 0xfffffffe
       spend.inputs[0].setScript(c.unlock(spend, SATS))
-      verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(false)
+      verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS })
+        .ok.should.equal(true, 'OP_CLTV is a NOP after Genesis; this lock does not hold funds')
+    })
+
+    it('CLTV still binds under explicitly pre-Genesis flags', function () {
+      // Proof that the opcode itself is implemented correctly, and that the change above
+      // is about which era we verify under — not about CLTV being broken.
+      var lt = 800000
+      var preGenesis = I.SCRIPT_VERIFY_P2SH | I.SCRIPT_VERIFY_STRICTENC |
+        I.SCRIPT_VERIFY_DERSIG | I.SCRIPT_VERIFY_LOW_S | I.SCRIPT_VERIFY_MINIMALDATA |
+        I.SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY | I.SCRIPT_ENABLE_SIGHASH_FORKID
+      var c = Locks.timeLockCLTV(alice, lt)
+      var spend = spendOf(c.lock, SATS, [p2pkhOutput(alice, SATS - 500)])
+      spend.nLockTime = lt - 1; spend.inputs[0].sequenceNumber = 0xfffffffe
+      spend.inputs[0].setScript(c.unlock(spend, SATS))
+      verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS, flags: preGenesis })
+        .ok.should.equal(false)
     })
 
     it('2-of-3 multisig verifies with two valid signatures', function () {
@@ -80,7 +101,7 @@ describe('SmartContract covenants (v4.2.0)', function () {
       verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(true)
     })
 
-    it('HTLC supports claim and rejects an early refund', function () {
+    it('HTLC supports claim; its timeout does NOT bind post-Genesis', function () {
       var secret = Buffer.from('lightning-preimage-32bytes------')
       var timeout = 750000
       var c = Locks.htlc({ secret: secret, receiver: bob, sender: alice, timeout: timeout })
@@ -88,10 +109,14 @@ describe('SmartContract covenants (v4.2.0)', function () {
       spend.inputs[0].setScript(c.unlockClaim(spend, SATS))
       verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(true)
 
+      // The refund branch is gated by OP_CLTV, which is a NOP after Genesis — so an
+      // early refund is ACCEPTED on mainnet. See the CLTV tests above; the same caveat
+      // applies to every timeout in this HTLC.
       spend = spendOf(c.lock, SATS, [p2pkhOutput(alice, SATS - 500)])
       spend.nLockTime = timeout - 1; spend.inputs[0].sequenceNumber = 0xfffffffe
       spend.inputs[0].setScript(c.unlockRefund(spend, SATS))
-      verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(false)
+      verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS })
+        .ok.should.equal(true, 'HTLC timeout does not bind post-Genesis')
     })
   })
 
