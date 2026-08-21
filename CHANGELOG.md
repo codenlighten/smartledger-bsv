@@ -7,7 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [8.4.0] - 2026-08-21
+## [9.0.0] - 2026-08-21
+
+### BREAKING — removed APIs that enforced nothing
+
+Everything here either did not work on mainnet or had been promised for removal and
+kept shipping. None of it is replaced, because in each case the honest replacement is
+"do not do this".
+
+| Removed | Why |
+| --- | --- |
+| `SmartContract.enableGenesis()` | A workaround for the flags bug below. With the era flags present there is nothing for it to do, and what it did — mutating process-wide limit statics — turned 15 of the node's 22 `SCRIPTNUM_OVERFLOW` vectors into false accepts. `Interpreter.useGenesisLimits()` is untouched for callers who really want it. |
+| `SmartContract.Locks.timeLockCLTV` | Built on `OP_CHECKLOCKTIMEVERIFY`, which Genesis reverted to an upgradable NOP. Enforced nothing on mainnet — the coins were spendable immediately. |
+| `SmartContract.Locks.htlc` | Its timeout branch is the same NOP. An HTLC whose timeout does not bind is a hash-lock, which `Locks.hashLock` already provides. |
+| `CustomScriptHelper.createTimelockScript` | Same NOP, third copy. |
+| `bsv.SmartUTXO` (namespace export) | A development-only file-backed simulator on the production namespace. Soft-deprecated in 4.0.1 promising removal in 6.0.0, then shipped through 6.x, 7.x and 8.x still warning. The module is unchanged and still available as `require('@smartledger/bsv/lib/smartutxo')` — what the warning always said to do. |
+
+There is now **no time-lock primitive in this library**. That is deliberate: a lock
+that does not lock has no safe use, and the previous versions passed their own tests
+only because the covenant harness verified them under pre-Genesis flags.
+
+`SmartContract.Covenant` and `SmartContract.Builder` are **kept**. They are also
+non-enforcing, but they already fail closed — their script-producing methods throw
+unless you pass `allowNonEnforcing: true` — so they cannot silently hand back a script
+that does not do what it looks like.
 
 ### Fixed — covenants were verified under pre-Genesis rules
 

@@ -172,34 +172,18 @@ try {
 // Node.js specific tools (advanced development tools)
 if (typeof window === 'undefined' && typeof require === 'function') {
   try {
-    // bsv.SmartUTXO is a development-only file-backed UTXO simulator.
-    // It writes to node_modules/@smartledger/bsv/utilities/blockchain-state.json,
-    // races on shared filesystem state across processes, and only ships with
-    // an empty seed (the 3.3 MB dev fixture is npmignored). Exposing it on
-    // the main `bsv` namespace creates a real footgun for anyone who assumes
-    // a production UTXO manager.
+    // bsv.SmartUTXO was REMOVED in 9.0.0. It is a development-only file-backed UTXO
+    // simulator: it writes to node_modules/@smartledger/bsv/utilities/blockchain-state.json,
+    // races on shared filesystem state across processes, and ships with an empty seed.
+    // On the main namespace it read as a production UTXO manager, which it never was.
     //
-    // Soft-deprecated in v4.0.1: the symbol is preserved (no semver break)
-    // but access surfaces a one-shot warning. Direct import remains:
+    // Soft-deprecated in 4.0.1 with removal promised for 6.0.0, then shipped through
+    // 6.x, 7.x and 8.x still warning about a removal that never came. The module itself
+    // is unchanged and still available by direct import:
+    //
     //   require('@smartledger/bsv/lib/smartutxo')
-    // The symbol will be removed in v6.0.0.
-    var _SmartUTXO
-    var _SmartUTXOWarned = false
-    Object.defineProperty(bsv, 'SmartUTXO', {
-      configurable: true,
-      enumerable: true,
-      get: function () {
-        if (!_SmartUTXOWarned && !(process.env && process.env.BSV_HIDE_DEPRECATIONS)) {
-          _SmartUTXOWarned = true
-          console.warn('[bsv] bsv.SmartUTXO is a development-only simulator and is deprecated; ' +
-            'it will be removed in v6.0.0. Import directly: ' +
-            "require('@smartledger/bsv/lib/smartutxo'). " +
-            'Set BSV_HIDE_DEPRECATIONS=1 to silence this warning.')
-        }
-        if (!_SmartUTXO) _SmartUTXO = require('./lib/smartutxo')
-        return _SmartUTXO
-      }
-    })
+    //
+    // which is exactly what the deprecation warning told callers to do since 4.0.1.
 
     bsv.SmartMiner = require('./lib/smartminer')
     bsv.CustomScriptHelper = require('./lib/custom-script-helper')

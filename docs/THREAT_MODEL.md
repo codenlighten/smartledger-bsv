@@ -108,14 +108,14 @@ Node, or hostile browser extension is out of scope — see `SECURITY.md`).
 - **No published provenance yet.** Bundles are a reproducible build of source (see §4) but
   npm provenance attestation is pending a trusted-publisher registration (2FA-gated). This is
   a *supply-chain verifiability* gap, not a code vulnerability.
-- **Time locks do not bind post-Genesis.** `SmartContract.Locks.timeLockCLTV` and the
-  timeout branch of `Locks.htlc` are gated by `OP_CHECKLOCKTIMEVERIFY`, which Genesis
-  reverted to an upgradable NOP for outputs created after it. On current mainnet these
-  enforce **nothing** and the coins are spendable immediately. Before 8.4.0 the covenant
-  harness verified under flags missing the era bits, so the library's own tests reported
-  enforcement that the network never provided — an instance of the §1 failure mode found
-  in our own code. Pinned now in `test/smart_contract/covenants.js`
-  ("CLTV does NOT bind post-Genesis").
+- **CLTV time locks removed (9.0.0).** `Locks.timeLockCLTV`, `Locks.htlc` and
+  `CustomScriptHelper.createTimelockScript` were gated by `OP_CHECKLOCKTIMEVERIFY`,
+  which Genesis reverted to an upgradable NOP for outputs created after it. They
+  enforced **nothing** on mainnet — the coins were spendable immediately — yet the
+  library's own tests asserted the lock held, because the covenant harness verified
+  under flags missing the era bits. That is the §1 failure mode found in our own code,
+  and the reason the API was deleted rather than documented: a time lock that does not
+  lock has no safe use. There is no supported time-lock primitive in this library.
 - **Consensus era.** Covenant guarantees assume current BSV mainnet; the harness verifies
   under `Interpreter.mainnetFlags()` with no opt-in required (8.4.0+).
 

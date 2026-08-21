@@ -59,47 +59,13 @@ async function exampleMultisig() {
 }
 
 /**
- * Example 2: Time-Locked Payment using Helper API
+ * Example 2: Time-Locked Payment — REMOVED in 9.0.0.
+ *
+ * CustomScriptHelper.createTimelockScript was deleted because it built on
+ * OP_CHECKLOCKTIMEVERIFY, which Genesis reverted to an upgradable NOP for outputs
+ * created after it. On current BSV mainnet the script enforced nothing and the coins
+ * were spendable immediately, so this example demonstrated a lock that did not lock.
  */
-async function exampleTimelock() {
-  console.log('📝 EXAMPLE 2: Time-Locked Payment with Helper API');
-  console.log('=================================================');
-  
-  const lockHeight = 700000;
-  
-  // Create P2PKH base script
-  const baseScript = CustomScriptHelper.createP2PKHScript(publicKey1);
-  
-  // Create time-locked script using helper
-  const lockingScript = CustomScriptHelper.createTimelockScript(lockHeight, baseScript);
-  console.log(`Timelock script: ${lockingScript.toString()}`);
-  
-  const utxo = {
-    txid: 'b'.repeat(64),
-    vout: 0,
-    satoshis: 150000,
-    script: lockingScript.toHex()
-  };
-  
-  // Create transaction with time lock
-  const tx = CustomScriptHelper.createLowFeeTransaction(
-    [utxo],
-    [{ address: '1BitcoinEaterAddressDontSendf59kuE', satoshis: 149000 }]
-  );
-  tx.lockUntilBlockHeight(lockHeight);
-  
-  // Create signature using helper
-  const signature = CustomScriptHelper.createSignature(tx, privateKey1, 0, lockingScript, utxo.satoshis);
-  
-  // Create unlocking script using helper
-  const unlockingScript = CustomScriptHelper.createP2PKHUnlocking(signature, publicKey1);
-  tx.inputs[0].setScript(unlockingScript);
-  
-  const isValid = CustomScriptHelper.validateTransaction(tx);
-  console.log(`✅ Timelock transaction valid: ${isValid}`);
-  console.log(`⏰ Lock height: ${tx.nLockTime}\n`);
-}
-
 /**
  * Example 3: Conditional Payment using Helper API
  */
@@ -232,7 +198,6 @@ async function exampleOpReturn() {
 async function runAllExamples() {
   try {
     await exampleMultisig();
-    await exampleTimelock();
     await exampleConditional();
     await exampleCovenant();
     await exampleOpReturn();

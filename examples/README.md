@@ -127,7 +127,8 @@ const helper = new CustomScriptHelper();
 const multisig = helper.createMultisigScript([pk1, pk2, pk3], 2);
 
 // Timelock script
-const timelock = helper.createTimelockScript(publicKey, 750000, 'block');
+// REMOVED in 9.0.0 — OP_CHECKLOCKTIMEVERIFY is a NOP after Genesis, so this
+// enforced nothing on mainnet. There is no supported time-lock primitive.
 ```
 
 ### Advanced Covenants

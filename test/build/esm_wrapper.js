@@ -43,9 +43,30 @@ describe('ESM wrapper (index.mjs)', function () {
     var bsv = require('../..')
     var names = gen.exportableNames(bsv)
     names.length.should.be.above(100)
-    // SmartUTXO is an accessor (deprecated getter) and must be excluded.
-    names.should.not.include('SmartUTXO')
-    Object.getOwnPropertyDescriptor(bsv, 'SmartUTXO').get.should.be.a('function')
+  })
+
+  // The library currently has NO accessor properties — bsv.SmartUTXO, the last one,
+  // was removed in 9.0.0. The exclusion rule still matters: re-exporting a getter as a
+  // named ESM binding evaluates it at import time, which for a deprecated accessor
+  // means a warning (or worse, a side effect) fires on a bare `import`. Testing that
+  // against a synthetic accessor keeps the guarantee under test instead of letting it
+  // rot untested until someone adds a getter back.
+  itFromCheckout('excludes accessor properties from the named bindings', function () {
+    var bsv = require('../..')
+    var probe = '__esmAccessorProbe__'
+    var touched = false
+    Object.defineProperty(bsv, probe, {
+      configurable: true,
+      enumerable: true,
+      get: function () { touched = true; return 1 }
+    })
+    try {
+      var names = gen.exportableNames(bsv)
+      names.should.not.include(probe)
+      touched.should.equal(false, 'exportableNames must not invoke the getter')
+    } finally {
+      delete bsv[probe]
+    }
   })
 
   it('resolves real ESM default + named imports natively', function () {
@@ -55,9 +76,9 @@ describe('ESM wrapper (index.mjs)', function () {
       'PrivateKey === bsv.PrivateKey && typeof crypto.ECDSA === "function") ? 0 : 3)')
   })
 
-  it('does not emit the SmartUTXO deprecation warning at import (getter excluded)', function () {
-    // Re-exporting the getter would trip its console.warn at import time; stderr
-    // must be empty for a bare `import './index.mjs'`.
+  it('emits nothing on stderr at import', function () {
+    // Re-exporting a deprecated getter would trip its console.warn at import time;
+    // stderr must be empty for a bare `import './index.mjs'`.
     var res = spawnSync(process.execPath,
       ['--input-type=module', '-e', 'import ' + JSON.stringify('./index.mjs') + ';'],
       { cwd: ROOT, encoding: 'utf8' })
@@ -65,9 +86,12 @@ describe('ESM wrapper (index.mjs)', function () {
     res.stderr.should.equal('')
   })
 
-  it('keeps deprecated getters reachable via the default export only', function () {
+  it('no longer exposes bsv.SmartUTXO, which was removed in 9.0.0', function () {
+    // Deliberately asserted rather than dropped: the namespace export is gone, and the
+    // module is reached by direct import — require('@smartledger/bsv/lib/smartutxo') —
+    // which is what its deprecation warning instructed from 4.0.1 onward.
     runEsm(
       'import bsv from ' + JSON.stringify('./index.mjs') + ';' +
-      'process.exit(("SmartUTXO" in bsv) ? 0 : 3)')
+      'process.exit(("SmartUTXO" in bsv) ? 3 : 0)')
   })
 })
