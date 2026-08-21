@@ -20,16 +20,6 @@ var FEE = 500
 
 describe('SmartContract generalized token (pluggable auth + multi-output)', function () {
   this.timeout(20000)
-  var I = bsv.Script.Interpreter
-  var saved
-
-  before(function () {
-    saved = I.getLimits()
-    SC.enableGenesis()
-  })
-  after(function () {
-    I.setLimits(saved)
-  })
 
   function spendOf (lock, sats, outputs) {
     return fundAndSpend(lock, sats, { outputs: outputs }).spend

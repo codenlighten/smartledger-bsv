@@ -14,15 +14,6 @@ var SATS = 100000
 
 describe('SmartContract covenant DSL + debugger (v4.5.0)', function () {
   this.timeout(20000)
-  var I = bsv.Script.Interpreter
-  var saved
-  before(function () {
-    saved = I.getLimits()
-    SC.enableGenesis()
-  })
-  after(function () {
-    I.setLimits(saved)
-  })
 
   var alice = PrivateKey.fromRandom()
   var attacker = PrivateKey.fromRandom()

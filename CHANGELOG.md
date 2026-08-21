@@ -7,6 +7,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0] - 2026-08-21
+
+### BREAKING — removed APIs that enforced nothing
+
+Everything here either did not work on mainnet or had been promised for removal and
+kept shipping. None of it is replaced, because in each case the honest replacement is
+"do not do this".
+
+| Removed | Why |
+| --- | --- |
+| `SmartContract.enableGenesis()` | A workaround for the flags bug below. With the era flags present there is nothing for it to do, and what it did — mutating process-wide limit statics — turned 15 of the node's 22 `SCRIPTNUM_OVERFLOW` vectors into false accepts. `Interpreter.useGenesisLimits()` is untouched for callers who really want it. |
+| `SmartContract.Locks.timeLockCLTV` | Built on `OP_CHECKLOCKTIMEVERIFY`, which Genesis reverted to an upgradable NOP. Enforced nothing on mainnet — the coins were spendable immediately. |
+| `SmartContract.Locks.htlc` | Its timeout branch is the same NOP. An HTLC whose timeout does not bind is a hash-lock, which `Locks.hashLock` already provides. |
+| `CustomScriptHelper.createTimelockScript` | Same NOP, third copy. |
+| `bsv.SmartUTXO` (namespace export) | A development-only file-backed simulator on the production namespace. Soft-deprecated in 4.0.1 promising removal in 6.0.0, then shipped through 6.x, 7.x and 8.x still warning. The module is unchanged and still available as `require('@smartledger/bsv/lib/smartutxo')` — what the warning always said to do. |
+
+There is now **no time-lock primitive in this library**. That is deliberate: a lock
+that does not lock has no safe use, and the previous versions passed their own tests
+only because the covenant harness verified them under pre-Genesis flags.
+
+`SmartContract.Covenant` and `SmartContract.Builder` are **kept**. They are also
+non-enforcing, but they already fail closed — their script-producing methods throw
+unless you pass `allowNonEnforcing: true` — so they cannot silently hand back a script
+that does not do what it looks like.
+
+### Fixed — covenants were verified under pre-Genesis rules
+
+`lib/covenant/helpers.js` assembled its verification flags by hand, and the list
+omitted the three **UTXO-era** flags: `SCRIPT_GENESIS`, `SCRIPT_UTXO_AFTER_GENESIS`
+and `SCRIPT_UTXO_AFTER_CHRONICLE`. It did carry `SCRIPT_ENABLE_CHRONICLE`, which
+enables the string opcodes, so the omission was easy to miss — the opcodes ran, and
+only the *limits* were wrong.
+
+The interpreter derives its data limits from those era flags. Without them every
+covenant was verified under rules BSV replaced at Genesis in February 2020:
+
+| | before | after |
+| --- | ---: | ---: |
+| max stack element | 520 bytes | unbounded |
+| max script size | 10,000 bytes | unbounded |
+
+An OP_PUSH_TX preimage is ~585 bytes, so this library's flagship feature could not
+verify against its own harness — it failed with `SCRIPT_ERR_PUSH_SIZE`.
+
+`flags()` now delegates to `Interpreter.mainnetFlags()`, the same function a no-flags
+`verify()` uses. Local verification and network behaviour can no longer drift apart
+without both moving together. `SCRIPT_VERIFY_NULLFAIL` is gained (stricter).
+
+### Removed — `SmartContract.enableGenesis()`
+
+Now a **deprecated no-op**; the symbol survives one major and goes away in 9.0.0.
+
+It existed to paper over the missing era flags by raising the interpreter's
+process-wide limit statics. That was treating the symptom: raising the statics cannot
+enable post-Genesis arithmetic — only the era flags can — and it *weakens* pre-Genesis
+validation, turning 15 of the reference node's 22 `SCRIPTNUM_OVERFLOW` vectors into
+false accepts. With the flags fixed there is nothing for it to do.
+
+It is a no-op rather than a passthrough deliberately: restoring the old behaviour as a
+courtesy to existing call sites would reintroduce the defect this release removes.
+`Interpreter.useGenesisLimits()` is untouched for callers who really do want to move
+the statics.
+
+**Action:** delete the call. Covenants now verify with no opt-in.
+
+### Disclosed — CLTV time locks do not bind on mainnet
+
+Fixing the flags surfaced this. Genesis reverted `OP_CHECKLOCKTIMEVERIFY` to an
+upgradable NOP for outputs created after it, so **`Locks.timeLockCLTV` and the timeout
+branch of `Locks.htlc` enforce nothing on current BSV mainnet** — the coins are
+spendable immediately by the key holder.
+
+This was invisible because the covenant harness verified under flags missing the era
+bits. The library's own tests asserted that an early spend was rejected, and passed,
+while the network would have accepted it. That is the failure mode `docs/THREAT_MODEL.md`
+§1 is written around, found in our own code.
+
+Both behaviours are now pinned in `test/smart_contract/covenants.js`: the lock does not
+bind under mainnet flags, and still binds under explicitly pre-Genesis flags — so the
+opcode is implemented correctly and the issue is purely which era we verify under. The
+JSDoc on both functions carries the warning, as does the README and the threat model.
+
+The functions are kept, not deleted: they remain correct for pre-Genesis outputs and
+useful for interop. **Do not use them to time-lock value on mainnet.**
+
+### Documentation
+
+- README: the multisig example destructured `{ CustomScriptHelper }`, which is
+  `undefined` — the module exports the class itself and every method is static. The
+  `check:readme` gate did not catch it because it only resolves `bsv.*` symbols.
+
 ## [8.3.1] - 2026-08-20
 
 ### Fixed — BRC-220 signature verification was not interoperable

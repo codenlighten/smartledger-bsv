@@ -24,16 +24,6 @@ var PRICE = 100000
 
 describe('Ordinals OrdLock marketplace', function () {
   this.timeout(20000)
-  var I = bsv.Script.Interpreter
-  var saved
-
-  before(function () {
-    saved = I.getLimits()
-    SC.enableGenesis()
-  })
-  after(function () {
-    I.setLimits(saved)
-  })
 
   var seller = PrivateKey.fromRandom()
   var buyer = PrivateKey.fromRandom()
@@ -168,15 +158,6 @@ describe('Ordinals OrdLock marketplace', function () {
 
 describe('Ordinals OrdLock — multi-output payments (royalties + marketplace fee)', function () {
   this.timeout(20000)
-  var I = bsv.Script.Interpreter
-  var saved
-  before(function () {
-    saved = I.getLimits()
-    SC.enableGenesis()
-  })
-  after(function () {
-    I.setLimits(saved)
-  })
 
   var seller = PrivateKey.fromRandom()
   var royalty = PrivateKey.fromRandom()
@@ -283,15 +264,6 @@ describe('Ordinals OrdLock — parseOrdLock (self-describing listings)', functio
 
 describe('Ordinals OrdLock — buildPurchaseTx (end-to-end)', function () {
   this.timeout(20000)
-  var I = bsv.Script.Interpreter
-  var saved
-  before(function () {
-    saved = I.getLimits()
-    SC.enableGenesis()
-  })
-  after(function () {
-    I.setLimits(saved)
-  })
 
   var seller = PrivateKey.fromRandom()
   var royalty = PrivateKey.fromRandom()
@@ -377,15 +349,6 @@ describe('Ordinals OrdLock — buildPurchaseTx (end-to-end)', function () {
 
 describe('Ordinals OrdLock — full lifecycle (list -> buy / cancel)', function () {
   this.timeout(20000)
-  var I = bsv.Script.Interpreter
-  var saved
-  before(function () {
-    saved = I.getLimits()
-    SC.enableGenesis()
-  })
-  after(function () {
-    I.setLimits(saved)
-  })
 
   var owner = PrivateKey.fromRandom() // current ordinal owner / seller
   var royalty = PrivateKey.fromRandom()
@@ -475,15 +438,6 @@ describe('Ordinals OrdLock — full lifecycle (list -> buy / cancel)', function 
 
 describe('Ordinals OrdLock — code-review regressions', function () {
   this.timeout(20000)
-  var I = bsv.Script.Interpreter
-  var saved
-  before(function () {
-    saved = I.getLimits()
-    SC.enableGenesis()
-  })
-  after(function () {
-    I.setLimits(saved)
-  })
 
   var owner = PrivateKey.fromRandom()
   var fundKey = PrivateKey.fromRandom()

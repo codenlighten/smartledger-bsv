@@ -23,18 +23,8 @@ var verify = help.verify
 
 describe('Ordinal-safe transfer (1-sat, SIGHASH_ALL)', function () {
   this.timeout(20000)
-  var I = bsv.Script.Interpreter
-  var saved
   var alice = PrivateKey.fromRandom()
   var bob = PrivateKey.fromRandom()
-
-  before(function () {
-    saved = I.getLimits()
-    SC.enableGenesis()
-  })
-  after(function () {
-    I.setLimits(saved)
-  })
 
   it('transferOrdinal recreates the 1-sat token among funding outputs and verifies', function () {
     var lock = Token.ordinalLock(Token.ownerId(alice))

@@ -27,17 +27,7 @@ var SATS = 100000
 
 describe('Configurable SIGHASH — SINGLE|ANYONECANPAY marketplace covenant', function () {
   this.timeout(20000)
-  var I = bsv.Script.Interpreter
-  var saved
   var flag = P.SIGHASH_SINGLE_ANYONECANPAY_FORKID // 0xc3
-
-  before(function () {
-    saved = I.getLimits()
-    SC.enableGenesis()
-  })
-  after(function () {
-    I.setLimits(saved)
-  })
 
   // Lock: authenticate the pushed preimage under `flag`, assert the flag, succeed.
   function makeLock () {

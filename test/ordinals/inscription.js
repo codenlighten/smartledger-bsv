@@ -223,16 +223,19 @@ describe('Ordinals inscriptions', function () {
     })
   })
 
-  // The case that motivated making the script-size cap configurable: transferring a
-  // large inscription. The envelope is inert, so the spend is an ordinary P2PKH — but
-  // the interpreter could not even load the script, because total script size was a
-  // hard-coded 10,000 bytes that useGenesisLimits() did not lift.
+  // Transferring a large inscription. The envelope is inert, so the spend is an
+  // ordinary P2PKH — but under pre-Genesis rules the interpreter could not even load
+  // the script, because total script size was capped at 10,000 bytes.
   describe('transferring a large inscription', function () {
     var I = bsv.Script.Interpreter
     var Sighash = bsv.Transaction.Sighash
     var BN = bsv.crypto.BN
     var SIGHASH = bsv.crypto.Signature.SIGHASH_ALL | bsv.crypto.Signature.SIGHASH_FORKID
+    // Pre-Genesis: no era bit, so the 520-byte element cap and the 10,000-byte script
+    // cap both still apply. Kept deliberately, to show what they reject.
     var FLAGS = I.SCRIPT_VERIFY_STRICTENC | I.SCRIPT_ENABLE_SIGHASH_FORKID
+    // Current mainnet, where Genesis lifted both.
+    var MAINNET = I.mainnetFlags()
     var saved
 
     beforeEach(function () { saved = I.getLimits() })
@@ -265,35 +268,43 @@ describe('Ordinals inscriptions', function () {
       return { lock: lock, unlock: unlock, spend: spend, sig: sig, owner: owner }
     }
 
-    function evaluate (t) {
+    // Both caps are derived from the ERA flags, not from the limit statics: see
+    // Interpreter#maxScriptElementSize and #maxScriptSize, each of which branches on
+    // isAfterGenesis(). Passing the era is therefore the whole fix — these tests used
+    // to call SmartContract.enableGenesis(), which raised process-wide statics instead
+    // and had to be undone in an afterEach or it changed the rules for every test that
+    // ran later.
+    function evaluate (t, flags) {
       var interp = new I()
-      var ok = interp.verify(t.unlock, t.lock, t.spend, 0, FLAGS, new BN(1))
+      var ok = interp.verify(t.unlock, t.lock, t.spend, 0,
+        flags === undefined ? MAINNET : flags, new BN(1))
       return { ok: ok, err: interp.errstr }
     }
 
     it('cannot be evaluated under pre-Genesis limits — two separate caps bite', function () {
+      // Explicitly pre-Genesis: FLAGS carries no era bit, so both caps still apply.
       // Under 10 KB the script loads and the 520-byte push cap rejects the content...
-      var small = evaluate(transfer(3))
+      var small = evaluate(transfer(3), FLAGS)
       small.ok.should.equal(false)
       small.err.should.equal('SCRIPT_ERR_PUSH_SIZE')
       // ...over 10 KB it never gets that far: evaluate() refuses the script outright.
-      // This is the cap useGenesisLimits() could not lift.
-      var big = evaluate(transfer(50))
+      var big = evaluate(transfer(50), FLAGS)
       big.ok.should.equal(false)
       big.err.should.equal('SCRIPT_ERR_SCRIPT_SIZE')
     })
 
-    it('evaluates once Genesis limits are enabled', function () {
-      bsv.SmartContract.enableGenesis()
+    it('evaluates under mainnet consensus, with the limit statics untouched', function () {
+      var before = JSON.stringify(I.getLimits())
       var t = transfer(50)
-      t.lock.toBuffer().length.should.be.above(10000) // past the old hard-coded cap
+      t.lock.toBuffer().length.should.be.above(10000) // past the pre-Genesis cap
       evaluate(t).ok.should.equal(true)
+      // The point of the change: no process-wide mutation was needed to get here.
+      JSON.stringify(I.getLimits()).should.equal(before)
     })
 
     it('agrees with a direct signature check against the sighash', function () {
       // The fallback used when the interpreter cannot run: verify the signature over
       // the sighash directly. It must agree with the interpreter where both work.
-      bsv.SmartContract.enableGenesis()
       var t = transfer(50)
       var hash = Sighash.sighash(t.spend, SIGHASH, 0, t.lock, new BN(1), FLAGS)
       var sigOk = bsv.crypto.ECDSA.verify(hash, t.sig, t.owner.toPublicKey(), 'little')
@@ -302,7 +313,6 @@ describe('Ordinals inscriptions', function () {
     })
 
     it('rejects a signature made over the base lock instead of the full script', function () {
-      bsv.SmartContract.enableGenesis()
       var t = transfer(50)
       var baseLock = bsv.Script.buildPublicKeyHashOut(t.owner.toAddress())
       var wrong = Sighash.sign(t.spend, t.owner, SIGHASH, 0, baseLock, new BN(1), FLAGS)

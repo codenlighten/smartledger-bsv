@@ -20,16 +20,6 @@ var SATS = 100000
 
 describe('SmartContract covenants (v4.2.0)', function () {
   this.timeout(20000)
-  var I = bsv.Script.Interpreter
-  var saved
-
-  before(function () {
-    saved = I.getLimits()
-    SC.enableGenesis() // OP_PUSH_TX covenants need post-Genesis limits
-  })
-  after(function () {
-    I.setLimits(saved)
-  })
 
   var alice = PrivateKey.fromRandom()
   var bob = PrivateKey.fromRandom()
@@ -59,39 +49,11 @@ describe('SmartContract covenants (v4.2.0)', function () {
       verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(true)
     })
 
-    it('CLTV accepts a matured spend and rejects an immature one', function () {
-      var lt = 800000
-      var c = Locks.timeLockCLTV(alice, lt)
-      var spend = spendOf(c.lock, SATS, [p2pkhOutput(alice, SATS - 500)])
-      spend.nLockTime = lt; spend.inputs[0].sequenceNumber = 0xfffffffe
-      spend.inputs[0].setScript(c.unlock(spend, SATS))
-      verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(true)
-
-      spend = spendOf(c.lock, SATS, [p2pkhOutput(alice, SATS - 500)])
-      spend.nLockTime = lt - 1; spend.inputs[0].sequenceNumber = 0xfffffffe
-      spend.inputs[0].setScript(c.unlock(spend, SATS))
-      verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(false)
-    })
-
     it('2-of-3 multisig verifies with two valid signatures', function () {
       var c = Locks.multisig(2, [alice, bob, carol])
       var spend = spendOf(c.lock, SATS, [p2pkhOutput(bob, SATS - 500)])
       spend.inputs[0].setScript(c.unlock(spend, SATS, [alice, bob]))
       verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(true)
-    })
-
-    it('HTLC supports claim and rejects an early refund', function () {
-      var secret = Buffer.from('lightning-preimage-32bytes------')
-      var timeout = 750000
-      var c = Locks.htlc({ secret: secret, receiver: bob, sender: alice, timeout: timeout })
-      var spend = spendOf(c.lock, SATS, [p2pkhOutput(bob, SATS - 500)])
-      spend.inputs[0].setScript(c.unlockClaim(spend, SATS))
-      verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(true)
-
-      spend = spendOf(c.lock, SATS, [p2pkhOutput(alice, SATS - 500)])
-      spend.nLockTime = timeout - 1; spend.inputs[0].sequenceNumber = 0xfffffffe
-      spend.inputs[0].setScript(c.unlockRefund(spend, SATS))
-      verify(spend.inputs[0].script, c.lock, { tx: spend, satoshis: SATS }).ok.should.equal(false)
     })
   })
 

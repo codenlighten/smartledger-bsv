@@ -996,7 +996,6 @@ declare module '@smartledger/bsv' {
         interface VerifyOpts { tx?: Transaction; satoshis?: number; inputIndex?: number; flags?: number; }
 
         /** Opt into post-Genesis script limits (required to verify OP_PUSH_TX covenants). */
-        function enableGenesis(max?: number): void;
         /** Verify an unlocking/locking pair through the consensus interpreter. */
         function verifyScript(unlocking: Script, locking: Script, opts?: VerifyOpts): VerifyResult;
         /** Perpetually Enforcing Locking Script: every spend recreates the same script (value - fee). */
@@ -1014,7 +1013,6 @@ declare module '@smartledger/bsv' {
         namespace CovenantHelpers {
             const SIGHASH: number;
             function flags(): number;
-            function enableGenesis(max?: number): void;
             function verify(unlocking: Script, locking: Script, opts?: VerifyOpts): VerifyResult;
             function rawPreimage(tx: Transaction, inputIndex: number, lockingScript: Script, satoshis: number, sighashType?: number): Buffer;
             function sighashDigest(tx: Transaction, inputIndex: number, lockingScript: Script, satoshis: number, sighashType?: number): Buffer;
@@ -1101,9 +1099,7 @@ declare module '@smartledger/bsv' {
         namespace Locks {
             function hashLock(secret: Buffer): LockSpec;
             function p2pkh(privateKey: PrivateKey): LockSpec;
-            function timeLockCLTV(privateKey: PrivateKey, locktime: number): LockSpec;
             function multisig(m: number, privateKeys: PrivateKey[]): LockSpec;
-            function htlc(opts: { secret: Buffer; receiver: PrivateKey; sender: PrivateKey; timeout: number }): LockSpec;
         }
 
         // -------- Declarative covenant DSL (v4.5.0) --------------------------
