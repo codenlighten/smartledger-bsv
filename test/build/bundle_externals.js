@@ -77,9 +77,12 @@ describe('feature bundles externalise the shared primitives', function () {
     //
     // And listing ONLY what is actually embedded, for the same reason: naming a file
     // that no bundle pulls in pre-approves it, so the consideration never happens.
-    // Measured — `lib/util/_.js` is the only one today. If a bundle starts needing
-    // another, this line should change in the same commit that causes it.
-    var SHARED = ['lib/util/_.js']
+    // Measured. `lib/util/deprecate.js` joined in 9.1.0: it is a dependency-free
+    // leaf that any feature module may call, so embedding it costs a few hundred
+    // bytes per bundle and avoids making every bundle depend on the core.
+    // If a bundle starts needing another, this line should change in the same
+    // commit that causes it.
+    var SHARED = ['lib/util/_.js', 'lib/util/deprecate.js']
     var EXPECTED = {
       'bsv-ecies.min.js': ['lib/ecies/'],
       'bsv-message.min.js': ['lib/message/'],

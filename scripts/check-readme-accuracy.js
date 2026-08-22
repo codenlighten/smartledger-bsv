@@ -16,6 +16,8 @@
  *   3. every `bsv.X.Y` symbol the README names actually resolves at runtime
  *   4. every relative link points at a file that exists
  *   5. no U+FFFD replacement characters (corrupted emoji)
+ *   6. no prose calling an old version "latest" or "current"
+ *   7. the stability badge and STABILITY.md agree on the support date
  *
  * It cannot check prose. A statement like "defaults to pre-Genesis" stays wrong until
  * a human reads it — which is how that one survived. Treat a pass as "no mechanical
@@ -125,6 +127,42 @@ if (mojibake.length) {
   fail('U+FFFD replacement characters on line(s) ' + mojibake.join(', '))
 }
 
+// ------------------------------------- 6. versions claimed as the current one
+// The badge and footer were checked above, but the README also spent five
+// releases saying "**8.3.0 (latest)**" in prose while the badge was correct.
+// A version presented as the CURRENT one is a mechanical claim even though it
+// sits in prose, so check those specifically. Historical references
+// ("Upgrading to v8.0.0", "migrating from 5.x") are legitimate and ignored.
+var CURRENCY = /(?:\*\*)?v?([0-9]+\.[0-9]+\.[0-9]+)(?:\*\*)?[^\n]{0,30}?\((?:latest|current)\)|(?:latest|current)\s+(?:release|version)[^\n]{0,30}?v?([0-9]+\.[0-9]+\.[0-9]+)/gi
+var cm
+while ((cm = CURRENCY.exec(text)) !== null) {
+  var claimedCurrent = cm[1] || cm[2]
+  if (claimedCurrent !== pkg.version) {
+    fail('README calls ' + claimedCurrent + ' the latest/current version, package.json says ' + pkg.version)
+  }
+}
+
+// --------------------------------------------- 7. the stability commitment
+// The support window is stated in two places — a README badge and STABILITY.md.
+// Two copies of a promise drift, and this is the one promise the project cannot
+// afford to be vague about.
+var STABILITY = path.join(ROOT, 'STABILITY.md')
+if (!fs.existsSync(STABILITY)) {
+  fail('STABILITY.md is missing; the README badge and policy depend on it')
+} else {
+  var badgeDate = text.match(/stable%20until-(\d{4})--(\d{2})--(\d{2})/)
+  var policy = fs.readFileSync(STABILITY, 'utf8')
+  var policyDate = policy.match(/(\d{4}-\d{2}-\d{2})/)
+  if (badgeDate && policyDate) {
+    var fromBadge = badgeDate[1] + '-' + badgeDate[2] + '-' + badgeDate[3]
+    if (fromBadge !== policyDate[1]) {
+      fail('stability badge says ' + fromBadge + ', STABILITY.md says ' + policyDate[1])
+    }
+  } else if (!badgeDate) {
+    notes.push('no stability badge found in README')
+  }
+}
+
 // ------------------------------------------------------------------- report
 notes.forEach(function (n) { console.log('note: ' + n) })
 
@@ -135,4 +173,5 @@ if (failures.length) {
   process.exit(1)
 }
 
-console.log('README accuracy: OK (version, ' + checkedSizes + ' bundle sizes, symbols, links)')
+console.log('README accuracy: OK (version, ' + checkedSizes +
+  ' bundle sizes, symbols, links, currency claims, stability date)')
