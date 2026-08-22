@@ -21,6 +21,22 @@
 
 var MAX_DEPTH = 3
 
+/**
+ * Namespaces whose MEMBERS are part of the promise but whose INTERNALS are not.
+ *
+ * `bsv.deps` re-exports vendored and host objects — `deps.Buffer` is Node's own
+ * Buffer. Walking into them snapshots a shape this library does not own and
+ * cannot promise: Node 20 and Node 22 disagree on the arity of
+ * `Buffer#utf8Write`, `#asciiWrite` and `#latin1Write`, so a snapshot taken on
+ * one fails on the other for reasons that have nothing to do with a change here.
+ *
+ * Removing `bsv.deps.Buffer` is still caught. What it looks like inside is
+ * Node's business.
+ */
+var NO_DESCEND = {
+  'bsv.deps': true
+}
+
 // Own-property noise that carries no API meaning.
 var SKIP = {
   length: true,
@@ -72,6 +88,8 @@ function walk (node, path, depth, out, seen) {
 
     var full = path + '.' + key
     out[full] = describe(value)
+
+    if (NO_DESCEND[path]) return
 
     if (typeof value === 'function') {
       // statics, then prototype methods

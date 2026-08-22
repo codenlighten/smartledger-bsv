@@ -83,10 +83,24 @@ describe('public API surface', function () {
         report('Public API added', d.added) + '\n\n' +
         'Additions are compatible and allowed in a minor. They are surfaced ' +
         'because API growth is how a library becomes something nobody can hold ' +
-        'in their head — this one reached 109 top-level exports and 2145 ' +
+        'in their head — this one reached 109 top-level exports and 1927 ' +
         'reachable members that way.\n' + snapshotHint
       )
     }
+  })
+
+  it('does not snapshot host-runtime internals', function () {
+    // The snapshot must be identical on every supported Node version. Walking
+    // into `bsv.deps` broke that: Node 20 and 22 disagree on the arity of
+    // Buffer#utf8Write, #asciiWrite and #latin1Write, so CI failed on 20 and
+    // passed on 22 for a change that touched neither.
+    var leaked = Object.keys(expected).filter(function (k) {
+      return k.indexOf('bsv.deps.') === 0 && k.indexOf('#') !== -1
+    })
+    leaked.should.deep.equal([])
+
+    // Members of `deps` are still covered; only their internals are not.
+    expected.should.have.property('bsv.deps.Buffer')
   })
 
   it('covers what STABILITY.md says it covers', function () {
