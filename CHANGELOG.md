@@ -7,6 +7,143 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.0] - 2026-08-23
+
+Nothing in this release breaks a caller. That is the release.
+
+### Added — a support commitment, and the mechanism that makes it keepable
+
+Between 4.0.0 (2026-05-31) and 9.0.0 (2026-08-21) — 82 days — this library
+published six major versions, part of 83 releases in 307 days. A major is a
+promise that the consumer's code breaks. Made six times a quarter it is a promise
+no team can plan around, and correctness in the releases does not compensate for
+it.
+
+The releases were not gratuitous. Most encoded a real finding: Genesis reverted
+`OP_CLTV`/`OP_CSV` to NOPs, so the CLTV locks guaranteed nothing and went in
+9.0.0; covenant verification was applying pre-Genesis limits and was corrected in
+8.4.0. Those calls were right. The delivery was the problem — an API found to be
+wrong was changed to `throw` in the same release that found it, which turns every
+correctness fix into a breaking change.
+
+**[STABILITY.md](STABILITY.md)** commits 9.x through **2027-09-01**: patch and
+minor only. Two carve-outs, both narrow and stated up front — consensus changes
+track the network in a minor regardless, and an API that can lose funds may throw
+inside a minor.
+
+**`lib/util/deprecate.js`** is what makes that affordable. It warns once per API
+per process, records every notice for tooling, is silenced with
+`BSV_NO_DEPRECATION_WARNINGS=1`, and never throws — a deprecation that throws is a
+breaking change wearing a warning's name.
+
+```js
+Klass.prototype.old = deprecate.fn(Klass.prototype.old, {
+  what: 'Klass#old', since: '9.1.0', removeIn: '10.0.0',
+  use: 'Klass#replacement', why: 'it does not constrain the spend'
+})
+```
+
+Deprecating becomes a non-breaking act belonging in a minor. Correctness fixes
+ship continuously; breakage batches into one planned major whose migration path
+has been in consumers' logs for months.
+
+### Changed — the two APIs that motivated it, resolved differently
+
+Both threw with no warning period. The difference between them *is* the policy.
+
+| API | 9.1.0 | Why |
+| --- | --- | --- |
+| `MerkleBlock#filterdTxsHash` | warns and delegates | A misspelling of `filteredTxsHash`, one missing letter. Exactly one thing it can mean, so making the typo fix a breaking change bought nothing. Removed in 10.0.0. |
+| `HDPrivateKey#derive` | still throws | Its replacements return **different keys**. No default is safe. |
+
+`deriveChild` is BIP32-compliant; `deriveNonCompliantChild` reproduces the old
+unpadded behaviour. Measured over 1600 derivations they disagree **0.5% of the
+time**, only when an intermediate private key serialises to under 32 bytes.
+
+That rarity argues for throwing, not against it. A caller handed a guessed default
+would pass every test they wrote and then derive unrecoverable addresses for about
+one wallet in two hundred. A default that is wrong half a percent of the time is
+more dangerous than one wrong always, because nothing catches it. The caller
+chooses, and the error names both options.
+
+`SmartContract.Builder`'s `{ allowNonEnforcing: true }` opt-in now says it is
+scheduled for removal in 10.0.0. The throw for callers who did *not* opt in is
+unchanged — a covenant that silently enforces nothing is the fund-loss case.
+
+### Added — the era-flag trap now explains itself
+
+Flags and *limits* are separate mechanisms. The era bits are what the interpreter
+derives its element-size, script-size, opcode-count and script-number caps from.
+Hand-assemble a flag word out of named constants — the idiom every pre-Genesis
+tutorial teaches — and you get the feature opcodes you asked for while silently
+keeping the 2019 caps. The script *runs*, so nothing looks wrong until a ~586-byte
+preimage is rejected against a 520-byte limit and the error blames the push.
+
+`verify()` now sets `interp.eraHint` and warns once per process when an era-less
+flag word produces an era-derived failure (`PUSH_SIZE`, `SCRIPT_SIZE`, `OP_COUNT`,
+`SCRIPTNUM_OVERFLOW`). Set `Interpreter.eraDiagnostics = false` or
+`BSV_NO_ERA_HINT=1` to silence it.
+
+Warning on *every* era-less `verify()` was measured and rejected: about 78% of
+this library's own verifies are legitimately era-less, because the reference
+`script_tests.json` vectors are pre-Genesis by construction. Firing only on the
+intersection lands on ~5% of era-less failures, all genuine pre-Genesis vectors.
+
+### Added — the compatibility promise is now enforced, not remembered
+
+A promise nothing checks decays. The failure that matters is not *deciding* to
+break the API but arriving at a major without having decided to, which is how this
+library reached 9.0.0.
+
+`scripts/api-surface.js` snapshots the covered surface — 1934 reachable members
+plus the 35 `exports` subpaths — as names, kinds and arities, never values.
+`test/api_surface.js` diffs it: removals fail naming the policy and the fix, shape
+changes fail, and additions fail asking for a deliberate snapshot update so API
+growth shows up in review instead of accumulating. Regenerate with
+`npm run api:snapshot`; `npm run check:api` joins `prepublishOnly`.
+
+It deliberately does not walk into `bsv.deps`, which re-exports Node's own
+`Buffer`. Node 20 and 22 disagree on the arity of `Buffer#utf8Write`,
+`#asciiWrite` and `#latin1Write`, and a snapshot that varies by runtime reports
+drift that did not happen.
+
+`check-readme-accuracy` gains two checks its own header called impossible: prose
+calling an old version "latest" is mechanical after all — that exact claim
+survived five releases — and the stability badge is now diffed against
+STABILITY.md. Historical references ("Upgrading to v8.0.0", "migrating from 5.x")
+are left alone.
+
+### Changed — what the package says it is, and what it ships
+
+The README is **1132 lines to 244**. The covenant stack and the era-flag trap
+lead; the credential subsystems keep an entry point and a link each. The npm
+description and keywords (**79 to 15**) now describe the package rather than
+listing everything it touches.
+
+`test/` no longer ships — no consumer runs the library's own suite from
+`node_modules`.
+
+| | 9.0.0 | 9.1.0 |
+| --- | ---: | ---: |
+| tarball | 3.1 MB | 2.3 MB |
+| unpacked | 12 MB | 7.9 MB |
+
+### Added — a proposal for 10.0.0
+
+`docs/proposals/10.0.0-package-split.md`. Requiring the root costs 129 modules,
+270ms and 12.7MB of heap to get `Script`, against 24 modules for
+`require('@smartledger/bsv/lib/script')`, and the ESM wrapper re-exports CJS so
+nothing tree-shakes. The proposal is five packages plus a meta-package that keeps
+`require('@smartledger/bsv')` returning exactly what it returns today, so no
+install moves — and a section arguing against doing it at all if the install base
+genuinely uses credentials alongside the Bitcoin surface. Nothing there ships in
+9.x.
+
+### Verification
+
+4708 tests passing, 452 conformance cases against the reference corpus, on Node 20
+and 22. Every new guard was verified by reintroducing the bug it exists for.
+
 ## [9.0.0] - 2026-08-21
 
 ### BREAKING — removed APIs that enforced nothing
