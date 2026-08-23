@@ -15,10 +15,47 @@ describe('deprecate', function () {
     console.warn = function (m) { warned.push(m) }
   })
 
+  // Restore what the environment asked for. Forcing true meant a run with the
+  // documented BSV_NO_DEPRECATION_WARNINGS=1 still emitted notices afterwards.
+  var originalEnabled = deprecate.isEnabled()
+
   afterEach(function () {
     console.warn = this.origWarn
     deprecate.reset()
-    deprecate.setEnabled(true)
+    deprecate.setEnabled(originalEnabled)
+  })
+
+  // A deprecation must not be able to become the breaking change it exists to avoid.
+  // deprecate.fn() used to validate `opts` inside the wrapper, so wrapping without one
+  // succeeded and then threw 'deprecate() requires { what }' on EVERY call — at a site
+  // far from the mistake, and invisible until the deprecated path was exercised.
+  describe('rejects a malformed deprecation at wrap time, not at call time', function () {
+    it('throws when opts is omitted entirely', function () {
+      ;(function () { deprecate.fn(function add (a, b) { return a + b }) })
+        .should.throw(/requires \{ what/)
+    })
+
+    it('throws when opts has no `what`', function () {
+      ;(function () { deprecate.fn(function () {}, { since: '9.1.0' }) })
+        .should.throw(/requires \{ what/)
+    })
+
+    it('throws when `what` is empty', function () {
+      ;(function () { deprecate.fn(function () {}, { what: '' }) })
+        .should.throw(/requires \{ what/)
+    })
+
+    it('applies the same rule to deprecate.property', function () {
+      ;(function () { deprecate.property({}, 'x', function () { return 1 }, {}) })
+        .should.throw(/requires \{ what/)
+    })
+
+    it('a valid wrap still calls through and returns', function () {
+      var wrapped = deprecate.fn(function add (a, b) { return a + b },
+        { what: 'T#add', since: '9.1.0', removeIn: '10.0.0' })
+      wrapped(2, 3).should.equal(5)
+      wrapped(4, 5).should.equal(9)
+    })
   })
 
   describe('the contract that makes a long-lived 9.x possible', function () {

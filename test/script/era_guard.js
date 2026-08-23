@@ -32,13 +32,58 @@ describe('era-flag diagnostics', function () {
     Interpreter.eraDiagnostics = false
   })
 
-  after(function () { Interpreter.eraDiagnostics = true })
+  // Restore what the ENVIRONMENT asked for, not a hard-coded true. Forcing true here
+  // meant running the suite with the documented BSV_NO_ERA_HINT=1 still printed
+  // notices from every file that ran after this one.
+  var originalEraDiagnostics = Interpreter.eraDiagnostics
+  after(function () { Interpreter.eraDiagnostics = originalEraDiagnostics })
 
   function run (flags) {
     var i = new Interpreter()
     var ok = i.verify(unlock, lock, tx, 0, flags, new BN(SATS))
     return { ok: ok, err: i.errstr, hint: i.eraHint }
   }
+
+  // THE regression. The gate used to test a single ERA_FLAGS word containing all four
+  // era bits, so ANY of them present suppressed the notice. But the size caps read
+  // isAfterGenesis(), which tests SCRIPT_UTXO_AFTER_GENESIS and nothing else — so a
+  // flag word carrying SCRIPT_GENESIS still got the 520-byte cap, still failed with
+  // PUSH_SIZE, and was told nothing. SCRIPT_GENESIS is the constant a hand-assembling
+  // caller reaches for first: it is the one named "GENESIS".
+  describe('fires on the era bit that actually lifts the cap', function () {
+    var BASE = Interpreter.SCRIPT_VERIFY_STRICTENC | Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID
+
+    // Every bit that does NOT lift the element-size cap must still explain the failure.
+    ;[
+      ['SCRIPT_GENESIS', 'SCRIPT_GENESIS'],
+      ['SCRIPT_ENABLE_CHRONICLE', 'SCRIPT_ENABLE_CHRONICLE'],
+      ['SCRIPT_UTXO_AFTER_CHRONICLE', 'SCRIPT_UTXO_AFTER_CHRONICLE']
+    ].forEach(function (pair) {
+      it('still explains PUSH_SIZE when only ' + pair[0] + ' is set', function () {
+        var r = run(BASE | Interpreter[pair[1]])
+        r.ok.should.equal(false)
+        r.err.should.equal('SCRIPT_ERR_PUSH_SIZE')
+        ;(r.hint === null).should.equal(false,
+          pair[0] + ' does not lift the element-size cap, so the hint must still fire')
+      })
+    })
+
+    it('stays silent once SCRIPT_UTXO_AFTER_GENESIS actually lifts the cap', function () {
+      var r = run(BASE | Interpreter.SCRIPT_UTXO_AFTER_GENESIS)
+      ;(r.hint === null).should.equal(true)
+    })
+
+    it('maps each era-sensitive error to the bit its own cap derives from', function () {
+      var E = Interpreter.ERA_SENSITIVE_ERRORS
+      // maxScriptElementSize / maxScriptSize / maxOpsPerScript -> isAfterGenesis()
+      ;['SCRIPT_ERR_PUSH_SIZE', 'SCRIPT_ERR_SCRIPT_SIZE', 'SCRIPT_ERR_OP_COUNT'].forEach(function (k) {
+        E[k].lifts.should.equal(Interpreter.SCRIPT_UTXO_AFTER_GENESIS, k)
+      })
+      // maxScriptNumLength -> isAfterChronicle(), then isAfterGenesis()
+      E.SCRIPT_ERR_SCRIPTNUM_OVERFLOW.lifts.should.equal(
+        Interpreter.SCRIPT_UTXO_AFTER_GENESIS | Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE)
+    })
+  })
 
   // The flag word a caller writes by hand from named constants: modern feature
   // opcodes, no era bit. This is the case the diagnostic exists for.

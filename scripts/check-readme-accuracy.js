@@ -152,15 +152,62 @@ if (!fs.existsSync(STABILITY)) {
 } else {
   var badgeDate = text.match(/stable%20until-(\d{4})--(\d{2})--(\d{2})/)
   var policy = fs.readFileSync(STABILITY, 'utf8')
-  var policyDate = policy.match(/(\d{4}-\d{2}-\d{2})/)
-  if (badgeDate && policyDate) {
-    var fromBadge = badgeDate[1] + '-' + badgeDate[2] + '-' + badgeDate[3]
-    if (fromBadge !== policyDate[1]) {
-      fail('stability badge says ' + fromBadge + ', STABILITY.md says ' + policyDate[1])
-    }
+  // Anchored on the COMMITMENT SENTENCE rather than the first date in the file. A bare
+  // /(\d{4}-\d{2}-\d{2})/ worked only because that sentence happens to be line 5:
+  // STABILITY.md also carries a six-row release-history table of dates, so one dated
+  // line added above the commitment ("Last reviewed 2026-08-23") would have pointed
+  // this check at the wrong date while still reporting OK.
+  var policyDate = policy.match(/will not break your code until at least (\d{4}-\d{2}-\d{2})/)
+  var fromBadge = badgeDate && badgeDate[1] + '-' + badgeDate[2] + '-' + badgeDate[3]
+  if (!badgeDate && !policyDate) {
+    fail('neither the README stability badge nor the STABILITY.md commitment date could be read')
   } else if (!badgeDate) {
-    notes.push('no stability badge found in README')
+    fail('STABILITY.md commits to ' + policyDate[1] + ', but the README has no stability badge')
+  } else if (!policyDate) {
+    // Previously unhandled: `badgeDate && !policyDate` fell through both arms. Reword
+    // the commitment sentence and the two copies of the promise were free to diverge
+    // forever while this check still reported OK — the exact failure it exists to catch.
+    fail('README badge says ' + fromBadge + ', but STABILITY.md has no parseable commitment ' +
+      'date (expected "will not break your code until at least YYYY-MM-DD")')
+  } else if (fromBadge !== policyDate[1]) {
+    fail('stability badge says ' + fromBadge + ', STABILITY.md says ' + policyDate[1])
   }
+}
+
+// ------------------------------- 8. deprecation notices cannot outrun the release
+// A `since:` naming a version that does not exist yet is a notice telling users to
+// check a changelog they cannot read. It happened: this file shipped `since: '9.1.0'`
+// while package.json said 9.0.0, and nothing caught it — check:readme validated the
+// badge and footer against pkg.version but never the deprecation metadata.
+var libDir = path.join(ROOT, 'lib')
+function cmpSemver (a, b) {
+  var pa = String(a).split('.').map(Number)
+  var pb = String(b).split('.').map(Number)
+  for (var i = 0; i < 3; i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0) ? -1 : 1
+  }
+  return 0
+}
+function walkJs (dir, out) {
+  fs.readdirSync(dir, { withFileTypes: true }).forEach(function (e) {
+    var full = path.join(dir, e.name)
+    if (e.isDirectory()) walkJs(full, out)
+    else if (/\.js$/.test(e.name)) out.push(full)
+  })
+  return out
+}
+if (fs.existsSync(libDir)) {
+  walkJs(libDir, []).forEach(function (file) {
+    var src = fs.readFileSync(file, 'utf8')
+    var re = /since:\s*'(\d+\.\d+\.\d+)'/g
+    var m
+    while ((m = re.exec(src)) !== null) {
+      if (cmpSemver(m[1], pkg.version) > 0) {
+        fail(path.relative(ROOT, file) + ' deprecates since ' + m[1] +
+          ', which is ahead of package.json (' + pkg.version + ')')
+      }
+    }
+  })
 }
 
 // ------------------------------------------------------------------- report
