@@ -105,6 +105,11 @@ bsv.encoding.Varint = require('./lib/encoding/varint')
 bsv.util = {}
 bsv.util.js = require('./lib/util/js')
 bsv.util.preconditions = require('./lib/util/preconditions')
+// Exposed so the deprecation notices have an off switch that does not require an
+// environment variable. STABILITY.md documents BSV_NO_DEPRECATION_WARNINGS=1, which a
+// browser consumer cannot set; without a programmatic control they had no way to
+// silence a notice at all. `fired()` also lets tooling read what a run triggered.
+bsv.util.deprecate = require('./lib/util/deprecate')
 
 // errors thrown by the library
 bsv.errors = require('./lib/errors')
