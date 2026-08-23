@@ -79,6 +79,31 @@ as `SmartContract.Builder` does with `{ allowNonEnforcing: true }`.
 This exception is deliberately narrow. "Wrong" is not "dangerous." Only loss of
 funds qualifies.
 
+### The two settings, worked
+
+Both of these were APIs that threw with no warning period. They were resolved
+differently, and the difference is the whole policy:
+
+**`MerkleBlock#filterdTxsHash` now warns and delegates.** The name is a
+misspelling of `filteredTxsHash` — missing an `e`. There is exactly one thing it
+can mean, so making the typo fix a breaking change bought nothing. Restored in
+9.1.0, removed in 10.0.0.
+
+**`HDPrivateKey#derive` still throws.** Its two replacements return *different
+keys*: `deriveChild` is BIP32-compliant, `deriveNonCompliantChild` reproduces the
+old unpadded behaviour. Measured over 1600 derivations they disagree about **0.5%
+of the time** — only when an intermediate private key serialises to under 32
+bytes.
+
+That rarity is the argument for throwing, not against it. A caller who switched
+to a guessed default would pass every test they wrote and then derive
+unrecoverable addresses for roughly one wallet in two hundred. A default that is
+wrong half a percent of the time is more dangerous than one that is wrong always,
+because nothing catches it. So the caller chooses, and the error names both
+options.
+
+The test for both lives in `test/deprecated_apis.js`.
+
 ## What is covered
 
 Everything reachable from the documented public API: the top-level exports, the
