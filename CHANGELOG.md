@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.1] - 2026-08-24
+
 ### Fixed — MerkleBlock shared mutable state with its caller
 
 The constructor stored `arg.hashes` and `arg.flags` directly, and `toObject()` handed
