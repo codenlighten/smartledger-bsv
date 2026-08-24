@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — MerkleBlock shared mutable state with its caller
+
+The constructor stored `arg.hashes` and `arg.flags` directly, and `toObject()` handed
+the same arrays back out. A MerkleBlock and the object it was built from — or the
+object it produced — were therefore the same arrays, and mutating either changed the
+other at a distance:
+
+```js
+const mb = new MerkleBlock(obj)
+mb.hashes.push(x)      // obj.hashes grew too
+const out = mb.toObject()
+out.flags.pop()        // mb.flags shrank too
+```
+
+Both directions now copy. Contents, round-trips and validation are unchanged; a
+non-array is still passed through rather than coerced, since the constructor never
+validated these fields and 9.x does not turn a tolerated input into a throw.
+
+Found as order-dependence in this library's own suite — tests that mutate a block
+built from the shared `data.JSON[0]` corrupted that fixture for every test after them,
+so a new test passed alone and failed in the full run. Measured before and after: the
+fixture does not survive `test/block/merkleblock.js` on 9.1.0, and does now. The tests
+were the messenger; the aliasing is the defect, and a caller building a MerkleBlock
+from their own object hits it the same way.
+
 ## [9.1.0] - 2026-08-23
 
 Nothing in this release breaks a caller. That is the release.
