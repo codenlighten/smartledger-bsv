@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — RFC 8785 canonicalization is now public API
+
+`@smartledger/bsv/jcs`, and `bsv.JCS` on the namespace. Both are the implementation
+that has been in `lib/util/jcs.js` since 8.2.0, unchanged in what it produces.
+
+It was private: absent from the `exports` map and from `bsv.d.ts`. So the only
+canonicalizer a consumer could reach was `bsv.canonicalizeClaim`, which is not RFC
+8785 — and downstream packages independently reimplemented the non-conformant form,
+because it was the one they could see.
+
+Use it for anything hashed or signed that someone else might check:
+
+```js
+const JCS = require('@smartledger/bsv/jcs')
+JCS.stringify({ 2: 'two', 10: 'ten' })   // {"10":"ten","2":"two"}
+```
+
+Two behaviours changed, neither reachable by input that previously succeeded:
+circular structures now throw a typed error instead of exhausting the call stack,
+and `bigint` throws instead of falling through to a generic type error. The function
+is now reachable from verifiers, and verifier input is untrusted.
+
+### Deprecated — the default canonicalization of LTP claim hashes
+
+`LTP.Claim.canonicalize`, `LTP.Claim.hash`, `bsv.canonicalizeClaim` and
+`bsv.hashClaim` take an optional second argument:
+`bsv.LTP.Claim.CANONICALIZATION.JCS` or `.LEGACY`. Omitting it selects `LEGACY`,
+warns once, and keeps working. **The default becomes `JCS` in 10.0.0.**
+
+The legacy form sorts keys and then rebuilds the object, which loses the sort: V8
+orders integer-like own properties numerically ahead of string keys whatever order
+they were inserted in.
+
+```
+LEGACY   {"2":"two","10":"ten"}
+JCS      {"10":"ten","2":"two"}      RFC 8785, UTF-16 code unit order
+```
+
+It is deterministic, so nothing already hashed is wrong and nothing is forgeable —
+signing and verification within this library have always agreed. It is not
+*interoperable*: an RFC 8785 implementation in another language computes a different
+claim hash and rejects a valid one. It only bites when a claim has integer-like keys
+— lot numbers, unit numbers, years — which is why it went unnoticed, and why it
+fails in a counterparty's verifier rather than in our own tests.
+
+Per STABILITY.md this is a minor, so the default does not move in 9.x. Pass the
+argument explicitly to pin behaviour across 10.0.0.
+
+An unrecognised value throws rather than falling back to `LEGACY`: a typo such as
+`'JCS'` quietly producing differently-hashed claims would recreate the exact failure
+this change exists to remove.
+
+`prepareClaimValidation`, `prepareClaimAttestation` and `prepareClaimDispute` emit
+hashes that callers store as identifiers and cannot pass an argument for. Those are
+pinned to `LEGACY` for all of 9.x and do not warn — a notice naming a function the
+caller never called is noise. They move to `JCS` in 10.0.0 as one documented change.
+
 ## [9.1.1] - 2026-08-24
 
 ### Fixed — MerkleBlock shared mutable state with its caller

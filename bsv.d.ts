@@ -1421,12 +1421,62 @@ declare module '@smartledger/bsv' {
     export function getClaimSchemaNames(): string[];
     export function getClaimSchema(schemaName: string): object;
     export function createClaimTemplate(schemaName: string): object;
-    /** Returns the canonical JSON STRING, not an object. */
-    export function canonicalizeClaim(claim: object): string;
-    export function hashClaim(claim: object): string;
+    /**
+     * Returns the canonical JSON STRING, not an object.
+     *
+     * Omitting `canonicalization` selects the legacy sorted-key form and emits a
+     * deprecation notice; the default becomes `'jcs'` in 10.0.0. Pass one explicitly
+     * to pin the behaviour across that change.
+     *
+     * For anything that is not an existing LTP claim, use `@smartledger/bsv/jcs`
+     * directly — it is RFC 8785 and has no legacy mode.
+     */
+    export function canonicalizeClaim(claim: object, canonicalization?: JcsCanonicalization): string;
+    export function hashClaim(claim: object, canonicalization?: JcsCanonicalization): string;
     export function addCustomClaimSchema(name: string, schema: object): void;
+
+    /** Canonicalization forms understood by the LTP claim hashers. */
+    export type JcsCanonicalization = 'jcs' | 'legacy';
+
+    /**
+     * RFC 8785 JSON Canonicalization Scheme. Also available as the subpath export
+     * `@smartledger/bsv/jcs`, which is the form to prefer in new code.
+     */
+    export namespace JCS {
+        /**
+         * Serialize a value as RFC 8785 canonical JSON.
+         *
+         * Throws on non-finite numbers, bigint, circular structures, and values with
+         * no JSON representation, rather than coercing them — a canonicalizer that
+         * silently serializes a different document than the one supplied defeats its
+         * own purpose.
+         */
+        function stringify(value: any): string;
+    }
 
     // Shamir convenience wrappers (also available on bsv.Shamir directly)
     // Shamir secret sharing is exposed as `bsv.Shamir.split` / `.combine` / `.verifyShare`
     // (see `crypto.Shamir` above) — there are no top-level splitSecret/reconstructSecret helpers.
+}
+
+/**
+ * RFC 8785 (JSON Canonicalization Scheme).
+ *
+ * Two independent implementations produce identical bytes for the same value, which
+ * is the property that makes a hash or a signature meaningful to a party who did not
+ * produce it. Prefer this over `bsv.canonicalizeClaim` in new code: that one carries
+ * a legacy mode this does not.
+ */
+declare module '@smartledger/bsv/jcs' {
+    /**
+     * Serialize a value as RFC 8785 canonical JSON.
+     *
+     * Object keys sort by UTF-16 code unit, applied during serialization rather than
+     * by rebuilding an object — rebuilding lets V8 reorder integer-like keys ahead of
+     * the sort, producing `{"2":…,"10":…}` where the RFC requires `{"10":…,"2":…}`.
+     *
+     * Throws on non-finite numbers, bigint, circular structures, and values with no
+     * JSON representation.
+     */
+    export function stringify(value: any): string;
 }

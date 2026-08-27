@@ -22,6 +22,10 @@
     "./covenant": "./covenant-entry.js",
     "./didweb": "./didweb-entry.js",
     "./gdaf": "./gdaf-entry.js",
+    "./jcs": {
+      "types": "./jcs-entry.d.ts",
+      "default": "./jcs-entry.js"
+    },
     "./ltp": "./ltp-entry.js",
     "./script-helper": "./script-helper-entry.js",
     "./security": "./security-entry.js",
@@ -121,6 +125,7 @@
     "build/",
     "tools/",
     "*-entry.js",
+    "*-entry.d.ts",
     "bsv.min.js",
     "bsv.bundle.js",
     "bsv-ecies.min.js",
