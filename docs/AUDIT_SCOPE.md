@@ -29,14 +29,14 @@ testing.
 Two tiers, to be **priced separately** so the boundary can be drawn against a number
 rather than before seeing one.
 
-### Tier 1 — core, 12,268 lines across 33 files
+### Tier 1 — core, 12,391 lines across 33 files
 
 | Module | Lines | Why it matters |
 | --- | ---: | --- |
-| `lib/script/` | 3,751 | Consensus script interpreter. Divergence from the node means accepting a transaction the network rejects, or the reverse. |
+| `lib/script/` | 3,859 | Consensus script interpreter. Divergence from the node means accepting a transaction the network rejects, or the reverse. |
 | `lib/transaction/` | 2,779 | Sighash construction and signing — both BIP-143 and the Original Transaction Digest Algorithm. |
 | `lib/crypto/` | 2,519 | ECDSA, nonce derivation, signature encoding, the script-number type. |
-| `lib/hdprivatekey.js`, `lib/hdpublickey.js` | 1,168 | BIP-32 derivation, including hardened paths. |
+| `lib/hdprivatekey.js`, `lib/hdpublickey.js` | 1,183 | BIP-32 derivation, including hardened paths. |
 | `lib/privatekey.js`, `lib/publickey.js` | 843 | Key construction, serialisation, WIF. Recent defects here produced a *different* key without error. |
 | `lib/address.js` | 543 | Address derivation and network binding. |
 | `lib/networks.js`, `lib/opcode.js` | 665 | Network parameters and the opcode table, which BSV upgrades have reassigned. |
@@ -58,19 +58,25 @@ is not.
 | Component | Status | Reason |
 | --- | --- | --- |
 | `@noble/curves`, `@noble/hashes`, `@noble/ciphers` | Already audited | The primitives come from the Noble libraries, which **Cure53 has audited and published on**. We do not implement curve or hash arithmetic ourselves. State this explicitly to vendors — otherwise they price work we do not need. |
-| `lib/smart_contract/`, `lib/ltp/`, `lib/gdaf/`, `lib/ordinals/`, `lib/block/`, plus 9 further directories and 6 top-level files | Excluded | Application layer, 24,447 lines — 18,600 in the five named modules and 5,847 in the remainder. Written in-house and covered by adversarial tests. Worth a separate engagement; including it here would blur the question in §1. |
+| `lib/smart_contract/`, `lib/ltp/`, `lib/gdaf/`, `lib/ordinals/`, `lib/block/`, plus 9 further directories and 6 top-level files | Excluded | Application layer, 24,769 lines — 18,706 in the five named modules and 6,063 in the remainder. Written in-house and covered by adversarial tests. Worth a separate engagement; including it here would blur the question in §1. |
 
-Totals reconcile against `lib/`, which is 38,322 lines across 130 files:
+Totals reconcile against `lib/`, which is 38,767 lines across 131 files:
 
 ```
-tier 1      12,268
+tier 1      12,391
 tier 2       1,607
-excluded    24,447
+excluded    24,769
             ------
-total       38,322
+total       38,767
 ```
 
-Core + optional = 13,875.
+Measured 2026-08-28 at `aa551a1`. These figures drift as the library changes — the
+previous set was taken on 2026-08-16 and was 445 lines light by the time it was
+read, most of it in `lib/script/interpreter.js`, which is tier 1 and therefore the
+number a vendor prices against. **Re-run §7 immediately before sending**, and update
+the date above with the commit measured.
+
+Core + optional = 13,998.
 
 ## 4. What an auditor gets on day one
 
@@ -133,7 +139,7 @@ seeking a quote for an independent security review of its cryptographic core.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 12,268 lines, 33 files. Script interpreter, sighash and signing,
+  Tier 1 — 12,391 lines, 33 files. Script interpreter, sighash and signing,
   ECDSA and signature encoding, BIP-32 derivation, key and address
   construction.
 
@@ -143,7 +149,7 @@ Scope, and we would like these priced separately:
 JavaScript (CommonJS), Node >= 20.19. The code is public.
 
 Explicitly out of scope: elliptic-curve and hash primitives, which are supplied
-by the Noble libraries and already audited; and our 24,447-line application
+by the Noble libraries and already audited; and our 24,769-line application
 layer (credentials, tokens, ordinals), which we would treat as a separate
 engagement.
 
