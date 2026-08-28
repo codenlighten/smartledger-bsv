@@ -307,6 +307,7 @@ bsv.createCredentialTemplate = function(credentialType) {
 
 // Legal Token Protocol (LTP) - Primitives-Only Interface
 bsv.LTP = require('./lib/ltp')
+bsv.JCS = require('./lib/util/jcs')
 
 // LTP Right Token Primitives
 bsv.prepareRightToken = function(type, issuerDID, subjectDID, claim, issuerPrivateKey, options) {
@@ -508,12 +509,12 @@ bsv.createClaimTemplate = function(schemaName) {
 }
 
 // LTP Utility Functions
-bsv.canonicalizeClaim = function(claim) {
-  return bsv.LTP.Claim.canonicalize(claim)
+bsv.canonicalizeClaim = function(claim, canonicalization) {
+  return bsv.LTP.Claim.canonicalize(claim, canonicalization)
 }
 
-bsv.hashClaim = function(claim) {
-  return bsv.LTP.Claim.hash(claim)
+bsv.hashClaim = function(claim, canonicalization) {
+  return bsv.LTP.Claim.hash(claim, canonicalization)
 }
 
 bsv.addCustomClaimSchema = function(name, schema) {

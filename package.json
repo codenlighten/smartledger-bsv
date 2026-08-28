@@ -1,6 +1,6 @@
 {
   "name": "@smartledger/bsv",
-  "version": "9.1.1",
+  "version": "9.2.0",
   "description": "Bitcoin SV library with an interpreter-verified script engine: OP_PUSH_TX covenants, BIP-143 preimage tooling, and consensus flags that match what miners actually enforce. Also ships DID:web / W3C VC-JWT credentials and the Legal Token Protocol.",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
@@ -22,6 +22,10 @@
     "./covenant": "./covenant-entry.js",
     "./didweb": "./didweb-entry.js",
     "./gdaf": "./gdaf-entry.js",
+    "./jcs": {
+      "types": "./jcs-entry.d.ts",
+      "default": "./jcs-entry.js"
+    },
     "./ltp": "./ltp-entry.js",
     "./script-helper": "./script-helper-entry.js",
     "./security": "./security-entry.js",
@@ -121,6 +125,7 @@
     "build/",
     "tools/",
     "*-entry.js",
+    "*-entry.d.ts",
     "bsv.min.js",
     "bsv.bundle.js",
     "bsv-ecies.min.js",

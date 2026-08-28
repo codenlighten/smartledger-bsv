@@ -18,6 +18,7 @@ export const {
   HDPrivateKey,
   HDPublicKey,
   Input,
+  JCS,
   LTP,
   MerkleBlock,
   Message,
