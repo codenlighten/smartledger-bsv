@@ -1,0 +1,49 @@
+To:       Cure53
+Route:    mail@cure53.de  —  verify on cure53.de before sending
+Reply-to: support@smartledger.technology
+
+Subject: Audit enquiry — BSV cryptographic library core (~13k LOC JavaScript)
+
+Hello,
+
+We are approaching you first because you audited the Noble libraries our
+primitives come from, so the layer beneath this code is already familiar to
+you.
+
+We maintain @smartledger/bsv, a Bitcoin SV library published on npm. We are
+seeking a quote for an independent security review of its cryptographic core.
+
+Scope, and we would like these priced separately:
+
+  Tier 1 — 12,391 lines, 33 files. Script interpreter, sighash and signing,
+  ECDSA and signature encoding, BIP-32 derivation, key and address
+  construction.
+
+  Tier 2 — 1,607 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
+  decoding surface.
+
+JavaScript (CommonJS), Node >= 20.19. The code is public.
+
+Explicitly out of scope: elliptic-curve and hash primitives, which are supplied
+by the Noble libraries and already audited; and our 24,769-line application
+layer (credentials, tokens, ordinals), which we would treat as a separate
+engagement.
+
+Context that should shorten discovery: the core is inherited from bitcore and
+has been fixed reactively but never independently reviewed. We can provide a
+test-backed threat model, a 452-case behavioural conformance corpus that a
+second independent implementation agrees with, and a documented history of the
+defects we have found ourselves.
+
+The failure mode we most want examined is code that reports a check as passed
+without performing it — several of our own findings have had that shape.
+
+Could you indicate availability, an approximate cost range, and what you would
+need from us to firm that up?
+
+Repository: https://github.com/codenlighten/smartledger-bsv
+Package:    https://www.npmjs.com/package/@smartledger/bsv
+
+Thank you,
+SmartLedger Technology
+support@smartledger.technology

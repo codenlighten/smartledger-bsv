@@ -7,14 +7,15 @@ Thank you for helping keep `@smartledger/bsv` and its users safe.
 Security fixes are applied to the latest major release line. Earlier releases
 are not patched; please upgrade. **Versions < 6.0.0 contain four CRITICAL
 fail-open signature/verification bugs and a revocation-bypass (fixed in 6.0.0 —
-see CHANGELOG `## [6.0.0]`); upgrading to the latest 6.x is strongly recommended.**
+see CHANGELOG `## [6.0.0]`); upgrading to the latest 9.x is strongly recommended.**
 Requires **Node.js ≥ 20.19** (the audited crypto dependency `@noble/curves@2` is
 ESM-only).
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 6.x     | :white_check_mark: |
-| < 6.0   | :x: (fail-open verification + revocation-bypass; upgrade to 6.x) |
+| 9.x     | :white_check_mark: |
+| 6.x – 8.x | :x: (no longer patched; upgrade to 9.x) |
+| < 6.0   | :x: (fail-open verification + revocation-bypass; upgrade to 9.x) |
 
 The security model and the adversarial tests that enforce it are documented in
 [`docs/THREAT_MODEL.md`](./docs/THREAT_MODEL.md).
@@ -55,24 +56,18 @@ to remain anonymous.
   forgery, replay, or unauthorized revocation.
 - Bugs in BIP-143 preimage handling, covenant construction, or LTP/GDAF
   signing paths.
-- Supply-chain concerns about pinned runtime dependencies
-  (`bn.js@4.12.3`, `bs58@4.0.1`, `@noble/*`, etc.). The runtime dependency
-  tree carries **no known advisories** (`npm audit --omit=dev` is clean);
-  `elliptic` was dropped from the runtime/bundle path in 5.4.0.
+- Supply-chain concerns about the runtime dependencies: `@noble/ciphers`,
+  `@noble/curves`, `@noble/hashes`, `bn.js` (pinned exactly at `=4.12.5`), and
+  `secrets.js-grempe`. The runtime dependency tree carries **no known
+  advisories** (`npm audit --omit=dev` is clean); `elliptic` was dropped from
+  the runtime/bundle path in 5.4.0, and `bs58` is no longer a dependency.
 
 ## Out of Scope
 
-- Vulnerabilities in development-only dependencies (`webpack 5`, `esbuild`,
-  `standard 12`, `mocha`, `nyc`, `crypto-browserify`, etc.). These never reach
-  installers — the
-  published tarball ships no `node_modules` and none are listed under
-  `dependencies`. The remaining `npm audit` findings (currently 17, all
-  dev-only) are either upstream-blocked — `mocha`/`nyc` are already at their
-  latest releases but still range-pin affected transitives (`diff`,
-  `serialize-javascript`, nested `js-yaml`) — or require the deferred
-  `standard@17` lint migration (`eslint`/`inquirer`/`tmp` chain) and the
-  `crypto-browserify` browser-build chain. They are accepted dev-only risk and
-  tracked separately.
+- Vulnerabilities in development-only dependencies (`esbuild`, `standard`,
+  `mocha`, `nyc`, etc.). These never reach installers — the published tarball
+  ships no `node_modules` and none are listed under `dependencies`. `npm audit`
+  currently reports **no findings at all**, dev included.
 - Issues that require a malicious local environment (compromised Node, browser
   extension, or filesystem) to exploit.
 - Denial-of-service from intentionally malformed inputs that do **not** cross
@@ -100,11 +95,13 @@ return value (an ECDSA *instance*, a stub `{verified:true}`) as if it meant
   feeds each verify path a forged input and asserts rejection as a strict boolean
   or a throw. The CI suite is a merge gate.
 
-**Known residual footgun (mitigated).** `ECDSA.prototype.verify()` still returns
-the *instance* (truthy) with the result on `.verified` — a landmine if read as a
-boolean. It is retained for back-compat, typed to make misuse a compile error
-(`verify(): this` vs `verifyBool(): boolean` in `bsv.d.ts`), and pinned by a
-test; it is slated for **removal in the next major**. Prefer `verifyBool()`.
+**7.0.0 — the trap was closed.** `ECDSA.prototype.verify()` now returns a strict
+`boolean` rather than the ECDSA instance, so `if (ecdsa.verify())` can no longer
+read a truthy object as "valid". The result is still mirrored on `this.verified`;
+only the chained `.verify().verified` idiom is gone. `bsv.d.ts` types it as
+`verify(): boolean`, and a security-contract test locks it closed — a forgery
+must make `verify()` return `false`. `verifyBool()` remains as an explicit alias.
+See [`docs/MIGRATION_7.md`](docs/MIGRATION_7.md).
 
 See [`docs/THREAT_MODEL.md`](./docs/THREAT_MODEL.md) for the full property-by-
 property security model and the tests that enforce each claim, and the
@@ -115,6 +112,9 @@ property security model and the tests that enforce each claim, and the
 Significant security-relevant changes are documented in
 [`CHANGELOG.md`](./CHANGELOG.md). Recent entries of note:
 
+- **7.0.0** — `ECDSA.prototype.verify()` returns a strict `boolean` instead of the
+  (always truthy) ECDSA instance, removing the trap that made `if (ecdsa.verify())`
+  accept forged signatures. A security-contract test now enforces it.
 - **6.0.0** — fixed four CRITICAL fail-open verification bugs (the `ECDSA.verify()`
   returns-the-instance trap at three call sites plus a `//TODO` stub), a StatusList2021
   revocation bypass (unverified list bitstring), an ownership-forgery in

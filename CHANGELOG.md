@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.3.0] - 2026-08-28
+
+### Added
+
+- **Type declarations for every subpath export.** Eleven of the thirteen
+  subpaths — `anchor`, `covenant`, `didweb`, `gdaf`, `ltp`, `script-helper`,
+  `security`, `shamir`, `smartcontract`, `statuslist`, `vcjwt` — shipped with no
+  `types` condition and no declaration file, so
+  `import covenant from '@smartledger/bsv/covenant'` was a TS7016 error under
+  `node16`/`nodenext` resolution and every symbol behind it was `any`. Each now
+  has a declaration; the eight that map onto existing declarations re-export
+  them, and `security` (`SmartMiner`) and `script-helper` (`CustomScriptHelper`)
+  are newly described, having had no types anywhere.
+- `scripts/check-types.js` and `npm run check:types`, wired into
+  `prepublishOnly`. It compiles a fixture of correct usage, then asserts that a
+  fixture of *misuse* still fails — a declaration that quietly degrades to `any`
+  makes those errors vanish, which is the regression this catches. Resolution
+  goes through the real `exports` map rather than tsconfig `paths`.
+- **`buildInscription` can write envelope fields.** `fields` takes tag numbers to
+  values and emits them between the content type and the body, in ascending tag
+  order so identical input always produces identical bytes. Tag 5 is `metadata`,
+  the spec's own home for an object's own record; it previously could not be
+  written at all, so the only way to produce one was to assemble envelope bytes by
+  hand — permanent, already paid for, and unreported by anything local.
+
+  Three tags are refused at build time because each is silent afterwards. Tag 0
+  opens the body, so a field there does not fail — it becomes part of the file.
+  Tag 1 is the content type, and a second one declares it twice. An unrecognized
+  EVEN tag costs the inscription its location everywhere: the spec requires such
+  an inscription to be treated as unbound. Odd tags are ignored by an indexer that
+  does not know them, which is why the spec says it is okay to be odd.
+
+  `allowUnknownEvenFields` overrides the last of those. It exists because the
+  named tag set grows with the protocol, and a library that could never be
+  overridden would eventually be wrong AND unbypassable — sending people back to
+  hand-assembled bytes, which is worse than what the check prevents.
+
+  Tags 1..16 are emitted as opcodes and anything larger as a minimal data push,
+  since OP_16 is the largest numeric opcode. Script numbers carry sign in the high
+  bit of the last byte, so a tag ending >= 0x80 is zero-padded rather than read
+  back negative. Verified by round-tripping through `@smartledger/ordinals`, a
+  separate implementation: a builder agreeing with its own parser proves only that
+  they agree.
+
+### Fixed
+
+- **`@types/node` is now a declared dependency.** `bsv.d.ts` carries
+  `/// <reference types="node" />` and names `Buffer` 150 times, but nothing
+  pulled the types in. A TypeScript consumer without `@types/node` installed got
+  `Buffer` widened to `any`, silently disabling type checking on every `Buffer`
+  parameter in the public API — `Anchor.sha256Hex(12345)` type-checked cleanly.
+- **`SECURITY.md` described a release line three majors old.** Corrected against
+  the code rather than edited in place; every claim below was verified:
+  - Supported versions said `6.x` on a 9.x package, and told readers to upgrade
+    to "the latest 6.x".
+  - The "known residual footgun" section warned that
+    `ECDSA.prototype.verify()` returns the truthy *instance* and is "slated for
+    removal in the next major". That was fixed in **7.0.0** — it returns a strict
+    boolean, `bsv.d.ts` types it `verify(): boolean`, and a contract test locks it
+    closed. The policy was warning about a landmine that no longer exists while
+    contradicting the package's own declarations.
+  - Pinned dependencies were listed as `bn.js@4.12.3` and `bs58@4.0.1`; the
+    actual pin is `bn.js@=4.12.5` and `bs58` is no longer a dependency at all.
+  - It apologised at length for "currently 17, all dev-only" `npm audit`
+    findings. `npm audit` now reports none, dev included.
+- `bsv.d.ts` header advertised "Type definitions for @smartledger/bsv 6.x".
+
 ## [9.2.0] - 2026-08-25
 
 ### Added — RFC 8785 canonicalization is now public API

@@ -1,6 +1,6 @@
 {
   "name": "@smartledger/bsv",
-  "version": "9.2.0",
+  "version": "9.3.0",
   "description": "Bitcoin SV library with an interpreter-verified script engine: OP_PUSH_TX covenants, BIP-143 preimage tooling, and consensus flags that match what miners actually enforce. Also ships DID:web / W3C VC-JWT credentials and the Legal Token Protocol.",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
@@ -18,21 +18,54 @@
     },
     "./package.json": "./package.json",
     "./version": "./version.js",
-    "./anchor": "./anchor-entry.js",
-    "./covenant": "./covenant-entry.js",
-    "./didweb": "./didweb-entry.js",
-    "./gdaf": "./gdaf-entry.js",
+    "./anchor": {
+      "types": "./anchor-entry.d.ts",
+      "default": "./anchor-entry.js"
+    },
+    "./covenant": {
+      "types": "./covenant-entry.d.ts",
+      "default": "./covenant-entry.js"
+    },
+    "./didweb": {
+      "types": "./didweb-entry.d.ts",
+      "default": "./didweb-entry.js"
+    },
+    "./gdaf": {
+      "types": "./gdaf-entry.d.ts",
+      "default": "./gdaf-entry.js"
+    },
     "./jcs": {
       "types": "./jcs-entry.d.ts",
       "default": "./jcs-entry.js"
     },
-    "./ltp": "./ltp-entry.js",
-    "./script-helper": "./script-helper-entry.js",
-    "./security": "./security-entry.js",
-    "./shamir": "./shamir-entry.js",
-    "./smartcontract": "./smartcontract-entry.js",
-    "./statuslist": "./statuslist-entry.js",
-    "./vcjwt": "./vcjwt-entry.js",
+    "./ltp": {
+      "types": "./ltp-entry.d.ts",
+      "default": "./ltp-entry.js"
+    },
+    "./script-helper": {
+      "types": "./script-helper-entry.d.ts",
+      "default": "./script-helper-entry.js"
+    },
+    "./security": {
+      "types": "./security-entry.d.ts",
+      "default": "./security-entry.js"
+    },
+    "./shamir": {
+      "types": "./shamir-entry.d.ts",
+      "default": "./shamir-entry.js"
+    },
+    "./smartcontract": {
+      "types": "./smartcontract-entry.d.ts",
+      "default": "./smartcontract-entry.js"
+    },
+    "./statuslist": {
+      "types": "./statuslist-entry.d.ts",
+      "default": "./statuslist-entry.js"
+    },
+    "./vcjwt": {
+      "types": "./vcjwt-entry.d.ts",
+      "default": "./vcjwt-entry.js"
+    },
     "./lib/anchor": "./lib/anchor/index.js",
     "./lib/block": "./lib/block/index.js",
     "./lib/covenant": "./lib/covenant/index.js",
@@ -85,7 +118,7 @@
     "test:all": "npm test && npm run test:covenants && npm run test:scripts",
     "coverage": "nyc --reporter=text npm run test",
     "demo": "node demos/smart_contract_demo.js",
-    "demo:web": "echo '🌐 Open demos/smart_contract_demo.html in your browser'",
+    "demo:web": "echo '\ud83c\udf10 Open demos/smart_contract_demo.html in your browser'",
     "demo:basics": "node demos/smart_contract_demo.js --feature basics",
     "demo:covenant": "node demos/smart_contract_demo.js --feature covenant",
     "demo:preimage": "node demos/smart_contract_demo.js --feature preimage",
@@ -94,7 +127,7 @@
     "demo:legacy": "npm run test:covenants",
     "demo:legacy:basic": "npm run test:basic",
     "demo:legacy:scripts": "npm run test:scripts",
-    "demo:legacy:preimage": "echo '🧠 BIP-143 Preimage Extractor Demo' && node examples/preimage/extract_preimage_bidirectional.js",
+    "demo:legacy:preimage": "echo '\ud83e\udde0 BIP-143 Preimage Extractor Demo' && node examples/preimage/extract_preimage_bidirectional.js",
     "smart-contracts": "node examples/smart_contract_templates.js",
     "smart-contracts:working": "node examples/final_working_contracts.js",
     "workflow": "node examples/complete_workflow_demo.js",
@@ -102,12 +135,13 @@
     "test:browser": "echo 'Open tests/standalone-modules-test.html in browser for comprehensive testing'",
     "test:bundle": "echo 'Open tests/bundle-completeness-test.html in browser to verify bundle completeness'",
     "preimage:extract": "node examples/preimage/extract_preimage_bidirectional.js",
-    "prepublishOnly": "npm run build-all && npm run check:readme && npm run check:api",
+    "prepublishOnly": "npm run build-all && npm run check:readme && npm run check:api && npm run check:types",
     "sync-cdn": "node scripts/sync-cdn-urls.js",
     "version": "node scripts/sync-cdn-urls.js && node scripts/sync-version.js && node scripts/gen-esm-wrapper.js && git add README.md docs version.js index.mjs",
     "test:browser:ci": "node tests/browser-smoke-runner.js",
     "api:snapshot": "node scripts/api-surface.js",
-    "check:api": "mocha test/api_surface.js --no-config"
+    "check:api": "mocha test/api_surface.js --no-config",
+    "check:types": "node scripts/check-types.js"
   },
   "unpkg": "bsv.min.js",
   "jsdelivr": "bsv.min.js",
@@ -178,6 +212,7 @@
     "@noble/ciphers": "^2.3.0",
     "@noble/curves": "^2.3.0",
     "@noble/hashes": "^2.3.0",
+    "@types/node": "^20.19.0",
     "bn.js": "=4.12.5",
     "secrets.js-grempe": "^2.0.0"
   },
