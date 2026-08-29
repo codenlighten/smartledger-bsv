@@ -326,4 +326,120 @@ describe('Ordinals inscriptions', function () {
       interp.verify(t.spend.inputs[0].script, t.lock, t.spend, 0, FLAGS, new BN(1)).should.equal(false)
     })
   })
+  describe('envelope fields', function () {
+    // Tag 5 is `metadata`, the spec's own home for an object's own record.
+    // Until this existed the only way to write one was to assemble envelope
+    // bytes by hand, which is the single most dangerous thing an integrator
+    // can do here: wrong bytes are permanent, paid for, and silent.
+    var manifest = Buffer.from('{"grade":9.5}', 'utf8')
+
+    it('writes a field and reads it back', function () {
+      var s = Ord.buildInscription({
+        address: address, contentType: 'image/jpeg', content: Buffer.from('img'),
+        fields: { 5: manifest }
+      })
+      var parsed = Ord.parseInscription(s)
+      parsed.contentType.should.equal('image/jpeg')
+      parsed.content.toString().should.equal('img')
+    })
+
+    it('emits tags 1..16 as opcodes and larger tags as data pushes', function () {
+      // OP_16 is the largest numeric opcode, so tag 21 has no opcode form at
+      // all. An indexer reads the stack element either way, but a non-minimal
+      // push of a small number is non-standard, so both forms must be used
+      // where they belong.
+      var s = Ord.buildInscription({
+        address: address, contentType: 'text/plain', content: 'x',
+        fields: { 5: manifest, 21: Buffer.from('wide') }
+      })
+      var asm = s.toASM().split(' ')
+      asm.should.include('OP_5')
+      asm.should.not.include('OP_21') // does not exist
+      asm.should.include('15') // tag 21, pushed as one byte
+    })
+
+    it('orders fields by tag, whatever order they were written in', function () {
+      var a = Ord.buildInscription({
+        address: address, contentType: 'text/plain', content: 'x',
+        fields: { 21: Buffer.from('b'), 5: Buffer.from('a') }
+      })
+      var b = Ord.buildInscription({
+        address: address, contentType: 'text/plain', content: 'x',
+        fields: { 5: Buffer.from('a'), 21: Buffer.from('b') }
+      })
+      a.toHex().should.equal(b.toHex())
+    })
+
+    it('refuses an unrecognized even tag', function () {
+      // The spec: an inscription with an unrecognized even field "must be
+      // displayed as unbound, that is, without a location". Nothing local
+      // reports it, so refusing at build time is the only moment it can be
+      // caught before the money is spent.
+      ;(function () {
+        Ord.buildInscription({
+          address: address, contentType: 'text/plain', content: 'x',
+          fields: { 20: manifest }
+        })
+      }).should.throw(/unrecognized even tag/)
+    })
+
+    it('allows an unrecognized even tag when asked explicitly', function () {
+      // Not a hard wall: the named-tag set grows with the protocol, and a
+      // library that could never be overridden would eventually be both wrong
+      // and unbypassable — sending people back to hand-written bytes, which is
+      // worse than the thing being prevented.
+      var s = Ord.buildInscription({
+        address: address, contentType: 'text/plain', content: 'x',
+        fields: { 20: manifest }, allowUnknownEvenFields: true
+      })
+      // 20 is above 16, so it has no opcode form: it is pushed as the byte 0x14.
+      s.toASM().split(' ').should.include('14')
+    })
+
+    it('allows an unrecognized ODD tag with no ceremony', function () {
+      Ord.buildInscription({
+        address: address, contentType: 'text/plain', content: 'x',
+        fields: { 21: manifest }
+      }).should.be.an('object')
+    })
+
+    it('refuses tag 0, which opens the body', function () {
+      // Everything after tag 0 IS the body, so a field there does not fail —
+      // it silently becomes part of the file.
+      ;(function () {
+        Ord.buildInscription({
+          address: address, contentType: 'text/plain', content: 'x',
+          fields: { 0: manifest }
+        })
+      }).should.throw(/opens the inscription body/)
+    })
+
+    it('refuses tag 1, which is the content type', function () {
+      ;(function () {
+        Ord.buildInscription({
+          address: address, contentType: 'text/plain', content: 'x',
+          fields: { 1: Buffer.from('text/plain') }
+        })
+      }).should.throw(/is the content type/)
+    })
+
+    it('refuses an empty field value', function () {
+      ;(function () {
+        Ord.buildInscription({
+          address: address, contentType: 'text/plain', content: 'x',
+          fields: { 5: Buffer.alloc(0) }
+        })
+      }).should.throw(/empty value/)
+    })
+
+    it('leaves the script unchanged when no fields are given', function () {
+      var without = Ord.buildInscription({
+        address: address, contentType: 'text/plain', content: 'x'
+      })
+      var withEmpty = Ord.buildInscription({
+        address: address, contentType: 'text/plain', content: 'x', fields: {}
+      })
+      withEmpty.toHex().should.equal(without.toHex())
+    })
+  })
 })
