@@ -29,17 +29,23 @@ testing.
 Two tiers, to be **priced separately** so the boundary can be drawn against a number
 rather than before seeing one.
 
-### Tier 1 — core, 12,391 lines across 33 files
+The boundary is drawn by **where defects have actually occurred**, not by how core a
+module sounds. That is a deliberate revision: an earlier version of this document
+scoped Tier 1 as "the cryptographic core" and would have excluded four of the six real
+defects this codebase has produced. See §2.1.
+
+### Tier 1 — 11,247 lines
 
 | Module | Lines | Why it matters |
 | --- | ---: | --- |
-| `lib/script/` | 3,859 | Consensus script interpreter. Divergence from the node means accepting a transaction the network rejects, or the reverse. |
 | `lib/transaction/` | 2,779 | Sighash construction and signing — both BIP-143 and the Original Transaction Digest Algorithm. |
-| `lib/crypto/` | 2,519 | ECDSA, nonce derivation, signature encoding, the script-number type. |
-| `lib/hdprivatekey.js`, `lib/hdpublickey.js` | 1,183 | BIP-32 derivation, including hardened paths. |
+| `lib/script/interpreter.js` | 2,684 | **Scoped to the flag and era surface, not opcode execution.** Consensus-flag selection and defaults, era derivation (Genesis/Chronicle), the limits derived from them, and the semantics of the exported `verify()`. Opcode execution is excluded — see §2.2. |
+| `lib/crypto/` | 2,519 | ECDSA, nonce derivation, signature encoding, the script-number type. **Scope this for an architectural judgement as well as for bugs** — see §2.3. |
+| `lib/notaryhash/` | 1,436 | BRC-220 signing and verification. Publicly reachable and relied on downstream. |
 | `lib/privatekey.js`, `lib/publickey.js` | 843 | Key construction, serialisation, WIF. Recent defects here produced a *different* key without error. |
-| `lib/address.js` | 543 | Address derivation and network binding. |
-| `lib/networks.js`, `lib/opcode.js` | 665 | Network parameters and the opcode table, which BSV upgrades have reassigned. |
+| `lib/smart_contract/` (targeted) | 472 | `locks.js` and the covenant-facing entrypoints in `index.js`: CLTV and HTLC locking semantics, flag plumbing, and any wrapper claiming mainnet-equivalent verification. Not the whole 6,908-line module. |
+| `lib/covenant/` | 409 | The verification harness. Its flag word is what made covenants verify under 2019 rules while claiming to mirror mainnet. |
+| `lib/util/jcs.js` | 105 | RFC 8785 canonicalization, now a public export and the estate's single implementation. |
 
 ### Tier 2 — optional, 1,607 lines
 
@@ -53,30 +59,87 @@ Tier 2 is cryptographic rather than application code, so excluding it is a **bud
 decision, not a risk judgement**. Priced as an add-on it is cheap; discovered later it
 is not.
 
+### 2.1 Why the boundary moved
+
+Six defects have been found in this codebase and fixed. Four of them were in code the
+previous version of this scope **excluded**:
+
+| Defect | Module | Was it in the old scope? |
+| --- | --- | --- |
+| Covenant verification applied pre-Genesis limits while claiming to mirror mainnet | `lib/covenant`, `lib/smart_contract` | no |
+| `timeLockCLTV` and the HTLC timeout enforced nothing on mainnet — Genesis reverted `OP_CLTV` to a NOP, so the funds were spendable immediately | `lib/smart_contract` | no |
+| A BRC-220 suite verified against a byte-reversed digest, rejecting every conformant signature | `lib/notaryhash` | no |
+| The reachable RFC 8785 canonicalizer was non-conformant while a correct one sat private; three downstream packages copied the wrong one | `lib/util/jcs.js`, `lib/ltp` | partly |
+| `ECDSA.verify()` returned the instance, so `if (verify())` was always truthy — a fail-open accepting forged signatures | `lib/crypto` | yes |
+| ECDSA nonce reuse across two signings on one instance, leaking the private key | `lib/crypto` | yes |
+
+The pattern is not "the primitives are weak". It is that **code making claims about
+consensus behaviour was wrong about it**, and the tests agreed because they shared the
+same assumption. Scope has been moved onto that surface.
+
+### 2.2 Why `lib/script` shrinks rather than leaves
+
+`lib/script` has the strongest external evidence in the repository: 1,483/1,483 of the
+reference node's own consensus vectors, zero false accepts and zero false rejects. That
+is evidence about **opcode execution**, and re-auditing it by hand is the least
+productive money in this engagement.
+
+It is not evidence about which flags a caller ends up with. Both consensus defects above
+were flag-selection and era-derivation failures reachable through `interpreter.js`, and
+no vector covers them because every vector states its own flags. So the interpreter stays
+in scope, scoped to that surface, and the remaining 1,175 lines of `lib/script` leave.
+
+### 2.3 A specific instruction for `lib/crypto`
+
+Both in-scope defects — a fail-open `verify()` and nonce reuse across signings — are
+symptoms of a **stateful object wrapper around a stateless primitive library**. The
+curve arithmetic beneath is `@noble/curves`, which is already audited and offers
+stateless signing, RFC 6979 nonces and a strict boolean verify.
+
+So do not only ask whether `lib/crypto` has bugs. Ask whether the wrapper should exist:
+what would it cost to route the signing and verification paths directly at `@noble`, and
+which parts genuinely cannot go? `bn.js`, `Point`, `Signature` and `Shamir` are public
+API (`bsv.crypto.*`) and cannot simply be deleted, so this is a question with a real
+answer rather than a rhetorical one. An answer either way is worth more than a list of
+findings inside code that should not be there.
+
+### 2.4 The requirement that matters most
+
+Whatever the final line count, the statement of work should carry this:
+
+> **Audit exported security claims, defaults, and the tests that assert them as a unit,
+> against an independent oracle or specification — not each in isolation.**
+
+Every defect above shares one shape. The code was wrong, and its tests passed, because
+the tests were written from the same assumption. A file-by-file review finds none of
+them. Checking a claim against something outside this repository finds all of them —
+which is exactly how each was eventually caught.
+
 ## 3. Out of scope, and why
 
 | Component | Status | Reason |
 | --- | --- | --- |
 | `@noble/curves`, `@noble/hashes`, `@noble/ciphers` | Already audited | The primitives come from the Noble libraries, which **Cure53 has audited and published on**. We do not implement curve or hash arithmetic ourselves. State this explicitly to vendors — otherwise they price work we do not need. |
-| `lib/smart_contract/`, `lib/ltp/`, `lib/gdaf/`, `lib/ordinals/`, `lib/block/`, plus 9 further directories and 6 top-level files | Excluded | Application layer, 24,769 lines — 18,706 in the five named modules and 6,063 in the remainder. Written in-house and covered by adversarial tests. Worth a separate engagement; including it here would blur the question in §1. |
+| Opcode execution in `lib/script/` (1,175 lines outside `interpreter.js`) | Excluded, with evidence | 1,483/1,483 of the reference node's own consensus vectors pass, with zero false accepts and zero false rejects. See §2.2 — the flag surface stays in, the execution does not. |
+| `lib/address.js`, `lib/networks.js`, `lib/opcode.js`, `lib/hdprivatekey.js`, `lib/hdpublickey.js` (2,391 lines) | Cut to pay for §2.1 | Formatting, network constants and BIP-32 derivation. No defect has originated here, and `networks.js` in particular defines addressing constants — pubkey hashes, xpub prefixes, ports, DNS seeds — and contains **no consensus-flag logic at all**. |
+| The rest of the application layer — `lib/gdaf/`, `lib/ltp/`, `lib/ordinals/`, `lib/block/`, `lib/didweb/`, `lib/vcjwt/`, `lib/statuslist/`, most of `lib/smart_contract/`, plus assorted top-level files | Excluded | ~26,000 lines. Worth a separate engagement; including it here would blur the question in §1. Note the parts of it with a demonstrated defect history have been pulled *into* Tier 1 rather than left here — see §2.1. |
 
-Totals reconcile against `lib/`, which is 38,767 lines across 131 files:
+Totals reconcile against `lib/`, which is 38,879 lines across 131 files:
 
 ```
-tier 1      12,391
+tier 1      11,247
 tier 2       1,607
-excluded    24,769
+excluded    26,025
             ------
-total       38,767
+total       38,879
 ```
 
-Measured 2026-08-28 at `aa551a1`. These figures drift as the library changes — the
-previous set was taken on 2026-08-16 and was 445 lines light by the time it was
-read, most of it in `lib/script/interpreter.js`, which is tier 1 and therefore the
-number a vendor prices against. **Re-run §7 immediately before sending**, and update
-the date above with the commit measured.
+Measured 2026-08-29 at `a954c27`. These figures drift as the library changes — an
+earlier set was 445 lines light by the time it was read, most of it in
+`lib/script/interpreter.js`, which is priced against. **Re-run §7 immediately before
+sending**, and update the date above with the commit measured.
 
-Core + optional = 13,998.
+Core + optional = 12,854.
 
 ## 4. What an auditor gets on day one
 
@@ -130,37 +193,56 @@ any single number.
 ## 6. Enquiry text
 
 ```text
-Subject: Audit enquiry — BSV cryptographic library core (~13k LOC JavaScript)
+Subject: Audit enquiry — BSV library, consensus and signing surface (~13k LOC JavaScript)
 
 Hello,
 
 We maintain @smartledger/bsv, a Bitcoin SV library published on npm. We are
-seeking a quote for an independent security review of its cryptographic core.
+seeking a quote for an independent security review.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 12,391 lines, 33 files. Script interpreter, sighash and signing,
-  ECDSA and signature encoding, BIP-32 derivation, key and address
-  construction.
+  Tier 1 — 11,247 lines. Sighash construction and signing; ECDSA, nonce
+  derivation and signature encoding; the consensus-flag and era-derivation
+  surface of the script interpreter; BRC-220 signing and verification;
+  key construction and serialisation; the covenant verification harness and
+  the locking-script semantics built on it; RFC 8785 canonicalization.
 
   Tier 2 — 1,607 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
   decoding surface.
 
 JavaScript (CommonJS), Node >= 20.19. The code is public.
 
-Explicitly out of scope: elliptic-curve and hash primitives, which are supplied
-by the Noble libraries and already audited; and our 24,769-line application
-layer (credentials, tokens, ordinals), which we would treat as a separate
-engagement.
+Two things we would ask you to scope deliberately rather than by line count:
+
+  1. Please audit exported security claims, their defaults, and the tests that
+     assert them AS A UNIT, against an independent oracle or specification.
+     Every defect we have found shared one shape: the code was wrong and its
+     tests passed, because both were written from the same assumption. A
+     file-by-file review would have found none of them.
+
+  2. In lib/crypto, we would value a judgement on whether the wrapper should
+     exist at all. Our two worst defects there — a verify() that returned a
+     truthy object instead of a boolean, and nonce reuse across two signings
+     on one instance — are symptoms of a stateful wrapper around a stateless
+     primitive library (@noble/curves) that already offers stateless signing,
+     RFC 6979 nonces and a strict boolean verify. An answer on the cost of
+     removing the wrapper is worth more to us than a list of findings inside it.
+
+Explicitly out of scope: elliptic-curve and hash primitives, supplied by the
+Noble libraries and already audited by Cure53; opcode execution in the script
+interpreter, which passes 1,483/1,483 of the reference node's own consensus
+vectors with zero false accepts; and roughly 26,000 lines of application layer
+(credentials, tokens, ordinals), which we would treat as a separate engagement.
 
 Context that should shorten discovery: the core is inherited from bitcore and
 has been fixed reactively but never independently reviewed. We can provide a
 test-backed threat model, a 452-case behavioural conformance corpus that a
-second independent implementation agrees with, and a documented history of the
-defects we have found ourselves.
+second independent implementation agrees with, the node's own consensus vectors
+run as a gate, and a documented history of the defects we have found ourselves.
 
 The failure mode we most want examined is code that reports a check as passed
-without performing it — several of our own findings have had that shape.
+without performing it — every finding of ours has had that shape.
 
 Could you indicate availability, an approximate cost range, and what you would
 need from us to firm that up?
@@ -176,21 +258,32 @@ SmartLedger Technology
 
 Every figure in this document, including the excluded total, must come out of this
 script. **Derive the excluded count as the complement — never by subtracting tier 1
-alone.** The first draft did exactly that, double-counted tier 2, and published parts
+alone.** An early draft did exactly that, double-counted tier 2, and published parts
 summing to 37,430 against a 38,322 whole; §7 could not catch it because it reproduced
 every figure except the wrong one.
+
+Tier 1 is no longer whole directories. Three entries are partial — the interpreter is
+scoped to its flag surface, `smart_contract` to its locking semantics — so those are
+counted by file and the reason is in §2. A partial scope that is measured as a whole
+directory is how a vendor prices 6,908 lines when you meant 472.
 
 ```sh
 lines () { find "$@" -name '*.js' -exec cat {} + | wc -l; }
 
-TIER1_DIRS="lib/crypto lib/transaction lib/script"
-TIER1_FILES="lib/privatekey.js lib/publickey.js lib/address.js \
-             lib/hdprivatekey.js lib/hdpublickey.js lib/opcode.js lib/networks.js"
+# Whole directories in tier 1
+TIER1_DIRS="lib/crypto lib/transaction lib/notaryhash lib/covenant"
+
+# Individual files — including the PARTIAL entries (§2.2, §2.3)
+TIER1_FILES="lib/privatekey.js lib/publickey.js \
+             lib/script/interpreter.js \
+             lib/smart_contract/locks.js lib/smart_contract/index.js \
+             lib/util/jcs.js"
+
 TIER2_DIRS="lib/encoding lib/mnemonic lib/ecies"
 
 # Per-module breakdown for the scope tables
 for d in $TIER1_DIRS $TIER2_DIRS; do
-  printf '%-18s %3s files %6s lines\n' "$d" \
+  printf '%-20s %3s files %6s lines\n' "$d" \
     "$(find $d -name '*.js' | wc -l)" "$(lines $d)"
 done
 wc -l $TIER1_FILES
@@ -208,6 +301,14 @@ printf 'tier 1    %6s\ntier 2    %6s\nexcluded  %6s\n          ------\ntotal    
 # run from the wrong directory every figure is 0, and 0+0+0 reconciles vacuously.
 [ "$TOTAL" -gt 0 ] || echo "MISMATCH — run this from the repo root"
 [ $(( T1 + T2 + EXCLUDED )) -eq "$TOTAL" ] || echo "MISMATCH — do not send"
+
+# The cut list from §3, so the saving can be stated rather than asserted
+wc -l lib/address.js lib/networks.js lib/opcode.js \
+      lib/hdprivatekey.js lib/hdpublickey.js
+
+# networks.js carries no consensus-flag logic — the claim §3 rests on.
+# Expect 0. A non-zero result means the cut needs re-arguing.
+grep -cE 'SCRIPT_|GENESIS|CHRONICLE|consensus' lib/networks.js
 
 find lib -name '*.js' | wc -l   # file count
 ```
