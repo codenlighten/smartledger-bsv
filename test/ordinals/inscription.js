@@ -335,7 +335,9 @@ describe('Ordinals inscriptions', function () {
 
     it('writes a field and reads it back', function () {
       var s = Ord.buildInscription({
-        address: address, contentType: 'image/jpeg', content: Buffer.from('img'),
+        address: address,
+        contentType: 'image/jpeg',
+        content: Buffer.from('img'),
         fields: { 5: manifest }
       })
       var parsed = Ord.parseInscription(s)
@@ -349,7 +351,9 @@ describe('Ordinals inscriptions', function () {
       // push of a small number is non-standard, so both forms must be used
       // where they belong.
       var s = Ord.buildInscription({
-        address: address, contentType: 'text/plain', content: 'x',
+        address: address,
+        contentType: 'text/plain',
+        content: 'x',
         fields: { 5: manifest, 21: Buffer.from('wide') }
       })
       var asm = s.toASM().split(' ')
@@ -360,11 +364,15 @@ describe('Ordinals inscriptions', function () {
 
     it('orders fields by tag, whatever order they were written in', function () {
       var a = Ord.buildInscription({
-        address: address, contentType: 'text/plain', content: 'x',
+        address: address,
+        contentType: 'text/plain',
+        content: 'x',
         fields: { 21: Buffer.from('b'), 5: Buffer.from('a') }
       })
       var b = Ord.buildInscription({
-        address: address, contentType: 'text/plain', content: 'x',
+        address: address,
+        contentType: 'text/plain',
+        content: 'x',
         fields: { 5: Buffer.from('a'), 21: Buffer.from('b') }
       })
       a.toHex().should.equal(b.toHex())
@@ -377,7 +385,9 @@ describe('Ordinals inscriptions', function () {
       // caught before the money is spent.
       ;(function () {
         Ord.buildInscription({
-          address: address, contentType: 'text/plain', content: 'x',
+          address: address,
+          contentType: 'text/plain',
+          content: 'x',
           fields: { 20: manifest }
         })
       }).should.throw(/unrecognized even tag/)
@@ -389,8 +399,11 @@ describe('Ordinals inscriptions', function () {
       // and unbypassable — sending people back to hand-written bytes, which is
       // worse than the thing being prevented.
       var s = Ord.buildInscription({
-        address: address, contentType: 'text/plain', content: 'x',
-        fields: { 20: manifest }, allowUnknownEvenFields: true
+        address: address,
+        contentType: 'text/plain',
+        content: 'x',
+        fields: { 20: manifest },
+        allowUnknownEvenFields: true
       })
       // 20 is above 16, so it has no opcode form: it is pushed as the byte 0x14.
       s.toASM().split(' ').should.include('14')
@@ -398,7 +411,9 @@ describe('Ordinals inscriptions', function () {
 
     it('allows an unrecognized ODD tag with no ceremony', function () {
       Ord.buildInscription({
-        address: address, contentType: 'text/plain', content: 'x',
+        address: address,
+        contentType: 'text/plain',
+        content: 'x',
         fields: { 21: manifest }
       }).should.be.an('object')
     })
@@ -408,7 +423,9 @@ describe('Ordinals inscriptions', function () {
       // it silently becomes part of the file.
       ;(function () {
         Ord.buildInscription({
-          address: address, contentType: 'text/plain', content: 'x',
+          address: address,
+          contentType: 'text/plain',
+          content: 'x',
           fields: { 0: manifest }
         })
       }).should.throw(/opens the inscription body/)
@@ -417,7 +434,9 @@ describe('Ordinals inscriptions', function () {
     it('refuses tag 1, which is the content type', function () {
       ;(function () {
         Ord.buildInscription({
-          address: address, contentType: 'text/plain', content: 'x',
+          address: address,
+          contentType: 'text/plain',
+          content: 'x',
           fields: { 1: Buffer.from('text/plain') }
         })
       }).should.throw(/is the content type/)
@@ -426,7 +445,9 @@ describe('Ordinals inscriptions', function () {
     it('refuses an empty field value', function () {
       ;(function () {
         Ord.buildInscription({
-          address: address, contentType: 'text/plain', content: 'x',
+          address: address,
+          contentType: 'text/plain',
+          content: 'x',
           fields: { 5: Buffer.alloc(0) }
         })
       }).should.throw(/empty value/)
