@@ -155,8 +155,8 @@ const bsv = require('@smartledger/bsv')                 // 128 modules
 ### **Core Modules**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv.min.js** | 1044KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@9.3.0/bsv.min.js` |
-| **bsv.bundle.js** | 1044KB | Everything in one file | `unpkg.com/@smartledger/bsv@9.3.0/bsv.bundle.js` |
+| **bsv.min.js** | 1045KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@9.3.0/bsv.min.js` |
+| **bsv.bundle.js** | 1045KB | Everything in one file | `unpkg.com/@smartledger/bsv@9.3.0/bsv.bundle.js` |
 
 ### **W3C Verifiable Credentials**
 | Module | Size | Use Case | CDN |
@@ -169,7 +169,7 @@ const bsv = require('@smartledger/bsv')                 // 128 modules
 ### **Smart Contract & Development**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-smartcontract.min.js** | 140KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@9.3.0/bsv-smartcontract.min.js` |
+| **bsv-smartcontract.min.js** | 141KB | Complete covenant framework | `unpkg.com/@smartledger/bsv@9.3.0/bsv-smartcontract.min.js` |
 | **bsv-covenant.min.js** | 35KB | Covenant operations | `unpkg.com/@smartledger/bsv@9.3.0/bsv-covenant.min.js` |
 | **bsv-script-helper.min.js** | 33KB | Custom script tools | `unpkg.com/@smartledger/bsv@9.3.0/bsv-script-helper.min.js` |
 | **bsv-security.min.js** | 32KB | Security enhancements | `unpkg.com/@smartledger/bsv@9.3.0/bsv-security.min.js` |
@@ -178,7 +178,7 @@ const bsv = require('@smartledger/bsv')                 // 128 modules
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
 | **bsv-ltp.min.js** | 539KB | Legal Token Protocol | `unpkg.com/@smartledger/bsv@9.3.0/bsv-ltp.min.js` |
-| **bsv-gdaf.min.js** | 1044KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@9.3.0/bsv-gdaf.min.js` |
+| **bsv-gdaf.min.js** | 1045KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@9.3.0/bsv-gdaf.min.js` |
 
 ### **Advanced Cryptography**
 | Module | Size | Use Case | CDN |

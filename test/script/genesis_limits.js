@@ -185,6 +185,51 @@ describe('Interpreter post-Genesis limits', function () {
     })
   })
 
+  // OP_BIN2NUM range-checked its result against a bare `_isMinimallyEncoded(buf)`,
+  // whose nMaxNumSize argument defaults to MAXIMUM_ELEMENT_SIZE (4). Every era
+  // therefore got the pre-Genesis width. The node passes maxScriptNumLength here,
+  // and every OP_BIN2NUM vector in its corpus runs under P2SH,STRICTENC alone —
+  // pre-Genesis, where 4 is the right answer either way — so the corpus was
+  // consistent with both the correct implementation and this one.
+  describe('OP_BIN2NUM honours the era script-number width', function () {
+    // Any unsigned field whose top byte has the sign bit set needs a fifth byte to
+    // stay positive: an 8-byte satoshi amount at or above 2^31 (21.47 BSV), and an
+    // nLockTime at or above 0x80000000 (19 Jan 2038).
+    function bin2num (bytes, flags) {
+      var interp = new Interpreter()
+      var ok = interp.verify(new Script().add(Buffer.from(bytes, 'hex')),
+        new Script().add(Opcode.OP_BIN2NUM), new Transaction(), 0, flags, new BN(0))
+      return { ok: ok, errstr: interp.errstr }
+    }
+
+    // 2,500,000,000 satoshis as the preimage carries it: 8 bytes, unsigned LE.
+    var amount25BSV = '00f9029500000000'
+    // 2147483648 = 19 Jan 2038, as nLockTime carries it, sign-padded to 5 bytes.
+    var lockTime2038 = '0000008000'
+
+    it('rejects a 5-byte result before Genesis, where 4 is the real cap', function () {
+      var pre = Interpreter.SCRIPT_VERIFY_P2SH | Interpreter.SCRIPT_VERIFY_STRICTENC
+      bin2num(amount25BSV, pre).errstr.should.equal('SCRIPT_ERR_INVALID_NUMBER_RANGE')
+      bin2num(lockTime2038, pre).errstr.should.equal('SCRIPT_ERR_INVALID_NUMBER_RANGE')
+    })
+
+    it('accepts it under mainnet flags, where the cap is 32,000,000', function () {
+      var main = Interpreter.mainnetFlags()
+      bin2num(amount25BSV, main).ok.should.equal(true)
+      bin2num(lockTime2038, main).ok.should.equal(true)
+    })
+
+    // The boundary, so the test fails if the cap is merely widened by a constant
+    // rather than derived from the era.
+    it('still rejects what is genuinely over the post-Genesis cap', function () {
+      var interp = new Interpreter()
+      interp.flags = Interpreter.mainnetFlags()
+      interp.maxScriptNumLength().should.be.above(750000 - 1)
+      Interpreter._isMinimallyEncoded(Buffer.alloc(5), 4).should.equal(false)
+      Interpreter._isMinimallyEncoded(Buffer.from(lockTime2038, 'hex'), 750000).should.equal(true)
+    })
+  })
+
   it('useGenesisLimits raises the size caps, and getLimits/setLimits round-trip', function () {
     var before = Interpreter.getLimits()
     before.maxScriptSize.should.equal(10000)

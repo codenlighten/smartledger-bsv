@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `policy().lockUntil()` did not bind, and `OP_BIN2NUM` used the wrong era's width
+
+Two defects, found together because the second is what stops you fixing the first.
+
+#### `lockUntil` checked one third of a time lock
+
+The compiled script asserted `nLockTime >= floor` and nothing else. A time lock
+is three rules in the node's `CheckLockTime`, and the other two each have a spend
+that walks straight through:
+
+- **Sequence.** `IsFinalTx()` ignores `nLockTime` outright when every input is
+  `0xffffffff`. A spender who set a final sequence satisfied the script with the
+  very locktime it demanded and produced a transaction minable in the next block.
+  The honest `unlock()` helper set `0xfffffffe`, so the covenant looked correct
+  from inside — and the test that covered the early-locktime case set
+  `0xfffffffe` too, which is why nothing caught it.
+- **Units.** Consensus reads `nLockTime` below 500,000,000 as a block height and
+  at or above it as a unix timestamp. A bare `>=` compares the two as plain
+  numbers, so `1500000000 >= 900000` cleared a floor of block 900,000 with a
+  timestamp from July 2017 — a transaction that is final today.
+
+Both are now enforced in script: this input must be non-final, and a height floor
+requires the locktime to be a height. `describe()` reports both, and
+`lockUntil(0)` throws, since consensus reads 0 as "no lock" whatever the
+sequences are.
+
+This is the same defect that removed `Locks.timeLockCLTV` and `Locks.htlc` in
+9.0.0 — a time lock that enforces nothing — reappearing in the DSL that replaced
+them. There, the cause was Genesis reverting `OP_CHECKLOCKTIMEVERIFY` to a NOP.
+Here, it was reimplementing `CHECKLOCKTIMEVERIFY` by hand and reproducing only
+its comparison.
+
+#### `OP_BIN2NUM` capped every era at the pre-Genesis 4 bytes
+
+It range-checked its result with `_isMinimallyEncoded(buf)`, whose `nMaxNumSize`
+argument **defaults to 4**. The node passes `maxScriptNumLength`, which is 4
+before Genesis, 750,000 after it and 32,000,000 after Chronicle.
+
+Any unsigned field whose top byte has the sign bit set needs a fifth byte to read
+as positive, so this rejected:
+
+- **Every perpetual covenant and ownership token holding 21.47 BSV or more**
+  (2³¹ satoshis). Both read the preimage's 8-byte value field through
+  `OP_BIN2NUM`, so the coins were locked in and unspendable.
+- **Every `nLockTime` from 19 Jan 2038**, whose high bit is set.
+
+The node's own corpus did not catch it: all 25 of its `OP_BIN2NUM` vectors run
+under `P2SH,STRICTENC` alone — pre-Genesis, where 4 is the right answer either
+way. 1,483/1,483 passed before the fix and after it. The opcode was covered; the
+*era* was not, and era selection is where both of this library's consensus
+defects have been.
+
+`lockUntil` also needed this: `nLockTime` is unsigned and `OP_BIN2NUM` reads
+signed, so from 2038 the extracted value came back as negative zero and no spend
+could clear the floor. The fix is to sign-pad to five bytes first, and that push
+is only legal once `OP_BIN2NUM` honours the era.
+
+#### Upgrading
+
+`lockUntil` compiles different bytes, so a UTXO locked by 9.3.0 or earlier cannot
+be spent with a script compiled by this version — keep the compiled object, or
+recompile with the old version. Those locks bind nothing, so treat their coins as
+spendable by anyone and move them.
+
 ## [9.3.0] - 2026-08-28
 
 ### Added

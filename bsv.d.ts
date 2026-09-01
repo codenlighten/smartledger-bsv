@@ -1112,6 +1112,14 @@ declare module '@smartledger/bsv' {
         }
         class Policy {
             payTo(dest: Address | PublicKey | Script | Transaction.Output, satoshis: number): Policy;
+            /**
+             * Require nLockTime >= height, in the unit `height` itself uses: below
+             * 500000000 a block height, at or above it a unix timestamp. The compiled
+             * script also requires the spending input to be non-final, without which
+             * consensus ignores nLockTime entirely.
+             *
+             * @throws if height is not an integer in 1..4294967295. 0 means "no lock".
+             */
             lockUntil(height: number): Policy;
             outputs(): Transaction.Output[];
             describe(): string;
