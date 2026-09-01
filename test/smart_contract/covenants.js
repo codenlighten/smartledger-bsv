@@ -125,6 +125,18 @@ describe('SmartContract covenants (v4.2.0)', function () {
       spend.inputs[0].setScript(new Script().add(PushTx.grind(spend, 0, lock, SATS).preimage))
       verify(spend.inputs[0].script, lock, { tx: spend, satoshis: SATS }).ok.should.equal(false)
     })
+
+    // The covenant reads the preimage's 8-byte value field through OP_BIN2NUM.
+    // At or above 2^31 satoshis that field needs a fifth sign byte, and BIN2NUM
+    // was capped at the pre-Genesis 4 in every era — so every perpetual covenant
+    // holding 21.47 BSV or more was unspendable, with the coins already in it.
+    it('chains a hop at 25 BSV, over the old 4-byte script-number cap', function () {
+      var big = 2500000000 // 2^31 is 21.47 BSV; this is comfortably past it
+      var lock = SC.perpetualCovenant(FEE)
+      var spend = spendOf(lock, big, [new Transaction.Output({ script: lock, satoshis: big - FEE })])
+      spend.inputs[0].setScript(new Script().add(PushTx.grind(spend, 0, lock, big).preimage))
+      verify(spend.inputs[0].script, lock, { tx: spend, satoshis: big }).ok.should.equal(true)
+    })
   })
 
   describe('Token (stateful NFT)', function () {
