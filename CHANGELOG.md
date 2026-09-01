@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.4.0] - 2026-09-01
+
 ### Fixed — `policy().lockUntil()` did not bind, and `OP_BIN2NUM` used the wrong era's width
 
 Two defects, found together because the second is what stops you fixing the first.
