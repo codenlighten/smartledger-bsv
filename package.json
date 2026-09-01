@@ -211,7 +211,7 @@
   "dependencies": {
     "@noble/ciphers": "^2.3.0",
     "@noble/curves": "^2.3.0",
-    "@noble/hashes": "^2.3.0",
+    "@noble/hashes": "^2.4.0",
     "@types/node": "^20.19.0",
     "bn.js": "=4.12.5",
     "secrets.js-grempe": "^2.0.0"
