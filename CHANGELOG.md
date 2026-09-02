@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.5.0] - 2026-09-02
+
 ### Fixed — SIGPUSHONLY, LOW_S and NULLFAIL are consensus, and both flag helpers now say so
 
 BSV enforces these three as **mandatory**, not as standardness. Each was broadcast to
