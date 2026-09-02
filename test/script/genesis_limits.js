@@ -185,6 +185,54 @@ describe('Interpreter post-Genesis limits', function () {
     })
   })
 
+  // There are two op-count checks. The one in step() became era-derived; the one
+  // inside OP_CHECKMULTISIG, which adds the key count, kept reading the static. So
+  // the line that allows up to UINT32_MAX keys after Genesis was immediately
+  // followed by one refusing them against a cap the era had removed — a validator
+  // STRICTER than consensus, which is the harder kind to notice.
+  //
+  // No vector could catch it: every OP_COUNT vector in the node's corpus is
+  // pre-Genesis, where the static and the era agree.
+  describe('the CHECKMULTISIG op count is the era\'s, not the static', function () {
+    var POST = Interpreter.SCRIPT_UTXO_AFTER_GENESIS | Interpreter.SCRIPT_GENESIS
+
+    // 0-of-N: <dummy> <m=0> then N keys and N. No signature is checked, which is
+    // what isolates the two COUNT rules from everything else CHECKMULTISIG does.
+    function multisig (nKeys, nops, flags) {
+      var key = bsv.PrivateKey.fromRandom().toPublicKey().toBuffer()
+      var unlock = new Script().add(Opcode.OP_0).add(Opcode.OP_0)
+      var lock = new Script()
+      for (var j = 0; j < nops; j++) lock.add(Opcode.OP_NOP)
+      for (var k = 0; k < nKeys; k++) lock.add(key)
+      lock.add(new BN(nKeys).toScriptNumBuffer()).add(Opcode.OP_CHECKMULTISIG)
+      var interp = new Interpreter()
+      var ok = interp.verify(unlock, lock, new Transaction(), 0, flags, new BN(0))
+      return ok ? 'ACCEPT' : interp.errstr
+    }
+
+    it('accepts more keys after Genesis than the pre-Genesis cap allowed', function () {
+      // 600 keys is 20,404 bytes of script and 601 opcodes — over the pre-Genesis
+      // 20-key, 500-op and 10,000-byte caps, all three of which Genesis removed or
+      // raised. This returned SCRIPT_ERR_OP_COUNT.
+      multisig(600, 0, POST).should.equal('ACCEPT')
+    })
+
+    it('still enforces the op count before Genesis', function () {
+      // 490 NOPs + 20 keys + CHECKMULTISIG = 511 ops, but only 1,173 bytes, so the
+      // size cap cannot be what rejects it.
+      multisig(20, 490, 0).should.equal('SCRIPT_ERR_OP_COUNT')
+      multisig(20, 0, 0).should.equal('ACCEPT')
+    })
+
+    it('still enforces the pre-Genesis 20-key cap', function () {
+      multisig(21, 0, 0).should.equal('SCRIPT_ERR_PUBKEY_COUNT')
+    })
+
+    it('lifts the op count after Genesis, not just the key count', function () {
+      multisig(20, 490, POST).should.equal('ACCEPT')
+    })
+  })
+
   // OP_BIN2NUM range-checked its result against a bare `_isMinimallyEncoded(buf)`,
   // whose nMaxNumSize argument defaults to MAXIMUM_ELEMENT_SIZE (4). Every era
   // therefore got the pre-Genesis width. The node passes maxScriptNumLength here,
