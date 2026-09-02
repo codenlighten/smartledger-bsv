@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.6.0] - 2026-09-02
+
 ### Fixed — a post-Genesis `OP_CHECKMULTISIG` was refused by a cap the era removed
 
 There are two op-count checks. The one in `step()` became era-derived; the one
