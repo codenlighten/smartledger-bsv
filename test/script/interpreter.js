@@ -79,6 +79,15 @@ Script.fromBitcoindString = function (str) {
 }
 
 describe('Interpreter', function () {
+  // Some tests exercise interpreter MECHANICS — the step listener, a no-op
+  // opcode — using unlocking scripts that contain non-push opcodes. Mainnet
+  // refuses those (SIGPUSHONLY is consensus, not standardness), so the default
+  // flag word would fail them for a reason unrelated to what they are testing.
+  // FORKID is dropped too: these scripts have no signature, and it would demand
+  // an input amount that means nothing here.
+  var MECHANICS = Interpreter.currentConsensusFlags() &
+    ~(Interpreter.SCRIPT_VERIFY_SIGPUSHONLY | Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID)
+
   it('should make a new interp', function () {
     var interp = new Interpreter();
     (interp instanceof Interpreter).should.equal(true)
@@ -133,7 +142,7 @@ describe('Interpreter', function () {
       verified.should.equal(false)
       verified = Interpreter().verify(Script('OP_0'), Script('OP_1'))
       verified.should.equal(true)
-      verified = Interpreter().verify(Script('OP_CODESEPARATOR'), Script('OP_1'))
+      verified = Interpreter().verify(Script('OP_CODESEPARATOR'), Script('OP_1'), undefined, undefined, MECHANICS)
       verified.should.equal(true)
       verified = Interpreter().verify(Script(''), Script('OP_DEPTH OP_0 OP_EQUAL'))
       verified.should.equal(true)
@@ -177,6 +186,67 @@ describe('Interpreter', function () {
     })
   })
 
+  describe('#currentConsensusFlags', function () {
+    // These three are MANDATORY on BSV, not standardness. Each was broadcast to
+    // mainnet in a transaction violating it and nothing else, and the node
+    // answered code 16 `mandatory-script-verify-flag-failed` — its wording for
+    // "invalid" — as against code 64 `non-mandatory-script-verify-flag`, which
+    // it returns for MINIMALDATA, CLEANSTACK, NULLDUMMY and the upgradable NOPs.
+    //
+    // They were absent from the default flag word, so `verify()` ACCEPTED
+    // scripts the network judges invalid. That is the failure direction this
+    // file's own tests could not see: four of them were themselves relying on
+    // the permissive default, using non-push unlocking scripts.
+    var MANDATORY = ['SCRIPT_VERIFY_SIGPUSHONLY', 'SCRIPT_VERIFY_LOW_S', 'SCRIPT_VERIFY_NULLFAIL']
+
+    MANDATORY.forEach(function (name) {
+      it('includes ' + name + ', which mainnet enforces as mandatory', function () {
+        var flags = Interpreter.currentConsensusFlags()
+        ;(flags & Interpreter[name]).should.not.equal(0)
+      })
+    })
+
+    it('refuses a non-push unlocking script by default', function () {
+      var si = Interpreter()
+      si.verify(Script('OP_1 OP_2 OP_ADD'), Script('OP_3 OP_EQUAL')).should.equal(false)
+      si.errstr.should.equal('SCRIPT_ERR_SIG_PUSHONLY')
+    })
+
+    // Named individually so a failure says WHICH rule drifted, and asserted on
+    // both helpers because a caller reaches consensus through either.
+    MANDATORY.forEach(function (name) {
+      it('mainnetFlags() carries ' + name + ' too', function () {
+        (Interpreter.mainnetFlags() & Interpreter[name]).should.not.equal(0)
+      })
+    })
+
+    // The invariant behind those, stated once so a flag added to one helper and
+    // not the other fails here rather than in someone's covenant. Naming two of
+    // three rules is what let SIGPUSHONLY through: mainnetFlags() is the helper
+    // the README recommends and the one lib/covenant/helpers.flags() returns, so
+    // fixing only the default left every covenant and the policy() DSL accepting
+    // a non-push unlocking script that mainnet refuses.
+    //
+    // One-directional on purpose. mainnetFlags() additionally carries P2SH,
+    // DERSIG and MINIMALDATA; MINIMALDATA in particular measured as code 64,
+    // non-mandatory, so it is relay policy rather than consensus and does not
+    // belong in the default word.
+    it('never enforces a rule by default that mainnetFlags() would let through', function () {
+      var current = Interpreter.currentConsensusFlags()
+      var mainnet = Interpreter.mainnetFlags()
+      current.should.not.equal(0)
+      ;(current & ~mainnet).should.equal(0,
+        'currentConsensusFlags() has bits mainnetFlags() lacks: 0x' + (current & ~mainnet).toString(16))
+    })
+
+    // The path that was actually exposed: covenant verification routes through
+    // mainnetFlags(), not through the default.
+    it('refuses a non-push unlocking script through the covenant helpers too', function () {
+      var H = require('../../lib/covenant/helpers')
+      H.verify(Script('OP_1 OP_2 OP_ADD'), Script('OP_3 OP_EQUAL')).ok.should.equal(false)
+    })
+  })
+
   describe('#script debugger', function () {
     it('debugger should fire while executing script', function () {
       var si = Interpreter()
@@ -184,7 +254,7 @@ describe('Interpreter', function () {
       si.stepListener = function (step) {
         debugCount += 1
       }
-      si.verify(Script('OP_1 OP_2 OP_ADD'), Script('OP_3 OP_EQUAL'))
+      si.verify(Script('OP_1 OP_2 OP_ADD'), Script('OP_3 OP_EQUAL'), undefined, undefined, MECHANICS)
       si.errstr.should.equal('')
       // two scripts. first one has 3 instructions. second one has 2 instructions
       debugCount.should.equal(3 + 2)
@@ -194,7 +264,7 @@ describe('Interpreter', function () {
       si.stepListener = function (step) {
         throw new Error('This error is expected.')
       }
-      si.verify(Script('OP_1 OP_2 OP_ADD'), Script(''))
+      si.verify(Script('OP_1 OP_2 OP_ADD'), Script(''), undefined, undefined, MECHANICS)
       const result = [...si.stack.pop()]
       result.should.to.deep.equal([3])
       si.errstr.should.equal('')
@@ -203,7 +273,7 @@ describe('Interpreter', function () {
     it('script debugger should fire and not cause an error', function () {
       var si = Interpreter()
       si.stepListener = debugScript
-      si.verify(Script('OP_1 OP_2 OP_ADD'), Script('OP_3 OP_EQUAL'))
+      si.verify(Script('OP_1 OP_2 OP_ADD'), Script('OP_3 OP_EQUAL'), undefined, undefined, MECHANICS)
       si.errstr.should.equal('')
     })
     it('script debugger should make copies of stack', function () {

@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — SIGPUSHONLY, LOW_S and NULLFAIL are consensus, and both flag helpers now say so
+
+BSV enforces these three as **mandatory**, not as standardness. Each was broadcast to
+mainnet in a transaction violating it and nothing else, and the node answered code 16
+`mandatory-script-verify-flag-failed`:
+
+| rule | the node's message |
+| --- | --- |
+| `SIGPUSHONLY` | Only non-push operators allowed in signatures |
+| `LOW_S` | Non-canonical signature: S value is unnecessarily high |
+| `NULLFAIL` | Signature must be zero for failed CHECK(MULTI)SIG operation |
+
+For contrast, `MINIMALDATA`, `CLEANSTACK`, `NULLDUMMY` and the upgradable NOPs all came
+back code 64 `non-mandatory-script-verify-flag` in the same run — relay policy, not
+consensus.
+
+`currentConsensusFlags()` carried none of the three, so `verify()` with no explicit
+flags **accepted scripts the network judges invalid**. `mainnetFlags()` carried two of
+them, so the two helpers disagreed and the default was the weaker one.
+
+Both now carry all three. Fixing only the default would have left the worse half
+standing: `mainnetFlags()` is the helper the README recommends and the one
+`lib/covenant/helpers.flags()` returns, so **every covenant and the whole `policy()`
+DSL** verified without `SIGPUSHONLY`. A test asserts the invariant behind that — the
+default word may never enforce a rule `mainnetFlags()` would let through — rather than
+naming individual bits, since naming two of three rules is exactly what let
+`SIGPUSHONLY` slip.
+
+The node's own corpus cannot settle this: all seven of its `SIGPUSHONLY` vectors name
+the flag in their own flag list, and a vector that states its own flags says nothing
+about which flags belong in a default set. Same shape as the `OP_BIN2NUM` defect in
+9.4.0 — the mechanism was covered, the selection was not.
+
+Four existing tests were themselves relying on the permissive default, verifying with
+unlocking scripts that contain non-push opcodes. They now pass an explicit flag word
+with `SIGPUSHONLY` cleared, so they exercise the mechanism they are named for.
+
 ## [9.4.0] - 2026-09-01
 
 ### Fixed — `policy().lockUntil()` did not bind, and `OP_BIN2NUM` used the wrong era's width
