@@ -212,16 +212,38 @@ describe('Interpreter', function () {
       si.errstr.should.equal('SCRIPT_ERR_SIG_PUSHONLY')
     })
 
-    it('agrees with mainnetFlags() on the signature-encoding rules', function () {
+    // Named individually so a failure says WHICH rule drifted, and asserted on
+    // both helpers because a caller reaches consensus through either.
+    MANDATORY.forEach(function (name) {
+      it('mainnetFlags() carries ' + name + ' too', function () {
+        (Interpreter.mainnetFlags() & Interpreter[name]).should.not.equal(0)
+      })
+    })
+
+    // The invariant behind those, stated once so a flag added to one helper and
+    // not the other fails here rather than in someone's covenant. Naming two of
+    // three rules is what let SIGPUSHONLY through: mainnetFlags() is the helper
+    // the README recommends and the one lib/covenant/helpers.flags() returns, so
+    // fixing only the default left every covenant and the policy() DSL accepting
+    // a non-push unlocking script that mainnet refuses.
+    //
+    // One-directional on purpose. mainnetFlags() additionally carries P2SH,
+    // DERSIG and MINIMALDATA; MINIMALDATA in particular measured as code 64,
+    // non-mandatory, so it is relay policy rather than consensus and does not
+    // belong in the default word.
+    it('never enforces a rule by default that mainnetFlags() would let through', function () {
       var current = Interpreter.currentConsensusFlags()
       var mainnet = Interpreter.mainnetFlags()
-      // mainnetFlags() already carried LOW_S and NULLFAIL while
-      // currentConsensusFlags() did not, so the two disagreed and verify()
-      // defaulted to the weaker one.
-      ;(current & Interpreter.SCRIPT_VERIFY_LOW_S).should.not.equal(0)
-      ;(mainnet & Interpreter.SCRIPT_VERIFY_LOW_S).should.not.equal(0)
-      ;(current & Interpreter.SCRIPT_VERIFY_NULLFAIL).should.not.equal(0)
-      ;(mainnet & Interpreter.SCRIPT_VERIFY_NULLFAIL).should.not.equal(0)
+      current.should.not.equal(0)
+      ;(current & ~mainnet).should.equal(0,
+        'currentConsensusFlags() has bits mainnetFlags() lacks: 0x' + (current & ~mainnet).toString(16))
+    })
+
+    // The path that was actually exposed: covenant verification routes through
+    // mainnetFlags(), not through the default.
+    it('refuses a non-push unlocking script through the covenant helpers too', function () {
+      var H = require('../../lib/covenant/helpers')
+      H.verify(Script('OP_1 OP_2 OP_ADD'), Script('OP_3 OP_EQUAL')).ok.should.equal(false)
     })
   })
 
