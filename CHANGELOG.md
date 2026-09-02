@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a post-Genesis `OP_CHECKMULTISIG` was refused by a cap the era removed
+
+There are two op-count checks. The one in `step()` became era-derived; the one
+inside `OP_CHECKMULTISIG`, which adds the key count, kept reading the static. So
+this ran immediately after the line allowing up to `UINT32_MAX` keys after Genesis:
+
+```js
+this.nOpCount += nKeysCount
+if (this.nOpCount > Interpreter.MAX_OPS_PER_SCRIPT) {   // 500, whatever the era
+```
+
+A post-Genesis multisig with more keys than the **pre-Genesis** limit therefore
+returned `SCRIPT_ERR_OP_COUNT`, while `maxPubKeysPerMultisig()` had just permitted
+it and `maxOpsPerScript()` reported no cap at all. A validator **stricter** than
+consensus, which the flag docblocks in that same file name as being as wrong as a
+loose one and much harder to notice.
+
+No vector could catch it: every `OP_COUNT` vector in the node's corpus is
+pre-Genesis, where the static and the era agree. Same shape as 9.4.0 and 9.5.0 —
+the mechanism was covered, the era selection was not.
+
+Found while porting the era machinery to `smartledger-bsv-core`, which carried the
+same line; fixed in both.
+
 ## [9.5.0] - 2026-09-02
 
 ### Fixed — SIGPUSHONLY, LOW_S and NULLFAIL are consensus, and both flag helpers now say so
