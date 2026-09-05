@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.7.0] - 2026-09-05
+
 ### Fixed — the stack limits diverged from the node in both directions
 
 The last of the pre-Genesis caps still applied as a literal, and the only one
