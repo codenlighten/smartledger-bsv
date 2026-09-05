@@ -60,14 +60,31 @@ Interpreter.prototype.stackMemoryUsage()      // bytes + per-element container o
 Interpreter.prototype.checkStackLimits()      // called after every opcode
 ```
 
-`MAX_STACK_MEMORY_USAGE_AFTER_GENESIS` defaults to the node's
-`-maxstackmemoryusagepolicy` value of 100 MB. Consensus is separately
-configurable and unbounded by default, so raise it or set `UNLIMITED` when
-validating against consensus rather than relay rules.
+`MAX_STACK_MEMORY_USAGE_AFTER_GENESIS` is **`UNLIMITED`**, because post-Genesis
+consensus is unbounded. The node's 100 MB figure is `-maxstackmemoryusagepolicy`,
+a RELAY setting, and defaulting to it would have refused scripts the network
+accepts — the same mistake as carrying the 1000-element cap past Genesis, in the
+same function. It is kept as `STACK_MEMORY_USAGE_POLICY` for anyone who wants it:
 
-`STACK_ELEMENT_OVERHEAD` is 32 bytes: the node charges each element the
-footprint of the container holding it as well as its contents, so a stack of
-many small elements is not free.
+```js
+Interpreter.MAX_STACK_MEMORY_USAGE_AFTER_GENESIS =
+  Interpreter.STACK_MEMORY_USAGE_POLICY
+```
+
+Unbounded means a hostile script can allocate until the process runs out of
+memory — the same trade `useGenesisLimits(max)` already documents for element
+size. A validator taking scripts from strangers should set a ceiling matched to
+its workload.
+
+`STACK_ELEMENT_OVERHEAD` is 32 bytes, charged per element on top of its contents
+because the container is not free either. It is only consulted once a caller has
+set a ceiling, and 32 is deliberately conservative: a bare `std::vector<uint8_t>`
+is 24 bytes on the common 64-bit ABIs.
+
+Keeping the default unbounded also keeps the new per-opcode check O(1): with no
+ceiling to test against, the O(n) memory scan is skipped. A post-Genesis script
+holding 900 elements across 40,000 opcodes measures 42.6 ms, against 42.8 ms
+before this change.
 
 ## [9.6.0] - 2026-09-02
 

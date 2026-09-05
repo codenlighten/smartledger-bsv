@@ -1,7 +1,7 @@
 'use strict'
 
 /* global describe, it */
-require('chai').should()
+var should = require('chai').should()
 var bsv = require('../..')
 var BN = bsv.crypto.BN
 var Interpreter = bsv.Script.Interpreter
@@ -60,11 +60,17 @@ describe('Interpreter stack limits', function () {
       Interpreter.MAX_STACK_SIZE.should.equal(1000)
     })
 
-    it('is removed after Genesis, and replaced by a memory bound', function () {
+    it('is removed after Genesis, and nothing is silently put in its place', function () {
       var i = new Interpreter()
       i.flags = POST
       i.maxStackSize().should.equal(Interpreter.UNLIMITED)
-      i.maxStackMemoryUsage().should.equal(Interpreter.MAX_STACK_MEMORY_USAGE_AFTER_GENESIS)
+      // Post-Genesis CONSENSUS does not bound stack memory either. The node's
+      // 100 MB is -maxstackmemoryusagepolicy, a RELAY setting, and applying a
+      // relay setting by default would refuse scripts the network accepts —
+      // the same mistake as carrying the 1000-element cap past Genesis.
+      i.maxStackMemoryUsage().should.equal(Interpreter.UNLIMITED)
+      Interpreter.MAX_STACK_MEMORY_USAGE_AFTER_GENESIS.should.equal(Interpreter.UNLIMITED)
+      Interpreter.STACK_MEMORY_USAGE_POLICY.should.equal(100 * 1024 * 1024)
     })
 
     it('does not consult the memory bound before Genesis', function () {
@@ -122,7 +128,7 @@ describe('Interpreter stack limits', function () {
       spend(pushOnly(5000), new Script().add(Opcode.OP_1), POST).ok.should.equal(true)
     })
 
-    it('still bounds the memory the stacks occupy', function () {
+    it('bounds the memory the stacks occupy once a caller asks it to', function () {
       var saved = Interpreter.MAX_STACK_MEMORY_USAGE_AFTER_GENESIS
       try {
         // A ceiling low enough that a few dozen elements exceed it, to exercise
@@ -131,6 +137,33 @@ describe('Interpreter stack limits', function () {
         var r = spend(pushOnly(100), new Script().add(Opcode.OP_1), POST)
         r.ok.should.equal(false)
         r.err.should.equal('SCRIPT_ERR_STACK_SIZE')
+      } finally {
+        Interpreter.MAX_STACK_MEMORY_USAGE_AFTER_GENESIS = saved
+      }
+    })
+
+    // The point of the default: a script that would breach the node's RELAY
+    // ceiling is still valid consensus, so verify() must not refuse it. Asserted
+    // through the accounting rather than by allocating 100 MB in a unit test.
+    it('does not apply the relay policy ceiling unless asked', function () {
+      var i = new Interpreter()
+      i.flags = POST
+      i.stack = [Buffer.alloc(8), Buffer.alloc(8)]
+      i.altstack = []
+      var overPolicy = Interpreter.STACK_MEMORY_USAGE_POLICY + 1
+      i.stackMemoryUsage.should.be.a('function')
+      i.maxStackMemoryUsage().should.equal(Interpreter.UNLIMITED)
+      overPolicy.should.be.below(i.maxStackMemoryUsage())
+      should.equal(i.checkStackLimits(), null)
+    })
+
+    it('applies it when a caller opts in', function () {
+      var saved = Interpreter.MAX_STACK_MEMORY_USAGE_AFTER_GENESIS
+      try {
+        Interpreter.MAX_STACK_MEMORY_USAGE_AFTER_GENESIS = Interpreter.STACK_MEMORY_USAGE_POLICY
+        var i = new Interpreter()
+        i.flags = POST
+        i.maxStackMemoryUsage().should.equal(100 * 1024 * 1024)
       } finally {
         Interpreter.MAX_STACK_MEMORY_USAGE_AFTER_GENESIS = saved
       }

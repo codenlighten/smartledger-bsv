@@ -958,6 +958,7 @@
   "bsv.Script.Interpreter.SEQUENCE_LOCKTIME_MASK": "number",
   "bsv.Script.Interpreter.SEQUENCE_LOCKTIME_TYPE_FLAG": "number",
   "bsv.Script.Interpreter.STACK_ELEMENT_OVERHEAD": "number",
+  "bsv.Script.Interpreter.STACK_MEMORY_USAGE_POLICY": "number",
   "bsv.Script.Interpreter.UNLIMITED": "number",
   "bsv.Script.Interpreter.castToBool": "function(1)",
   "bsv.Script.Interpreter.currentConsensusFlags": "function(0)",
