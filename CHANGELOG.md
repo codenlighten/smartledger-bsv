@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the stack limits diverged from the node in both directions
+
+The last of the pre-Genesis caps still applied as a literal, and the only one
+left that `useGenesisLimits()` could not reach:
+
+```js
+// after the whole script had run:
+if (this.stack.length + this.altstack.length > 1000) {
+```
+
+Two divergences in five lines.
+
+**It was checked once, at the end of the script.** The node checks after every
+opcode. A script that piles up 1,001 elements and drops back to one before it
+finishes passed here and is rejected by the network — a false accept, in the
+direction that costs money:
+
+```
+pre-Genesis, 1001 pushes then 500 OP_2DROPs
+  before: accepted
+  node:   SCRIPT_ERR_STACK_SIZE
+```
+
+No vector in the corpus catches it: every `STACK_SIZE` vector *ends* over the
+cap, which is exactly the case an end-of-script check does see. The regression
+test uses `OP_2DROP` deliberately — it clears two elements per opcode and so
+lands inside the pre-Genesis 500-opcode budget, where 1,001 `OP_DROP`s would
+trip `SCRIPT_ERR_OP_COUNT` and pass the assertion for the wrong reason.
+
+**And it was applied after Genesis, which removed it.** Genesis replaced the
+element COUNT with a bound on the memory the two stacks occupy, so that a script
+is limited by what it uses rather than by how it is divided up. Carrying 1000
+unconditionally rejected post-Genesis scripts the network accepts:
+
+```
+post-Genesis, 1001 elements       before: SCRIPT_ERR_STACK_SIZE   after: accepted
+post-Genesis, 5000 elements       before: SCRIPT_ERR_STACK_SIZE   after: accepted
+```
+
+The shape that finds it in practice is a 256-step elliptic-curve ladder, which
+needs a witness value per step: over seven hundred elements for one scalar
+multiplication, and two of those in an ECDSA verification.
+
+Same shape as 9.4.0, 9.5.0 and 9.6.0 — a limit that was correct when it was
+written, left static while the rest became era-derived. Now:
+
+```js
+Interpreter.prototype.maxStackSize()          // 1000 before Genesis, UNLIMITED after
+Interpreter.prototype.maxStackMemoryUsage()   // UNLIMITED before, 100 MB policy after
+Interpreter.prototype.stackMemoryUsage()      // bytes + per-element container overhead
+Interpreter.prototype.checkStackLimits()      // called after every opcode
+```
+
+`MAX_STACK_MEMORY_USAGE_AFTER_GENESIS` defaults to the node's
+`-maxstackmemoryusagepolicy` value of 100 MB. Consensus is separately
+configurable and unbounded by default, so raise it or set `UNLIMITED` when
+validating against consensus rather than relay rules.
+
+`STACK_ELEMENT_OVERHEAD` is 32 bytes: the node charges each element the
+footprint of the container holding it as well as its contents, so a stack of
+many small elements is not free.
+
 ## [9.6.0] - 2026-09-02
 
 ### Fixed — a post-Genesis `OP_CHECKMULTISIG` was refused by a cap the era removed
