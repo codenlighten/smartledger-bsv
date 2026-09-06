@@ -34,12 +34,12 @@ module sounds. That is a deliberate revision: an earlier version of this documen
 scoped Tier 1 as "the cryptographic core" and would have excluded four of the six real
 defects this codebase has produced. See §2.1.
 
-### Tier 1 — 11,247 lines
+### Tier 1 — 11,384 lines
 
 | Module | Lines | Why it matters |
 | --- | ---: | --- |
 | `lib/transaction/` | 2,779 | Sighash construction and signing — both BIP-143 and the Original Transaction Digest Algorithm. |
-| `lib/script/interpreter.js` | 2,684 | **Scoped to the flag and era surface, not opcode execution.** Consensus-flag selection and defaults, era derivation (Genesis/Chronicle), the limits derived from them, and the semantics of the exported `verify()`. Opcode execution is excluded — see §2.2. |
+| `lib/script/interpreter.js` | 2,821 | **Scoped to the flag and era surface, not opcode execution.** Consensus-flag selection and defaults, era derivation (Genesis/Chronicle), the limits derived from them, and the semantics of the exported `verify()`. Opcode execution is excluded — see §2.2. |
 | `lib/crypto/` | 2,519 | ECDSA, nonce derivation, signature encoding, the script-number type. **Scope this for an architectural judgement as well as for bugs** — see §2.3. |
 | `lib/notaryhash/` | 1,436 | BRC-220 signing and verification. Publicly reachable and relied on downstream. |
 | `lib/privatekey.js`, `lib/publickey.js` | 843 | Key construction, serialisation, WIF. Recent defects here produced a *different* key without error. |
@@ -61,8 +61,10 @@ is not.
 
 ### 2.1 Why the boundary moved
 
-Six defects have been found in this codebase and fixed. Four of them were in code the
-previous version of this scope **excluded**:
+**Ten** defects have been found in this codebase and fixed. Four were in code the
+previous version of this scope excluded; the four most recent all landed on the
+interpreter's era and flag surface, which is why that surface is scoped and opcode
+execution is not.
 
 | Defect | Module | Was it in the old scope? |
 | --- | --- | --- |
@@ -72,10 +74,23 @@ previous version of this scope **excluded**:
 | The reachable RFC 8785 canonicalizer was non-conformant while a correct one sat private; three downstream packages copied the wrong one | `lib/util/jcs.js`, `lib/ltp` | partly |
 | `ECDSA.verify()` returned the instance, so `if (verify())` was always truthy — a fail-open accepting forged signatures | `lib/crypto` | yes |
 | ECDSA nonce reuse across two signings on one instance, leaking the private key | `lib/crypto` | yes |
+| `OP_BIN2NUM` capped every era at the pre-Genesis 4-byte script number, so covenants holding 21.47 BSV or more were unspendable and every `nLockTime` from 2038 was rejected | `lib/script/interpreter.js` | yes (9.4.0) |
+| `policy().lockUntil()` enforced one of `CheckLockTime`'s three rules: a final `nSequence` voided the lock, and a past timestamp cleared a future height floor | `lib/smart_contract` | yes (9.4.0) |
+| `SIGPUSHONLY`, `LOW_S` and `NULLFAIL` are consensus on BSV and were missing from the default flag word, so `verify()` accepted scripts the network judges invalid | `lib/script/interpreter.js` | yes (9.5.0) |
+| The `CHECKMULTISIG` op count read the static cap, refusing a post-Genesis multisig the line above had just permitted | `lib/script/interpreter.js` | yes (9.6.0) |
+| The stack cap was checked once at the end of the script rather than after every opcode, and was still applied after Genesis removed it | `lib/script/interpreter.js` | yes (9.7.0) |
 
 The pattern is not "the primitives are weak". It is that **code making claims about
 consensus behaviour was wrong about it**, and the tests agreed because they shared the
 same assumption. Scope has been moved onto that surface.
+
+**The four most recent are the sharpest evidence in this document**, because in every
+one the reference corpus passed 1,483/1,483 before the fix and 1,483/1,483 after it,
+with zero false accepts either way. A node vector states its own flags, so no vector
+can say which flags or which era belong in a *default*. Every `OP_BIN2NUM` vector, every
+`SIGPUSHONLY` vector and every `OP_COUNT` vector in that corpus runs pre-Genesis; both
+`STACK_SIZE` vectors end over the cap, which is the one case an end-of-script check does
+see. The mechanism was covered in each case. The selection was not.
 
 ### 2.2 Why `lib/script` shrinks rather than leaves
 
@@ -84,10 +99,13 @@ reference node's own consensus vectors, zero false accepts and zero false reject
 is evidence about **opcode execution**, and re-auditing it by hand is the least
 productive money in this engagement.
 
-It is not evidence about which flags a caller ends up with. Both consensus defects above
-were flag-selection and era-derivation failures reachable through `interpreter.js`, and
-no vector covers them because every vector states its own flags. So the interpreter stays
-in scope, scoped to that surface, and the remaining 1,175 lines of `lib/script` leave.
+It is not evidence about which flags a caller ends up with. **Seven** of the ten defects
+above were flag-selection or era-derivation failures reachable through `interpreter.js`,
+and no vector covers them because every vector states its own flags. Five of those seven
+were found *after* this boundary was drawn, which is the strongest confirmation of it
+available: the surface predicted to be defect-bearing produced five more, while opcode
+execution produced none. So the interpreter stays in scope, scoped to that surface, and
+the remaining 1,175 lines of `lib/script` leave.
 
 ### 2.3 A specific instruction for `lib/crypto`
 
@@ -115,6 +133,14 @@ the tests were written from the same assumption. A file-by-file review finds non
 them. Checking a claim against something outside this repository finds all of them —
 which is exactly how each was eventually caught.
 
+Two of the ten make the point without needing to be taken on trust. `SIGPUSHONLY` was
+settled by broadcasting to mainnet a transaction that violated it and nothing else, and
+reading the node's reject code: 16 `mandatory-script-verify-flag-failed`, against 64
+`non-mandatory` for `MINIMALDATA` in the same run. And the `lockUntil` defect was found
+by comparing the compiled script against the node's `CheckLockTime`, rule by rule,
+rather than against what the library's own tests expected. Neither answer exists inside
+this repository.
+
 ## 3. Out of scope, and why
 
 | Component | Status | Reason |
@@ -124,14 +150,14 @@ which is exactly how each was eventually caught.
 | `lib/address.js`, `lib/networks.js`, `lib/opcode.js`, `lib/hdprivatekey.js`, `lib/hdpublickey.js` (2,391 lines) | Cut to pay for §2.1 | Formatting, network constants and BIP-32 derivation. No defect has originated here, and `networks.js` in particular defines addressing constants — pubkey hashes, xpub prefixes, ports, DNS seeds — and contains **no consensus-flag logic at all**. |
 | The rest of the application layer — `lib/gdaf/`, `lib/ltp/`, `lib/ordinals/`, `lib/block/`, `lib/didweb/`, `lib/vcjwt/`, `lib/statuslist/`, most of `lib/smart_contract/`, plus assorted top-level files | Excluded | ~26,000 lines. Worth a separate engagement; including it here would blur the question in §1. Note the parts of it with a demonstrated defect history have been pulled *into* Tier 1 rather than left here — see §2.1. |
 
-Totals reconcile against `lib/`, which is 38,879 lines across 131 files:
+Totals reconcile against `lib/`, which is 39,068 lines across 131 files:
 
 ```
-tier 1      11,247
+tier 1      11,384
 tier 2       1,607
-excluded    26,025
+excluded    26,077
             ------
-total       38,879
+total       39,068
 ```
 
 Measured 2026-08-29 at `a954c27`. These figures drift as the library changes — an
@@ -202,7 +228,7 @@ seeking a quote for an independent security review.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 11,247 lines. Sighash construction and signing; ECDSA, nonce
+  Tier 1 — 11,384 lines. Sighash construction and signing; ECDSA, nonce
   derivation and signature encoding; the consensus-flag and era-derivation
   surface of the script interpreter; BRC-220 signing and verification;
   key construction and serialisation; the covenant verification harness and

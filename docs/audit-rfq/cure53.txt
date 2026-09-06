@@ -15,9 +15,11 @@ seeking a quote for an independent security review of its cryptographic core.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 12,391 lines, 33 files. Script interpreter, sighash and signing,
-  ECDSA and signature encoding, BIP-32 derivation, key and address
-  construction.
+  Tier 1 — 11,384 lines. Sighash construction and signing; ECDSA, nonce
+  derivation and signature encoding; the consensus-flag and era surface of the
+  script interpreter; BRC-220 signing; the covenant verification harness; RFC
+  8785 canonicalization; and the covenant-facing entrypoints of the smart
+  contract module.
 
   Tier 2 — 1,607 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
   decoding surface.
@@ -25,18 +27,30 @@ Scope, and we would like these priced separately:
 JavaScript (CommonJS), Node >= 20.19. The code is public.
 
 Explicitly out of scope: elliptic-curve and hash primitives, which are supplied
-by the Noble libraries and already audited; and our 24,769-line application
-layer (credentials, tokens, ordinals), which we would treat as a separate
-engagement.
+by the Noble libraries and already audited; opcode EXECUTION in the script
+interpreter, which passes 1,483 of 1,483 of the reference node's own consensus
+vectors with zero false accepts and zero false rejects; and the remaining
+26,077-line application layer (credentials, tokens, ordinals), which we would
+treat as a separate engagement.
+
+Note the shape of that first exclusion, because it is what we want priced. The
+node's vectors each state their own flags, so they say nothing about which flags
+or which consensus era a caller ends up with by DEFAULT. Every consensus defect
+we have found has been in that selection rather than in the execution — the
+corpus passed 1,483/1,483 before each fix and after it.
 
 Context that should shorten discovery: the core is inherited from bitcore and
 has been fixed reactively but never independently reviewed. We can provide a
 test-backed threat model, a 452-case behavioural conformance corpus that a
 second independent implementation agrees with, and a documented history of the
-defects we have found ourselves.
+ten defects we have found and fixed ourselves, with the module each was in.
 
-The failure mode we most want examined is code that reports a check as passed
-without performing it — several of our own findings have had that shape.
+The failure mode we most want examined is an exported security claim, its
+default, and the test asserting it being wrong together, because all three were
+written from the same assumption. Every one of our ten findings has had that
+shape, and a file-by-file review would have found none of them. We would like
+the statement of work to require checking claims against an independent oracle
+or specification rather than against this repository's own tests.
 
 Could you indicate availability, an approximate cost range, and what you would
 need from us to firm that up?

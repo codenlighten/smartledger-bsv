@@ -88,6 +88,13 @@ jobs:
             console.log('All files: entries resolve.')
           "
 
+      - name: Audit scope figures
+        # docs/AUDIT_SCOPE.md is priced off, and three vendor letters repeat its
+        # line counts. Nothing checked them: the doc drifted 189 lines across four
+        # releases and the letters still carried figures from before the scope was
+        # redrawn. A stale number here is a wrong quote, not a typo.
+        run: npm run check:audit-scope
+
       - name: Declaration coverage ratchet
         # check:types proves the declarations that EXIST are right. This measures
         # the surface that was never declared at all — the gap that let the whole
