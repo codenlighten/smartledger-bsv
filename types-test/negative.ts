@@ -27,3 +27,20 @@ export const s: string = helper.SIGHASH_ALL
 
 // @expect-error method does not exist
 new SmartMiner({}).minABlock()
+
+import bsv from '@smartledger/bsv'
+
+// @expect-error the era methods are on the INSTANCE, not the constructor
+bsv.Script.Interpreter.maxScriptNumLength()
+
+// @expect-error a flag word is a number, not a string
+export const f: string = bsv.Script.Interpreter.mainnetFlags()
+
+// @expect-error checkStackLimits returns an error code or null, never a boolean
+export const stackOk: boolean = new bsv.Script.Interpreter().checkStackLimits()
+
+// @expect-error mainnetFlags takes { afterChronicle }, not a bare boolean
+bsv.Script.Interpreter.mainnetFlags(false)
+
+// @expect-error no such era; Genesis and Chronicle are the only two
+bsv.Script.Interpreter.SCRIPT_UTXO_AFTER_TERANODE

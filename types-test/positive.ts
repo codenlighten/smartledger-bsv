@@ -34,3 +34,65 @@ async function readStatus (p: Parameters<typeof StatusList.getCredentialStatusEn
 }
 
 export { hash, canonical, recovered, sighash, alg, height, readStatus, DIDWeb, GDAF, SmartContract }
+
+// --- Script.Interpreter -------------------------------------------------------
+// The consensus surface shipped over 9.4.0-9.7.0 was entirely undeclared: the
+// only thing bsv.d.ts said about the Interpreter was a `verify` returning
+// boolean, so every era method and every flag constant was a compile error and
+// the instance itself was an anonymous object with no `errstr` and no `stack`.
+const I = bsv.Script.Interpreter
+
+// Both construction forms the runtime supports.
+const interp = new I()
+const interpNoNew = I()
+
+// The era flags, and the two helpers that assemble them.
+const flags: number = I.mainnetFlags() | I.SCRIPT_GENESIS | I.SCRIPT_UTXO_AFTER_GENESIS |
+  I.SCRIPT_UTXO_AFTER_CHRONICLE | I.SCRIPT_VERIFY_SIGPUSHONLY
+const defaultFlags: number = I.currentConsensusFlags()
+const preChronicle: number = I.mainnetFlags({ afterChronicle: false })
+const eraOnly: number = flags & I.ERA_FLAGS
+
+// Verification, with the era-derived limits the flags select.
+const ok: boolean = interp.verify(
+  new bsv.Script(''), new bsv.Script(''), new bsv.Transaction(), 0, flags, new bsv.crypto.BN(0))
+const why: string = interp.errstr
+const depth: number = interp.stack.length + interpNoNew.altstack.length
+
+interp.set({ flags })
+const genesis: boolean = interp.isAfterGenesis()
+const chronicle: boolean = interp.isAfterChronicle()
+const numWidth: number = interp.maxScriptNumLength()
+const elemSize: number = interp.maxScriptElementSize()
+const scriptSize: number = interp.maxScriptSize()
+const opCount: number = interp.maxOpsPerScript()
+const keys: number = interp.maxPubKeysPerMultisig()
+const stackCap: number = interp.maxStackSize()
+const stackMem: number = interp.maxStackMemoryUsage()
+const used: number = interp.stackMemoryUsage()
+const limitErr: string | null = interp.checkStackLimits()
+
+// The statics a caller reads or moves.
+const unlimited: number = I.UNLIMITED
+const policy: number = I.STACK_MEMORY_USAGE_POLICY
+I.MAX_STACK_MEMORY_USAGE_AFTER_GENESIS = I.STACK_MEMORY_USAGE_POLICY
+const saved = I.getLimits()
+I.useGenesisLimits(64 * 1024)
+I.setLimits(saved)
+I.useMainnetConsensus({ afterChronicle: true })
+const chronicleHeight: number = I.CHRONICLE_ACTIVATION_HEIGHT
+const truthy: boolean = I.castToBool(I.true)
+
+// The debugging hook, with its step shape.
+interp.stepListener = (step, stack, altstack) => {
+  const at: number = step.pc
+  const name: string = step.opcode.toString()
+  void at; void name; void stack.length; void altstack.length
+}
+
+export {
+  ok, why, depth, genesis, chronicle, numWidth, elemSize, scriptSize, opCount,
+  keys, stackCap, stackMem, used, limitErr, unlimited, policy, defaultFlags,
+  preChronicle, eraOnly, chronicleHeight, truthy
+}
+

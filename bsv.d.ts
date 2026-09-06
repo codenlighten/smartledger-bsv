@@ -12,7 +12,96 @@
 declare module '@smartledger/bsv' {
 
     export namespace crypto {
-        class BN { }
+        /**
+         * bn.js, extended with Bitcoin's script-number and sign-magnitude codecs.
+         *
+         * This was `class BN { }` — an empty declaration — so `new BN(0)` was a
+         * compile error and every BN-typed value in the public API widened to `{}`.
+         * That made the whole Interpreter surface unusable from TypeScript, since a
+         * satoshi amount is a BN.
+         *
+         * The arithmetic below is bn.js's own; only the codecs are Bitcoin's. The
+         * bn.js internals (`red`, `mont`, `iushrn` and friends) are deliberately not
+         * enumerated — they are inherited, not part of this library's contract.
+         */
+        class BN {
+            constructor(
+                number?: number | string | number[] | Buffer | BN,
+                base?: number | 'hex',
+                endian?: 'le' | 'be'
+            );
+
+            static Zero: BN;
+            static One: BN;
+            static Minus1: BN;
+            static isBN(b: any): boolean;
+            static max(a: BN, b: BN): BN;
+            static min(a: BN, b: BN): BN;
+
+            static fromNumber(n: number): BN;
+            static fromString(str: string, base?: number): BN;
+            static fromHex(hex: string, opts?: { endian?: 'little' | 'big' }): BN;
+            static fromBuffer(buf: Buffer, opts?: { endian?: 'little' | 'big' | 'le' | 'be'; size?: number }): BN;
+            /** Sign-magnitude, as Bitcoin serialises signed values. */
+            static fromSM(buf: Buffer, opts?: { endian?: 'little' | 'big' }): BN;
+            /**
+             * Decode a script number. `size` is the era's width — 4 before Genesis,
+             * 750,000 after it, 32,000,000 after Chronicle. Ask the interpreter for it
+             * with `maxScriptNumLength()` rather than passing a constant.
+             */
+            static fromScriptNumBuffer(buf: Buffer, fRequireMinimal?: boolean, size?: number): BN;
+
+            toNumber(): number;
+            toString(base?: number | 'hex', length?: number): string;
+            toHex(opts?: { endian?: 'little' | 'big'; size?: number }): string;
+            toBuffer(opts?: { endian?: 'little' | 'big' | 'le' | 'be'; size?: number }): Buffer;
+            toSM(opts?: { endian?: 'little' | 'big' }): Buffer;
+            toSMBigEndian(): Buffer;
+            /** Minimal little-endian script number, sign in the high bit of the last byte. */
+            toScriptNumBuffer(): Buffer;
+            toJSON(): string;
+            toArray(endian?: 'le' | 'be', length?: number): number[];
+
+            clone(): BN;
+            copy(dest: BN): void;
+            neg(): BN;
+            abs(): BN;
+            add(b: BN): BN;
+            sub(b: BN): BN;
+            mul(b: BN): BN;
+            div(b: BN): BN;
+            mod(b: BN): BN;
+            umod(b: BN): BN;
+            sqr(): BN;
+            pow(b: BN): BN;
+            invm(b: BN): BN;
+            gcd(b: BN): BN;
+            and(b: BN): BN;
+            or(b: BN): BN;
+            xor(b: BN): BN;
+            shln(bits: number): BN;
+            shrn(bits: number): BN;
+            addn(n: number): BN;
+            subn(n: number): BN;
+            muln(n: number): BN;
+            divn(n: number): BN;
+            modn(n: number): number;
+
+            cmp(b: BN): -1 | 0 | 1;
+            ucmp(b: BN): -1 | 0 | 1;
+            eq(b: BN): boolean;
+            lt(b: BN): boolean;
+            lte(b: BN): boolean;
+            gt(b: BN): boolean;
+            gte(b: BN): boolean;
+            isZero(): boolean;
+            isNeg(): boolean;
+            isEven(): boolean;
+            isOdd(): boolean;
+            bitLength(): number;
+            byteLength(): number;
+            testn(bit: number): boolean;
+        }
 
         class ECDSA {
             hashbuf?: Buffer;
@@ -363,69 +452,227 @@ declare module '@smartledger/bsv' {
         function fromAddress(address: string | Address): Script;
 
         function empty(): Script;
-        namespace Interpreter {
-            const SCRIPT_ENABLE_SIGHASH_FORKID: any;
+        /** The four caps `getLimits()`/`setLimits()` move, in the spelling THEY use. */
+        interface InterpreterLimits {
+            maxScriptElementSize: number;
+            maximumElementSize: number;
+            maxOpsPerScript: number;
+            maxScriptSize: number;
+        }
+
+        /**
+         * A step handed to `stepListener`, before the stacks are mutated.
+         *
+         * `opcode` is typed structurally rather than as an Opcode: this file does not
+         * declare that class yet, and inventing a name here would be worse than
+         * describing what the object actually carries.
+         */
+        interface InterpreterStep {
+            pc: number;
+            opcode: { num: number; toString(): string };
+        }
+
+        /** A partial snapshot of evaluation state, applied over the defaults. */
+        interface InterpreterState {
+            stack?: Buffer[];
+            altstack?: Buffer[];
+            pc?: number;
+            pbegincodehash?: number;
+            nOpCount?: number;
+            vfExec?: boolean[];
+            errstr?: string;
+            flags?: number;
+            script?: Script;
+            tx?: Transaction;
+            nin?: number;
+            satoshisBN?: crypto.BN;
+            stepListener?: (step: InterpreterStep, stack: Buffer[], altstack: Buffer[]) => void;
+        }
+
+        interface Interpreter {
+            stack: Buffer[];
+            altstack: Buffer[];
+            pc: number;
+            pbegincodehash: number;
+            nOpCount: number;
+            vfExec: boolean[];
+            /** The node's error code for the last failure, or '' if none. */
+            errstr: string;
+            flags: number;
+            script?: Script;
+            tx?: Transaction;
+            nin?: number;
+            satoshisBN?: crypto.BN;
+            /** Debugging hook, invoked after each step with clones of the stacks. */
+            stepListener?: (step: InterpreterStep, stack: Buffer[], altstack: Buffer[]) => void;
+
+            initialize(obj?: InterpreterState): void;
+            set(obj: InterpreterState): void;
+            /**
+             * Verify an unlocking script against a locking script.
+             *
+             * Omitting `flags` resolves to `currentConsensusFlags()`. Passing a
+             * hand-assembled set is how a validator silently ends up pre-Genesis:
+             * without an era flag the interpreter applies the 2019 caps whatever
+             * feature opcodes are enabled. Prefer `mainnetFlags()` or no argument.
+             */
+            verify(
+                scriptSig: Script,
+                scriptPubkey: Script,
+                tx?: Transaction,
+                nin?: number,
+                flags?: number,
+                satoshisBN?: crypto.BN
+            ): boolean;
+            evaluate(): boolean;
+            step(): boolean;
+            checkSignatureEncoding(buf: Buffer): boolean;
+            checkPubkeyEncoding(buf: Buffer): boolean;
+            checkLockTime(nLockTime: crypto.BN): boolean;
+            checkSequence(nSequence: crypto.BN): boolean;
+
+            /**
+             * Which consensus era this evaluation belongs to, and the limits that
+             * follow from it. These read the SCRIPT_UTXO_AFTER_* flags on the
+             * instance, because the node decides almost everything by the era of the
+             * OUTPUT BEING SPENT — an output made before an upgrade is spent under
+             * the old rules forever.
+             */
+            isAfterGenesis(): boolean;
+            isAfterChronicle(): boolean;
+            /** 520 before Genesis, UNLIMITED after. */
+            maxScriptElementSize(): number;
+            /** 10,000 before Genesis, UNLIMITED after. */
+            maxScriptSize(): number;
+            /** 500 before Genesis (not Core's 201), UNLIMITED after. */
+            maxOpsPerScript(): number;
+            /** 4 bytes before Genesis, 750,000 after it, 32,000,000 after Chronicle. */
+            maxScriptNumLength(): number;
+            /** 20 before Genesis, UINT32_MAX after. */
+            maxPubKeysPerMultisig(): number;
+            /** 1000 elements before Genesis, UNLIMITED after. */
+            maxStackSize(): number;
+            /** UNLIMITED unless a caller sets MAX_STACK_MEMORY_USAGE_AFTER_GENESIS. */
+            maxStackMemoryUsage(): number;
+            /** Bytes across both stacks, each element charged STACK_ELEMENT_OVERHEAD. */
+            stackMemoryUsage(): number;
+            /** The stack limits, applied where the node applies them: after every opcode. */
+            checkStackLimits(): string | null;
+        }
+
+        interface InterpreterConstructor {
+            (obj?: InterpreterState): Interpreter;
+            new(obj?: InterpreterState): Interpreter;
+
+            /**
+             * Script-verification flags matching BSV mainnet consensus, including the
+             * ERA flags — without those the interpreter falls back to the pre-Genesis
+             * statics, so a validator named after mainnet applies 2019 limits.
+             *
+             * `afterChronicle` defaults to true; pass false for a pre-activation UTXO,
+             * which is the distinction the node makes per input. CLTV and CSV are
+             * deliberately absent: Genesis reverted both to NOPs, and including them
+             * yields a validator stricter than consensus.
+             */
+            mainnetFlags(opts?: { afterChronicle?: boolean }): number;
+            /**
+             * What `verify()` uses when given no flags. Every bit here is also in
+             * `mainnetFlags()`; a test asserts that, because the two drifting apart
+             * once made the default silently resolve to the weaker of two answers.
+             */
+            currentConsensusFlags(): number;
+            /** Applies Genesis limits AND returns mainnet flags. Mutates process state. */
+            useMainnetConsensus(opts?: { afterChronicle?: boolean; max?: number }): number;
+            /**
+             * Opt into post-Genesis limits process-wide. Prefer asking for the era via
+             * flags; this exists for callers managing the caps by hand. Pass an
+             * explicit `max` when verifying scripts from untrusted sources.
+             */
+            useGenesisLimits(max?: number): InterpreterConstructor;
+            getLimits(): InterpreterLimits;
+            setLimits(limits?: Partial<InterpreterLimits>): InterpreterConstructor;
+            castToBool(buf: Buffer): boolean;
+
+            /** Block height at which Chronicle activated on BSV mainnet (2026-04-07). */
+            CHRONICLE_ACTIVATION_HEIGHT: number;
+            /** What a limit reads as once the era removed it. */
+            UNLIMITED: number;
+
+            // PRE-Genesis caps. Since the limits became era-derived these are the
+            // fallback for a caller that sets no era flag, not the answer for every
+            // script. Mutable, so useGenesisLimits()/setLimits() still work.
+            MAX_SCRIPT_ELEMENT_SIZE: number;
+            MAXIMUM_ELEMENT_SIZE: number;
+            MAX_OPS_PER_SCRIPT: number;
+            MAX_SCRIPT_SIZE: number;
+            MAX_STACK_SIZE: number;
+
+            MAX_SCRIPT_NUM_LENGTH_AFTER_GENESIS: number;
+            MAX_SCRIPT_NUM_LENGTH_AFTER_CHRONICLE: number;
+            MAX_PUBKEYS_PER_MULTISIG_AFTER_GENESIS: number;
+            /**
+             * UNLIMITED, because post-Genesis consensus does not bound stack memory.
+             * Assign STACK_MEMORY_USAGE_POLICY to validate against relay rules, or any
+             * ceiling to harden against untrusted input.
+             */
+            MAX_STACK_MEMORY_USAGE_AFTER_GENESIS: number;
+            /** The node's -maxstackmemoryusagepolicy default. Relay policy, not consensus. */
+            STACK_MEMORY_USAGE_POLICY: number;
+            /** Charged per element on top of its bytes; the container is not free either. */
+            STACK_ELEMENT_OVERHEAD: number;
+
+            LOCKTIME_THRESHOLD: number;
+            LOCKTIME_THRESHOLD_BN: crypto.BN;
+            SEQUENCE_LOCKTIME_DISABLE_FLAG: number;
+            SEQUENCE_LOCKTIME_MASK: number;
+            SEQUENCE_LOCKTIME_TYPE_FLAG: number;
+
+            SCRIPT_VERIFY_NONE: number;
+            SCRIPT_VERIFY_P2SH: number;
+            SCRIPT_VERIFY_STRICTENC: number;
+            SCRIPT_VERIFY_DERSIG: number;
+            SCRIPT_VERIFY_LOW_S: number;
+            SCRIPT_VERIFY_NULLDUMMY: number;
+            SCRIPT_VERIFY_SIGPUSHONLY: number;
+            SCRIPT_VERIFY_MINIMALDATA: number;
+            SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS: number;
+            SCRIPT_VERIFY_CLEANSTACK: number;
+            SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY: number;
+            SCRIPT_VERIFY_CHECKSEQUENCEVERIFY: number;
+            SCRIPT_VERIFY_MINIMALIF: number;
+            SCRIPT_VERIFY_NULLFAIL: number;
+            SCRIPT_VERIFY_COMPRESSED_PUBKEYTYPE: number;
+            SCRIPT_ENABLE_SIGHASH_FORKID: number;
+            SCRIPT_ENABLE_REPLAY_PROTECTION: number;
+            SCRIPT_ENABLE_MONOLITH_OPCODES: number;
+            SCRIPT_ENABLE_MAGNETIC_OPCODES: number;
+
+            // The era flags. SCRIPT_UTXO_AFTER_* describes the OUTPUT BEING SPENT and
+            // governs almost every rule; SCRIPT_GENESIS and SCRIPT_CHRONICLE describe
+            // the block the spending transaction is in.
+            SCRIPT_GENESIS: number;
+            SCRIPT_UTXO_AFTER_GENESIS: number;
             /**
              * Chronicle: restores OP_2MUL/OP_2DIV, gives OP_VER/OP_VERIF/OP_VERNOTIF
              * meaning, and lets SIGHASH_CHRONICLE select the original digest.
-             * Off by default — enabling it changes script evaluation.
              */
-            const SCRIPT_ENABLE_CHRONICLE: number;
-            /** Block height at which Chronicle activated on BSV mainnet (2026-04-07). */
-            const CHRONICLE_ACTIVATION_HEIGHT: number;
-            /**
-             * Script-verification flags matching BSV mainnet consensus.
-             *
-             * `verify()` itself defaults to no flags — a validator should state the
-             * consensus context it is validating against. This assembles that context
-             * correctly so callers do not have to.
-             *
-             * `afterChronicle` defaults to true; pass false to validate the spend of a
-             * pre-activation UTXO, which is the distinction the node makes per input.
-             * Note that script-number and element-size limits are statics raised by
-             * `useGenesisLimits()`, not flags.
-             */
-            function mainnetFlags(opts?: { afterChronicle?: boolean }): number;
+            SCRIPT_ENABLE_CHRONICLE: number;
+            /** The node's name for the SCRIPT_ENABLE_CHRONICLE bit. */
+            SCRIPT_CHRONICLE: number;
+            SCRIPT_UTXO_AFTER_CHRONICLE: number;
+            /** Every era bit, for masking one off a flag word. */
+            ERA_FLAGS: number;
 
-            // Pre-Genesis consensus caps (defaults: 520 / 4 / 201 / 10,000).
-            // Mutable: see useGenesisLimits() for a one-call opt-in.
-            let MAX_SCRIPT_ELEMENT_SIZE: number;
-            let MAXIMUM_ELEMENT_SIZE: number;
-            let MAX_OPS_PER_SCRIPT: number;
-            /** Total serialized script size. Anything larger fails SCRIPT_ERR_SCRIPT_SIZE. */
-            let MAX_SCRIPT_SIZE: number;
+            /** Errors whose meaning depends on the era, keyed by node error code. */
+            ERA_SENSITIVE_ERRORS: Record<string, { what: string; lifts: string }>;
+            /** Set false (or BSV_NO_ERA_HINT=1) to silence the era diagnostic. */
+            eraDiagnostics: boolean;
 
-            interface Limits {
-                maxScriptElementSize: number;
-                maximumElementSize: number;
-                maxOpsPerScript: number;
-                maxScriptSize: number;
-            }
-
-            /**
-             * Opt into post-Genesis BSV consensus limits (no caps on stack
-             * element size, script-number width, opcode count, or total script
-             * size). Mutates Interpreter-wide static state — call once at app
-             * startup. Pass an explicit `max` (e.g. 64 KB) when verifying
-             * scripts from untrusted sources.
-             */
-            function useGenesisLimits(max?: number): typeof Interpreter;
-            /** Capture the four caps, for restoring with setLimits(). */
-            function getLimits(): Limits;
-            /** Restore caps captured by getLimits(). */
-            function setLimits(limits: Partial<Limits>): typeof Interpreter;
+            true: Buffer;
+            false: Buffer;
         }
 
-        function Interpreter(): {
-            verify: (
-                inputScript: Script, 
-                outputScript: Script, 
-                txn: Transaction,
-                nin: Number,
-                flags: any,
-                satoshisBN: crypto.BN
-            ) => boolean
-        }
+        const Interpreter: InterpreterConstructor;
     }
 
     export class Script {

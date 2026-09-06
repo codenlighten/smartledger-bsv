@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the consensus API was uncallable from TypeScript
+
+Everything added across 9.4.0 to 9.7.0 shipped with no declaration. `bsv.d.ts` said
+one thing about the interpreter — a `verify()` returning boolean — so
+`interp.maxScriptNumLength()` was a compile error, the instance had no `errstr` and
+no `stack`, and not one of the era flags existed as a name.
+
+`crypto.BN` was worse: `class BN { }`, an empty declaration. `new BN(0)` did not
+compile and every satoshi amount in the public API widened to `{}`, which is what
+made the interpreter unusable rather than merely undocumented.
+
+Both are now declared in full: the interpreter's twenty instance members and
+fifty-four statics, and BN's constructor, comparisons, arithmetic and the Bitcoin
+codecs (`fromScriptNumBuffer`, `toScriptNumBuffer`, `fromSM`, `toSM`). bn.js's own
+internals — the `red`/`mont` modular-arithmetic family, the in-place `i*` mutators —
+are deliberately left out: they are inherited, not this library's contract.
+
+The declarations are exercised, not just written. `types-test/positive.ts` now
+constructs an interpreter both ways, reads every era method and moves the stack
+ceiling; `negative.ts` gained five cases that must fail, including calling an
+instance method on the constructor and assigning `checkStackLimits()` to a boolean.
+A declaration that quietly degrades to `any` makes those errors vanish.
+
+### Added — `npm run check:dts`, a declaration-coverage ratchet
+
+`check:types` proves the declarations that exist are correct. Nothing measured the
+surface that was never declared at all, which is how four consecutive releases
+shipped an API no TypeScript consumer could call.
+
+`scripts/check-dts-coverage.js` compares `test/fixtures/api-surface.json` against
+`bsv.d.ts` and fails when a name is added to the runtime with no declaration, when a
+name is declared but still sits in the baseline (the ratchet only turns one way), or
+when a namespace listed as COMPLETE develops a gap. `bsv.Script.Interpreter` is the
+first entry in that list, at zero.
+
+Coverage is **934 of 1,946 names, 48.0%**. The remaining 1,012 are recorded in
+`test/fixtures/dts-coverage-baseline.json` so the number is visible rather than
+implied — `bsv.Opcode` and its 110 constants are the largest block left.
+
+The gate's first act was to reject a claim of mine: I listed `crypto.BN` as complete
+and it named the 69 bn.js internals I had not declared.
+
 ## [9.7.0] - 2026-09-05
 
 ### Fixed — the stack limits diverged from the node in both directions
