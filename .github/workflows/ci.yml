@@ -88,6 +88,13 @@ jobs:
             console.log('All files: entries resolve.')
           "
 
+      - name: Declaration coverage ratchet
+        # check:types proves the declarations that EXIST are right. This measures
+        # the surface that was never declared at all — the gap that let the whole
+        # consensus API of 9.4.0-9.7.0 ship uncallable from TypeScript, four
+        # releases running, because nothing was counting.
+        run: npm run check:dts
+
       - name: TypeScript types compile
         # Catches the v3.4.4 regression where bsv.d.ts declared module 'bsv'
         # instead of '@smartledger/bsv' (silently giving TS consumers `any`)
