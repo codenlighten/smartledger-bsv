@@ -143,6 +143,8 @@
     "check:api": "mocha test/api_surface.js --no-config",
     "check:types": "node scripts/check-types.js",
     "check:dts": "node scripts/check-dts-coverage.js",
+    "check:audit-scope": "node scripts/check-audit-scope.js",
+    "check:audit-scope:fix": "node scripts/check-audit-scope.js --fix",
     "check:dts:update": "node scripts/check-dts-coverage.js --update"
   },
   "unpkg": "bsv.min.js",
