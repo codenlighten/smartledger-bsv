@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `docs/preimage.md` was wrong in ways that cost money
+
+The page ships in the npm tarball and is linked from the README, and people build
+covenants from it. It gave the preimage as **~108 bytes** when it is 182 — 156 fixed
+plus a length-prefixed `scriptCode` — and its own arithmetic said 181 because it
+counted a 25-byte script without the varint that precedes it.
+
+Every byte offset from the txid onward was wrong. `outpoint.txid` was labelled 32
+bytes over a 28-byte range, and everything after it shifted by three or four:
+`hashOutputs` was given as starting at 139 when it starts at 142.
+
+**Four of its seven Script fragments did not work**, run against a real preimage:
+
+| fragment | result |
+| --- | --- |
+| `hashPrevouts`: `4 OP_SPLIT OP_DROP 32 OP_SPLIT OP_DROP` | `SCRIPT_ERR_INVALID_SPLIT_RANGE` — `OP_DROP` keeps the wrong half |
+| `hashOutputs`: `<len-44>` | reads `nSequence` and the first 28 bytes of the hash |
+| `amount`: `40 OP_SPLIT` | a literal offset landing inside `hashPrevouts` |
+| `nSequence`: `12 OP_SPLIT` | likewise |
+
+It showed `hashSequence` as `00…00` for an ordinary `0x41` signature. It is only zero
+under `ANYONECANPAY`, `NONE` or `SINGLE`, and the page now carries the measured table
+for all five combinations — which matters, because a covenant reading `hashOutputs`
+without pinning the sighash type is checking 32 zero bytes.
+
+And it recommended `OP_BIN2NUM` on `amount`, `nSequence` and `nLockTime`, which are
+**unsigned**. That is the defect fixed in 9.4.0, recommended as practice:
+
+```
+nLockTime  ffffffff  ->  -2147483647   should be 4294967295 (year 2106)
+           01000080  ->           -1   should be 2147483649
+           00000080  ->            0   should be 2147483648 (19 Jan 2038)
+```
+
+`nSequence` is `0xffffffff` more often than not, so that one is wrong today rather
+than in 2038.
+
+Two things the page said that were not merely inaccurate but backwards:
+
+- **"Re-hash the preimage (`OP_HASH256`) to verify it matches what was signed."** It
+  does not. `OP_HASH256` yields a hash and nothing else; a spender can supply any 182
+  well-formed bytes, satisfy every field check, and spend on a different transaction.
+  The binding comes from `OP_CHECKSIG` over a signature constructed from the preimage
+  hash — which is what `OP_PUSH_TX` does and what the page now describes.
+- **The 32-byte hashes were called "big-endian"**, inviting someone to reverse them.
+  They are the bytes `HASH256()` returns. The only reversed field is the txid inside
+  the outpoint.
+
+Also: `scriptCode` is not "usually `scriptPubKey`" — it is variable, `OP_CODESEPARATOR`
+moves it, and covenant scripts make it hundreds of bytes, which is why every extraction
+this library ships reads from the END of the preimage rather than by absolute offset.
+The page now says so and gives the from-end offsets: `amount` 52, `nSequence` 44,
+`hashOutputs` 40, `nLockTime` 8, `sighashType` 4.
+
+It opens with the Chronicle caveat, since BIP-143 is no longer the only digest
+algorithm on this chain.
+
+**`test/covenant/preimage_doc.js` asserts the page** — 24 cases covering every offset,
+every fragment, the zero-hash table, the `OP_BIN2NUM` figures and the authentication
+claim, all against a preimage the library actually produces. Reintroducing the old
+`hashOutputs` offset of 44 fails it.
+
 ### Fixed — the consensus API was uncallable from TypeScript
 
 Everything added across 9.4.0 to 9.7.0 shipped with no declaration. `bsv.d.ts` said
