@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.8.0] - 2026-09-08
+
+**No runtime change.** `git diff v9.7.0..HEAD -- lib/` is empty. Four bundles do differ,
+which looks like a contradiction and is not: reverting `version.js` alone and rebuilding
+reproduces all four **byte-identical to the v9.7.0 release**, so the embedded version
+string is the only changed input and the shifted minifier identifiers are a
+deterministic consequence of it.
+
+This release exists because the two things it corrects both ship in the tarball and
+reach nobody until they are published. `bsv.d.ts` is the package's `types` entry, and
+`docs/` is in `files[]`. On 9.7.0 this is a compile error in three places:
+
+```ts
+const i = new bsv.Script.Interpreter()          // TS7009: no construct signature
+const w = i.maxScriptNumLength()
+const f = I.mainnetFlags() | I.SCRIPT_UTXO_AFTER_GENESIS   // TS2339: does not exist
+const n = new bsv.crypto.BN(0)                  // TS2554: expected 0 arguments
+```
+
 ### Fixed — `docs/preimage.md` was wrong in ways that cost money
 
 The page ships in the npm tarball and is linked from the README, and people build
