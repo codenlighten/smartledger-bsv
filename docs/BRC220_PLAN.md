@@ -173,45 +173,42 @@ summarising rather than anything in the document.
 - **The service is a role, not a requirement.** §What a certificate proves: "any party
   holding a valid (hash, signature, publicKey) triple may re-anchor it; the attestation
   remains valid". A self-notarizing caller producing its own certificate is conformant.
-- **The batch Merkle leaf is NOT settled by the spec — it is a choice this
-  implementation made.** §On-chain record writes `leaf = SHA256(0x00 ‖ d)`, but that is
-  RFC 6962's own generic notation for the construction and `d` is never bound to a value.
-  `canonicalBytes` appears once in the whole document, in the `proofHash` definition, and
-  nowhere in the batch text. We read `d` as `proofHash`; reading it as `canonicalBytes` is
-  equally sound and produces a different root, so the two do not interoperate. Recorded as
-  an ambiguity rather than a settled question, with proposed spec text in
-  [BRC220_BATCH_LEAF_AMENDMENT.md](BRC220_BATCH_LEAF_AMENDMENT.md) and enforcement in
-  `test/notaryhash/batch_leaf.js`. This is the second gap of the kind, after `encoding`.
+- **The batch Merkle leaf is NOT settled by the spec.** §On-chain record writes
+  `leaf = SHA256(0x00 ‖ d)`, but that is RFC 6962's own generic notation for the
+  construction and `d` is never bound to a value. `canonicalBytes` appears once in the whole
+  document, in the `proofHash` definition, and nowhere in the batch text. We read `d` as
+  `proofHash`; so does the reference implementation's batcher, and given the same five
+  proofs it builds the same root. Reading it as `canonicalBytes` is equally sound and
+  produces a different root, so the two do not interoperate. Filed upstream as
+  [bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246); see
+  [BRC220_BATCH_LEAF_AMENDMENT.md](BRC220_BATCH_LEAF_AMENDMENT.md), enforced in
+  `test/notaryhash/batch_leaf.js`.
 - **`createdAt` is advisory for trust but load-bearing for the hash.** §Verification calls
   it "an advisory client field only" — meaning proof-of-existence time comes from the
   block, not from this field. It is still inside the canonical bytes as `createdAtUnix`,
   so it cannot be altered after issuance.
 
-Decided, and proposed back to the spec:
+Decided here, then reversed against the reference implementation:
 
-- **`encoding` is `"raw"`.** The field is required by the spec but its values were never
-  enumerated, so this library defines them and proposes the definition upstream — see
-  `docs/BRC220_ENCODING_AMENDMENT.md`.
+- **`encoding` was defined as `"raw"` — the signature's byte format — and low-S was
+  required.** Both were wrong. The spec requires the field without enumerating its values,
+  and 8.3.0–9.8.0 filled that gap from this library's own reasoning: raw `r ‖ s` because DER
+  is not canonical, low-S because `s` and `n − s` both verify and hash differently.
 
-  For `ECDSA-secp256k1` that is 64 bytes, `r ‖ s`, each a 32-byte big-endian integer, with
-  a 33-byte compressed public key. NOT DER, and not the 65-byte `toCompact` form, which
-  carries a recovery byte the certificate does not need because it already has the key.
+  The reference implementation, which is what issued certificates are checked against,
+  decided otherwise on every point. `encoding` is `"hex"` or `"base64"` — how `publicKey`
+  and `signature` are written into the JSON, not what their bytes are. A signature may be
+  64-byte `r ‖ s` or DER, told apart by the bytes. A public key may be compressed or
+  uncompressed. High-S is accepted deliberately.
 
-  The deciding argument is that `proofHash` covers `lp(signature)`, and **DER is not
-  canonical**. Measured over 200 signatures from one key: DER came out at 69, 70 and 71
-  bytes depending on leading-zero handling, all of it legal. Raw was 64 bytes every time.
-  The same signing act producing different `proofHash` values is precisely the failure the
-  binary encoding exists to prevent — it is why the spec already refuses `JSON.stringify`.
+  The reasoning behind the reversal holds: `proofHash` covers the signature bytes exactly
+  as the signer produced them, so a DER or malleated form is a *different* certificate,
+  not a forgery of this one. What the original argument protected against — two
+  certificates for one signing act — is real, but it is the issuer's choice to make, and
+  every certificate still commits to exactly one form.
 
-  Two supporting reasons: ML-DSA and SLH-DSA have no DER form, so raw makes `encoding`
-  uniform across all sixteen algorithm identifiers instead of forcing per-algorithm
-  branching in every verifier; and the signature is detached over a digest rather than a
-  Bitcoin script signature, which is the ES256K/WebCrypto case, and both use `r ‖ s`.
-
-  **Low-S is required and must be rejected, not normalised.** `s` and `n − s` both verify
-  and hash differently, so without the rule two valid certificates exist for one signing
-  act. Normalising on receipt would change the signature bytes, which are inside
-  `proofHash`. This library already emits low-S and has `Signature.toCanonical()`.
+  The library now writes and reads the reference format and still reads the old one. The
+  proposed amendment (`docs/BRC220_ENCODING_AMENDMENT.md`) was withdrawn before filing.
 
 ### The reference implementation
 
@@ -220,10 +217,16 @@ Decided, and proposed back to the spec:
 `txidFromRawTx` against the Bitcoin genesis coinbase, and the Merkle fold against the real
 block-170 two-transaction proof.
 
-Those vectors are worth more than anything in §6, and should be wired in as gates before
-Phase 2 goes far. This module's characteristic failure is being self-consistent and wrong
-— every local test green, no other implementation agreeing — and a golden vector from a
-second implementation is the only thing that actually rules it out. Our own tests cannot.
+Those vectors are worth more than anything in §6. This module's characteristic failure is
+being self-consistent and wrong — every local test green, no other implementation agreeing
+— and a golden vector from a second implementation is the only thing that actually rules
+it out. Our own tests cannot.
+
+That is exactly how it went. Until the reference was checked, every test here passed and
+this library could not verify one certificate the reference had issued: the cryptography
+agreed and the JSON did not. `test/notaryhash/reference_certs.js` now verifies certificates
+the reference produced — full and hybrid, hex and base64, DER, high-S, an uncompressed key,
+and a five-leaf batch — and rebuilds each one byte for byte.
 
 ## 8. Not in scope
 

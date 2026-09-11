@@ -23,7 +23,7 @@
       "payloadPreimage": "BRC-220/batch-vector/payload/0",
       "algorithm": "ECDSA-secp256k1",
       "hashAlgorithm": "SHA-256",
-      "encoding": "raw",
+      "encoding": "hex",
       "payloadHash": "c61d9c7e35b46dc1ceea30094e1a2809d45d16014fa70ccfc75fc4d6f672643b",
       "publicKey": "02ce29a831e3d359386c7f70ef7fd85a75d79168d546dd8a60a520df0e24c65ef3",
       "signature": "1026f99510a52863e43e3e5a57395c9838a3e44a768932d35b460a287630c24e3bc3b81e1bb2cb7c834f5be97936a6a49ff9eb7adaae7670e32d6bc3a5c067cf",
@@ -34,9 +34,18 @@
       "leafHash": "27547ba238fba426b766979a4a46cd97578945cf450c113e45b487291cb56ba4",
       "leafHashUnderRejectedReading": "ab0ee539d3e08e07a6aac157af2d3df5da5f637c5c360fa158a00d14c6644f05",
       "path": [
-        "7cd7c9b4bc74dcc5d586f7b04f1f7bdf025a15f7e173dba021c8ed7fd84acdbf",
-        "15c4df48172c7607990059e0f646616f7e68a33f8f5e1a7b54a9fa5ee770bbb4",
-        "8591a9b65f86529312b0eae212a95c15fd407f36cb8f4872a01bc0a64f13df83"
+        {
+          "hash": "7cd7c9b4bc74dcc5d586f7b04f1f7bdf025a15f7e173dba021c8ed7fd84acdbf",
+          "side": "right"
+        },
+        {
+          "hash": "15c4df48172c7607990059e0f646616f7e68a33f8f5e1a7b54a9fa5ee770bbb4",
+          "side": "right"
+        },
+        {
+          "hash": "8591a9b65f86529312b0eae212a95c15fd407f36cb8f4872a01bc0a64f13df83",
+          "side": "right"
+        }
       ]
     },
     {
@@ -45,7 +54,7 @@
       "payloadPreimage": "BRC-220/batch-vector/payload/1",
       "algorithm": "ECDSA-secp256k1",
       "hashAlgorithm": "SHA-256",
-      "encoding": "raw",
+      "encoding": "hex",
       "payloadHash": "7509fe7fc39be0a6a6fc7350287f96a03911c8a3af188d8fb4b42f92957562a1",
       "publicKey": "02b3dfb7e2a167aa401547d93e1b684b6c9896b67d3aadb7d938cdb00040e64ce3",
       "signature": "1014debea11afb698d3fe0778bfd6390efdb28f8fe160eb4f382213f35641afd4a308a159d342a7507873fff587eaad5ae73eed047b1dbb27ee2b6b0924f6d60",
@@ -56,9 +65,18 @@
       "leafHash": "7cd7c9b4bc74dcc5d586f7b04f1f7bdf025a15f7e173dba021c8ed7fd84acdbf",
       "leafHashUnderRejectedReading": "320aeefe6077a6163d6d72bda3b54443bb973220ef94a448e7e8c9be787f1242",
       "path": [
-        "27547ba238fba426b766979a4a46cd97578945cf450c113e45b487291cb56ba4",
-        "15c4df48172c7607990059e0f646616f7e68a33f8f5e1a7b54a9fa5ee770bbb4",
-        "8591a9b65f86529312b0eae212a95c15fd407f36cb8f4872a01bc0a64f13df83"
+        {
+          "hash": "27547ba238fba426b766979a4a46cd97578945cf450c113e45b487291cb56ba4",
+          "side": "left"
+        },
+        {
+          "hash": "15c4df48172c7607990059e0f646616f7e68a33f8f5e1a7b54a9fa5ee770bbb4",
+          "side": "right"
+        },
+        {
+          "hash": "8591a9b65f86529312b0eae212a95c15fd407f36cb8f4872a01bc0a64f13df83",
+          "side": "right"
+        }
       ]
     },
     {
@@ -67,7 +85,7 @@
       "payloadPreimage": "BRC-220/batch-vector/payload/2",
       "algorithm": "ECDSA-secp256k1",
       "hashAlgorithm": "SHA-256",
-      "encoding": "raw",
+      "encoding": "hex",
       "payloadHash": "b09ac5900c811654d3c31b43ad6c65512f9baa6585b121bdc88f43b40cbc55a0",
       "publicKey": "02363ba0177d207ee13a23b63c9feb5c297e071c88c1d859312bf7cb46778b17f7",
       "signature": "726113d4d8dafbe8f03b89377ffad4a4086ee30450c3e03ea62ae30d26c216091147dbfb36fa6c6f7e7e59eeae21c9b379e8fd012c7f8b87ac4ff416981dff11",
@@ -78,9 +96,18 @@
       "leafHash": "9419bb538d2bb38e931ea45f2a6e83d38f99bf2679f6e31cd02145e68cda1d54",
       "leafHashUnderRejectedReading": "b6beedf0fd93c2d32fe08db38242ec737e9f03605c457f0910ab42ff0f7c2eed",
       "path": [
-        "341883196d41f5956f6b87238f71018be2bfc6ced6676ba64f5b1b0369b199a5",
-        "503a52c36f87e417987746db6964fbc21a177f034cc58639784e1e5b313cc7e4",
-        "8591a9b65f86529312b0eae212a95c15fd407f36cb8f4872a01bc0a64f13df83"
+        {
+          "hash": "341883196d41f5956f6b87238f71018be2bfc6ced6676ba64f5b1b0369b199a5",
+          "side": "right"
+        },
+        {
+          "hash": "503a52c36f87e417987746db6964fbc21a177f034cc58639784e1e5b313cc7e4",
+          "side": "left"
+        },
+        {
+          "hash": "8591a9b65f86529312b0eae212a95c15fd407f36cb8f4872a01bc0a64f13df83",
+          "side": "right"
+        }
       ]
     },
     {
@@ -89,7 +116,7 @@
       "payloadPreimage": "BRC-220/batch-vector/payload/3",
       "algorithm": "ECDSA-secp256k1",
       "hashAlgorithm": "SHA-256",
-      "encoding": "raw",
+      "encoding": "hex",
       "payloadHash": "158d3edf327c1994d7154f9271dadc5d96418b54713aafbbf9ad6c534bf3dbe2",
       "publicKey": "02927267de13d07285b06122293a72350376cc85060b00b8426c48e0cb2e39e2f9",
       "signature": "8c1625d984577226d3f229d83aa1b3025821d1ef076b890f21667c62f49508640eaeb5ac1bfc2250a0b475653a598fa5f69f28b7e23aad18986a6f4a468d490b",
@@ -100,9 +127,18 @@
       "leafHash": "341883196d41f5956f6b87238f71018be2bfc6ced6676ba64f5b1b0369b199a5",
       "leafHashUnderRejectedReading": "ca8d122b3f396533867bbe79cc0b878a3ece675ef636622cb321843cfc2b0a6c",
       "path": [
-        "9419bb538d2bb38e931ea45f2a6e83d38f99bf2679f6e31cd02145e68cda1d54",
-        "503a52c36f87e417987746db6964fbc21a177f034cc58639784e1e5b313cc7e4",
-        "8591a9b65f86529312b0eae212a95c15fd407f36cb8f4872a01bc0a64f13df83"
+        {
+          "hash": "9419bb538d2bb38e931ea45f2a6e83d38f99bf2679f6e31cd02145e68cda1d54",
+          "side": "left"
+        },
+        {
+          "hash": "503a52c36f87e417987746db6964fbc21a177f034cc58639784e1e5b313cc7e4",
+          "side": "left"
+        },
+        {
+          "hash": "8591a9b65f86529312b0eae212a95c15fd407f36cb8f4872a01bc0a64f13df83",
+          "side": "right"
+        }
       ]
     },
     {
@@ -111,7 +147,7 @@
       "payloadPreimage": "BRC-220/batch-vector/payload/4",
       "algorithm": "ECDSA-secp256k1",
       "hashAlgorithm": "SHA-256",
-      "encoding": "raw",
+      "encoding": "hex",
       "payloadHash": "1c9be18eba3f6d45e49ba3cc651978d803c4a031e61e9c4ea0c5c4954d0fc7b8",
       "publicKey": "02497aeb1118e5fe44af0aade81945dc23b8c727433a9d76e2ec37e914ce0467cf",
       "signature": "c903ba5d61bdbd983168febeabba3997c8811a24cf4624f6952887f6dd50c9141d07a20abcb7e6822a1012f15c8b5df63d52d28b13cddf9efce451d2a020a953",
@@ -122,7 +158,10 @@
       "leafHash": "8591a9b65f86529312b0eae212a95c15fd407f36cb8f4872a01bc0a64f13df83",
       "leafHashUnderRejectedReading": "40cfb9005011331c8cbb4524c27b04b3e62cbe525e07ec1dc443de25079b16d6",
       "path": [
-        "060ca4e4bbcb647ab0162bb027cd8f08c1577aaa7069166dd629a3df7e57befd"
+        {
+          "hash": "060ca4e4bbcb647ab0162bb027cd8f08c1577aaa7069166dd629a3df7e57befd",
+          "side": "left"
+        }
       ]
     }
   ]

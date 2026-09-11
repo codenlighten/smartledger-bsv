@@ -3,8 +3,16 @@
 §On-chain record specifies *which* Merkle tree batch mode uses, but never says what goes
 in a leaf. This proposes the definition, with the reasoning that led to it.
 
-Prepared 2026-08-17 while implementing BRC-220 in `@smartledger/bsv`. The second gap of
-this kind, after `encoding` — see [BRC220_ENCODING_AMENDMENT.md](BRC220_ENCODING_AMENDMENT.md).
+Prepared 2026-08-17 while implementing BRC-220 in `@smartledger/bsv`.
+
+**Status: filed** as [bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246)
+on 2026-09-11, together with a clarification of the ECDSA digest convention. Before filing
+it was checked against the BRC-220 reference implementation, whose batcher uses exactly
+this leaf (`leaves = batch.map(e => e.proofHash)`), and the vector below was rebuilt
+without any of this library's code — the root from the reference's own RFC 6962 tree.
+
+A companion draft on the `encoding` field was **wrong and has been withdrawn**; see
+[BRC220_ENCODING_AMENDMENT.md](BRC220_ENCODING_AMENDMENT.md).
 
 ---
 
@@ -104,9 +112,10 @@ states it in `lib/notaryhash/index.js` and enforces it in
 `test/notaryhash/batch_leaf.js` — including a test that a tree built over `canonicalBytes`
 is rejected, so the choice is checked rather than merely intended.
 
-No deployed batch certificates are known to use the other reading. If any exist, they were
-built against an ambiguous sentence and would need reissuing; batch mode is the least-used
-of the three and this is the moment to fix it, before that stops being true.
+The reference implementation uses the same reading, so certificates its service has
+issued in batch mode already conform. An implementation that chose `d = canonicalBytes`
+built against an ambiguous sentence and would need to reissue; the second root published
+below makes that diagnosable in one line.
 
 ---
 
@@ -129,7 +138,8 @@ regenerates byte-identically and any implementation can rebuild it from scratch:
 - private key `i` = `SHA-256("BRC-220/batch-vector/key/" + i)`
 - `payloadHash` `i` = `SHA-256("BRC-220/batch-vector/payload/" + i)`
 - `createdAt` `i` = `2026-01-0(i+1)T00:00:00.000Z`
-- `algorithm` = `ECDSA-secp256k1`, `hashAlgorithm` = `SHA-256`, `encoding` = `"raw"`
+- `algorithm` = `ECDSA-secp256k1`, `hashAlgorithm` = `SHA-256`, a 64-byte `r ‖ s`
+  signature normalised to low-S, and a 33-byte compressed public key
 
 **Signing.** The signer signs the 32-byte `payloadHash` directly — the digest *is* the
 scalar, big-endian. RFC 6979 makes the nonce deterministic, so the signatures, and every

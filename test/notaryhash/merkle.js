@@ -178,4 +178,76 @@ describe('RFC 6962 Merkle tree', function () {
       Merkle.verifyInclusion(D[0], 0, 1, [], Merkle.hashLeaf(D[0])).should.equal(true)
     })
   })
+
+  // The { hash, side } form BRC-220 certificates carry, as the reference implementation
+  // writes it. It folds without an index or tree size, so the two representations have
+  // to agree everywhere or a certificate converted from one to the other stops verifying.
+  describe('sided audit paths', function () {
+    var LEAVES = []
+    for (var i = 0; i < 33; i++) LEAVES.push(Hash.sha256(Buffer.from('leaf ' + i)))
+
+    it('agree with the indexed fold for every leaf of every tree size 1..33', function () {
+      for (var n = 1; n <= 33; n++) {
+        var leaves = LEAVES.slice(0, n)
+        var root = Merkle.root(leaves)
+        for (var idx = 0; idx < n; idx++) {
+          var sided = Merkle.auditPath(leaves, idx)
+          sided.map(function (s) { return s.hash.toString('hex') })
+            .should.deep.equal(Merkle.path(leaves, idx).map(function (b) { return b.toString('hex') }))
+          Merkle.rootFromPath(leaves[idx], sided).equals(root)
+            .should.equal(true, 'leaf ' + idx + ' of ' + n)
+        }
+      }
+    })
+
+    it('put each sibling on the side RFC 6962 puts it', function () {
+      // Leaf 2 of 8: its sibling is leaf 3 (right), then the pair 0–1 (left), then the
+      // subtree 4–7 (right).
+      Merkle.pathSides(2, 8).should.deep.equal(['right', 'left', 'right'])
+      // Leaf 4 of 5: the lone leaf, whose only sibling is the subtree 0–3 on its left.
+      Merkle.pathSides(4, 5).should.deep.equal(['left'])
+      Merkle.pathSides(0, 1).should.deep.equal([])
+    })
+
+    it('take hashes as Buffers or hex, with or without 0x', function () {
+      var leaves = LEAVES.slice(0, 5)
+      var root = Merkle.root(leaves)
+      var sided = Merkle.auditPath(leaves, 3)
+      var asHex = sided.map(function (s) { return { hash: s.hash.toString('hex'), side: s.side } })
+      var as0x = sided.map(function (s) { return { hash: '0x' + s.hash.toString('hex'), side: s.side } })
+      Merkle.verifyAuditPath(leaves[3], asHex, root).should.equal(true)
+      Merkle.verifyAuditPath(leaves[3], as0x, root).should.equal(true)
+    })
+
+    it('reject a flipped side, a tampered hash, and a truncated or padded path', function () {
+      var leaves = LEAVES.slice(0, 8)
+      var root = Merkle.root(leaves)
+      function path () { return Merkle.auditPath(leaves, 5) }
+      var flipped = path()
+      flipped[1].side = flipped[1].side === 'left' ? 'right' : 'left'
+      var tampered = path()
+      tampered[0].hash = Buffer.alloc(32, 0xff)
+      Merkle.verifyAuditPath(leaves[5], flipped, root).should.equal(false)
+      Merkle.verifyAuditPath(leaves[5], tampered, root).should.equal(false)
+      Merkle.verifyAuditPath(leaves[5], path().slice(0, -1), root).should.equal(false)
+      Merkle.verifyAuditPath(leaves[5], path().concat([{ hash: Buffer.alloc(32), side: 'left' }]), root)
+        .should.equal(false)
+    })
+
+    it('return a strict boolean and never throw on malformed input', function () {
+      var root = Merkle.root(LEAVES.slice(0, 2))
+      Merkle.verifyAuditPath(LEAVES[0], null, root).should.equal(false)
+      Merkle.verifyAuditPath(LEAVES[0], [{ hash: LEAVES[1], side: 'up' }], root).should.equal(false)
+      Merkle.verifyAuditPath(LEAVES[0], [{ hash: Buffer.alloc(31), side: 'right' }], root).should.equal(false)
+      Merkle.verifyAuditPath(LEAVES[0], [{ hash: 'zz'.repeat(32), side: 'right' }], root).should.equal(false)
+      Merkle.verifyAuditPath(LEAVES[0], ['not an object'], root).should.equal(false)
+      Merkle.verifyAuditPath(LEAVES[0], [], 'not-a-buffer').should.equal(false)
+      Merkle.verifyAuditPath(LEAVES[0], Merkle.auditPath(LEAVES.slice(0, 2), 0), root).should.equal(true)
+    })
+
+    it('refuse an index outside the tree', function () {
+      ;(function () { Merkle.pathSides(5, 5) }).should.throw(/index/)
+      ;(function () { Merkle.pathSides(0, 0) }).should.throw(/leafCount/)
+    })
+  })
 })

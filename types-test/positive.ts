@@ -96,3 +96,64 @@ export {
   preChronicle, eraOnly, chronicleHeight, truthy
 }
 
+// --- NotaryHash (BRC-220) -----------------------------------------------------
+// Undeclared through 9.8.0: every use of bsv.NotaryHash was an implicit any.
+const NH = bsv.NotaryHash
+const leafA = Buffer.alloc(32)
+const leafB = Buffer.alloc(32, 1)
+
+const cert = NH.Certificate.build({
+  mode: 'hybrid',
+  encoding: 'base64',
+  algorithm: 'ECDSA-secp256k1',
+  hashAlgorithm: 'SHA-256',
+  payloadHash: leafA,
+  publicKey: Buffer.alloc(33),
+  signature: Buffer.alloc(64),
+  createdAtUnix: 1767225600,
+  anchor: { txid: '00'.repeat(32), blockHeight: 900000 }
+})
+const certMode: 'full' | 'hybrid' = cert.mode
+const anchorType: 'direct' | 'batch' = cert.anchor.type
+const certVersion: '1.0' = cert.version
+
+// A batched proof: still full or hybrid, with the anchor marking the batch.
+const batched = NH.Certificate.build({
+  mode: 'full',
+  algorithm: 'ECDSA-secp256k1',
+  hashAlgorithm: 'SHA-256',
+  payloadHash: leafA,
+  publicKey: Buffer.alloc(33),
+  signature: Buffer.alloc(64),
+  anchor: { txid: '00'.repeat(32) },
+  merkle: { root: NH.Merkle.root([leafA, leafB]), leafIndex: 0, leafCount: 2, path: NH.Merkle.auditPath([leafA, leafB], 0) }
+})
+const batchLeafCount: number | undefined = batched.merkle && batched.merkle.leafCount
+
+const withSpv = NH.Certificate.attachSPV(cert, {
+  rawTx: '', blockHash: '', blockHeight: 0, merkleProof: { index: 0, nodes: [] }
+})
+const nhReport = NH.verify(withSpv, { header: Buffer.alloc(80), requirePow: false })
+const nhValid: boolean = nhReport.valid && NH.isValid(withSpv, { skipAnchor: true })
+const nhLegacy: boolean = nhReport.legacy
+const nhShape: string[] = NH.Certificate.validateShape(cert)
+const nhNormalised = NH.Certificate.normalize({ version: 1, mode: 0 })
+const nhDecoded: Buffer = NH.Certificate.decodeBytes(cert.publicKey, cert.encoding)
+const nhProofHash: Buffer = NH.Encoding.proofHash(NH.Certificate.toProofInput(cert))
+
+const sided = NH.Merkle.auditPath([leafA, leafB], 1)
+const firstSide: 'left' | 'right' = sided[0].side
+const folds: boolean = NH.Merkle.verifyAuditPath(leafB, sided, NH.Merkle.root([leafA, leafB]))
+
+const record = NH.Script.parse(NH.Script.build({ mode: 'batch', merkleRoot: NH.Merkle.root([leafA, leafB]), leafCount: 2 }))
+const modeByte: 0 | 1 | 2 = record.mode
+const recordFound = NH.recordFromRawTx('')
+
+NH.registerSuite('ML-DSA-65', { verify: (h, s, k) => h.length === 32 && s.length > 0 && k.length > 0 })
+const suites: string[] = NH.Suites.list()
+
+export {
+  certMode, anchorType, certVersion, batchLeafCount, nhValid, nhLegacy, nhShape,
+  nhNormalised, nhDecoded, nhProofHash, firstSide, folds, modeByte, recordFound, suites
+}
+

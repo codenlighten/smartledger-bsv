@@ -155,8 +155,8 @@ const bsv = require('@smartledger/bsv')                 // 128 modules
 ### **Core Modules**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv.min.js** | 1046KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@9.8.0/bsv.min.js` |
-| **bsv.bundle.js** | 1046KB | Everything in one file | `unpkg.com/@smartledger/bsv@9.8.0/bsv.bundle.js` |
+| **bsv.min.js** | 1054KB | Core BSV + SmartContract | `unpkg.com/@smartledger/bsv@9.8.0/bsv.min.js` |
+| **bsv.bundle.js** | 1054KB | Everything in one file | `unpkg.com/@smartledger/bsv@9.8.0/bsv.bundle.js` |
 
 ### **W3C Verifiable Credentials**
 | Module | Size | Use Case | CDN |
@@ -178,7 +178,7 @@ const bsv = require('@smartledger/bsv')                 // 128 modules
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
 | **bsv-ltp.min.js** | 540KB | Legal Token Protocol | `unpkg.com/@smartledger/bsv@9.8.0/bsv-ltp.min.js` |
-| **bsv-gdaf.min.js** | 1046KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@9.8.0/bsv-gdaf.min.js` |
+| **bsv-gdaf.min.js** | 1054KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@9.8.0/bsv-gdaf.min.js` |
 
 ### **Advanced Cryptography**
 | Module | Size | Use Case | CDN |

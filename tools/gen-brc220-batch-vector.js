@@ -69,7 +69,7 @@ function derive (label, i) {
   return Hash.sha256(Buffer.from('BRC-220/batch-vector/' + label + '/' + i, 'utf8'))
 }
 
-// Raw 64-byte r‖s, low-S, as `encoding: "raw"` requires. Not DER.
+// 64-byte r‖s, low-S — the form the reference implementation signs with. Not DER.
 function signRaw (payloadHash, privkey) {
   // set() rather than assigning fields directly: it derives `pubkey` from `privkey`,
   // which sign() requires. RFC 6979 makes this deterministic, so the vector reproduces.
@@ -137,7 +137,8 @@ for (var i = 0; i < LEAF_COUNT; i++) {
     payloadPreimage: 'BRC-220/batch-vector/payload/' + i,
     algorithm: ALGORITHM,
     hashAlgorithm: HASH_ALGORITHM,
-    encoding: 'raw',
+    // How publicKey and signature are written, as in a certificate. Not a byte format.
+    encoding: 'hex',
     payloadHash: payloadHash.toString('hex'),
     publicKey: publicKey.toString('hex'),
     signature: signature.toString('hex'),
@@ -156,7 +157,10 @@ var leaves = proofs.map(function (p) { return Buffer.from(p.proofHash, 'hex') })
 var root = Merkle.root(leaves)
 
 proofs.forEach(function (p, idx) {
-  p.path = Merkle.path(leaves, idx).map(function (n) { return n.toString('hex') })
+  // { hash, side } per sibling, leaf upward — the form certificates carry.
+  p.path = Merkle.auditPath(leaves, idx).map(function (n) {
+    return { hash: n.hash.toString('hex'), side: n.side }
+  })
 })
 
 var vector = {
