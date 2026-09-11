@@ -6,8 +6,8 @@ implementation writes, and two rules for reading them. With both, any implementa
 produces certificates the reference verifies, and reads certificates the way the reference
 does.
 
-Prepared 2026-09-11. **Status: ready to file**, with the open points decided
-[below](#decisions). It is meant to be a separate pull request from
+Prepared 2026-09-11, with the open points decided [below](#decisions). **Status: filed**
+as [bsv-blockchain/BRCs#247](https://github.com/bsv-blockchain/BRCs/pull/247) on 2026-09-11. It is meant to be a separate pull request from
 [bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246), which is under
 review and deliberately narrow; this text builds on it for the batch leaf datum.
 

@@ -6,7 +6,9 @@ in a leaf. This proposes the definition, with the reasoning that led to it.
 Prepared 2026-08-17 while implementing BRC-220 in `@smartledger/bsv`.
 
 **Status: filed** as [bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246)
-on 2026-09-11, together with a clarification of the ECDSA digest convention. Before filing
+on 2026-09-11, together with a clarification of the ECDSA digest convention. Its review
+asked that `leafIndex` be stated as counted from 0 and that the vector say how `i` is
+written; both are in #246 and below. Before filing
 it was checked against the BRC-220 reference implementation, whose batcher uses exactly
 this leaf (`leaves = batch.map(e => e.proofHash)`), and the vector below was rebuilt
 without any of this library's code — the root from the reference's own RFC 6962 tree.
@@ -64,7 +66,7 @@ Insert into **§On-chain record**, replacing the batch bullet's parenthetical.
 >   The leaf datum `d` for a proof is its **`proofHash`** — the 32 bytes defined in
 >   §Canonical proof bytes — so a leaf is `SHA-256(0x00 ‖ proofHash)` and an internal node
 >   is `SHA-256(0x01 ‖ l ‖ r)`. Leaves are ordered as the batch was assembled, and
->   `leafIndex` in the certificate's `merkle` object is that position. The tree splits at
+>   `leafIndex` in the certificate's `merkle` object is that position, counted from 0. The tree splits at
 >   the largest power of two `< n` and the last leaf is never duplicated, per RFC 6962
 >   §2.1.
 >
@@ -135,11 +137,14 @@ up in the audit-path lengths: `[3, 3, 3, 3, 1]`.
 Every input is derived from a labelled preimage rather than chosen, so the file
 regenerates byte-identically and any implementation can rebuild it from scratch:
 
-- private key `i` = `SHA-256("BRC-220/batch-vector/key/" + i)`
+- private key `i` = `SHA-256("BRC-220/batch-vector/key/" + i)`, read as a big-endian integer
 - `payloadHash` `i` = `SHA-256("BRC-220/batch-vector/payload/" + i)`
 - `createdAt` `i` = `2026-01-0(i+1)T00:00:00.000Z`
 - `algorithm` = `ECDSA-secp256k1`, `hashAlgorithm` = `SHA-256`, a 64-byte `r ‖ s`
   signature normalised to low-S, and a 33-byte compressed public key
+
+where `i` is written as one ASCII decimal digit, `"0"` to `"4"`, so the first key's
+preimage is the 26-byte string `BRC-220/batch-vector/key/0`.
 
 **Signing.** The signer signs the 32-byte `payloadHash` directly — the digest *is* the
 scalar, big-endian. RFC 6979 makes the nonce deterministic, so the signatures, and every
