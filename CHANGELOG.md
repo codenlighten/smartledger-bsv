@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Docs
+
+- `docs/BRC220_CERTIFICATE_FIELDS_AMENDMENT.md` follows bsv-blockchain/BRCs#247 after review.
+  The first wording said DER "is not 64 bytes long", which is false: DER can be 64 bytes when
+  `r` and `s` are unusually short. The text now states the rule the reference implementation
+  and this library both apply: exactly 64 bytes is `r ‖ s`, and anything else must parse as
+  DER. The matching comment in `lib/notaryhash/suites.js` is corrected the same way; the
+  code already applied that rule.
+
 ## [9.10.0] - 2026-09-11
 
 **NotaryHash refuses base64 that is not base64, can check a header's height, and its
