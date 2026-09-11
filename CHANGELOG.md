@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — NotaryHash reads base64 strictly, and can check a header's height
+
+`Certificate.decodeBytes` refuses a base64 length that no byte string encodes, and padding
+anywhere but the end. `Buffer.from` drops a trailing character that cannot complete a byte,
+so `"AAAAA"` decoded to three bytes instead of failing — the same corruption-as-decoding
+that 9.9.0 already refused for characters outside the alphabet. Everything a writer
+produces, in either alphabet and with or without padding, is still accepted.
+
+`verify()` and `verifyAnchorSPV()` take an optional `height`. BRC-220 anchors a certificate
+in "the block header for `spv.blockHash` at `spv.blockHeight`", and an 80-byte header does
+not carry its height, so until now the height could not be checked at all. A caller that
+obtained the header at a known height passes it, and a mismatch fails the anchor. It is
+optional because requiring it would break every caller that holds only the header.
+
 ## [9.9.0] - 2026-09-11
 
 **NotaryHash interoperates with the BRC-220 reference implementation, without breaking

@@ -15,7 +15,7 @@ seeking a quote for an independent security review of its cryptographic core.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 11,962 lines. Sighash construction and signing; ECDSA, nonce
+  Tier 1 — 11,976 lines. Sighash construction and signing; ECDSA, nonce
   derivation and signature encoding; the consensus-flag and era surface of the
   script interpreter; BRC-220 signing; the covenant verification harness; RFC
   8785 canonicalization; and the covenant-facing entrypoints of the smart
