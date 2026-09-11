@@ -21,8 +21,11 @@ var Merkle = require('../../lib/notaryhash/merkle')
 var NS = require('../../lib/notaryhash/script')
 var Hash = require('../../lib/crypto/hash')
 var JCS = require('../../lib/util/jcs')
+var deprecate = require('../../lib/util/deprecate')
+var golden = require('../data/notaryhash-9.8.0-certs.json')
 
 var PARAMS = {
+  format: 'reference',
   mode: 'full',
   algorithm: 'ECDSA-secp256k1',
   hashAlgorithm: 'SHA-256',
@@ -422,7 +425,7 @@ describe('BRC-220 certificate', function () {
       }, overrides)
     }
 
-    it('normalise to exactly the certificate build() writes today', function () {
+    it('normalise to exactly the certificate the reference format writes', function () {
       Certificate.normalize(legacy()).should.deep.equal(Certificate.build(PARAMS))
     })
 
@@ -473,6 +476,104 @@ describe('BRC-220 certificate', function () {
       var problems = Certificate.validateShape(foreign)
       problems.should.include('unsupported version: 2')
       problems.should.include('mode must be "full" or "hybrid"')
+    })
+  })
+
+  // Through 9.x the default is still the 8.3.0–9.8.0 format: STABILITY.md does not let a
+  // minor change what an API returns. These pin it against certificates the 9.8.0 code
+  // itself built, so "unchanged" is measured rather than assumed.
+  describe('the 8.3.0–9.8.0 format, still the default through 9.x', function () {
+    var warned
+
+    beforeEach(function () {
+      deprecate.reset()
+      warned = []
+      this.origWarn = console.warn
+      console.warn = function (m) { warned.push(m) }
+    })
+
+    afterEach(function () {
+      console.warn = this.origWarn
+      deprecate.reset()
+    })
+
+    function paramsFrom (input, extra) {
+      return Object.assign({}, input, {
+        payloadHash: Buffer.from(input.payloadHash, 'hex'),
+        publicKey: Buffer.from(input.publicKey, 'hex'),
+        signature: Buffer.from(input.signature, 'hex'),
+        createdAt: input.createdAt && input.createdAt.date ? new Date(input.createdAt.date) : input.createdAt
+      }, extra)
+    }
+
+    it('the fixture was built by 9.8.0, not by this library', function () {
+      golden._provenance.should.match(/at v9\.8\.0/)
+    })
+
+    Object.keys(golden.certificates).forEach(function (name) {
+      var entry = golden.certificates[name]
+
+      // Compared as serialised JSON, key order included: that is what a caller stores.
+      it(name + ': the default build writes exactly what 9.8.0 wrote', function () {
+        JSON.stringify(Certificate.build(paramsFrom(entry.input)))
+          .should.equal(JSON.stringify(entry.certificate))
+      })
+
+      it(name + ': format "legacy" writes it too, without a notice', function () {
+        JSON.stringify(Certificate.build(paramsFrom(entry.input, { format: 'legacy' })))
+          .should.equal(JSON.stringify(entry.certificate))
+        warned.should.deep.equal([])
+      })
+
+      it(name + ': is recognised, passes shape, and keeps its proofHash', function () {
+        Certificate.isLegacy(entry.certificate).should.equal(true)
+        Certificate.validateShape(entry.certificate).should.deep.equal([])
+        Certificate.proofHashMatches(entry.certificate).should.equal(true)
+      })
+
+      // The same proof in the other format: the JSON differs, the proof does not.
+      it(name + ': the reference format, from the same inputs, has the same proofHash', function () {
+        Certificate.build(paramsFrom(entry.input, { format: 'reference' })).proofHash
+          .should.equal(entry.certificate.proofHash)
+      })
+    })
+
+    it('warns once, naming the format option and the version that flips the default', function () {
+      var input = golden.certificates.fullDefaultEncoding.input
+      Certificate.build(paramsFrom(input))
+      Certificate.build(paramsFrom(input))
+      warned.length.should.equal(1)
+      warned[0].should.match(/format: 'reference'/)
+      warned[0].should.match(/10\.0\.0/)
+    })
+
+    it('does not warn when the reference format is chosen', function () {
+      Certificate.build(PARAMS)
+      warned.should.deep.equal([])
+    })
+
+    // A typo quietly selecting the legacy format would recreate the failure the option
+    // exists to remove, so an unknown value throws rather than falling back.
+    it('refuses an unknown format rather than falling back', function () {
+      ;(function () {
+        Certificate.build(params({ format: 'Reference' }))
+      }).should.throw(/Unknown certificate format/)
+    })
+
+    it('keeps the 9.8.0 constants: VERSION is 1, ENCODING keeps RAW and DER', function () {
+      Certificate.VERSION.should.equal(1)
+      Certificate.REFERENCE_VERSION.should.equal('1.0')
+      Certificate.ENCODING.RAW.should.equal('raw')
+      Certificate.ENCODING.DER.should.equal('der')
+    })
+
+    // 9.8.0 accepted certificate-like objects with no version in verifyBatchInclusion, and
+    // a numeric mode is something the reference format never has.
+    it('recognises a numeric mode with no version as the old format', function () {
+      Certificate.isLegacy({ mode: 2 }).should.equal(true)
+      Certificate.isLegacy({ version: '1.0', mode: 'full' }).should.equal(false)
+      Certificate.isLegacy({ version: 2, mode: 0 }).should.equal(false)
+      Certificate.isLegacy(null).should.equal(false)
     })
   })
 

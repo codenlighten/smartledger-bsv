@@ -207,8 +207,10 @@ Decided here, then reversed against the reference implementation:
   certificates for one signing act — is real, but it is the issuer's choice to make, and
   every certificate still commits to exactly one form.
 
-  The library now writes and reads the reference format and still reads the old one. The
-  proposed amendment (`docs/BRC220_ENCODING_AMENDMENT.md`) was withdrawn before filing.
+  The library now reads both formats and writes the reference one given
+  `format: 'reference'`. Per STABILITY.md the default stays the old format through 9.x,
+  with a one-time notice, and becomes 'reference' in 10.0.0. The proposed amendment
+  (`docs/BRC220_ENCODING_AMENDMENT.md`) was withdrawn before filing.
 
 ### The reference implementation
 

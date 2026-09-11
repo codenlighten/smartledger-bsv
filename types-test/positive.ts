@@ -103,6 +103,7 @@ const leafA = Buffer.alloc(32)
 const leafB = Buffer.alloc(32, 1)
 
 const cert = NH.Certificate.build({
+  format: 'reference',
   mode: 'hybrid',
   encoding: 'base64',
   algorithm: 'ECDSA-secp256k1',
@@ -119,6 +120,7 @@ const certVersion: '1.0' = cert.version
 
 // A batched proof: still full or hybrid, with the anchor marking the batch.
 const batched = NH.Certificate.build({
+  format: 'reference',
   mode: 'full',
   algorithm: 'ECDSA-secp256k1',
   hashAlgorithm: 'SHA-256',
@@ -152,8 +154,28 @@ const recordFound = NH.recordFromRawTx('')
 NH.registerSuite('ML-DSA-65', { verify: (h, s, k) => h.length === 32 && s.length > 0 && k.length > 0 })
 const suites: string[] = NH.Suites.list()
 
+// The 9.x default: the 8.3.0–9.8.0 format, typed as such.
+const legacyCert = NH.Certificate.build({
+  mode: NH.MODE.FULL,
+  algorithm: 'ECDSA-secp256k1',
+  hashAlgorithm: 'SHA-256',
+  payloadHash: leafA,
+  publicKey: Buffer.alloc(33),
+  signature: Buffer.alloc(64),
+  anchor: { txid: '00'.repeat(32), blockHeight: 900000 }
+})
+const legacyMode: 0 | 1 | 2 = legacyCert.mode
+const legacyVersion: 1 = NH.Certificate.VERSION
+const referenceVersion: '1.0' = NH.Certificate.REFERENCE_VERSION
+const isOld: boolean = NH.Certificate.isLegacy(legacyCert)
+const legacyWithSpv = NH.Certificate.attachSPV(legacyCert, {
+  rawTx: '', blockHash: '', blockHeight: 0, merkleProof: { index: 0, nodes: [] }
+})
+const legacyEncoding: 'raw' | 'der' = legacyWithSpv.encoding
+
 export {
   certMode, anchorType, certVersion, batchLeafCount, nhValid, nhLegacy, nhShape,
-  nhNormalised, nhDecoded, nhProofHash, firstSide, folds, modeByte, recordFound, suites
+  nhNormalised, nhDecoded, nhProofHash, firstSide, folds, modeByte, recordFound, suites,
+  legacyMode, legacyVersion, referenceVersion, isOld, legacyEncoding
 }
 

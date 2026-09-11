@@ -89,6 +89,7 @@ describe('BRC-220 verification', function () {
 
     certificate = NH.Certificate.attachSPV(
       NH.Certificate.build({
+        format: 'reference',
         mode: 'full',
         algorithm: 'ECDSA-secp256k1',
         hashAlgorithm: 'SHA-256',
@@ -375,6 +376,7 @@ describe('BRC-220 verification', function () {
   describe('encoding', function () {
     it('verifies the same proof written in base64', function () {
       var b64 = NH.Certificate.attachSPV(NH.Certificate.build({
+        format: 'reference',
         mode: 'full',
         encoding: 'base64',
         algorithm: 'ECDSA-secp256k1',
@@ -412,6 +414,30 @@ describe('BRC-220 verification', function () {
       var report = NH.verify(legacy(), OPTS())
       report.valid.should.equal(true, JSON.stringify(report.errors))
       report.legacy.should.equal(true)
+    })
+
+    it('a certificate built with the 9.x default format verifies, and is reported as legacy', function () {
+      var deprecate = require('../../lib/util/deprecate')
+      var was = deprecate.isEnabled()
+      deprecate.setEnabled(false)
+      try {
+        var built = NH.Certificate.attachSPV(NH.Certificate.build({
+          mode: NH.MODE.FULL,
+          algorithm: 'ECDSA-secp256k1',
+          hashAlgorithm: 'SHA-256',
+          payloadHash: payloadHash,
+          publicKey: publicKey,
+          signature: signature,
+          createdAt: certificate.createdAt,
+          anchor: { txid: certificate.anchor.txid, blockHeight: 800000 }
+        }), certificate.spv)
+        built.version.should.equal(1)
+        var report = NH.verify(built, OPTS())
+        report.valid.should.equal(true, JSON.stringify(report.errors))
+        report.legacy.should.equal(true)
+      } finally {
+        deprecate.setEnabled(was)
+      }
     })
 
     it('a reference-format certificate is not reported as legacy', function () {

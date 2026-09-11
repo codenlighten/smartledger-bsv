@@ -1,0 +1,155 @@
+{
+  "_provenance": "Built by lib/notaryhash/certificate.js at v9.8.0 (git archive v9.8.0), from the inputs recorded beside each certificate. Byte fields are hex; a createdAt of { date } was passed as a Date.",
+  "certificates": {
+    "fullDefaultEncoding": {
+      "input": {
+        "mode": 0,
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "anchor": {
+          "txid": "abababababababababababababababababababababababababababababababab",
+          "blockHeight": 800000
+        },
+        "algorithm": "ECDSA-secp256k1",
+        "hashAlgorithm": "SHA-256",
+        "payloadHash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "publicKey": "022222222222222222222222222222222222222222222222222222222222222222",
+        "signature": "33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "certificate": {
+        "protocol": "NotaryHash",
+        "version": 1,
+        "mode": 0,
+        "algorithm": "ECDSA-secp256k1",
+        "hashAlgorithm": "SHA-256",
+        "payloadHash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "publicKey": "022222222222222222222222222222222222222222222222222222222222222222",
+        "signature": "33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+        "encoding": "raw",
+        "proofHash": "53e42cf1671e2c7441bdf894aa8db3951f2926739185ad98da52483ecd615845",
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "anchor": {
+          "txid": "abababababababababababababababababababababababababababababababab",
+          "blockHeight": 800000
+        }
+      }
+    },
+    "hybridDer": {
+      "input": {
+        "mode": 1,
+        "encoding": "der",
+        "createdAt": {
+          "date": "2026-08-16T12:34:56.000Z"
+        },
+        "anchor": {
+          "txid": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+          "blockHeight": 800001
+        },
+        "algorithm": "ECDSA-secp256k1",
+        "hashAlgorithm": "SHA-256",
+        "payloadHash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "publicKey": "022222222222222222222222222222222222222222222222222222222222222222",
+        "signature": "33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "certificate": {
+        "protocol": "NotaryHash",
+        "version": 1,
+        "mode": 1,
+        "algorithm": "ECDSA-secp256k1",
+        "hashAlgorithm": "SHA-256",
+        "payloadHash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "publicKey": "022222222222222222222222222222222222222222222222222222222222222222",
+        "signature": "33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+        "encoding": "der",
+        "proofHash": "9870e5969a28a57163d481129d27cce61d8d32d50dd5492e03890d5bae09499a",
+        "createdAt": "2026-08-16T12:34:56.000Z",
+        "anchor": {
+          "txid": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+          "blockHeight": 800001
+        }
+      }
+    },
+    "createdAtWithMillis": {
+      "input": {
+        "mode": 0,
+        "encoding": "raw",
+        "createdAt": "2026-08-16T00:00:00.789Z",
+        "anchor": {
+          "txid": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+          "blockHeight": 800002
+        },
+        "algorithm": "ECDSA-secp256k1",
+        "hashAlgorithm": "SHA-256",
+        "payloadHash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "publicKey": "022222222222222222222222222222222222222222222222222222222222222222",
+        "signature": "33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "certificate": {
+        "protocol": "NotaryHash",
+        "version": 1,
+        "mode": 0,
+        "algorithm": "ECDSA-secp256k1",
+        "hashAlgorithm": "SHA-256",
+        "payloadHash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "publicKey": "022222222222222222222222222222222222222222222222222222222222222222",
+        "signature": "33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+        "encoding": "raw",
+        "proofHash": "53e42cf1671e2c7441bdf894aa8db3951f2926739185ad98da52483ecd615845",
+        "createdAt": "2026-08-16T00:00:00.789Z",
+        "anchor": {
+          "txid": "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+          "blockHeight": 800002
+        }
+      }
+    },
+    "batchNoBlockHeight": {
+      "input": {
+        "mode": 2,
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "anchor": {
+          "txid": "0101010101010101010101010101010101010101010101010101010101010101"
+        },
+        "merkle": {
+          "root": "700406c14c95838d3bfb99be7fc508927d8c4549fd1fa1c9b527ab29aa48478e",
+          "leafIndex": 2,
+          "leafCount": 8,
+          "path": [
+            "f99610c7caae17dd087cbdeb434fdf71e0ce721b243c90c1167f7a482425cd03",
+            "34959128c8eb35cc38a329af9116b54ef78c6b044d0687478eab65e4b70078bb",
+            "e3d9b39269aa0dfb240bb55c8dbfd94ea9a36f2b1cdfc245ccaa7f336af36246"
+          ]
+        },
+        "algorithm": "ECDSA-secp256k1",
+        "hashAlgorithm": "SHA-256",
+        "payloadHash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "publicKey": "022222222222222222222222222222222222222222222222222222222222222222",
+        "signature": "33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "certificate": {
+        "protocol": "NotaryHash",
+        "version": 1,
+        "mode": 2,
+        "algorithm": "ECDSA-secp256k1",
+        "hashAlgorithm": "SHA-256",
+        "payloadHash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "publicKey": "022222222222222222222222222222222222222222222222222222222222222222",
+        "signature": "33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333",
+        "encoding": "raw",
+        "proofHash": "53e42cf1671e2c7441bdf894aa8db3951f2926739185ad98da52483ecd615845",
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "anchor": {
+          "txid": "0101010101010101010101010101010101010101010101010101010101010101"
+        },
+        "merkle": {
+          "root": "700406c14c95838d3bfb99be7fc508927d8c4549fd1fa1c9b527ab29aa48478e",
+          "leafIndex": 2,
+          "leafCount": 8,
+          "path": [
+            "f99610c7caae17dd087cbdeb434fdf71e0ce721b243c90c1167f7a482425cd03",
+            "34959128c8eb35cc38a329af9116b54ef78c6b044d0687478eab65e4b70078bb",
+            "e3d9b39269aa0dfb240bb55c8dbfd94ea9a36f2b1cdfc245ccaa7f336af36246"
+          ]
+        }
+      }
+    }
+  }
+}

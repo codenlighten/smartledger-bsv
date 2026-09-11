@@ -1510,22 +1510,77 @@ declare module '@smartledger/bsv' {
             };
         }
 
+        /**
+         * A certificate in the 8.3.0–9.8.0 format — what `build()` writes when `format` is
+         * omitted, through 9.x. No other BRC-220 implementation reads it.
+         */
+        interface LegacyCertificate {
+            protocol: 'NotaryHash';
+            version: 1;
+            /** The on-chain mode byte. */
+            mode: 0 | 1 | 2;
+            algorithm: string;
+            hashAlgorithm: string;
+            payloadHash: string;
+            publicKey: string;
+            signature: string;
+            /** Hex either way; named for the signature's byte form. */
+            encoding: 'raw' | 'der';
+            proofHash: string;
+            createdAt: string;
+            anchor: { txid: string; blockHeight?: number };
+            /** Mode 2 only; the path is bare hex hashes. */
+            merkle?: { root: string; leafIndex: number; leafCount: number; path: string[] };
+            spv?: SPVEnvelope;
+        }
+
+        interface LegacyBuildParams {
+            /** Omitted: the 9.x default, which warns once. 'legacy' pins it without the notice. */
+            format?: 'legacy';
+            mode: 0 | 1 | 2;
+            algorithm: string;
+            hashAlgorithm: string;
+            payloadHash: Buffer;
+            publicKey: Buffer;
+            signature: Buffer;
+            /** Defaults to 'raw'. */
+            encoding?: 'raw' | 'der';
+            /** Defaults to now. Written as supplied. */
+            createdAt?: string | Date;
+            anchor: { txid: string; blockHeight?: number };
+            /** Required for mode 2. */
+            merkle?: { root: string; leafIndex: number; leafCount: number; path: string[] };
+        }
+
         namespace Certificate {
             const PROTOCOL: 'NotaryHash';
-            const VERSION: '1.0';
-            /** What 8.3.0–9.8.0 wrote in `version`. Read, never written. */
-            const LEGACY_VERSION: 1;
+            /** What the 9.x default format writes. Becomes '1.0' in 10.0.0, with the default. */
+            const VERSION: 1;
+            /** What the reference format writes. */
+            const REFERENCE_VERSION: '1.0';
+            const FORMAT: { readonly REFERENCE: 'reference'; readonly LEGACY: 'legacy' };
             const MODE: { readonly FULL: 'full'; readonly HYBRID: 'hybrid' };
-            const ENCODING: { readonly HEX: 'hex'; readonly BASE64: 'base64' };
+            /** HEX and BASE64 are the reference format's; RAW and DER the legacy format's. */
+            const ENCODING: { readonly HEX: 'hex'; readonly BASE64: 'base64'; readonly RAW: 'raw'; readonly DER: 'der' };
             const ANCHOR_TYPE: { readonly DIRECT: 'direct'; readonly BATCH: 'batch' };
             /** 'bsv-mainnet'. */
             const DEFAULT_NETWORK: string;
             const REQUIRED_FIELDS: string[];
-            /** Build a certificate. proofHash is computed here, never accepted. */
-            function build(params: BuildParams): Certificate;
             /**
-             * Map an 8.3.0–9.8.0 certificate onto the current format. Anything that is not
-             * `version: 1` is returned as given, for validateShape to judge.
+             * Build a certificate in the BRC-220 reference format. proofHash is computed
+             * here, never accepted.
+             */
+            function build(params: BuildParams & { format: 'reference' }): Certificate;
+            /**
+             * Build a certificate in the 8.3.0–9.8.0 format. Omitting `format` selects this
+             * and warns once; the default becomes 'reference' in 10.0.0.
+             */
+            function build(params: LegacyBuildParams): LegacyCertificate;
+            /** True for a certificate in the 8.3.0–9.8.0 format. */
+            function isLegacy(certificate: object | null | undefined): boolean;
+            /**
+             * Map an 8.3.0–9.8.0 certificate onto the reference format. Anything else is
+             * returned as given, for validateShape to judge.
              */
             function normalize(certificate: object): Certificate;
             /** Decode a string field. Hex may carry `0x`; base64 may be URL-safe or unpadded. */
@@ -1537,7 +1592,7 @@ declare module '@smartledger/bsv' {
             /** Shape only — NOT verification. Empty means well-formed. */
             function validateShape(certificate: object | null | undefined): string[];
             /** A new certificate with the envelope attached; proofHash never changes. */
-            function attachSPV(certificate: Certificate, spv: SPVEnvelope): Certificate & { spv: SPVEnvelope };
+            function attachSPV<C extends Certificate | LegacyCertificate>(certificate: C, spv: SPVEnvelope): C & { spv: SPVEnvelope };
             /** RFC 8785 JSON of the certificate. Not what proofHash is computed over. */
             function canonicalize(certificate: object): string;
         }

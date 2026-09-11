@@ -22,8 +22,9 @@ this would have proposed a spec change incompatible with all of them.
 
 It also exposed that `@smartledger/bsv` 8.3.0–9.8.0 could not verify a single
 certificate the reference issued: its `version`, `mode`, `encoding`, `anchor` and batch
-`path` fields all differed. The library now reads and writes the reference format — see
-`lib/notaryhash/certificate.js` — and still reads certificates in the old format.
+`path` fields all differed. The library now reads both formats, and
+writes the reference one given `format: 'reference'` — the default from 10.0.0. See
+`lib/notaryhash/certificate.js`.
 
 ## What is still true
 
