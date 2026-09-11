@@ -258,6 +258,19 @@ describe('BRC-220 verification', function () {
     })
 
     // Not supplying a header is not a pass. This is the trust the spec exists to remove.
+    // A header's 80 bytes do not say what height it is at. A caller who knows passes it.
+    it('checks the header height when the caller supplies it', function () {
+      NH.verifyAnchorSPV(certificate, Object.assign(OPTS(), { height: 800000 })).valid.should.equal(true)
+      var report = NH.verifyAnchorSPV(certificate, Object.assign(OPTS(), { height: 800001 }))
+      report.valid.should.equal(false)
+      report.errors.should.deep.equal(['the supplied header is not at the height the SPV envelope names'])
+      NH.verify(certificate, Object.assign(OPTS(), { height: 800001 })).valid.should.equal(false)
+    })
+
+    it('does not require the height, which a bare header cannot supply', function () {
+      NH.verifyAnchorSPV(certificate, OPTS()).valid.should.equal(true)
+    })
+
     it('refuses to pass without a block header', function () {
       var report = NH.verifyAnchorSPV(certificate, {})
       report.valid.should.equal(false)

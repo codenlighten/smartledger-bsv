@@ -1694,6 +1694,11 @@ declare module '@smartledger/bsv' {
         interface AnchorOptions {
             /** An independently obtained block header: a bsv BlockHeader, 80 bytes, or 80-byte hex. */
             header?: string | Buffer | object;
+            /**
+             * The height the header was obtained at. Its 80 bytes do not carry it, so pass
+             * it to have it checked against `spv.blockHeight`.
+             */
+            height?: number;
             /** Pass false only for test fixtures. Defaults to true. */
             requirePow?: boolean;
         }

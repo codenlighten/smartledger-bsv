@@ -606,6 +606,23 @@ describe('BRC-220 certificate', function () {
       ;(function () { Certificate.decodeBytes('+/8B!!', 'base64') }).should.throw(/base64/)
     })
 
+    // Buffer.from also drops a trailing character that cannot complete a byte, so a
+    // truncated field would decode to fewer bytes instead of failing.
+    it('rejects a base64 length no byte string encodes, and padding out of place', function () {
+      Buffer.from('AAAAA', 'base64').length.should.equal(3)
+      ;(function () { Certificate.decodeBytes('AAAAA', 'base64') }).should.throw(/length/)
+      ;(function () { Certificate.decodeBytes('AB=', 'base64') }).should.throw(/length/)
+      ;(function () { Certificate.decodeBytes('AB=C', 'base64') }).should.throw(/base64/)
+    })
+
+    it('accepts every base64 length the writer produces, in either alphabet', function () {
+      for (var n = 0; n <= 64; n++) {
+        var bytes = Buffer.alloc(n, n)
+        Certificate.decodeBytes(bytes.toString('base64'), 'base64').should.deep.equal(bytes)
+        Certificate.decodeBytes(bytes.toString('base64url'), 'base64').should.deep.equal(bytes)
+      }
+    })
+
     it('rejects an encoding it does not know', function () {
       ;(function () { Certificate.decodeBytes('abcd', 'raw') }).should.throw(/encoding must be/)
     })

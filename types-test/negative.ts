@@ -68,3 +68,6 @@ bsv.NotaryHash.Encoding.proofHash({ algorithm: 'a', hashAlgorithm: 'b', payloadH
 
 // @expect-error an audit-path side is 'left' or 'right'
 bsv.NotaryHash.Merkle.rootFromPath(Buffer.alloc(32), [{ hash: Buffer.alloc(32), side: 'up' }])
+
+// @expect-error the header height is a number
+bsv.NotaryHash.verify({}, { header: Buffer.alloc(80), height: '900000' })

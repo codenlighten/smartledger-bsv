@@ -135,7 +135,7 @@ const batchLeafCount: number | undefined = batched.merkle && batched.merkle.leaf
 const withSpv = NH.Certificate.attachSPV(cert, {
   rawTx: '', blockHash: '', blockHeight: 0, merkleProof: { index: 0, nodes: [] }
 })
-const nhReport = NH.verify(withSpv, { header: Buffer.alloc(80), requirePow: false })
+const nhReport = NH.verify(withSpv, { header: Buffer.alloc(80), height: 900000, requirePow: false })
 const nhValid: boolean = nhReport.valid && NH.isValid(withSpv, { skipAnchor: true })
 const nhLegacy: boolean = nhReport.legacy
 const nhShape: string[] = NH.Certificate.validateShape(cert)
