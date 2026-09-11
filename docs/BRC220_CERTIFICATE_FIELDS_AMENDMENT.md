@@ -2,13 +2,14 @@
 
 §Certificate names the twelve fields a certificate must carry and says it is JSON. It
 defines none of their values. This proposes the values the BRC-220 reference
-implementation writes, so that any implementation can produce a certificate the reference
-verifies.
+implementation writes, and two rules for reading them. With both, any implementation
+produces certificates the reference verifies, and reads certificates the way the reference
+does.
 
-Prepared 2026-09-11. **Status: draft, not filed.** It is meant to be a separate pull
-request from [bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246),
-which is under review and deliberately narrow; this text builds on it for the batch leaf
-datum.
+Prepared 2026-09-11. **Status: ready to file**, with the open points decided
+[below](#decisions). It is meant to be a separate pull request from
+[bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246), which is under
+review and deliberately narrow; this text builds on it for the batch leaf datum.
 
 ---
 
@@ -37,9 +38,12 @@ implementations fail each other silently, on the field names a verifier reads fi
 Every value below is what the reference implementation writes, read from its source at
 commit `b926e3b`: the certificate assembly, the batcher, the confirmation poller that adds
 the SPV envelope, and its request schema. They agree with the reference's own protocol
-document, whose §5 carries the same example shapes. Where the reference's *verifier* is more
-lenient than its *writer*, the proposed text describes the writer, and the difference is
-listed under [Open points](#open-points-for-the-author) rather than decided here.
+document, whose §5 carries the same example shapes.
+
+The two reader rules go further than the reference's verifier did at `b926e3b`. It accepted
+a certificate of any `version`, and decoded base64 by skipping whatever it did not
+recognise. The reference implementation adopts both rules, and `@smartledger/bsv` applies
+both, so the spec does not state a rule its own reference breaks.
 
 The two examples are certificates the reference's own code produced, reproduced in
 `test/data/notaryhash-reference-certs.json`, where each was accepted by the reference's
@@ -73,6 +77,7 @@ That leaves undefined:
 - the elements of `merkle.path`. With bare hashes a verifier needs `leafIndex` and
   `leafCount` to fold; with sides it does not.
 - the byte order of `txid`, `spv.blockHash` and `spv.merkleProof.nodes`.
+- what a verifier does with a `version` it does not know, or a field that does not decode.
 
 ---
 
@@ -83,21 +88,22 @@ That leaves undefined:
 > ### Certificate
 >
 > A self-contained JSON object, canonicalised via [RFC 8785 (JCS)](https://www.rfc-editor.org/rfc/rfc8785)
-> for hashing and transport. Hex is **lowercase, without a `0x` prefix**; numbers are JSON
-> integers. Verifiers ignore members they do not recognise, which is how the SPV envelope
-> is added to a certificate already issued.
+> for hashing and transport. Hex is written **lowercase, without a `0x` prefix**; a reader
+> MAY accept upper case and the prefix. Numbers are JSON integers. Verifiers ignore members
+> they do not recognise, which is how the SPV envelope is added to a certificate already
+> issued.
 >
 > | field | value |
 > | --- | --- |
 > | `protocol` | the string `"NotaryHash"` |
-> | `version` | the string `"1.0"`: the certificate format version. It corresponds to `u8(version=1)` in the canonical proof bytes and the on-chain record, and to the domain separator `"NotaryHash/1.0"`, but is written as a string. |
+> | `version` | the string `"1.0"`: the certificate format version. It corresponds to `u8(version=1)` in the canonical proof bytes and the on-chain record, and to the domain separator `"NotaryHash/1.0"`, but is written as a string. A verifier MUST reject a certificate whose `version` it does not implement. |
 > | `mode` | `"full"` or `"hybrid"`: how the proof is recorded on chain, corresponding to the on-chain `mode` byte `0` or `1`. Batching is marked by `anchor.type`, not by `mode`. |
 > | `algorithm` | an identifier from §Algorithms, e.g. `"ECDSA-secp256k1"` |
 > | `hashAlgorithm` | `"SHA-256"` |
 > | `payloadHash` | the 32-byte payload hash, hex |
 > | `publicKey` | the **full** public key in every mode (hybrid puts only its SHA-256 on chain), written per `encoding` |
 > | `signature` | the **full** signature, as the signer produced it, in every mode, written per `encoding` |
-> | `encoding` | how `publicKey` and `signature` are written: `"hex"`, or `"base64"` (RFC 4648 §4: standard alphabet, padded). It applies to those two fields only, and says nothing about the format of the bytes themselves. |
+> | `encoding` | how `publicKey` and `signature` are written: `"hex"`, or `"base64"` (RFC 4648 §4: standard alphabet, padded). It applies to those two fields only, and says nothing about the format of the bytes themselves. A reader MUST reject a value that is not valid in its encoding rather than decode what remains of it — for base64, a character outside the RFC 4648 §4 and §5 alphabets, padding anywhere but the end, or a length no byte string encodes. A reader MAY accept the §5 (URL-safe) alphabet and missing padding. |
 > | `proofHash` | the 32-byte `SHA-256(canonicalBytes)`, hex |
 > | `createdAt` | `createdAtUnix` as an ISO 8601 UTC timestamp with milliseconds, e.g. `"2026-01-01T00:00:00.000Z"`. The milliseconds are always `000`, because only whole seconds enter the canonical bytes; a verifier recovers `createdAtUnix` as the whole seconds the timestamp denotes. Advisory only — see §Verification. |
 > | `anchor` | the object below |
@@ -107,7 +113,7 @@ That leaves undefined:
 > | member | value |
 > | --- | --- |
 > | `type` | `"direct"` if the record carries this proof (`mode` `0` or `1`); `"batch"` if it carries a Merkle root (`kind = 2`) |
-> | `network` | the chain the record is on: `"bsv-mainnet"` for BSV mainnet |
+> | `network` | the chain the anchoring transaction is on: `"bsv-mainnet"` for BSV mainnet, `"bsv-testnet"` for BSV testnet. Other values are not interoperable. The field is descriptive: which chain the anchor is on is established by the block header the verifier obtains, not by this value. |
 > | `txid` | the anchoring transaction's id, hex, in display order: `reverse(SHA256(SHA256(rawTx)))` |
 > | `vout` | the index of the `OP_RETURN` output within that transaction |
 > | `blockHeight` | the height of the block that mined the transaction, or `null` until it is mined |
@@ -189,43 +195,56 @@ That leaves undefined:
 
 ---
 
-## What this does not change
+## What this changes
+
+**For writers, nothing.** Every certificate the reference implementation has issued already
+conforms. The text makes explicit what it writes, so that other implementations can write
+the same.
+
+**For readers, two rules tighten.** A verifier that accepted a certificate of another
+version, or decoded base64 by skipping what it did not recognise, refuses instead. Neither
+rule refuses anything a conformant writer produces.
 
 The canonical proof bytes, `proofHash`, the on-chain record and the verification steps are
-untouched. **Every certificate the reference implementation has issued already conforms.**
-The text makes explicit what it writes, so that other implementations can write the same.
+untouched.
 
 ---
 
-## Open points for the author
+## Decisions
 
-These are places where the reference's verifier is more lenient than its writer, or where
-the text needs a decision the reference does not make. None of them is in the proposed text.
-Each lists what the reference does and what `@smartledger/bsv` 9.9.0 does.
+The first draft left six points to the author. Each is decided here, with the reason.
 
-1. **Whether a verifier checks `version`.** The reference writes `"1.0"`, but neither its
-   request schema nor either of its verifiers checks the value. A certificate carrying
-   `"version": "2.0"` is verified as v1. `@smartledger/bsv` rejects anything but `"1.0"`. The
-   proposal: verifiers MUST reject a `version` they do not implement, so that a future
-   format cannot be silently misread as this one.
-2. **How strictly base64 is read.** The reference decodes with Node's `Buffer.from(value,
-   'base64')`, which accepts the URL-safe alphabet and missing padding, and silently skips
-   any other character. A corrupted field then decodes to different bytes rather than
-   failing. `@smartledger/bsv` accepts the URL-safe alphabet and missing padding, and rejects
-   everything else. The proposal: writers MUST use the padded standard alphabet, and readers
-   MUST reject characters outside it.
-3. **Uppercase hex and a `0x` prefix on read.** The reference accepts both; writers never
-   emit either. The proposal: readers MAY accept them.
-4. **`network` identifiers.** The reference writes `"bsv-mainnet"`, plus `"mock"` for its
-   non-broadcasting test adapter, and accepts any string on read. No identifier exists for
-   testnet. Decide whether to name one, e.g. `"bsv-testnet"`, and whether the set is
-   closed — and if it is, whether a verifier rejects an identifier it does not know.
-5. **Certificates already issued in other shapes.** `@smartledger/bsv` 8.3.0–9.8.0 wrote the
-   format in the table above. It still reads those, and verifies them as legacy. Whether the
-   spec should acknowledge them is the author's call. As proposed, the text says nothing
-   about them, and they do not conform.
-6. **High-S ECDSA.** The §Algorithms insertion states the reference's behaviour. Requiring
-   low-S instead would reject certificates the reference has already issued.
+1. **A verifier refuses a `version` it does not implement.** This is in the proposed text.
+   The reference wrote `"1.0"` and read anything: a certificate saying `"2.0"` passed its
+   schema, its offline verifier, its SPV check and its anchor match. Reading a future
+   format with v1 rules gives a verdict about the wrong thing, and a spec that says nothing
+   lets every verifier do that. The reference implementation adopts the rule;
+   `@smartledger/bsv` has applied it since 9.9.0.
+2. **A reader refuses base64 that is not base64.** This is in the proposed text. The
+   reference decoded with Node's `Buffer.from`, which skips characters outside the alphabet
+   and truncates an impossible length, so a corrupted field became different bytes rather
+   than an error. That happened at the reference's own request intake too: a notarize
+   request with junk spliced into its base64 key was anchored with the junk dropped. The
+   URL-safe alphabet and missing padding stay acceptable, because both are unambiguous and
+   refusing them would gain nothing. The reference implementation adopts the rule;
+   `@smartledger/bsv` has refused bad characters since 9.9.0, and impossible lengths since
+   9.10.0.
+3. **Hex is written lowercase and unprefixed; upper case and `0x` MAY be read.** This is in
+   the proposed text. Both forms are unambiguous, and the reference already reads them.
+4. **`network` has two defined names and is descriptive.** This is in the proposed text.
+   `"bsv-mainnet"` is what the reference writes. `"bsv-testnet"` is reserved, so that
+   testnet certificates do not acquire ad-hoc names. It is not a closed set a verifier must
+   enforce. The block header the verifier obtains already fixes which chain the anchor is
+   on, so a mislabelled `network` cannot make a certificate verify anywhere it is not
+   anchored.
+5. **Certificates already issued in other shapes stay out of the spec.** The table above
+   is one implementation's history. That implementation's readers handle it:
+   `@smartledger/bsv` reads those certificates and reports them as legacy. A clause in the
+   spec would bind every other implementation to the same history.
+6. **High-S ECDSA is accepted.** This is in the proposed text, as the reference behaves.
+   Requiring low-S would reject certificates the reference has already issued, and
+   `proofHash` already stops the malleated form from being passed off as the same
+   certificate.
 
 ---
 
@@ -236,5 +255,6 @@ npx mocha test/notaryhash/fields_amendment.js test/notaryhash/reference_certs.js
 ```
 
 The first reads the examples out of this document and checks them against the reference's
-own certificates. The second verifies all ten reference certificates and rebuilds each one
-byte for byte from its proof fields, using the values defined here.
+own certificates. It also checks that `@smartledger/bsv` applies the reader rules the text
+states. The second verifies all ten reference certificates and rebuilds each one byte for
+byte from its proof fields, using the values defined here.
