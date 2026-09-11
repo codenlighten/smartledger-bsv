@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.10.0] - 2026-09-11
+
+**NotaryHash refuses base64 that is not base64, can check a header's height, and its
+certificate fields are proposed for BRC-220.** Everything here is additive or refuses only
+malformed input: nothing that verified in 9.9.0 stops verifying.
+
 ### Fixed — NotaryHash reads base64 strictly, and can check a header's height
 
 `Certificate.decodeBytes` refuses a base64 length that no byte string encodes, and padding
@@ -23,12 +29,18 @@ optional because requiring it would break every caller that holds only the heade
 
 ### Docs
 
-- `docs/BRC220_CERTIFICATE_FIELDS_AMENDMENT.md`: a draft BRC-220 amendment defining the
-  certificate's field values as the reference implementation writes them. BRC-220 names
-  the twelve required fields and defines none of their values, which is how 8.3.0–9.8.0 and
-  the reference came to be unable to read each other's certificates. It is not filed.
+- `docs/BRC220_CERTIFICATE_FIELDS_AMENDMENT.md`: a BRC-220 amendment defining the
+  certificate's field values as the reference implementation writes them, and two rules
+  for reading them. BRC-220 names the twelve required fields and defines none of their
+  values, which is how 8.3.0–9.8.0 and the reference came to be unable to read each
+  other's certificates. Filed as
+  [bsv-blockchain/BRCs#247](https://github.com/bsv-blockchain/BRCs/pull/247).
   `test/notaryhash/fields_amendment.js` checks its examples against certificates the
-  reference produced.
+  reference produced, and checks that this library does what each reader rule says.
+- `docs/BRC220_BATCH_LEAF_AMENDMENT.md` says that `leafIndex` counts from 0, and how `i`
+  is written in the batch vector's preimages. Review of
+  [bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246) asked for
+  both, and #246 now carries them too. The vector's values are unchanged.
 
 ## [9.9.0] - 2026-09-11
 
