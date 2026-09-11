@@ -34,14 +34,14 @@ module sounds. That is a deliberate revision: an earlier version of this documen
 scoped Tier 1 as "the cryptographic core" and would have excluded four of the six real
 defects this codebase has produced. See §2.1.
 
-### Tier 1 — 11,818 lines
+### Tier 1 — 11,962 lines
 
 | Module | Lines | Why it matters |
 | --- | ---: | --- |
 | `lib/transaction/` | 2,779 | Sighash construction and signing — both BIP-143 and the Original Transaction Digest Algorithm. |
 | `lib/script/interpreter.js` | 2,821 | **Scoped to the flag and era surface, not opcode execution.** Consensus-flag selection and defaults, era derivation (Genesis/Chronicle), the limits derived from them, and the semantics of the exported `verify()`. Opcode execution is excluded — see §2.2. |
 | `lib/crypto/` | 2,519 | ECDSA, nonce derivation, signature encoding, the script-number type. **Scope this for an architectural judgement as well as for bugs** — see §2.3. |
-| `lib/notaryhash/` | 1,870 | BRC-220 signing and verification. Publicly reachable and relied on downstream. |
+| `lib/notaryhash/` | 2,014 | BRC-220 signing and verification. Publicly reachable and relied on downstream. |
 | `lib/privatekey.js`, `lib/publickey.js` | 843 | Key construction, serialisation, WIF. Recent defects here produced a *different* key without error. |
 | `lib/smart_contract/` (targeted) | 472 | `locks.js` and the covenant-facing entrypoints in `index.js`: CLTV and HTLC locking semantics, flag plumbing, and any wrapper claiming mainnet-equivalent verification. Not the whole 6,908-line module. |
 | `lib/covenant/` | 409 | The verification harness. Its flag word is what made covenants verify under 2019 rules while claiming to mirror mainnet. |
@@ -150,14 +150,14 @@ this repository.
 | `lib/address.js`, `lib/networks.js`, `lib/opcode.js`, `lib/hdprivatekey.js`, `lib/hdpublickey.js` (2,391 lines) | Cut to pay for §2.1 | Formatting, network constants and BIP-32 derivation. No defect has originated here, and `networks.js` in particular defines addressing constants — pubkey hashes, xpub prefixes, ports, DNS seeds — and contains **no consensus-flag logic at all**. |
 | The rest of the application layer — `lib/gdaf/`, `lib/ltp/`, `lib/ordinals/`, `lib/block/`, `lib/didweb/`, `lib/vcjwt/`, `lib/statuslist/`, most of `lib/smart_contract/`, plus assorted top-level files | Excluded | ~26,000 lines. Worth a separate engagement; including it here would blur the question in §1. Note the parts of it with a demonstrated defect history have been pulled *into* Tier 1 rather than left here — see §2.1. |
 
-Totals reconcile against `lib/`, which is 39,502 lines across 131 files:
+Totals reconcile against `lib/`, which is 39,646 lines across 131 files:
 
 ```
-tier 1      11,818
+tier 1      11,962
 tier 2       1,607
 excluded    26,077
             ------
-total       39,502
+total       39,646
 ```
 
 Measured 2026-08-29 at `a954c27`. These figures drift as the library changes — an
@@ -228,7 +228,7 @@ seeking a quote for an independent security review.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 11,818 lines. Sighash construction and signing; ECDSA, nonce
+  Tier 1 — 11,962 lines. Sighash construction and signing; ECDSA, nonce
   derivation and signature encoding; the consensus-flag and era-derivation
   surface of the script interpreter; BRC-220 signing and verification;
   key construction and serialisation; the covenant verification harness and

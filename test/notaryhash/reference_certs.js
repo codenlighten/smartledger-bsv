@@ -34,6 +34,7 @@ function opts (header) { return { header: header, requirePow: false } }
 function rebuild (ref, merkle) {
   var f = Certificate.toProofInput(ref)
   return Certificate.attachSPV(Certificate.build({
+    format: 'reference',
     mode: ref.mode,
     encoding: ref.encoding,
     algorithm: f.algorithm,

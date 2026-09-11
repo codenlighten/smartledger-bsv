@@ -93,4 +93,42 @@ describe('deprecated APIs', function () {
       found.compliant.should.not.equal(found.legacy)
     })
   })
+
+  // The LTP canonicalization pattern: the default is kept for 9.x, the notice carries the
+  // migration, and choosing explicitly silences it.
+  describe('NotaryHash.Certificate.build without a format — default kept, notice given', function () {
+    function params (extra) {
+      return Object.assign({
+        mode: bsv.NotaryHash.MODE.FULL,
+        algorithm: 'ECDSA-secp256k1',
+        hashAlgorithm: 'SHA-256',
+        payloadHash: Buffer.alloc(32, 1),
+        publicKey: Buffer.alloc(33, 2),
+        signature: Buffer.alloc(64, 3),
+        createdAt: '2026-09-11T00:00:00.000Z',
+        anchor: { txid: 'ab'.repeat(32), blockHeight: 1 }
+      }, extra)
+    }
+
+    it('keeps writing the 9.8.0 format, which is the whole point', function () {
+      var cert = bsv.NotaryHash.Certificate.build(params())
+      cert.version.should.equal(1)
+      cert.mode.should.equal(0)
+      cert.encoding.should.equal('raw')
+    })
+
+    it('warns once, naming the replacement and the version that flips the default', function () {
+      bsv.NotaryHash.Certificate.build(params())
+      bsv.NotaryHash.Certificate.build(params())
+      warned.length.should.equal(1)
+      warned[0].should.match(/format: 'reference'/)
+      warned[0].should.match(/10\.0\.0/)
+    })
+
+    it('is silent once the caller chooses', function () {
+      bsv.NotaryHash.Certificate.build(params({ format: 'legacy' }))
+      bsv.NotaryHash.Certificate.build(params({ format: 'reference', mode: 'full' }))
+      warned.should.deep.equal([])
+    })
+  })
 })

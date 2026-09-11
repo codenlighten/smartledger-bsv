@@ -7,40 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed — NotaryHash certificates are in the BRC-220 reference format
+## [9.9.0] - 2026-09-11
 
-**Breaking for code that reads certificate fields.** Nothing about the cryptography
-changes: `proofHash`, the signature digest, the RFC 6962 tree and the on-chain record are
-byte-identical to 9.8.0.
+**NotaryHash interoperates with the BRC-220 reference implementation, without breaking
+anything in 9.x.** Verification reads both certificate formats. `Certificate.build()`
+writes the reference format given `format: 'reference'`; without it, it still writes
+exactly what 9.8.0 wrote and warns once, as STABILITY.md requires. Against v9.8.0 the
+public API gains 13 names and changes or removes none.
 
-8.3.0 through 9.8.0 wrote BRC-220 certificates in a JSON format of this library's own.
-BRC-220 lists the required fields but not their values, and the gap was filled from this
-implementation alone. The BRC-220 reference implementation — which issues the
-certificates people are actually handed — writes a different one, so **this library could
-not verify a single certificate the reference issued.** `NotaryHash.verify` rejected every
-one with `unsupported version: 1.0`, and the reference could not read ours either.
-Every test passed throughout, because every test built its certificates here.
+### Fixed — NotaryHash verifies the certificates the BRC-220 reference implementation issues
 
-| field | 8.3.0–9.8.0 | now, as the reference writes it |
+8.3.0 through 9.8.0 could not verify a single certificate the BRC-220 reference
+implementation issued: `NotaryHash.verify` rejected every one with `unsupported version:
+1.0`, and the reference could not read this library's either. The cryptography agreed
+throughout — `proofHash`, the signature digest, the RFC 6962 tree and the on-chain record
+are byte-identical — and only the JSON differed. BRC-220 lists a certificate's required
+fields but not their values, and 8.3.0 filled that gap from this implementation alone.
+Every test passed, because every test built its certificates here.
+
+| field | 8.3.0–9.8.0 format | reference format |
 | --- | --- | --- |
 | `version` | `1` | `"1.0"` |
 | `mode` | `0` / `1` / `2` | `"full"` / `"hybrid"` |
 | a batch | `mode: 2` | `anchor.type: "batch"`; the mode stays full or hybrid |
-| `encoding` | `"raw"` / `"der"` — the signature's byte format | `"hex"` / `"base64"` — how `publicKey` and `signature` are written |
+| `encoding` | `"raw"` / `"der"` — the signature's byte form | `"hex"` / `"base64"` — how `publicKey` and `signature` are written |
 | `anchor` | `{ txid, blockHeight }` | `{ type, network, txid, vout, blockHeight, blockTime }` |
 | `merkle.path` | bare hashes | `{ hash, side }`, leaf upward |
 
-```js
-cert.mode === bsv.NotaryHash.MODE.FULL   // 9.8.0
-cert.mode === 'full'                     // now
-```
-
-**Certificates already issued keep verifying.** `Certificate.normalize()` reads the old
-format, every check normalises first, and `verify()` reports `legacy: true` for one, so a
-caller knows to re-issue it. The old format is never written. `Certificate.build()` still
-accepts the numeric modes and `"raw"`/`"der"` as input, and writes the new format.
-
-Verification now accepts what the reference accepts, each of which 9.8.0 refused:
+Verification now reads both formats — `verify()` reports `legacy: true` for the old one —
+and accepts what the reference accepts, each of which 9.8.0 refused:
 
 - **High-S ECDSA signatures.** The reference accepts them deliberately. It is safe:
   `proofHash` covers the exact signature bytes, so the malleated form of a signature is a
@@ -51,25 +46,51 @@ Verification now accepts what the reference accepts, each of which 9.8.0 refused
   reference's `Buffer.from` reads them. Characters outside the alphabet are refused, where
   `Buffer.from` would skip them and decode a corrupted field to different bytes.
 - **A merkle proof on a direct anchor** is checked when present, as the reference checks
-  it: accepted if it folds to its stated root, refused if not. 9.8.0 refused every direct
-  certificate carrying one.
+  it: accepted if it folds to its stated root, refused if not.
 
-And one check is added: the supplied header must be the block `spv.blockHash` names. A
-header the proof folds to that is some other block left the certificate's own statement
-of where it was mined unchecked. The reference checks the same.
+One check is added: the supplied header must be the block `spv.blockHash` names. A header
+the proof folds to that is some other block left the certificate's own statement of where
+it was mined unchecked. The reference checks the same. A certificate that passed 9.8.0
+fails it only if its `spv.blockHash` names a different block from the header supplied.
+
+### Deprecated — the default format of `NotaryHash.Certificate.build()`
+
+`build()` takes a `format`. `'reference'` (`NotaryHash.Certificate.FORMAT.REFERENCE`)
+writes the reference format; `'legacy'` writes the 8.3.0–9.8.0 one. Omitting it writes the
+legacy format — byte for byte what 9.8.0 wrote, pinned by test against certificates the
+9.8.0 code itself built — and warns once. **The default becomes `'reference'` in 10.0.0.**
+
+```js
+NotaryHash.Certificate.build({ ...params, format: 'reference' })
+// { version: '1.0', mode: 'full', encoding: 'hex', anchor: { type: 'direct', … }, … }
+```
+
+Per STABILITY.md this is a minor, so what `build()` returns does not change in 9.x, and
+code reading `cert.mode === NotaryHash.MODE.FULL` keeps working. It is the shape of the
+LTP claim canonicalization in 9.2.0, for a similar reason: the default is deterministic and
+agrees with itself, and is not interoperable. The cost here is immediate rather than
+latent — no other BRC-220 verifier can check a default-built certificate — so pass
+`format: 'reference'` for anything issued to someone else. An unrecognised `format` throws
+rather than falling back.
+
+`Certificate.VERSION` is still `1`, what the default writes; `Certificate.REFERENCE_VERSION`
+is `'1.0'`. `Certificate.ENCODING` gains `HEX` and `BASE64` beside `RAW` and `DER`.
 
 ### Added
 
 - `test/notaryhash/reference_certs.js`, over ten certificates produced by the reference
   implementation's own code — full and hybrid, hex and base64, a DER signature, a high-S
   signature, an uncompressed key, and a five-leaf batch. Each verifies here, and each is
-  rebuilt byte for byte by `Certificate.build`. The reference's batch is the same tree as
-  the BRC-220 batch vector: same root, same paths.
-- `Merkle.auditPath`, `pathSides`, `rootFromPath` and `verifyAuditPath`, for the sided
-  path form. `Certificate.normalize`, `decodeBytes`, `toProofInput`, and the `MODE`,
-  `ANCHOR_TYPE`, `LEGACY_VERSION` and `DEFAULT_NETWORK` constants.
-- `bsv.d.ts` declares `NotaryHash` in full. It was 48 of 56 names undeclared, so every use
-  from TypeScript was an implicit `any`; the declaration gate now holds it at zero.
+  rebuilt byte for byte by `Certificate.build({ format: 'reference' })`. The reference's
+  batch is the same tree as the BRC-220 batch vector: same root, same paths.
+- `test/data/notaryhash-9.8.0-certs.json`: certificates built by the 9.8.0 code, which the
+  9.x default must reproduce exactly.
+- `Certificate.FORMAT`, `REFERENCE_VERSION`, `MODE`, `ANCHOR_TYPE`, `DEFAULT_NETWORK`,
+  `isLegacy`, `normalize`, `decodeBytes` and `toProofInput`; `Merkle.auditPath`,
+  `pathSides`, `rootFromPath` and `verifyAuditPath` for the sided path form.
+- `bsv.d.ts` declares `NotaryHash` in full, with `build()` overloaded on `format`. It was
+  48 of 56 names undeclared, so it could not be used from TypeScript at all; the
+  declaration gate now holds it at zero.
 
 ### Docs
 
