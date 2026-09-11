@@ -31,7 +31,8 @@ writes the reference one given `format: 'reference'` — the default from 10.0.0
 The gap this draft set out to close is real: BRC-220 lists `encoding` as a required field
 and never enumerates its values, and says nothing about the JSON form of `version`,
 `mode`, `anchor` or the batch `path`. A clarification defining those fields **as the
-reference writes them** is a separate, later proposal.
+reference writes them** is a separate proposal, drafted in
+[BRC220_CERTIFICATE_FIELDS_AMENDMENT.md](BRC220_CERTIFICATE_FIELDS_AMENDMENT.md).
 
 The batch-leaf clarification written alongside this one was correct, and was confirmed
 against the reference implementation: it was filed as
