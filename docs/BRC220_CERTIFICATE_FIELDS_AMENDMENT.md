@@ -108,7 +108,7 @@ byte forms sit in §Certificate, under the fields they describe, rather than in
 > | `createdAt` | `createdAtUnix` as an ISO 8601 UTC timestamp with milliseconds, e.g. `"2026-01-01T00:00:00.000Z"`. The milliseconds are always `000`, because only whole seconds enter the canonical bytes; a verifier recovers `createdAtUnix` as the whole seconds the timestamp denotes. Advisory only — see §Verification. |
 > | `anchor` | the object below |
 >
-> For `ECDSA-secp256k1`, `publicKey` is 33 bytes (compressed) or 65 (uncompressed), and `signature` is 64 bytes (`r ‖ s`, each a 32-byte big-endian integer) or DER. A verifier tells them apart by the bytes: DER begins with `0x30` and is not 64 bytes long. `S` is not normalised: the certificate commits, through `proofHash`, to the exact bytes the signer produced, so the malleated form of a signature is a different certificate rather than a forgery of this one.
+> For `ECDSA-secp256k1`, `publicKey` is 33 bytes (compressed) or 65 (uncompressed), and `signature` is 64 bytes (`r ‖ s`, each a 32-byte big-endian integer) or DER. A verifier reads a 64-byte `signature` as `r ‖ s`, and any other `signature` as DER, which must parse as DER. DER can itself be 64 bytes long — only when `r` and `s` are unusually short — and is then read as `r ‖ s` and does not verify; a signer holding such a signature sends it as `r ‖ s` instead. `S` is not normalised: the certificate commits, through `proofHash`, to the exact bytes the signer produced, so the malleated form of a signature is a different certificate rather than a forgery of this one.
 >
 > `anchor` locates the on-chain record:
 >
@@ -198,7 +198,7 @@ untouched.
 
 ## Decisions
 
-The first draft left six points to the author. Each is decided here, with the reason.
+The first draft left six points to the author; review added a seventh. Each is decided here, with the reason.
 
 1. **A verifier refuses a `version` it does not implement.** This is in the proposed text.
    The reference wrote `"1.0"` and read anything: a certificate saying `"2.0"` passed its
@@ -227,7 +227,11 @@ The first draft left six points to the author. Each is decided here, with the re
    is one implementation's history. That implementation's readers handle it:
    `@smartledger/bsv` reads those certificates and reports them as legacy. A clause in the
    spec would bind every other implementation to the same history.
-6. **High-S ECDSA is accepted.** This is in the proposed text, as the reference behaves.
+6. **A 64-byte signature is always `r ‖ s`.** Review of #247 pointed out that DER can itself
+   be 64 bytes long, so the first wording, "DER is not 64 bytes long", was false. The text now
+   states the decoding rule the reference applies: exactly 64 bytes is `r ‖ s`, and anything
+   else must parse as DER.
+7. **High-S ECDSA is accepted.** This is in the proposed text, as the reference behaves.
    Requiring low-S would reject certificates the reference has already issued, and
    `proofHash` already stops the malleated form from being passed off as the same
    certificate.
