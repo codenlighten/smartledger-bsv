@@ -117,4 +117,53 @@ describe('BRC-220 certificate-field amendment', function () {
       })
     })
   })
+
+  // The text states two reader rules and two leniencies. Each is asserted here twice: that
+  // the sentence is in the text, and that this library does what the sentence says — so
+  // the proposal cannot claim behaviour its own implementation lacks.
+  describe('the reader rules, as stated and as this library applies them', function () {
+    var cert = example('certificates.fullHex')
+
+    it('a verifier rejects a version it does not implement', function () {
+      DOC.should.match(/A verifier MUST reject a certificate whose `version` it does not implement\./)
+      ;['2.0', '1', '1.0.0'].forEach(function (v) {
+        var report = NH.verify(Object.assign({}, cert, { version: v }), { skipAnchor: true })
+        report.shape.join(' ').should.match(/unsupported version/, 'version ' + JSON.stringify(v))
+      })
+    })
+
+    // The rule is about versions a verifier does not implement. This library implements one
+    // more than the reference: the numeric version 1 of its own 8.3.0-9.8.0 format, which it
+    // reads and reports as legacy. Refusing it would be refusing a version it implements.
+    it('does not refuse the one other version this library implements', function () {
+      var report = NH.verify(Object.assign({}, cert, { version: 1 }), { skipAnchor: true })
+      report.shape.should.deep.equal([])
+      report.legacy.should.equal(true)
+      report.signature.should.equal(true)
+      report.proofIntegrity.should.equal(true)
+    })
+
+    it('a reader rejects base64 that is not base64: characters, padding, length', function () {
+      DOC.should.match(/A reader MUST reject a value that is not valid in its encoding/)
+      ;['+/8B!!', '+/8B AA==', 'AB=C', 'AB=', 'AAAAA'].forEach(function (v) {
+        ;(function () { Certificate.decodeBytes(v, 'base64') })
+          .should.throw(Error, undefined, JSON.stringify(v) + ' was decoded')
+      })
+    })
+
+    it('a reader may accept the URL-safe alphabet and missing padding', function () {
+      DOC.should.match(/A reader MAY accept the §5 \(URL-safe\) alphabet and missing padding\./)
+      var bytes = Buffer.from([0xfb, 0xff, 0x01, 0x02])
+      Certificate.decodeBytes('-_8BAg', 'base64').should.deep.equal(bytes)
+      Certificate.decodeBytes('+/8BAg', 'base64').should.deep.equal(bytes)
+    })
+
+    it('a reader may accept upper-case hex and a 0x prefix', function () {
+      DOC.should.match(/a reader\s+MAY accept upper case and the prefix/)
+      var upper = Object.assign({}, cert, { proofHash: cert.proofHash.toUpperCase() })
+      Certificate.validateShape(upper).should.deep.equal([])
+      Certificate.proofHashMatches(upper).should.equal(true)
+      Certificate.decodeBytes('0xABCD', 'hex').toString('hex').should.equal('abcd')
+    })
+  })
 })

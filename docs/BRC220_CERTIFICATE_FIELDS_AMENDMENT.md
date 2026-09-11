@@ -83,18 +83,18 @@ That leaves undefined:
 
 ## Proposed text
 
+Generated from the text as committed for filing, so the two cannot differ. The ECDSA
+byte forms sit in §Certificate, under the fields they describe, rather than in
+§Algorithms, which #246 edits; a trial merge of #246 on top of this change is clean.
+
 ### 1. §Certificate — replace the paragraph
 
 > ### Certificate
 >
-> A self-contained JSON object, canonicalised via [RFC 8785 (JCS)](https://www.rfc-editor.org/rfc/rfc8785)
-> for hashing and transport. Hex is written **lowercase, without a `0x` prefix**; a reader
-> MAY accept upper case and the prefix. Numbers are JSON integers. Verifiers ignore members
-> they do not recognise, which is how the SPV envelope is added to a certificate already
-> issued.
+> A self-contained JSON object, canonicalised via [RFC 8785 (JCS)](https://www.rfc-editor.org/rfc/rfc8785) for hashing and transport, carrying the twelve required fields below. Hex is written **lowercase, without a `0x` prefix**; a reader MAY accept upper case and the prefix. Numbers are JSON integers. Verifiers ignore members they do not recognise, which is how the SPV envelope is added to a certificate already issued.
 >
 > | field | value |
-> | --- | --- |
+> |-------|-------|
 > | `protocol` | the string `"NotaryHash"` |
 > | `version` | the string `"1.0"`: the certificate format version. It corresponds to `u8(version=1)` in the canonical proof bytes and the on-chain record, and to the domain separator `"NotaryHash/1.0"`, but is written as a string. A verifier MUST reject a certificate whose `version` it does not implement. |
 > | `mode` | `"full"` or `"hybrid"`: how the proof is recorded on chain, corresponding to the on-chain `mode` byte `0` or `1`. Batching is marked by `anchor.type`, not by `mode`. |
@@ -108,10 +108,12 @@ That leaves undefined:
 > | `createdAt` | `createdAtUnix` as an ISO 8601 UTC timestamp with milliseconds, e.g. `"2026-01-01T00:00:00.000Z"`. The milliseconds are always `000`, because only whole seconds enter the canonical bytes; a verifier recovers `createdAtUnix` as the whole seconds the timestamp denotes. Advisory only — see §Verification. |
 > | `anchor` | the object below |
 >
+> For `ECDSA-secp256k1`, `publicKey` is 33 bytes (compressed) or 65 (uncompressed), and `signature` is 64 bytes (`r ‖ s`, each a 32-byte big-endian integer) or DER. A verifier tells them apart by the bytes: DER begins with `0x30` and is not 64 bytes long. `S` is not normalised: the certificate commits, through `proofHash`, to the exact bytes the signer produced, so the malleated form of a signature is a different certificate rather than a forgery of this one.
+>
 > `anchor` locates the on-chain record:
 >
 > | member | value |
-> | --- | --- |
+> |--------|-------|
 > | `type` | `"direct"` if the record carries this proof (`mode` `0` or `1`); `"batch"` if it carries a Merkle root (`kind = 2`) |
 > | `network` | the chain the anchoring transaction is on: `"bsv-mainnet"` for BSV mainnet, `"bsv-testnet"` for BSV testnet. Other values are not interoperable. The field is descriptive: which chain the anchor is on is established by the block header the verifier obtains, not by this value. |
 > | `txid` | the anchoring transaction's id, hex, in display order: `reverse(SHA256(SHA256(rawTx)))` |
@@ -119,18 +121,16 @@ That leaves undefined:
 > | `blockHeight` | the height of the block that mined the transaction, or `null` until it is mined |
 > | `blockTime` | that block's timestamp in Unix seconds, or `null` until it is mined |
 >
-> A batched certificate (`anchor.type` `"batch"`) additionally carries `merkle`, the
-> proof that this proof is one of the batch's leaves:
+> A batched certificate (`anchor.type` `"batch"`) additionally carries `merkle`, the proof that this proof is one of the batch's leaves:
 >
 > | member | value |
-> | --- | --- |
+> |--------|-------|
 > | `root` | the 32-byte batch root, hex; equal to `merkleRoot` in the on-chain batch record |
 > | `leafIndex` | this proof's position in the batch, from `0` |
 > | `leafCount` | the number of proofs in the batch; equal to `leafCount` in the on-chain batch record |
 > | `path` | the audit path, leaf → root, as an array of `{ "hash": <32-byte hex>, "side": "left" or "right" }`. `side` is the sibling's position relative to the running hash. Starting from `SHA256(0x00 ‖ proofHash)`, a `"left"` sibling folds as `SHA256(0x01 ‖ hash ‖ running)` and a `"right"` one as `SHA256(0x01 ‖ running ‖ hash)`. The result must equal `root`. |
 >
-> In a batched certificate `mode` is not checked against the chain: the batch record
-> carries neither the proof nor a mode byte.
+> In a batched certificate `mode` is not checked against the chain: the batch record carries neither the proof nor a mode byte.
 >
 > A direct-anchored ECDSA certificate, before its SPV envelope is attached:
 >
@@ -159,7 +159,7 @@ That leaves undefined:
 > }
 > ```
 >
-> The `merkle` member of leaf 4 of the five-proof batch in §On-chain record:
+> The `merkle` member of the last certificate in a five-proof batch:
 >
 > <!-- fixture: batch.certificates[4].merkle -->
 > ```json
@@ -173,25 +173,11 @@ That leaves undefined:
 > }
 > ```
 >
-> The anchoring transactions and blocks in these examples are test fixtures, not mainnet
-> data. Everything else in them verifies: the signature, `proofHash`, the on-chain record
-> in the transaction, and the batch inclusion.
+> The anchoring transactions and blocks in these examples are test fixtures, not mainnet data. Everything else in them verifies: the signature, `proofHash`, the on-chain record in the transaction, and the batch inclusion.
 
-### 2. §SPV envelope — add after the JSON block
+### 2. §SPV envelope — add at the end of the section
 
-> `rawTx` is hex. `blockHash` and the entries of `merkleProof.nodes` are hex in display
-> order, like `txid`; a `nodes` entry of `"*"` means "duplicate the working hash", the TSC
-> convention for a missing right sibling. The verifier checks that the header it obtained
-> has hash `spv.blockHash` and height `spv.blockHeight`.
-
-### 3. §Algorithms — add after the table
-
-> For `ECDSA-secp256k1`, `publicKey` is 33 bytes (compressed) or 65 (uncompressed), and
-> `signature` is 64 bytes (`r ‖ s`, each a 32-byte big-endian integer) or DER. A verifier
-> tells them apart by the bytes: DER begins with `0x30` and is not 64 bytes long. `S` is not
-> normalised. The certificate commits, through `proofHash`, to the exact bytes the signer
-> produced, so the malleated form of a signature is a different certificate rather than a
-> forgery of this one.
+> `rawTx` is hex, and `blockHash` is hex in display order, like `txid`. In the `"TSC"` format the entries of `merkleProof.nodes` are hex in display order too, and an entry of `"*"` means "duplicate the working hash", the TSC convention for a missing right sibling. The verifier checks that the header it obtained has hash `spv.blockHash` and height `spv.blockHeight`.
 
 ---
 
