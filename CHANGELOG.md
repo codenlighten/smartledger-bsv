@@ -21,6 +21,15 @@ not carry its height, so until now the height could not be checked at all. A cal
 obtained the header at a known height passes it, and a mismatch fails the anchor. It is
 optional because requiring it would break every caller that holds only the header.
 
+### Docs
+
+- `docs/BRC220_CERTIFICATE_FIELDS_AMENDMENT.md`: a draft BRC-220 amendment defining the
+  certificate's field values as the reference implementation writes them. BRC-220 names
+  the twelve required fields and defines none of their values, which is how 8.3.0–9.8.0 and
+  the reference came to be unable to read each other's certificates. It is not filed.
+  `test/notaryhash/fields_amendment.js` checks its examples against certificates the
+  reference produced.
+
 ## [9.9.0] - 2026-09-11
 
 **NotaryHash interoperates with the BRC-220 reference implementation, without breaking
