@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — NotaryHash certificates are in the BRC-220 reference format
+
+**Breaking for code that reads certificate fields.** Nothing about the cryptography
+changes: `proofHash`, the signature digest, the RFC 6962 tree and the on-chain record are
+byte-identical to 9.8.0.
+
+8.3.0 through 9.8.0 wrote BRC-220 certificates in a JSON format of this library's own.
+BRC-220 lists the required fields but not their values, and the gap was filled from this
+implementation alone. The BRC-220 reference implementation — which issues the
+certificates people are actually handed — writes a different one, so **this library could
+not verify a single certificate the reference issued.** `NotaryHash.verify` rejected every
+one with `unsupported version: 1.0`, and the reference could not read ours either.
+Every test passed throughout, because every test built its certificates here.
+
+| field | 8.3.0–9.8.0 | now, as the reference writes it |
+| --- | --- | --- |
+| `version` | `1` | `"1.0"` |
+| `mode` | `0` / `1` / `2` | `"full"` / `"hybrid"` |
+| a batch | `mode: 2` | `anchor.type: "batch"`; the mode stays full or hybrid |
+| `encoding` | `"raw"` / `"der"` — the signature's byte format | `"hex"` / `"base64"` — how `publicKey` and `signature` are written |
+| `anchor` | `{ txid, blockHeight }` | `{ type, network, txid, vout, blockHeight, blockTime }` |
+| `merkle.path` | bare hashes | `{ hash, side }`, leaf upward |
+
+```js
+cert.mode === bsv.NotaryHash.MODE.FULL   // 9.8.0
+cert.mode === 'full'                     // now
+```
+
+**Certificates already issued keep verifying.** `Certificate.normalize()` reads the old
+format, every check normalises first, and `verify()` reports `legacy: true` for one, so a
+caller knows to re-issue it. The old format is never written. `Certificate.build()` still
+accepts the numeric modes and `"raw"`/`"der"` as input, and writes the new format.
+
+Verification now accepts what the reference accepts, each of which 9.8.0 refused:
+
+- **High-S ECDSA signatures.** The reference accepts them deliberately. It is safe:
+  `proofHash` covers the exact signature bytes, so the malleated form of a signature is a
+  *different* certificate, never a forgery of this one — a test asserts exactly that.
+- **DER signatures**, told apart from 64-byte `r ‖ s` by the bytes, and **65-byte
+  uncompressed public keys**.
+- **Base64 fields**, including the URL-safe alphabet and missing padding, as the
+  reference's `Buffer.from` reads them. Characters outside the alphabet are refused, where
+  `Buffer.from` would skip them and decode a corrupted field to different bytes.
+- **A merkle proof on a direct anchor** is checked when present, as the reference checks
+  it: accepted if it folds to its stated root, refused if not. 9.8.0 refused every direct
+  certificate carrying one.
+
+And one check is added: the supplied header must be the block `spv.blockHash` names. A
+header the proof folds to that is some other block left the certificate's own statement
+of where it was mined unchecked. The reference checks the same.
+
+### Added
+
+- `test/notaryhash/reference_certs.js`, over ten certificates produced by the reference
+  implementation's own code — full and hybrid, hex and base64, a DER signature, a high-S
+  signature, an uncompressed key, and a five-leaf batch. Each verifies here, and each is
+  rebuilt byte for byte by `Certificate.build`. The reference's batch is the same tree as
+  the BRC-220 batch vector: same root, same paths.
+- `Merkle.auditPath`, `pathSides`, `rootFromPath` and `verifyAuditPath`, for the sided
+  path form. `Certificate.normalize`, `decodeBytes`, `toProofInput`, and the `MODE`,
+  `ANCHOR_TYPE`, `LEGACY_VERSION` and `DEFAULT_NETWORK` constants.
+- `bsv.d.ts` declares `NotaryHash` in full. It was 48 of 56 names undeclared, so every use
+  from TypeScript was an implicit `any`; the declaration gate now holds it at zero.
+
+### Docs
+
+- `docs/BRC220_ENCODING_AMENDMENT.md` is **withdrawn**. It proposed `"raw"`/`"der"` and
+  mandatory low-S; the reference contradicts it on every point. It was never filed.
+- `docs/BRC220_BATCH_LEAF_AMENDMENT.md` was confirmed against the reference and filed as
+  [bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246).
+- `test/data/brc220-batch-vector.json` records `encoding: "hex"` and sided paths. The root,
+  the rejected-reading root, and every `proofHash` and signature are unchanged.
+
 ## [9.8.0] - 2026-09-08
 
 **No runtime change.** `git diff v9.7.0..HEAD -- lib/` is empty. Four bundles do differ,

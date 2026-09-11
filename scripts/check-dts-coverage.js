@@ -48,7 +48,16 @@ const BASELINE = path.join(ROOT, 'test/fixtures/dts-coverage-baseline.json')
 // declaring them would assert a shape this package does not own. Listing BN here
 // was the first thing this gate rejected, which is the point of it.
 const COMPLETE = [
-  'bsv.Script.Interpreter'
+  'bsv.Script.Interpreter',
+  // Declared in full with the move to the BRC-220 reference certificate format; through
+  // 9.8.0 it was 48 of 56 names undeclared. Matching is per namespace, so each is listed.
+  'bsv.NotaryHash',
+  'bsv.NotaryHash.Certificate',
+  'bsv.NotaryHash.Encoding',
+  'bsv.NotaryHash.MODE',
+  'bsv.NotaryHash.Merkle',
+  'bsv.NotaryHash.Script',
+  'bsv.NotaryHash.Suites'
 ]
 
 function esc (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }

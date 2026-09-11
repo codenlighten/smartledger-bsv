@@ -9,12 +9,11 @@
 // differently — so this file holds a concrete vector that any implementation can check
 // itself against.
 //
-// What this vector is: a CONFORMANCE TARGET produced by this library. It is not external
-// validation, and nothing here proves our reading is the one the spec intended. What makes
-// it worth having is that the tree underneath it IS externally anchored — the RFC 6962
-// construction is checked against the published Certificate Transparency roots in
-// merkle.js. Given a tree that provably matches RFC 6962, this vector pins the one thing
-// the spec leaves open.
+// What this vector is: a CONFORMANCE TARGET produced by this library, and filed upstream as
+// bsv-blockchain/BRCs#246. Two things anchor it outside this library: the RFC 6962 tree is
+// checked against the published Certificate Transparency roots in merkle.js, and the
+// BRC-220 reference implementation, given the same five proofs, builds the same root and
+// the same paths — test/notaryhash/reference_certs.js asserts both.
 //
 // These tests rebuild every value from the recorded inputs rather than reading the
 // recorded outputs back. A test that asserts `vector.root === vector.root` would pass
@@ -30,7 +29,6 @@ var Encoding = require('../../lib/notaryhash/encoding')
 var Merkle = require('../../lib/notaryhash/merkle')
 var Suites = require('../../lib/notaryhash/suites')
 var NotaryHash = require('../../lib/notaryhash')
-var NotaryScript = require('../../lib/notaryhash/script')
 var BN = require('../../lib/crypto/bn')
 var PrivateKey = require('../../lib/privatekey')
 // Deliberately a SECOND implementation: see the independent-verification test below.
@@ -78,9 +76,11 @@ describe('BRC-220 batch golden vector', function () {
       })
     })
 
-    it('uses raw encoding: 64-byte signatures and 33-byte compressed keys', function () {
+    // `encoding` is how the key and signature are written, as in a certificate. The byte
+    // forms are fixed separately: r || s, and a compressed key.
+    it('writes keys and signatures in hex: 64-byte r || s and 33-byte compressed keys', function () {
       vector.proofs.forEach(function (p) {
-        p.encoding.should.equal('raw')
+        p.encoding.should.equal('hex')
         hex(p.signature).length.should.equal(64, 'leaf ' + p.leafIndex + ' signature')
         hex(p.publicKey).length.should.equal(33, 'leaf ' + p.leafIndex + ' publicKey')
       })
@@ -177,11 +177,24 @@ describe('BRC-220 batch golden vector', function () {
     it('rebuilds every inclusion path and folds each back to the root', function () {
       var leaves = vector.proofs.map(function (p) { return hex(p.proofHash) })
       vector.proofs.forEach(function (p, i) {
-        Merkle.path(leaves, i).map(function (n) { return n.toString('hex') })
+        Merkle.auditPath(leaves, i).map(function (n) { return { hash: n.hash.toString('hex'), side: n.side } })
           .should.deep.equal(p.path, 'path for leaf ' + i)
+        // Folded both ways: by the recorded sides, as a certificate is verified, and by
+        // index and tree size from the bare hashes. The two must agree.
+        Merkle.verifyAuditPath(leaves[i], p.path, hex(vector.root))
+          .should.equal(true, 'sided fold for leaf ' + i)
         Merkle.verifyInclusion(leaves[i], i, vector.leafCount,
-          p.path.map(hex), hex(vector.root)).should.equal(true, 'fold for leaf ' + i)
+          p.path.map(function (n) { return hex(n.hash) }), hex(vector.root))
+          .should.equal(true, 'indexed fold for leaf ' + i)
       })
+    })
+
+    // The sides are what a verifier folds by. For n = 5 the lone right-hand leaf has one
+    // sibling, on its left; each of the four on the left ends with the lone leaf on its right.
+    it('records the side of every sibling', function () {
+      vector.proofs.map(function (p) {
+        return p.path.map(function (n) { return n.side[0] }).join('')
+      }).should.deep.equal(['rrr', 'lrr', 'rlr', 'llr', 'l'])
     })
 
     it('encodes leafCount as u32be for the on-chain record', function () {
@@ -239,7 +252,7 @@ describe('BRC-220 batch golden vector', function () {
     })
 
     it('publishes the leaf-4 audit path and the u32be leaf count', function () {
-      doc.indexOf(vector.proofs[4].path[0]).should.be.above(-1, 'leaf 4 path missing')
+      doc.indexOf(vector.proofs[4].path[0].hash).should.be.above(-1, 'leaf 4 path missing')
       doc.indexOf(vector.onChainRecordTail.leafCountU32be).should.be.above(-1,
         'u32be leaf count missing')
     })
@@ -249,8 +262,9 @@ describe('BRC-220 batch golden vector', function () {
     it('accepts a batch certificate for every leaf', function () {
       vector.proofs.forEach(function (p, i) {
         var report = NotaryHash.verifyBatchInclusion({
-          mode: NotaryScript.MODE.BATCH,
+          mode: 'full',
           proofHash: p.proofHash,
+          anchor: { type: 'batch' },
           merkle: {
             root: vector.root,
             leafIndex: i,
@@ -267,7 +281,8 @@ describe('BRC-220 batch golden vector', function () {
     // what it looks like when it reaches our verifier.
     it('rejects a certificate carrying the rejected reading root', function () {
       var report = NotaryHash.verifyBatchInclusion({
-        mode: NotaryScript.MODE.BATCH,
+        mode: 'full',
+        anchor: { type: 'batch' },
         proofHash: vector.proofs[0].proofHash,
         merkle: {
           root: vector.rejectedReading.root,

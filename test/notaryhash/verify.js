@@ -63,7 +63,7 @@ describe('BRC-220 verification', function () {
     var tx = new bsv.Transaction()
     tx.addOutput(new bsv.Transaction.Output({
       script: NH.Script.build({
-        mode: NH.MODE.FULL,
+        mode: 'full',
         algorithm: 'ECDSA-secp256k1',
         hashAlgorithm: 'SHA-256',
         payloadHash: payloadHash,
@@ -89,7 +89,7 @@ describe('BRC-220 verification', function () {
 
     certificate = NH.Certificate.attachSPV(
       NH.Certificate.build({
-        mode: NH.MODE.FULL,
+        mode: 'full',
         algorithm: 'ECDSA-secp256k1',
         hashAlgorithm: 'SHA-256',
         payloadHash: payloadHash,
@@ -165,7 +165,7 @@ describe('BRC-220 verification', function () {
     // Signature and proof integrity both still pass; only the anchor is wrong.
     it('fails when rawTx does not hash to anchor.txid', function () {
       var wrongTxid = Object.assign({}, certificate, {
-        anchor: { txid: 'ff'.repeat(32), blockHeight: 800000 }
+        anchor: Object.assign({}, certificate.anchor, { txid: 'ff'.repeat(32) })
       })
       var report = NH.verify(wrongTxid, OPTS())
       report.signature.should.equal(true)
@@ -226,12 +226,34 @@ describe('BRC-220 verification', function () {
         nonce: 0
       })
       var mismatched = Object.assign({}, certificate, {
-        anchor: { txid: txid, blockHeight: 800000 },
-        spv: Object.assign({}, certificate.spv, { rawTx: raw })
+        anchor: Object.assign({}, certificate.anchor, { txid: txid }),
+        spv: Object.assign({}, certificate.spv, { rawTx: raw, blockHash: h.id })
       })
       var report = NH.verifyAnchorSPV(mismatched, { header: h, requirePow: false })
       report.valid.should.equal(false)
+      report.errors.should.deep.equal(['on-chain record does not match the certificate'])
+    })
+
+    // The record's mode byte is compared against the certificate's mode. A full record
+    // cannot be claimed by a certificate that says hybrid, or the reverse.
+    it('fails when the certificate\'s mode disagrees with the record\'s', function () {
+      var relabelled = Object.assign({}, certificate, { mode: 'hybrid' })
+      var report = NH.verify(relabelled, OPTS())
+      report.signature.should.equal(true)
+      report.proofIntegrity.should.equal(true)
+      report.anchor.should.equal(false)
       report.errors.should.include('on-chain record does not match the certificate')
+    })
+
+    // The spec anchors a certificate in "the block header for spv.blockHash". A header
+    // the proof folds to that is some other block leaves that statement unchecked.
+    it('fails when the header is not the block spv.blockHash names', function () {
+      var renamed = Object.assign({}, certificate, {
+        spv: Object.assign({}, certificate.spv, { blockHash: 'ee'.repeat(32) })
+      })
+      var report = NH.verifyAnchorSPV(renamed, OPTS())
+      report.valid.should.equal(false)
+      report.errors.should.deep.equal(['the supplied header is not the block the SPV envelope names'])
     })
 
     // Not supplying a header is not a pass. This is the trust the spec exists to remove.
@@ -245,6 +267,40 @@ describe('BRC-220 verification', function () {
       var noSpv = Object.assign({}, certificate)
       delete noSpv.spv
       NH.verifyAnchorSPV(noSpv, OPTS()).errors.should.include('certificate has no SPV envelope')
+    })
+  })
+
+  // The reference checks a merkle proof whenever a certificate carries one, whatever the
+  // anchor type. On a direct anchor the record is compared directly, so a proof that folds
+  // is accepted and one that does not is refused.
+  describe('a merkle proof on a direct anchor', function () {
+    function withMerkle (root) {
+      var leaves = [Buffer.from(certificate.proofHash, 'hex'), Hash.sha256(Buffer.from('another proof'))]
+      return Object.assign({}, certificate, {
+        merkle: {
+          root: root || NH.Merkle.root(leaves).toString('hex'),
+          leafIndex: 0,
+          leafCount: 2,
+          path: NH.Merkle.auditPath(leaves, 0).map(function (n) {
+            return { hash: n.hash.toString('hex'), side: n.side }
+          })
+        }
+      })
+    }
+
+    it('is accepted when it folds to its stated root, as the reference accepts it', function () {
+      var report = NH.verify(withMerkle(), OPTS())
+      report.valid.should.equal(true, JSON.stringify(report.errors))
+    })
+
+    it('is refused when it does not, with every other check passing', function () {
+      var report = NH.verify(withMerkle('ee'.repeat(32)), OPTS())
+      report.signature.should.equal(true)
+      report.proofIntegrity.should.equal(true)
+      report.anchor.should.equal(true)
+      report.batchInclusion.should.equal(false)
+      report.valid.should.equal(false)
+      report.errors.should.deep.equal(['merkle proof does not fold to its stated root'])
     })
   })
 
@@ -316,27 +372,109 @@ describe('BRC-220 verification', function () {
     })
   })
 
-  describe('ECDSA suite specifics', function () {
-    it('requires low-S, rejecting the malleated form', function () {
-      var sig = bsv.crypto.Signature.fromDER(
-        new bsv.crypto.Signature(
-          BN.fromBuffer(Buffer.from(certificate.signature, 'hex').slice(0, 32)),
-          BN.fromBuffer(Buffer.from(certificate.signature, 'hex').slice(32))
-        ).toDER()
-      )
-      var high = Buffer.concat([
-        sig.r.toArrayLike(Buffer, 'be', 32),
-        bsv.crypto.Point.getN().sub(sig.s).toArrayLike(Buffer, 'be', 32)
-      ])
-      NH.Suites.verify('ECDSA-secp256k1', payloadHash, high, publicKey).should.equal(false)
+  describe('encoding', function () {
+    it('verifies the same proof written in base64', function () {
+      var b64 = NH.Certificate.attachSPV(NH.Certificate.build({
+        mode: 'full',
+        encoding: 'base64',
+        algorithm: 'ECDSA-secp256k1',
+        hashAlgorithm: 'SHA-256',
+        payloadHash: payloadHash,
+        publicKey: publicKey,
+        signature: signature,
+        createdAt: certificate.createdAt,
+        anchor: certificate.anchor
+      }), certificate.spv)
+      b64.publicKey.should.equal(publicKey.toString('base64'))
+      b64.proofHash.should.equal(certificate.proofHash)
+      var report = NH.verify(b64, OPTS())
+      report.valid.should.equal(true, JSON.stringify(report.errors))
     })
 
-    it('accepts DER for the legacy encoding', function () {
+    it('fails when the label does not match how the fields are written', function () {
+      var mislabelled = Object.assign({}, certificate, { encoding: 'base64' })
+      NH.verify(mislabelled, OPTS()).valid.should.equal(false)
+    })
+  })
+
+  // Certificates already issued must keep verifying after the format change.
+  describe('certificates in the 8.3.0–9.8.0 format', function () {
+    function legacy (overrides) {
+      return Object.assign({}, certificate, {
+        version: 1,
+        mode: NH.MODE.FULL,
+        encoding: 'raw',
+        anchor: { txid: certificate.anchor.txid, blockHeight: 800000 }
+      }, overrides)
+    }
+
+    it('still verify, and are reported as legacy', function () {
+      var report = NH.verify(legacy(), OPTS())
+      report.valid.should.equal(true, JSON.stringify(report.errors))
+      report.legacy.should.equal(true)
+    })
+
+    it('a reference-format certificate is not reported as legacy', function () {
+      NH.verify(certificate, OPTS()).legacy.should.equal(false)
+    })
+
+    // Normalising must not become a way round any check.
+    it('still fail every check a reference-format certificate would', function () {
+      NH.verify(legacy({ signature: 'aa'.repeat(64) }), OPTS()).signature.should.equal(false)
+      NH.verify(legacy({ proofHash: '00'.repeat(32) }), OPTS()).proofIntegrity.should.equal(false)
+      NH.verify(legacy({ mode: NH.MODE.HYBRID }), OPTS()).anchor.should.equal(false)
+      NH.verify(legacy({ mode: NH.MODE.BATCH }), OPTS()).valid.should.equal(false)
+    })
+  })
+
+  // What the ECDSA suite accepts is what the reference accepts. Each of these was refused
+  // by 8.3.0–9.8.0, so a certificate the reference issued in that form did not verify.
+  describe('ECDSA suite specifics', function () {
+    function highS () {
+      var raw = Buffer.from(certificate.signature, 'hex')
+      var s = BN.fromBuffer(raw.slice(32))
+      return Buffer.concat([
+        raw.slice(0, 32),
+        bsv.crypto.Point.getN().sub(s).toArrayLike(Buffer, 'be', 32)
+      ])
+    }
+
+    it('accepts the high-S form of a valid signature, as the reference does', function () {
+      NH.Suites.verify('ECDSA-secp256k1', payloadHash, highS(), publicKey).should.equal(true)
+    })
+
+    // Why accepting it is safe: proofHash covers the exact signature bytes, so the
+    // malleated form cannot pass as THIS certificate. It would be a different certificate,
+    // needing its own anchor.
+    it('does not let the malleated signature pass as the same certificate', function () {
+      var swapped = Object.assign({}, certificate, { signature: highS().toString('hex') })
+      var report = NH.verify(swapped, OPTS())
+      report.signature.should.equal(true)
+      report.proofIntegrity.should.equal(false)
+      report.valid.should.equal(false)
+    })
+
+    it('accepts DER, told apart from r || s by its bytes', function () {
       var raw = Buffer.from(certificate.signature, 'hex')
       var der = new bsv.crypto.Signature(
         BN.fromBuffer(raw.slice(0, 32)), BN.fromBuffer(raw.slice(32))
       ).toDER()
+      der[0].should.equal(0x30)
       NH.Suites.verify('ECDSA-secp256k1', payloadHash, der, publicKey).should.equal(true)
+    })
+
+    it('rejects a signature that is neither 64 bytes nor DER', function () {
+      var raw = Buffer.from(certificate.signature, 'hex')
+      NH.Suites.verify('ECDSA-secp256k1', payloadHash, raw.slice(0, 63), publicKey).should.equal(false)
+      NH.Suites.verify('ECDSA-secp256k1', payloadHash, Buffer.concat([Buffer.from([0x31]), raw]), publicKey)
+        .should.equal(false)
+    })
+
+    it('accepts a 65-byte uncompressed public key', function () {
+      var uncompressed = new bsv.PublicKey(key.toPublicKey().point, { compressed: false }).toBuffer()
+      uncompressed.length.should.equal(65)
+      uncompressed[0].should.equal(0x04)
+      NH.Suites.verify('ECDSA-secp256k1', payloadHash, signature, uncompressed).should.equal(true)
     })
   })
 })

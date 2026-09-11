@@ -1392,6 +1392,291 @@ declare module '@smartledger/bsv' {
         }
     }
 
+    // -------- NotaryHash (BRC-220) --------------------------------------
+
+    /**
+     * BRC-220 NotaryHash: build, anchor and verify detached-signature proofs.
+     *
+     * Certificates are in the BRC-220 reference implementation's JSON format.
+     * Certificates written by 8.3.0–9.8.0 (`version: 1`, numeric `mode`) are still
+     * read — `verify()` reports them as `legacy` — and never written.
+     */
+    export namespace NotaryHash {
+        /**
+         * The ON-CHAIN record's mode byte. A certificate's `mode` is 'full' | 'hybrid';
+         * a batch is marked by `anchor.type`, not by the mode.
+         */
+        const MODE: { readonly FULL: 0; readonly HYBRID: 1; readonly BATCH: 2 };
+
+        type CertificateMode = 'full' | 'hybrid';
+        /** How `publicKey` and `signature` are written. Not the signature's byte format. */
+        type CertificateEncoding = 'hex' | 'base64';
+        type AnchorType = 'direct' | 'batch';
+        type Side = 'left' | 'right';
+
+        /** One audit-path sibling, leaf upward; `side` is its place relative to the running hash. */
+        interface AuditPathNode<H = string> { hash: H; side: Side; }
+
+        interface Anchor {
+            type: AnchorType;
+            network: string;
+            txid: string;
+            vout: number;
+            blockHeight: number | null;
+            blockTime: number | null;
+        }
+
+        interface MerkleProof {
+            root: string;
+            leafIndex: number;
+            leafCount: number;
+            path: AuditPathNode[];
+        }
+
+        interface SPVEnvelope {
+            rawTx: string;
+            blockHash: string;
+            blockHeight: number;
+            merkleProof: { index: number; nodes: string[] };
+            /** Defaults to 'TSC'. */
+            format?: string;
+        }
+
+        /** A BRC-220 certificate, as the reference implementation writes it. */
+        interface Certificate {
+            protocol: 'NotaryHash';
+            version: '1.0';
+            mode: CertificateMode;
+            algorithm: string;
+            hashAlgorithm: string;
+            /** Always hex. */
+            payloadHash: string;
+            /** The FULL key, in every mode, written per `encoding`. */
+            publicKey: string;
+            /** The FULL signature, in every mode, written per `encoding`. */
+            signature: string;
+            encoding: CertificateEncoding;
+            /** Always hex. SHA-256 of the canonical proof bytes, not of this JSON. */
+            proofHash: string;
+            /** ISO 8601, whole seconds — the value inside proofHash. */
+            createdAt: string;
+            anchor: Anchor;
+            /** Present when `anchor.type` is 'batch'. */
+            merkle?: MerkleProof;
+            spv?: SPVEnvelope;
+        }
+
+        /** The raw proof fields a certificate's strings decode to. */
+        interface ProofFields {
+            algorithm: string;
+            hashAlgorithm: string;
+            payloadHash: Buffer;
+            publicKey: Buffer;
+            signature: Buffer;
+            createdAtUnix: number;
+        }
+
+        interface BuildParams {
+            mode: CertificateMode;
+            algorithm: string;
+            /** 'SHA-256' for every algorithm BRC-220 lists. */
+            hashAlgorithm: string;
+            payloadHash: Buffer;
+            /** Raw bytes, FULL even in hybrid mode. */
+            publicKey: Buffer;
+            /** Raw bytes as the signer produced them. */
+            signature: Buffer;
+            /** Defaults to 'hex'. */
+            encoding?: CertificateEncoding;
+            /** Defaults to now. */
+            createdAt?: string | Date;
+            /** Whole seconds; an alternative to `createdAt`. */
+            createdAtUnix?: number;
+            anchor: {
+                txid: string;
+                /** Inferred from whether `merkle` is given. */
+                type?: AnchorType;
+                network?: string;
+                vout?: number;
+                blockHeight?: number | null;
+                blockTime?: number | null;
+            };
+            /** Makes the certificate batch-anchored. Bare Merkle.path() hashes are converted. */
+            merkle?: {
+                root: Buffer | string;
+                leafIndex: number;
+                leafCount: number;
+                path: Array<AuditPathNode<Buffer | string> | Buffer | string>;
+            };
+        }
+
+        namespace Certificate {
+            const PROTOCOL: 'NotaryHash';
+            const VERSION: '1.0';
+            /** What 8.3.0–9.8.0 wrote in `version`. Read, never written. */
+            const LEGACY_VERSION: 1;
+            const MODE: { readonly FULL: 'full'; readonly HYBRID: 'hybrid' };
+            const ENCODING: { readonly HEX: 'hex'; readonly BASE64: 'base64' };
+            const ANCHOR_TYPE: { readonly DIRECT: 'direct'; readonly BATCH: 'batch' };
+            /** 'bsv-mainnet'. */
+            const DEFAULT_NETWORK: string;
+            const REQUIRED_FIELDS: string[];
+            /** Build a certificate. proofHash is computed here, never accepted. */
+            function build(params: BuildParams): Certificate;
+            /**
+             * Map an 8.3.0–9.8.0 certificate onto the current format. Anything that is not
+             * `version: 1` is returned as given, for validateShape to judge.
+             */
+            function normalize(certificate: object): Certificate;
+            /** Decode a string field. Hex may carry `0x`; base64 may be URL-safe or unpadded. */
+            function decodeBytes(value: string, encoding: CertificateEncoding, name?: string): Buffer;
+            function toProofInput(certificate: object): ProofFields;
+            function recomputeProofHash(certificate: object): Buffer;
+            /** Validity check 2. Strict boolean; false on anything malformed. */
+            function proofHashMatches(certificate: object | null | undefined): boolean;
+            /** Shape only — NOT verification. Empty means well-formed. */
+            function validateShape(certificate: object | null | undefined): string[];
+            /** A new certificate with the envelope attached; proofHash never changes. */
+            function attachSPV(certificate: Certificate, spv: SPVEnvelope): Certificate & { spv: SPVEnvelope };
+            /** RFC 8785 JSON of the certificate. Not what proofHash is computed over. */
+            function canonicalize(certificate: object): string;
+        }
+
+        namespace Encoding {
+            /** 'NotaryHash/1.0', the domain prefix inside the canonical bytes. */
+            const PROTOCOL_PREFIX: string;
+            const VERSION: number;
+            /** `u32be(len(x)) || x`. A string is encoded as UTF-8. */
+            function lp(value: Buffer | string): Buffer;
+            function u64be(seconds: number): Buffer;
+            function toUnixSeconds(createdAt: string | Date): number;
+            function canonicalBytes(fields: ProofFields): Buffer;
+            /** SHA-256 of canonicalBytes. */
+            function proofHash(fields: ProofFields): Buffer;
+        }
+
+        interface DirectRecord {
+            mode: 0 | 1;
+            version: number;
+            algorithm: string;
+            hashAlgorithm: string;
+            payloadHash: Buffer;
+            proofHash: Buffer;
+            /** Full mode. */
+            publicKey?: Buffer;
+            signature?: Buffer;
+            /** Hybrid mode: SHA-256 of each. */
+            publicKeyHash?: Buffer;
+            signatureHash?: Buffer;
+        }
+        interface BatchRecord {
+            mode: 2;
+            version: number;
+            merkleRoot: Buffer;
+            leafCount: number;
+        }
+        type OnChainRecord = DirectRecord | BatchRecord;
+
+        interface RecordParams {
+            mode: 'full' | 'hybrid' | 'batch' | 0 | 1 | 2;
+            algorithm?: string;
+            hashAlgorithm?: string;
+            payloadHash?: Buffer;
+            proofHash?: Buffer;
+            /** FULL form in every mode; hybrid puts its digest on chain. */
+            publicKey?: Buffer;
+            signature?: Buffer;
+            merkleRoot?: Buffer;
+            leafCount?: number;
+        }
+
+        /** The OP_FALSE OP_RETURN record. */
+        namespace Script {
+            const PREFIX: 'NOTARYHASH';
+            const VERSION: number;
+            const MODE: { readonly FULL: 0; readonly HYBRID: 1; readonly BATCH: 2 };
+            function build(record: RecordParams): import('@smartledger/bsv').Script;
+            /** Throws, naming the problem, rather than returning a partial record. */
+            function parse(script: import('@smartledger/bsv').Script | string): OnChainRecord;
+            /** A cheap filter: true means parse() is worth attempting, not that it will succeed. */
+            function isNotaryHash(script: import('@smartledger/bsv').Script | string): boolean;
+        }
+
+        /** RFC 6962 — NOT the Bitcoin Merkle tree. Leaf datum is proofHash. */
+        namespace Merkle {
+            const LEAF_PREFIX: number;
+            const NODE_PREFIX: number;
+            function hashLeaf(d: Buffer): Buffer;
+            function hashNode(left: Buffer, right: Buffer): Buffer;
+            function largestPowerOfTwoBelow(n: number): number;
+            function root(leaves: Buffer[]): Buffer;
+            /** Bare sibling hashes, leaf upward. Folding them needs index and leafCount. */
+            function path(leaves: Buffer[], index: number): Buffer[];
+            function foldPath(leafData: Buffer, index: number, leafCount: number, path: Buffer[]): Buffer;
+            function verifyInclusion(leafData: Buffer, index: number, leafCount: number, path: Buffer[], expectedRoot: Buffer): boolean;
+            function pathSides(index: number, leafCount: number): Side[];
+            /** The path as certificates carry it: { hash, side }, leaf upward. */
+            function auditPath(leaves: Buffer[], index: number): Array<AuditPathNode<Buffer>>;
+            function rootFromPath(leafData: Buffer, path: Array<AuditPathNode<Buffer | string>>): Buffer;
+            /** Strict boolean; false on anything malformed. */
+            function verifyAuditPath(leafData: Buffer, path: Array<AuditPathNode<Buffer | string>>, expectedRoot: Buffer): boolean;
+        }
+
+        /** A signature suite. `verify` must return a strict boolean; anything else counts as false. */
+        interface Suite {
+            verify(payloadHash: Buffer, signature: Buffer, publicKey: Buffer): boolean;
+        }
+
+        namespace Suites {
+            function register(algorithm: string, suite: Suite): typeof Suites;
+            function get(algorithm: string): Suite | undefined;
+            function list(): string[];
+            function unregister(algorithm: string): typeof Suites;
+            /** An unregistered algorithm is false, never a fallback to ECDSA. */
+            function verify(algorithm: string, payloadHash: Buffer, signature: Buffer, publicKey: Buffer): boolean;
+        }
+
+        interface AnchorOptions {
+            /** An independently obtained block header: a bsv BlockHeader, 80 bytes, or 80-byte hex. */
+            header?: string | Buffer | object;
+            /** Pass false only for test fixtures. Defaults to true. */
+            requirePow?: boolean;
+        }
+        interface VerifyOptions extends AnchorOptions {
+            /** Checks 1 and 2 only. The result is never `valid`. */
+            skipAnchor?: boolean;
+        }
+        interface CheckResult { valid: boolean; errors: string[]; }
+        interface VerifyReport {
+            /** The verdict. The report itself is always truthy — read this. */
+            valid: boolean;
+            shape: string[];
+            signature: boolean;
+            proofIntegrity: boolean;
+            anchor: boolean;
+            /** Set once the anchor has been checked. */
+            batchInclusion?: boolean;
+            /** True for a certificate written by 8.3.0–9.8.0. */
+            legacy: boolean;
+            errors: string[];
+        }
+
+        function registerSuite(algorithm: string, suite: Suite): typeof Suites;
+        /** Check 1, offline. */
+        function verifySignature(certificate: object): boolean;
+        /** `reverse(SHA256(SHA256(rawTx)))`, as displayed. */
+        function txidFromRawTx(rawTx: Buffer | string): string;
+        function recordFromRawTx(rawTx: Buffer | string): OnChainRecord | null;
+        function recordMatchesCertificate(record: OnChainRecord, certificate: object): boolean;
+        /** Check 3. Without a header this is never valid. */
+        function verifyAnchorSPV(certificate: object, opts?: AnchorOptions): CheckResult;
+        function verifyBatchInclusion(certificate: object): CheckResult;
+        /** All three checks, reported separately. */
+        function verify(certificate: object, opts?: VerifyOptions): VerifyReport;
+        /** Strict boolean verdict, for `if (...)`. */
+        function isValid(certificate: object, opts?: VerifyOptions): boolean;
+    }
+
     // -------- Ordinals (1Sat Ordinals inscriptions + marketplace) -------
 
     export namespace Ordinals {

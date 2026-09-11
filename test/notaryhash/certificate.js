@@ -9,16 +9,21 @@
 // silently if got wrong: the certificate carries FULL blobs even when the chain carries
 // digests; the SPV envelope never disturbs proofHash; and proofHash is over the binary
 // proof bytes, NOT over the certificate JSON.
+//
+// The JSON is the reference implementation's. test/notaryhash/reference_certs.js checks
+// it against certificates the reference produced; the tests here pin each field's value,
+// so a change to one fails by name rather than as a deep-equal diff.
 
 require('chai').should()
 var Certificate = require('../../lib/notaryhash/certificate')
 var Encoding = require('../../lib/notaryhash/encoding')
+var Merkle = require('../../lib/notaryhash/merkle')
 var NS = require('../../lib/notaryhash/script')
 var Hash = require('../../lib/crypto/hash')
 var JCS = require('../../lib/util/jcs')
 
 var PARAMS = {
-  mode: NS.MODE.FULL,
+  mode: 'full',
   algorithm: 'ECDSA-secp256k1',
   hashAlgorithm: 'SHA-256',
   payloadHash: Buffer.alloc(32, 0x11),
@@ -35,6 +40,17 @@ var SPV = {
   merkleProof: { index: 0, nodes: ['aa'.repeat(32), '*'] }
 }
 
+// An eight-proof batch, and the inclusion proof for leaf 2 of it.
+var LEAVES = [0, 1, 2, 3, 4, 5, 6, 7].map(function (i) { return Hash.sha256(Buffer.from('leaf ' + i)) })
+var MERKLE = {
+  root: Merkle.root(LEAVES),
+  leafIndex: 2,
+  leafCount: 8,
+  path: Merkle.auditPath(LEAVES, 2)
+}
+
+function params (overrides) { return Object.assign({}, PARAMS, overrides) }
+
 describe('BRC-220 certificate', function () {
   describe('build', function () {
     it('carries every field the spec requires', function () {
@@ -44,18 +60,65 @@ describe('BRC-220 certificate', function () {
       })
     })
 
-    it('defaults encoding to raw', function () {
-      Certificate.build(PARAMS).encoding.should.equal('raw')
+    it('writes the reference format, field for field', function () {
+      var cert = Certificate.build(PARAMS)
+      cert.protocol.should.equal('NotaryHash')
+      cert.version.should.equal('1.0')
+      cert.mode.should.equal('full')
+      cert.encoding.should.equal('hex')
+      cert.createdAt.should.equal('2026-08-16T00:00:00.000Z')
+      cert.anchor.should.deep.equal({
+        type: 'direct',
+        network: 'bsv-mainnet',
+        txid: 'ab'.repeat(32),
+        vout: 0,
+        blockHeight: 800000,
+        blockTime: null
+      })
+      ;(cert.merkle === undefined).should.equal(true)
     })
 
-    it('accepts der for Bitcoin-native signers', function () {
-      Certificate.build(Object.assign({}, PARAMS, { encoding: 'der' })).encoding.should.equal('der')
+    it('takes createdAtUnix, and writes it as the ISO string proofHash covers', function () {
+      var fromUnix = Certificate.build(params({ createdAt: undefined, createdAtUnix: 1786838400 }))
+      fromUnix.createdAt.should.equal('2026-08-16T00:00:00.000Z')
+      fromUnix.proofHash.should.equal(Certificate.build(PARAMS).proofHash)
+    })
+
+    it('keeps anchor fields the caller supplies', function () {
+      var cert = Certificate.build(params({
+        anchor: { txid: 'ab'.repeat(32), vout: 3, network: 'bsv-testnet', blockHeight: 1, blockTime: 2 }
+      }))
+      cert.anchor.should.deep.equal({
+        type: 'direct', network: 'bsv-testnet', txid: 'ab'.repeat(32), vout: 3, blockHeight: 1, blockTime: 2
+      })
+    })
+
+    it('defaults encoding to hex', function () {
+      Certificate.build(PARAMS).encoding.should.equal('hex')
+    })
+
+    // `encoding` says how publicKey and signature are WRITTEN. It changes their spelling
+    // and nothing else: not payloadHash, not proofHash, not the bytes underneath.
+    it('writes publicKey and signature in base64 when asked, and nothing else', function () {
+      var cert = Certificate.build(params({ encoding: 'base64' }))
+      cert.encoding.should.equal('base64')
+      cert.publicKey.should.equal(PARAMS.publicKey.toString('base64'))
+      cert.signature.should.equal(PARAMS.signature.toString('base64'))
+      cert.payloadHash.should.equal(PARAMS.payloadHash.toString('hex'))
+      cert.proofHash.should.equal(Certificate.build(PARAMS).proofHash)
     })
 
     it('rejects an unknown encoding rather than passing it through', function () {
       ;(function () {
-        Certificate.build(Object.assign({}, PARAMS, { encoding: 'base64' }))
+        Certificate.build(params({ encoding: 'binary' }))
       }).should.throw(/encoding must be/)
+    })
+
+    // 8.3.0–9.8.0 took these, meaning the signature's byte format. Both were written as
+    // hex, so a caller still passing them gets exactly the certificate they got before.
+    it('reads the 8.3.0–9.8.0 values raw and der as hex', function () {
+      Certificate.build(params({ encoding: 'raw' })).encoding.should.equal('hex')
+      Certificate.build(params({ encoding: 'der' })).encoding.should.equal('hex')
     })
 
     it('hex-encodes the byte fields', function () {
@@ -69,42 +132,111 @@ describe('BRC-220 certificate', function () {
     // disagrees with the fields beside it — which is precisely the artefact this protocol
     // exists to make impossible.
     it('computes proofHash rather than accepting one', function () {
-      var cert = Certificate.build(Object.assign({}, PARAMS, { proofHash: 'ff'.repeat(32) }))
+      var cert = Certificate.build(params({ proofHash: 'ff'.repeat(32) }))
       cert.proofHash.should.not.equal('ff'.repeat(32))
       Certificate.proofHashMatches(cert).should.equal(true)
     })
 
-    it('requires a merkle proof for batch mode', function () {
+    it('requires a mode', function () {
       ;(function () {
-        Certificate.build(Object.assign({}, PARAMS, { mode: NS.MODE.BATCH }))
-      }).should.throw(/merkle/)
-    })
-
-    it('carries the merkle proof when batched', function () {
-      var cert = Certificate.build(Object.assign({}, PARAMS, {
-        mode: NS.MODE.BATCH,
-        merkle: { root: 'aa'.repeat(32), leafIndex: 2, leafCount: 8, path: [] }
-      }))
-      cert.merkle.leafIndex.should.equal(2)
-      cert.merkle.leafCount.should.equal(8)
+        Certificate.build(params({ mode: undefined }))
+      }).should.throw(/mode is required/)
     })
 
     // Hybrid puts only digests on chain; the certificate keeps the originals. That
     // asymmetry is the whole point of the mode.
     it('keeps the FULL key and signature in hybrid mode', function () {
-      var cert = Certificate.build(Object.assign({}, PARAMS, { mode: NS.MODE.HYBRID }))
+      var cert = Certificate.build(params({ mode: 'hybrid' }))
+      cert.mode.should.equal('hybrid')
       cert.publicKey.should.equal(PARAMS.publicKey.toString('hex'))
       cert.signature.should.equal(PARAMS.signature.toString('hex'))
       // What goes on chain is the digest of each — different values entirely.
-      var onChain = NS.parse(NS.build(Object.assign({}, PARAMS, { mode: NS.MODE.HYBRID, proofHash: Buffer.alloc(32) })))
+      var onChain = NS.parse(NS.build(params({ mode: 'hybrid', proofHash: Buffer.alloc(32) })))
       onChain.publicKeyHash.toString('hex').should.equal(Hash.sha256(PARAMS.publicKey).toString('hex'))
       onChain.publicKeyHash.toString('hex').should.not.equal(cert.publicKey)
+    })
+  })
+
+  // In the reference format a batched proof is still full or hybrid. What makes it a
+  // batch is that its anchor holds a Merkle root rather than the proof, so the reference
+  // marks it on anchor.type. 8.3.0–9.8.0 made batch a third mode.
+  describe('batch is an anchor type, not a mode', function () {
+    it('a merkle proof makes the anchor a batch anchor and leaves the mode alone', function () {
+      var cert = Certificate.build(params({ merkle: MERKLE }))
+      cert.mode.should.equal('full')
+      cert.anchor.type.should.equal('batch')
+      cert.merkle.root.should.equal(MERKLE.root.toString('hex'))
+      cert.merkle.leafIndex.should.equal(2)
+      cert.merkle.leafCount.should.equal(8)
+    })
+
+    it('a hybrid proof can be batched too', function () {
+      var cert = Certificate.build(params({ mode: 'hybrid', merkle: MERKLE }))
+      cert.mode.should.equal('hybrid')
+      cert.anchor.type.should.equal('batch')
+    })
+
+    it('refuses mode "batch", and says where batch goes', function () {
+      ;(function () {
+        Certificate.build(params({ mode: 'batch', merkle: MERKLE }))
+      }).should.throw(/batch is an anchor type/)
+    })
+
+    it('requires a merkle proof for a batch anchor', function () {
+      ;(function () {
+        Certificate.build(params({ anchor: { type: 'batch', txid: 'ab'.repeat(32) } }))
+      }).should.throw(/merkle/)
+    })
+
+    it('refuses a merkle proof on an anchor declared direct', function () {
+      ;(function () {
+        Certificate.build(params({ anchor: { type: 'direct', txid: 'ab'.repeat(32) }, merkle: MERKLE }))
+      }).should.throw(/exactly when/)
+    })
+
+    // The numeric mode bytes are still accepted as input, and MODE.BATCH keeps meaning
+    // what it meant: a full proof, batched.
+    it('reads the numeric NotaryScript.MODE.BATCH as a full proof on a batch anchor', function () {
+      var cert = Certificate.build(params({ mode: NS.MODE.BATCH, merkle: MERKLE }))
+      cert.mode.should.equal('full')
+      cert.anchor.type.should.equal('batch')
+      ;(function () {
+        Certificate.build(params({ mode: NS.MODE.BATCH }))
+      }).should.throw(/merkle/)
+    })
+
+    it('writes the path as { hash, side }, leaf upward', function () {
+      var hashes = Merkle.path(LEAVES, 2).map(function (b) { return b.toString('hex') })
+      Certificate.build(params({ merkle: MERKLE })).merkle.path.should.deep.equal([
+        { hash: hashes[0], side: 'right' },
+        { hash: hashes[1], side: 'left' },
+        { hash: hashes[2], side: 'right' }
+      ])
+    })
+
+    // A caller holding Merkle.path() output — bare hashes, as 8.3.0–9.8.0 wrote them —
+    // gets the same certificate: the sides follow from the index and tree size.
+    it('converts a bare-hash path, deriving each side from the index', function () {
+      var bare = Object.assign({}, MERKLE, { path: Merkle.path(LEAVES, 2) })
+      Certificate.build(params({ merkle: bare }))
+        .should.deep.equal(Certificate.build(params({ merkle: MERKLE })))
+    })
+
+    it('refuses a bare-hash path of the wrong length for its tree', function () {
+      var short = Object.assign({}, MERKLE, { path: Merkle.path(LEAVES, 2).slice(1) })
+      ;(function () {
+        Certificate.build(params({ merkle: short }))
+      }).should.throw(/needs 3/)
     })
   })
 
   describe('proof integrity (validity check 2)', function () {
     it('matches for a well-formed certificate', function () {
       Certificate.proofHashMatches(Certificate.build(PARAMS)).should.equal(true)
+    })
+
+    it('matches for a base64 certificate, decoding before hashing', function () {
+      Certificate.proofHashMatches(Certificate.build(params({ encoding: 'base64' }))).should.equal(true)
     })
 
     // Each field is inside the canonical proof bytes, so tampering with any of them must
@@ -128,13 +260,19 @@ describe('BRC-220 certificate', function () {
       })
     })
 
+    // The label decides how the strings decode, so changing it changes the bytes.
+    it('detects an encoding label that does not match how the fields are written', function () {
+      var cert = Certificate.build(PARAMS)
+      Certificate.proofHashMatches(Object.assign({}, cert, { encoding: 'base64' })).should.equal(false)
+    })
+
     // Fields NOT in the canonical proof bytes must not affect it — otherwise the SPV
     // envelope could not be additive.
     it('is unaffected by fields outside the canonical bytes', function () {
       var cert = Certificate.build(PARAMS)
       var moved = Object.assign({}, cert, {
-        anchor: { txid: 'ff'.repeat(32), blockHeight: 999999 },
-        mode: NS.MODE.HYBRID
+        anchor: Object.assign({}, cert.anchor, { txid: 'ff'.repeat(32), blockHeight: 999999 }),
+        mode: 'hybrid'
       })
       Certificate.proofHashMatches(moved).should.equal(true)
     })
@@ -190,8 +328,10 @@ describe('BRC-220 certificate', function () {
   })
 
   describe('validateShape', function () {
-    it('passes a well-formed certificate', function () {
+    it('passes a well-formed certificate, in either encoding and either anchor type', function () {
       Certificate.validateShape(Certificate.build(PARAMS)).should.deep.equal([])
+      Certificate.validateShape(Certificate.build(params({ encoding: 'base64' }))).should.deep.equal([])
+      Certificate.validateShape(Certificate.build(params({ merkle: MERKLE }))).should.deep.equal([])
     })
 
     it('names every missing required field', function () {
@@ -206,6 +346,49 @@ describe('BRC-220 certificate', function () {
         .should.include('protocol must be "NotaryHash"')
       Certificate.validateShape(Object.assign({}, cert, { version: 2 }))
         .should.include('unsupported version: 2')
+      // Quoted, so a string version is distinguishable from a number in the message.
+      Certificate.validateShape(Object.assign({}, cert, { version: '2.0' }))
+        .should.include('unsupported version: "2.0"')
+    })
+
+    // A numeric mode is only meaningful in the legacy format, where normalize() maps it.
+    // In a "1.0" certificate it is malformed, and so is "batch".
+    it('rejects a mode that is not "full" or "hybrid"', function () {
+      var cert = Certificate.build(PARAMS)
+      Certificate.validateShape(Object.assign({}, cert, { mode: 'batch' }))
+        .should.include('mode must be "full" or "hybrid"')
+      Certificate.validateShape(Object.assign({}, cert, { mode: NS.MODE.FULL }))
+        .should.include('mode must be "full" or "hybrid"')
+    })
+
+    it('rejects an encoding outside hex and base64, and fields that do not decode', function () {
+      var cert = Certificate.build(PARAMS)
+      Certificate.validateShape(Object.assign({}, cert, { encoding: 'raw' }))
+        .should.include('encoding must be "hex" or "base64"')
+      Certificate.validateShape(Object.assign({}, cert, { publicKey: 'not hex at all' }))
+        .should.include('publicKey is not valid hex')
+    })
+
+    it('rejects an anchor without a type, or with a malformed txid', function () {
+      var cert = Certificate.build(PARAMS)
+      Certificate.validateShape(Object.assign({}, cert, { anchor: { txid: 'ab'.repeat(32), blockHeight: 800000 } }))
+        .should.include('anchor.type must be "direct" or "batch"')
+      Certificate.validateShape(Object.assign({}, cert, { anchor: Object.assign({}, cert.anchor, { txid: 'ab' }) }))
+        .should.include('anchor.txid must be a 32-byte hex string')
+    })
+
+    it('rejects a batch anchor with no merkle proof', function () {
+      var cert = Certificate.build(PARAMS)
+      Certificate.validateShape(Object.assign({}, cert, { anchor: Object.assign({}, cert.anchor, { type: 'batch' }) }))
+        .should.include('batch certificates require a merkle inclusion proof')
+    })
+
+    it('rejects a bare-hash path in a "1.0" certificate', function () {
+      var cert = Certificate.build(params({ merkle: MERKLE }))
+      var bare = Object.assign({}, cert, {
+        merkle: Object.assign({}, cert.merkle, { path: cert.merkle.path.map(function (n) { return n.hash }) })
+      })
+      Certificate.validateShape(bare).should.include('merkle.path[0] must be { hash, side: "left" | "right" }')
     })
 
     it('rejects a hash field of the wrong length or that is not hex', function () {
@@ -222,6 +405,108 @@ describe('BRC-220 certificate', function () {
       var lying = Object.assign({}, cert, { proofHash: '00'.repeat(32) })
       Certificate.validateShape(lying).should.deep.equal([])
       Certificate.proofHashMatches(lying).should.equal(false)
+    })
+  })
+
+  // Certificates already issued in the old format must keep verifying. normalize() maps
+  // them onto the reference format; these tests check the mapping is exact, by comparing
+  // against what build() writes for the same proof today.
+  describe('certificates written by 8.3.0–9.8.0', function () {
+    function legacy (overrides) {
+      var cert = Certificate.build(PARAMS)
+      return Object.assign({}, cert, {
+        version: 1,
+        mode: NS.MODE.FULL,
+        encoding: 'raw',
+        anchor: { txid: cert.anchor.txid, blockHeight: 800000 }
+      }, overrides)
+    }
+
+    it('normalise to exactly the certificate build() writes today', function () {
+      Certificate.normalize(legacy()).should.deep.equal(Certificate.build(PARAMS))
+    })
+
+    it('map mode 1 to hybrid and encoding der to hex', function () {
+      var n = Certificate.normalize(legacy({ mode: NS.MODE.HYBRID, encoding: 'der' }))
+      n.mode.should.equal('hybrid')
+      n.encoding.should.equal('hex')
+    })
+
+    it('map batch mode 2, with a bare-hash path, to a full proof on a batch anchor', function () {
+      var today = Certificate.build(params({ merkle: MERKLE }))
+      var old = legacy({
+        mode: NS.MODE.BATCH,
+        merkle: {
+          root: today.merkle.root,
+          leafIndex: 2,
+          leafCount: 8,
+          path: Merkle.path(LEAVES, 2).map(function (b) { return b.toString('hex') })
+        }
+      })
+      Certificate.normalize(old).should.deep.equal(today)
+    })
+
+    it('pass shape validation, and keep their proofHash', function () {
+      var old = legacy()
+      Certificate.validateShape(old).should.deep.equal([])
+      Certificate.proofHashMatches(old).should.equal(true)
+    })
+
+    it('are not mutated by normalising', function () {
+      var old = legacy()
+      Certificate.normalize(old)
+      old.version.should.equal(1)
+      old.mode.should.equal(NS.MODE.FULL)
+      old.encoding.should.equal('raw')
+    })
+
+    it('a reference-format certificate is returned untouched', function () {
+      var cert = Certificate.build(PARAMS)
+      Certificate.normalize(cert).should.equal(cert)
+    })
+
+    // Only the one version this library wrote is translated. Anything else is judged as
+    // given, so an unknown version cannot pass by resembling a known one.
+    it('an unknown version is not translated, and is rejected', function () {
+      var foreign = legacy({ version: 2 })
+      Certificate.normalize(foreign).should.equal(foreign)
+      var problems = Certificate.validateShape(foreign)
+      problems.should.include('unsupported version: 2')
+      problems.should.include('mode must be "full" or "hybrid"')
+    })
+  })
+
+  describe('decodeBytes', function () {
+    it('takes hex with or without a 0x prefix, as the reference does', function () {
+      Certificate.decodeBytes('0xabcd', 'hex').toString('hex').should.equal('abcd')
+      Certificate.decodeBytes('ABCD', 'hex').toString('hex').should.equal('abcd')
+    })
+
+    it('rejects odd-length or non-hex input rather than truncating it', function () {
+      ;(function () { Certificate.decodeBytes('abc', 'hex') }).should.throw(/hex/)
+      ;(function () { Certificate.decodeBytes('zz', 'hex') }).should.throw(/hex/)
+      // What Buffer.from would have done instead: silently produced fewer bytes.
+      Buffer.from('abzz', 'hex').length.should.equal(1)
+    })
+
+    // The reference decodes with Buffer.from(value, 'base64'), which also takes the
+    // URL-safe alphabet and missing padding. Anything the reference reads, this reads.
+    it('takes padded, unpadded and URL-safe base64, as the reference does', function () {
+      var bytes = Buffer.from([0xfb, 0xff, 0x01, 0x02])
+      Certificate.decodeBytes(bytes.toString('base64'), 'base64').should.deep.equal(bytes)
+      Certificate.decodeBytes(bytes.toString('base64').replace(/=+$/, ''), 'base64').should.deep.equal(bytes)
+      Certificate.decodeBytes(bytes.toString('base64url'), 'base64').should.deep.equal(bytes)
+    })
+
+    // Where this is stricter than the reference: Buffer.from skips characters outside the
+    // alphabet, so a corrupted field decodes to DIFFERENT bytes instead of failing.
+    it('rejects characters outside the base64 alphabet that Buffer.from would skip', function () {
+      Buffer.from('+/8B!!', 'base64').toString('hex').should.equal('fbff01')
+      ;(function () { Certificate.decodeBytes('+/8B!!', 'base64') }).should.throw(/base64/)
+    })
+
+    it('rejects an encoding it does not know', function () {
+      ;(function () { Certificate.decodeBytes('abcd', 'raw') }).should.throw(/encoding must be/)
     })
   })
 

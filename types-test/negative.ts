@@ -44,3 +44,21 @@ bsv.Script.Interpreter.mainnetFlags(false)
 
 // @expect-error no such era; Genesis and Chronicle are the only two
 bsv.Script.Interpreter.SCRIPT_UTXO_AFTER_TERANODE
+
+// @expect-error batch is marked on the anchor; a certificate's mode is 'full' or 'hybrid'
+bsv.NotaryHash.Certificate.build({ mode: 'batch', algorithm: 'a', hashAlgorithm: 'SHA-256', payloadHash: Buffer.alloc(32), publicKey: Buffer.alloc(33), signature: Buffer.alloc(64), anchor: { txid: '' } })
+
+// @expect-error encoding is how the key and signature are written, 'hex' or 'base64' — not 'raw'
+bsv.NotaryHash.Certificate.build({ mode: 'full', encoding: 'raw', algorithm: 'a', hashAlgorithm: 'SHA-256', payloadHash: Buffer.alloc(32), publicKey: Buffer.alloc(33), signature: Buffer.alloc(64), anchor: { txid: '' } })
+
+// @expect-error verify returns a report, always truthy; the verdict is .valid
+export const nhOk: boolean = bsv.NotaryHash.verify({})
+
+// @expect-error a certificate's version is the string '1.0', not the number 8.3.0–9.8.0 wrote
+export const nhVersion: number = bsv.NotaryHash.Certificate.VERSION
+
+// @expect-error the proof fields are raw bytes, not hex strings
+bsv.NotaryHash.Encoding.proofHash({ algorithm: 'a', hashAlgorithm: 'b', payloadHash: '00', publicKey: Buffer.alloc(33), signature: Buffer.alloc(64), createdAtUnix: 0 })
+
+// @expect-error an audit-path side is 'left' or 'right'
+bsv.NotaryHash.Merkle.rootFromPath(Buffer.alloc(32), [{ hash: Buffer.alloc(32), side: 'up' }])
