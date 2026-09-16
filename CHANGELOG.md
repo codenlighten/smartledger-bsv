@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — evaluating a script could rewrite it, and corrupt `true` for every later script
+
+`OP_AND`, `OP_OR`, `OP_XOR` and `OP_INVERT` wrote their result into their operand, and
+`OP_NUM2BIN`/`OP_BIN2NUM` went through `_minimallyEncode`, which rewrote the last byte of
+its argument. An operand is not necessarily the interpreter's own memory: a push places the
+script chunk's buffer on the stack, `OP_SPLIT` returns views into its input, and boolean
+results are the shared `Interpreter.true` and `Interpreter.false`. So evaluation could:
+
+- **rewrite the script being evaluated**, including a buffer a caller passed to
+  `Script.fromBuffer`, and with it the script code a later signature covers;
+- **corrupt `Interpreter.true` for the rest of the process.** After
+  `OP_2 OP_2 OP_3 OP_WITHIN OP_INVERT`, every later `OP_EQUAL`, `OP_WITHIN` and
+  `OP_CHECKSIG` pushed `0xfe` instead of `0x01`; `OP_XOR` of two boolean results zeroed it.
+
+Each opcode now writes a new buffer. `test/script/in_place_mutation.js` fails 12 of 18 on
+the previous code. A fuzz of 20,000 random scripts found 58 that altered the script or the
+shared booleans before the fix, and none after. Consensus results are unchanged:
+conformance 452/452, SV vectors 1483/1483.
+
 ### Docs
 
 - `docs/BRC220_CERTIFICATE_FIELDS_AMENDMENT.md` follows bsv-blockchain/BRCs#247 after review.
