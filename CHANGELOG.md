@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.10.1] - 2026-09-16
+
+**A patch: evaluating a script no longer rewrites it or the interpreter's shared boolean values.** No API change; consensus results are unchanged.
+
 ### Fixed — evaluating a script could rewrite it, and corrupt `true` for every later script
 
 `OP_AND`, `OP_OR`, `OP_XOR` and `OP_INVERT` wrote their result into their operand, and
