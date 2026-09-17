@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.11.2] - 2026-09-17
+
+**A patch: an empty push is no longer lost when a script is written as ASM or as a string.** No API change.
+
 ### Fixed — an empty push written with OP_PUSHDATA survives being written as text
 
 An empty push encoded with `OP_PUSHDATA1`, `OP_PUSHDATA2` or `OP_PUSHDATA4` (`4c00`, `4d0000`,
