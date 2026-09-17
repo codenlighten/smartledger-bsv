@@ -747,7 +747,11 @@ describe('Script', function () {
     })
 
     it('should work for no data OP_RETURN', function () {
-      Script().add(Opcode.OP_RETURN).add(Buffer.from('')).toString().should.equal('OP_RETURN')
+      // The empty push is a real 0x00 byte (6a00), so the text says so and reads back as it.
+      var s = Script().add(Opcode.OP_RETURN).add(Buffer.from(''))
+      s.toHex().should.equal('6a00')
+      s.toString().should.equal('OP_RETURN OP_0')
+      Script.fromString(s.toString()).toHex().should.equal('6a00')
     })
     it('works with objects', function () {
       Script().add({
@@ -866,7 +870,9 @@ describe('Script', function () {
       var data = Buffer.from('')
       var s = Script.buildDataOut(data)
       should.exist(s)
-      s.toString().should.equal('OP_RETURN')
+      // 6a00: the empty data push is written, so the text reads back as the same script.
+      s.toString().should.equal('OP_RETURN OP_0')
+      Script.fromString(s.toString()).toHex().should.equal(s.toHex())
       s.isDataOut().should.equal(true)
     })
     it('should create script from some data', function () {
@@ -946,7 +952,8 @@ describe('Script', function () {
       var data = Buffer.from('')
       var s = Script.buildSafeDataOut(data)
       should.exist(s)
-      s.toString().should.equal('OP_0 OP_RETURN')
+      s.toString().should.equal('OP_0 OP_RETURN OP_0')
+      Script.fromString(s.toString()).toHex().should.equal(s.toHex())
       s.isSafeDataOut().should.equal(true)
     })
     it('should create script from some data', function () {
