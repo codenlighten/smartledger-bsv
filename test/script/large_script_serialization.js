@@ -44,12 +44,15 @@ function referenceToBuffer (script) {
   return bw.concat()
 }
 
+// The previous implementation, with the one change the node requires (see
+// find_and_delete_rules.js): consecutive occurrences are all removed.
 function referenceFindAndDelete (script, sub) {
   var hex = referenceToBuffer(sub).toString('hex')
   for (var i = 0; i < script.chunks.length; i++) {
     var hex2 = referenceToBuffer(new Script({ chunks: [script.chunks[i]] })).toString('hex')
     if (hex === hex2) {
       script.chunks.splice(i, 1)
+      i--
     }
   }
   return script
