@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.11.1] - 2026-09-17
+
+**A patch: a script written as ASM or as a string reads back as the same script.** No API change.
+
 ### Fixed — a script written as text reads back as the same script
 
 An opcode with no name — `0xba` to `0xfc`, 67 of them — did not survive being written out:
