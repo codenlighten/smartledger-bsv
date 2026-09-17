@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — an empty push written with OP_PUSHDATA survives being written as text
+
+An empty push encoded with `OP_PUSHDATA1`, `OP_PUSHDATA2` or `OP_PUSHDATA4` (`4c00`, `4d0000`,
+`4e00000000`) was written badly by both text forms:
+
+| script `514c0051` | 9.11.1 | now |
+| --- | --- | --- |
+| `toASM()` | `OP_1 OP_1`: the push is gone, so it reads back as `5151`, one stack element fewer | `OP_1 0 OP_1`, read back as `510051` |
+| `toString()` | `OP_1 OP_PUSHDATA1 OP_1`, which `fromString` cannot read | `OP_1 OP_PUSHDATA1 0 0x OP_1`, read back as `514c0051` |
+
+ASM writes every push in its minimal form, and the minimal empty push is `OP_0`, so the ASM
+now does what the script does. `toString` keeps the exact encoding.
+
+The same fault hid the empty push built by `Script#add(Buffer.alloc(0))`, and so by
+`Script.buildDataOut('')` and `buildSafeDataOut('')`. The chunk serializes to `0x00`, but both
+text forms wrote nothing for it: `buildDataOut('')` is `6a00` and its `toString()` was
+`OP_RETURN`, which reads back as `6a`. It is now `OP_RETURN OP_0` (ASM `OP_RETURN 0`), the text
+`Script.fromHex('6a00')` already produced. Four tests had pinned the invisible form; they now
+assert the text reads back as the script.
+
+No reader changes: `fromString` already read `OP_PUSHDATA1 0 0x`. Of 4,000 generated scripts
+mixing both shapes with ordinary pushes and opcodes, the 909 whose text changed all contain an
+empty push, and every one of their new texts reads back exactly; every text 9.11.1 wrote is read
+the same way (8,000 texts).
+
+Reported by the scriptmin work (codenlighten/scriptmin#4).
+
 ## [9.11.1] - 2026-09-17
 
 **A patch: a script written as ASM or as a string reads back as the same script.** No API change.
