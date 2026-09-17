@@ -30,7 +30,7 @@ Explicitly out of scope: elliptic-curve and hash primitives, which are supplied
 by the Noble libraries and already audited; opcode EXECUTION in the script
 interpreter, which passes 1,483 of 1,483 of the reference node's own consensus
 vectors with zero false accepts and zero false rejects; and the remaining
-26,077-line application layer (credentials, tokens, ordinals), which we would
+26,128-line application layer (credentials, tokens, ordinals), which we would
 treat as a separate engagement.
 
 Note the shape of that first exclusion, because it is what we want priced. The
