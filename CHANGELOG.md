@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.11.0] - 2026-09-16
+
+**The interpreter now accepts only what the node accepts when a script pushes a copy of a signature, and signature checks over large scripts are about eight times faster.** No API change. The consensus fix follows bitcoin-sv v1.2.0 `CleanupScriptCode`; every signature digest is byte-identical to 9.10.1.
+
 ### Fixed — a spend the network rejects was accepted: signatures removed from the scriptCode where the node keeps them
 
 Before checking a signature, `OP_CHECKSIG`, `OP_CHECKSIGVERIFY` and `OP_CHECKMULTISIG(VERIFY)`
