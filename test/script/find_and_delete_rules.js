@@ -108,4 +108,94 @@ describe('findAndDelete follows the node', function () {
     s.findAndDelete(new Script().add(sig))
     s.toBuffer().toString('hex').should.equal(new Script().add(Opcode.OP_1).toBuffer().toString('hex'))
   })
+
+  // OP_CHECKMULTISIG goes through the same rule for each of its signatures.
+  it('with FORKID, OP_CHECKMULTISIG refuses a signature over the script minus a pushed copy of it', function () {
+    function multisig (sig) {
+      var body = new Script().add(Opcode.OP_1).add(pubkey).add(Opcode.OP_1).add(Opcode.OP_CHECKMULTISIG)
+      return {
+        withoutPush: new Script().add(Opcode.OP_DROP).add(body),
+        withPush: new Script().add(sig).add(Opcode.OP_DROP).add(body)
+      }
+    }
+    // Rebuilt without the helpers' shared tx: withPush's size differs with the signature.
+    var probe = multisig(Buffer.alloc(72))
+    var tx = spending(probe.withPush)
+    var sig = signatureOver(tx, probe.withoutPush, FORKID)
+    var lock = multisig(sig).withPush
+    tx = spending(lock)
+    var cheat = run(new Script().add(Opcode.OP_0).add(sig), lock, tx, forkidFlags)
+    expect(cheat.ok, 'the node would reject this spend').to.equal(false)
+    // Control: a signature over the lock as it is verifies.
+    var honest = signatureOver(tx, lock, FORKID)
+    var h = run(new Script().add(Opcode.OP_0).add(honest), lock, tx, forkidFlags)
+    expect(h.ok, h.err).to.equal(true)
+  })
+})
+
+// Script#findAndDelete against a byte-level transcription of the node's
+// CScript::FindAndDelete (bitcoin-sv v1.2.0, src/script/script.h), which shares no code
+// with the library. Deterministic inputs are built to overlap: low-entropy signatures,
+// empty signatures (whose push is OP_0), and consecutive copies.
+describe('findAndDelete agrees with a transcription of the node', function () {
+  function getOp (s, pc) {
+    if (pc >= s.length) return -1
+    var op = s[pc++]
+    if (op <= 0x4e) {
+      var n
+      if (op < 0x4c) n = op
+      else if (op === 0x4c) { if (s.length - pc < 1) return -1; n = s[pc]; pc += 1 } else if (op === 0x4d) { if (s.length - pc < 2) return -1; n = s.readUInt16LE(pc); pc += 2 } else { if (s.length - pc < 4) return -1; n = s.readUInt32LE(pc); pc += 4 }
+      if (s.length - pc < n) return -1
+      pc += n
+    }
+    return pc
+  }
+  function nodeFindAndDelete (s, b) {
+    if (b.length === 0) return s
+    var out = []
+    var pc = 0
+    var pc2 = 0
+    var found = 0
+    for (;;) {
+      out.push(s.slice(pc2, pc))
+      while (s.length - pc >= b.length && s.slice(pc, pc + b.length).equals(b)) { pc += b.length; found++ }
+      pc2 = pc
+      var nx = getOp(s, pc)
+      if (nx < 0) break
+      pc = nx
+    }
+    if (!found) return s
+    out.push(s.slice(pc2))
+    return Buffer.concat(out)
+  }
+
+  it('produces the same bytes over 3000 generated scripts', function () {
+    var seed = 777
+    function rnd (n) { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n }
+    var ops = [0x00, 0x51, 0x52, 0x75, 0x76, 0x87, 0xac, 0xad, 0xae, 0xab]
+    var removals = 0
+    for (var t = 0; t < 3000; t++) {
+      var sigLen = [0, 1, 2, 5, 71, 72, 76, 80][rnd(8)]
+      var sig = Buffer.alloc(sigLen)
+      for (var i = 0; i < sigLen; i++) sig[i] = rnd(3)
+      var s = new Script()
+      var n = 1 + rnd(12)
+      for (var k = 0; k < n; k++) {
+        var c = rnd(5)
+        if (c < 2) s.add(sig)
+        else if (c === 2) {
+          var b = Buffer.alloc(rnd(6))
+          for (var j = 0; j < b.length; j++) b[j] = rnd(3)
+          s.add(b)
+        } else s.add(ops[rnd(ops.length)])
+      }
+      var bytes = s.toBuffer()
+      var expected = nodeFindAndDelete(bytes, new Script().add(sig).toBuffer())
+      if (!expected.equals(bytes)) removals++
+      var lib = Script.fromBuffer(bytes).findAndDelete(new Script().add(sig))
+      lib.toBuffer().toString('hex').should.equal(expected.toString('hex'), 'sig ' + sig.toString('hex') + ' in ' + bytes.toString('hex'))
+    }
+    // Guard against a generator that never exercises a removal.
+    removals.should.be.above(1000)
+  })
 })

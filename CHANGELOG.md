@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a spend the network rejects was accepted: signatures removed from the scriptCode where the node keeps them
+
+Before checking a signature, `OP_CHECKSIG`, `OP_CHECKSIGVERIFY` and `OP_CHECKMULTISIG(VERIFY)`
+removed every copy of the signature from the script it signs. The node does that only when
+FORKID is not in effect (bitcoin-sv `src/script/interpreter.cpp`, `CleanupScriptCode`):
+
+```cpp
+if (!(flags & SCRIPT_ENABLE_SIGHASH_FORKID) || !sigHashType.hasForkId())
+    scriptCode.FindAndDelete(CScript(vchSig));
+```
+
+So a locking script that pushes a copy of a signature could be satisfied by that signature
+made over the script *without* the push. The library removed the push, found the digest it
+expected and accepted; the node signs over the script as it is and rejects. A covenant or
+wallet relying on this library's verdict could build, and consider final, a transaction the
+network will never mine. All three opcodes now follow the node's rule.
+
+`Script#findAndDelete` also skipped the chunk after each removal, so of two consecutive copies
+only the first went. `CScript::FindAndDelete` removes consecutive occurrences, including every
+`OP_0` for an empty non-FORKID signature; so does this now. A byte-level transcription of the
+node's `FindAndDelete` agrees with it over 30,000 generated scripts, where the previous version
+disagreed on 15,380.
+
+### Changed — signature checks over large scripts are much faster
+
+On a 238 KB OP_PUSH_TX locking script one `OP_CHECKSIGVERIFY` took about 450 ms, against 0.2 ms to
+hash the bytes it signs. The scriptCode is no longer copied on the FORKID path, is serialized
+once rather than twice, `Script#toBuffer` writes one allocation, and `findAndDelete` serializes
+only chunks that can match. Measured on a 139 KB script: 207 ms → 27 ms. Every serialization and
+every digest is unchanged: 65,044 sighash digests over generated transactions and scriptCodes,
+both algorithms, all hash types, are byte-identical to 9.10.1.
+
 ## [9.10.1] - 2026-09-16
 
 **A patch: evaluating a script no longer rewrites it or the interpreter's shared boolean values.** No API change; consensus results are unchanged.
