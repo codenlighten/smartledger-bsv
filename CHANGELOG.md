@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a script written as text reads back as the same script
+
+An opcode with no name — `0xba` to `0xfc`, 67 of them — did not survive being written out:
+
+| | 9.11.0 | now |
+| --- | --- | --- |
+| `toASM()` of `51ba` | `OP_1 ba`, which `fromASM` reads as a one-byte push: `5101ba` | `OP_1 0xba`, read back as `51ba` |
+| `toString()` of `51ba` | `OP_1 0xba`, which `fromString` rejects | unchanged, and read back as `51ba` |
+
+ASM wrote the byte as bare hex, which is also how it writes a one-byte data push, so the two
+were indistinguishable and a script written to ASM and read back was a different script. Both
+forms now write the raw byte as `0xba`, as bitcoind's script test format does, and both read
+it back, in either case. The opcodes are not given names: `Opcode.map` invents none above
+`OP_NOP10`, and a name such as `OP_NOP11` would suggest a no-op where the node fails the
+script. They still execute as `SCRIPT_ERR_BAD_OPCODE`.
+
+`Script.fromASM('')` now returns an empty script. It returned `OP_0`, so an empty script
+written with `toASM()` read back as a different one.
+
+Only these outputs change: every other script writes the same ASM and the same string as in
+9.11.0, and every text 9.11.0 read is read the same way, except the two cases above, which it
+either misread or rejected. Checked by writing 4,000 generated scripts and reading back 8,000
+texts with both versions. ASM still cannot say how data was pushed, so a non-minimal push is
+written minimally; `toString()` keeps it.
+
+Reported by the scriptmin work (codenlighten/scriptmin#3).
+
+The conformance corpus recorded the old ASM for one case, `parse multisig`, whose script
+holds a raw `0xda`. That case's `asm` is the only value regenerated; its hex and string are
+unchanged.
+
 ## [9.11.0] - 2026-09-16
 
 **The interpreter now accepts only what the node accepts when a script pushes a copy of a signature, and signature checks over large scripts are about eight times faster.** No API change. The consensus fix follows bitcoin-sv v1.2.0 `CleanupScriptCode`; every signature digest is byte-identical to 9.10.1.
