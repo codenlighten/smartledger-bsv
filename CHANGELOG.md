@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.12.0] - 2026-09-29
+
+**A block header is no longer believed about the difficulty it declares.** A forged header cost
+one attempt to mine and passed SPV verification, proof of work enabled. The declared target is
+now capped, and `powLimit`, `minWork` and `blockHashAtHeight` are new options. Regtest headers
+need `powLimit: 0x207fffff`; mainnet and testnet are unaffected.
+
 ### Fixed — a forged block header passed SPV verification, because it declared its own difficulty
 
 `BlockHeader.validProofOfWork()` answers one question: does the hash meet the target written in
