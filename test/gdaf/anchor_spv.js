@@ -51,7 +51,9 @@ function blockOf (rootInternal) {
   })
 }
 
-// "Mine" a regtest-difficulty header (PoW passes after trivial nonce grinding).
+// "Mine" a regtest-difficulty header (PoW passes after trivial nonce grinding). Cheap to
+// make, which is why the verifier only believes this target when asked: the tests below
+// pass powLimit: 0x207fffff, and one pins what happens without it.
 function minedHeader (prevHashInternal, merkleInternal) {
   for (var nonce = 0; nonce < 100000; nonce++) {
     var h = new bsv.BlockHeader({
@@ -134,7 +136,11 @@ describe('SPV anchor verification (trustless)', function () {
 
     it('verifies inclusion + 3 confirmations under real proof-of-work', async function () {
       var res = await Anchor.verifyAnchor(txid, anchorHash, {
-        spvProof: spvProof, headerChain: headerChain, rawTx: rawTx, minConfirmations: 3
+        spvProof: spvProof,
+        headerChain: headerChain,
+        rawTx: rawTx,
+        minConfirmations: 3,
+        powLimit: 0x207fffff
       })
       res.verified.should.equal(true)
       res.confirmations.should.equal(3)
@@ -146,15 +152,33 @@ describe('SPV anchor verification (trustless)', function () {
 
     it('rejects when confirmations are below the required minimum', async function () {
       var res = await Anchor.verifyAnchor(txid, anchorHash, {
-        spvProof: spvProof, headerChain: headerChain, rawTx: rawTx, minConfirmations: 6
+        spvProof: spvProof,
+        headerChain: headerChain,
+        rawTx: rawTx,
+        minConfirmations: 6,
+        powLimit: 0x207fffff
       })
       res.confirmations.should.equal(3)
       res.verified.should.equal(false)
     })
 
+    it('refuses the same chain under the default proof-of-work limit', async function () {
+      // Headers mined at regtest difficulty cost nothing, so work against a target they
+      // chose for themselves proves nothing. Without powLimit they are not believed.
+      var res = await Anchor.verifyAnchor(txid, anchorHash, {
+        spvProof: spvProof, headerChain: headerChain, rawTx: rawTx, minConfirmations: 3
+      })
+      res.verified.should.equal(false)
+      res.headerChainValid.should.equal(false)
+    })
+
     it('rejects a header chain with a broken link', async function () {
       var res = await Anchor.verifyAnchor(txid, anchorHash, {
-        spvProof: spvProof, headerChain: [h0, h2], rawTx: rawTx, minConfirmations: 1
+        spvProof: spvProof,
+        headerChain: [h0, h2],
+        rawTx: rawTx,
+        minConfirmations: 1,
+        powLimit: 0x207fffff
       })
       res.headerChainValid.should.equal(false)
       res.verified.should.equal(false)

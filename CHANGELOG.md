@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — a forged block header passed SPV verification, because it declared its own difficulty
+
+`BlockHeader.validProofOfWork()` answers one question: does the hash meet the target written in
+this header's own `bits`? Nothing capped that target, so a header could declare any difficulty it
+liked and then meet it. Measured against 9.11.2:
+
+| declared `bits` | nonces needed to mine it | `NotaryHash.verify(cert, { header })` |
+| --- | --- | --- |
+| `0x1d00ffff` (mainnet, difficulty 1) | over 2,000,000, not found | correctly refused |
+| `0x2000ffff` | 120 | **`valid: true`** |
+| `0x2100ffff` | **1** | **`valid: true`** |
+
+Proof of work was *enabled* in those rows. `SPV.verifyHeaderChain` accepted a whole chain of such
+headers, which its own comment warned about. It matters wherever a header reaches the verifier
+from the same place as the thing it is meant to check independently — an offline certificate and
+header bundle, or a provider that serves both.
+
+**The declared target is now capped.** `SPV.verifyTxInclusion`, `SPV.verifyHeaderChain`,
+`NotaryHash.verify`/`verifyAnchorSPV` and the GDAF anchor take `powLimit`, the easiest target a
+header may declare, defaulting to `SPV.POW_LIMIT_BITS` (`0x1d00ffff`, difficulty 1 — the
+proof-of-work limit of mainnet and testnet). `minWork` demands more than the cap if you want a
+difficulty floor. `bits` values no header may use — negative, zero, or overflowing — are refused
+outright: `targetFromBits` transcribes Bitcoin's `SetCompact` and `CheckProofOfWork`, none of
+whose rules `getTargetDifficulty` implements (it also shifts the wrong way for a size below 4,
+which is why it is not used here).
+
+**Two smaller holes closed with it.** A header is now taken as exactly 80 bytes and re-parsed, so
+every checked field comes from one snapshot and an object merely stating a `merkleRoot` is refused
+by name instead of failing with `header.validProofOfWork is not a function`. And
+`NotaryHash.verify` takes `blockHashAtHeight`: no amount of proof of work detects an orphan,
+because a block that lost a race carries real work, so a caller with its own chain view says which
+block that height holds.
+
+**What this rejects that 9.11.2 accepted:** forged headers, and honest regtest headers, which
+declare `0x207fffff` — pass `powLimit: 0x207fffff` for those, as `test/gdaf/anchor_spv.js` now
+does. `requirePow: false` still switches off every work check together. Mainnet and testnet
+headers are unaffected; the genesis block verifies under the default.
+
+Retargeting is still not validated, and this is still not a substitute for a chain source: a fork
+whose headers each clear the limit remains possible, which is what `trustedHash` and
+`blockHashAtHeight` are for.
+
+Found while mirroring a hardening of the BRC-220 reference implementation, whose difficulty floor
+prompted the check.
+
 ## [9.11.2] - 2026-09-17
 
 **A patch: an empty push is no longer lost when a script is written as ASM or as a string.** No API change.
