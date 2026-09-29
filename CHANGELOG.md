@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.15.0] - 2026-09-29
+
+### Security — `LOW_S` masked every STRICTENC signature check, on this library's own default flags
+
+`checkSignatureEncoding` chained its three checks with `else if`. The node has three
+independent `if`s. `SCRIPT_VERIFY_LOW_S` is set by both `mainnetFlags()` and
+`currentConsensusFlags()`, so on the default path the LOW_S branch returned and the whole
+STRICTENC block below it never ran. Three signatures the node refuses by name were accepted:
+
+| signature | node | this library, before 9.15.0 |
+|---|---|---|
+| undefined hash type | `SIG_HASHTYPE` | **accepted** |
+| no FORKID bit, where FORKID is required | `MUST_USE_FORKID` | **accepted** |
+| Chronicle digest requested outside Chronicle | `ILLEGAL_CHRONICLE` | **accepted** |
+
+This is the direction that costs money: a transaction the network rejects was reported valid.
+The third case undoes the guard added for Chronicle — a signature whose type byte sets `0x20`
+is read as asking for the original digest, and refusing it outright is what lets
+`sighash()` route on the bit alone. Anyone verifying third-party transactions with
+`mainnetFlags()` should treat 9.15.0 as a required upgrade.
+
+The bug is inherited from the upstream `bsv`/`bitcore-lib` lineage, not introduced here, and
+the node's own 1,483-row corpus cannot see it: not one row pairs `LOW_S` with a hash-type
+expectation. It was found by transcribing `VerifyScript` against the C++ line by line rather
+than reading the one line under repair.
+
+### Fixed — Chronicle's malleability relaxations were not applied
+
+Chronicle lets a transaction opt into malleability by using a **version above 1**. The node
+then stops applying the rules that exist only to stop a signed transaction being rewritten in
+flight — `EnforceNonMalleability(flags, checker.Version())`, at seven sites. This library
+applied all seven regardless, so it **refused transactions the network accepts**, on its own
+default flags, for any transaction with `version > 1`:
+
+`LOW_S`, `MINIMALDATA`, `MINIMALIF`, `NULLFAIL` (both `CHECKSIG` and `CHECKMULTISIG`),
+`NULLDUMMY`, `SIGPUSHONLY` and `CLEANSTACK`.
+
+The gate reads `SCRIPT_CHRONICLE` — the era of the block being built — not
+`SCRIPT_UTXO_AFTER_CHRONICLE`, the era of the output being spent; Chronicle activated at block
+943,816, so it is set for anything validated against today's chain. Every version at or below 1
+is unaffected, and so is every flag set without Chronicle. Exposed as
+`Interpreter#enforceNonMalleability()`, beside `isAfterGenesis()` and `isAfterChronicle()`.
+
+The corpus cannot see this either: all 1,483 of its rows carry transaction version 1.
+
+### Fixed — `SIGPUSHONLY` is a rule of an era, not of the flag alone
+
+The node applies it post-Genesis, and under Chronicle only to a non-malleable version:
+
+```cpp
+if((IsGenesis(flags) && !IsChronicle(flags)) ||
+   (IsChronicle(flags) && !IsMalleableTxnVersion(checker.Version())))
+```
+
+It also never *sets* the flag outside that window — `InputScriptVerifyFlags` adds it only once
+the block era is post-Genesis. Before Genesis a non-push scriptSig was refused only where P2SH
+demanded it, which this library still does.
+
+### Fixed — `CLEANSTACK` without `P2SH` threw an internal error
+
+Those flags come from a caller, so the node names the problem
+(`SCRIPT_ERR_INVALID_FLAGS`) rather than asserting. Throwing turned a verdict into a crash for
+anyone verifying with `CLEANSTACK` alone. A flag set claiming a post-Chronicle UTXO that is not
+post-Genesis is now refused the same way, as the node's `valid_flags` does, instead of being
+evaluated from half an era.
+
 ## [9.14.0] - 2026-09-29
 
 ### Added — `minDifficulty`, because a work floor in hashes invites a unit error that fails open

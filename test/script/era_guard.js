@@ -54,10 +54,14 @@ describe('era-flag diagnostics', function () {
     var BASE = Interpreter.SCRIPT_VERIFY_STRICTENC | Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID
 
     // Every bit that does NOT lift the element-size cap must still explain the failure.
+    // SCRIPT_UTXO_AFTER_CHRONICLE used to be a third case here. It no longer is: a UTXO
+    // cannot be post-Chronicle without being post-Genesis, so verify() now refuses the bit
+    // on its own the way the node's valid_flags does, and the only valid flag set carrying
+    // it also lifts the cap. The case is covered by the refusal below instead, which tells
+    // the caller more than a PUSH_SIZE hint did.
     ;[
       ['SCRIPT_GENESIS', 'SCRIPT_GENESIS'],
-      ['SCRIPT_ENABLE_CHRONICLE', 'SCRIPT_ENABLE_CHRONICLE'],
-      ['SCRIPT_UTXO_AFTER_CHRONICLE', 'SCRIPT_UTXO_AFTER_CHRONICLE']
+      ['SCRIPT_ENABLE_CHRONICLE', 'SCRIPT_ENABLE_CHRONICLE']
     ].forEach(function (pair) {
       it('still explains PUSH_SIZE when only ' + pair[0] + ' is set', function () {
         var r = run(BASE | Interpreter[pair[1]])
@@ -66,6 +70,16 @@ describe('era-flag diagnostics', function () {
         ;(r.hint === null).should.equal(false,
           pair[0] + ' does not lift the element-size cap, so the hint must still fire')
       })
+    })
+
+    it('refuses SCRIPT_UTXO_AFTER_CHRONICLE on its own, rather than hinting about it', function () {
+      var r = run(BASE | Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE)
+      r.ok.should.equal(false)
+      r.err.should.equal('SCRIPT_ERR_INVALID_FLAGS')
+      // And with the bit it requires, the cap is lifted and the script passes.
+      var ok = run(BASE | Interpreter.SCRIPT_UTXO_AFTER_GENESIS |
+        Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE)
+      ok.err.should.not.equal('SCRIPT_ERR_INVALID_FLAGS')
     })
 
     it('stays silent once SCRIPT_UTXO_AFTER_GENESIS actually lifts the cap', function () {

@@ -915,6 +915,7 @@
   "bsv.Script.Interpreter#checkSequence": "function(1)",
   "bsv.Script.Interpreter#checkSignatureEncoding": "function(1)",
   "bsv.Script.Interpreter#checkStackLimits": "function(0)",
+  "bsv.Script.Interpreter#enforceNonMalleability": "function(0)",
   "bsv.Script.Interpreter#evaluate": "function(0)",
   "bsv.Script.Interpreter#initialize": "function(1)",
   "bsv.Script.Interpreter#isAfterChronicle": "function(0)",
