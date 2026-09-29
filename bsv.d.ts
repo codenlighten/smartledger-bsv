@@ -987,6 +987,10 @@ declare module '@smartledger/bsv' {
          * The easiest target a header may declare and still be believed: difficulty 1,
          * 0x1d00ffff, the proof-of-work limit of mainnet and testnet. Regtest declares
          * 0x207fffff, so regtest headers need `powLimit` set explicitly.
+         *
+         * This rules out a FREE forgery, not a cheap one: a header at difficulty 1 costs
+         * about 4.3e9 double-SHA256 attempts, against about 1e20 for a real mainnet header.
+         * Use `minWork`, or check the header against your own chain source.
          */
         const POW_LIMIT_BITS: number;
         /** A Merkle branch proof. All hashes are DISPLAY-order hex; a node of '*' means "duplicate the working hash". */
@@ -1723,6 +1727,11 @@ declare module '@smartledger/bsv' {
             /**
              * The block hash the caller's own chain source has at that height. No amount of
              * proof of work detects an orphan: a block that lost a race carries real work.
+             *
+             * Supplying this or `minWork` will be REQUIRED in 10.0.0: the proof-of-work limit
+             * rules out a free forgery, not a cheap one — a header at difficulty 1 costs about
+             * 4.3e9 hashes, while a real mainnet header carries about 1e20. Verifying with a
+             * header alone warns since 9.13.0.
              */
             blockHashAtHeight?: string;
             /**
@@ -1730,7 +1739,11 @@ declare module '@smartledger/bsv' {
              * SPV.POW_LIMIT_BITS (difficulty 1); regtest headers need 0x207fffff.
              */
             powLimit?: number | string;
-            /** Minimum work the header must represent. Difficulty 1 is about 4.295e9. */
+            /**
+             * Minimum work the header must represent. Difficulty 1 is about 4.295e9, and a
+             * real mainnet header carries about 1e20. Either this or `blockHashAtHeight` will
+             * be required in 10.0.0.
+             */
             minWork?: number | string;
             /** Pass false only for test fixtures. Defaults to true. */
             requirePow?: boolean;
