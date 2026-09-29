@@ -869,6 +869,7 @@
   "bsv.PublicKey.getValidationError": "function(1)",
   "bsv.PublicKey.isValid": "function(1)",
   "bsv.SPV": "object",
+  "bsv.SPV.POW_LIMIT_BITS": "number",
   "bsv.SPV.merkleRootFromBranch": "function(3)",
   "bsv.SPV.verifyHeaderChain": "function(2)",
   "bsv.SPV.verifyMerkleProof": "function(1)",

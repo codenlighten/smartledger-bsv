@@ -983,21 +983,42 @@ declare module '@smartledger/bsv' {
     // -------- SPV (trustless Merkle inclusion proofs) -------------------
 
     export namespace SPV {
+        /**
+         * The easiest target a header may declare and still be believed: difficulty 1,
+         * 0x1d00ffff, the proof-of-work limit of mainnet and testnet. Regtest declares
+         * 0x207fffff, so regtest headers need `powLimit` set explicitly.
+         */
+        const POW_LIMIT_BITS: number;
         /** A Merkle branch proof. All hashes are DISPLAY-order hex; a node of '*' means "duplicate the working hash". */
         interface MerkleProof { txid: string; index: number; nodes: string[]; merkleRoot: string; }
         interface InclusionParams {
             txid: string;
             index: number;
             nodes: string[];
-            /** a bsv.BlockHeader, an 80-byte Buffer, or 80-byte hex. */
+            /** a bsv.BlockHeader, an 80-byte Buffer, or 80-byte hex. Nothing else is a header. */
             header: any;
-            /** default true — require the header to meet its proof-of-work target. */
+            /** default true — require the header's proof of work, its declared target and `minWork`. */
             requirePow?: boolean;
+            /**
+             * The easiest target a header may declare, as compact bits (number or hex string)
+             * or a BN target. Defaults to POW_LIMIT_BITS; regtest needs 0x207fffff. A header
+             * declares its own target, so without this a forged header costs nothing to make.
+             */
+            powLimit?: number | string | object;
+            /** Minimum work the header must represent: 2^256 / (target + 1). Difficulty 1 is about 4.295e9. */
+            minWork?: number | string | object;
         }
         interface InclusionResult {
             valid: boolean;
             rootMatches: boolean;
+            /** The header meets the target it declares for itself. */
             powValid: boolean;
+            /** That declared target is no easier than `powLimit`. True when not checked. */
+            targetAllowed: boolean;
+            /** The work it represents is at least `minWork`. True when not checked. */
+            workSufficient: boolean;
+            /** Work the header represents, as a decimal string. */
+            work: string;
             merkleRoot: string;
             blockHash: string;
         }
@@ -1699,6 +1720,18 @@ declare module '@smartledger/bsv' {
              * it to have it checked against `spv.blockHeight`.
              */
             height?: number;
+            /**
+             * The block hash the caller's own chain source has at that height. No amount of
+             * proof of work detects an orphan: a block that lost a race carries real work.
+             */
+            blockHashAtHeight?: string;
+            /**
+             * The easiest target the header may declare, as compact bits. Defaults to
+             * SPV.POW_LIMIT_BITS (difficulty 1); regtest headers need 0x207fffff.
+             */
+            powLimit?: number | string;
+            /** Minimum work the header must represent. Difficulty 1 is about 4.295e9. */
+            minWork?: number | string;
             /** Pass false only for test fixtures. Defaults to true. */
             requirePow?: boolean;
         }
