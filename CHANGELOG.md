@@ -37,7 +37,8 @@ than reading the one line under repair.
 
 Chronicle lets a transaction opt into malleability by using a **version above 1**. The node
 then stops applying the rules that exist only to stop a signed transaction being rewritten in
-flight — `EnforceNonMalleability(flags, checker.Version())`, at seven sites. This library
+flight — `EnforceNonMalleability(flags, checker.Version())`, at seven sites
+(`interpreter.cpp` 285, 433, 801, 1493, 1643, 1666 and 2441). This library
 applied all seven regardless, so it **refused transactions the network accepts**, on its own
 default flags, for any transaction with `version > 1`:
 
@@ -64,6 +65,22 @@ if((IsGenesis(flags) && !IsChronicle(flags)) ||
 It also never *sets* the flag outside that window — `InputScriptVerifyFlags` adds it only once
 the block era is post-Genesis. Before Genesis a non-push scriptSig was refused only where P2SH
 demanded it, which this library still does.
+
+### Fixed — `CLEANSTACK` required `P2SH` only before Genesis, and the harness was short a rule
+
+The node requires the `P2SH` flag alongside `CLEANSTACK` in **every** era, including after
+Genesis removed P2SH. This library carried a post-Genesis carve-out of its own, because the
+corpus appeared to demand one. It does not — the node's harness adds the flag before calling
+`VerifyScript`:
+
+```cpp
+if(flags & SCRIPT_VERIFY_CLEANSTACK) flags |= SCRIPT_VERIFY_P2SH;   // DoTest
+```
+
+so the row naming `CLEANSTACK` alone never reaches that branch. `tools/sv-vector-harness.js`
+was missing the adjustment, which ran that row under a flag set `VerifyScript` refuses
+outright: it failed for the wrong reason and stopped testing clean stacks at all. A vector
+file states the flags a row names, not the ones its runner adds.
 
 ### Fixed — `CLEANSTACK` without `P2SH` threw an internal error
 
