@@ -190,6 +190,9 @@ describe('deprecated APIs', function () {
       bsv.NotaryHash.verify(a.certificate, {
         header: a.header, powLimit: 0x207fffff, minWork: 1
       }).valid.should.equal(true)
+      bsv.NotaryHash.verify(a.certificate, {
+        header: a.header, powLimit: 0x207fffff, minDifficulty: 0
+      }).valid.should.equal(true)
       warned.should.deep.equal([])
       // The fixture's own header, whatever the verdict, is equally silent with a policy.
       bsv.NotaryHash.verify(fixture.certificate, {

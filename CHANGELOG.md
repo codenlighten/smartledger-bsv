@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.14.0] - 2026-09-29
+
+### Added — `minDifficulty`, because a work floor in hashes invites a unit error that fails open
+
+`minWork` counts **hashes**. Difficulty is the unit a floor is actually quoted in: a real BSV
+header is "difficulty 2.6e10", not "1.1e20 hashes". The two are 4,295,032,833 apart, so reading
+one as the other sets a floor **4.3 billion times too low** — and it fails *open*, because the
+call keeps succeeding and nothing says the floor stopped meaning anything.
+
+That is not hypothetical. While comparing this library's cap with the BRC-220 reference
+implementation's floor, its `minDifficulty: 5e9` was read here as 5e9 *hashes* and reported as
+"difficulty 1.16, a twentieth of a billionth of a real header". The true figure is 5e9 ×
+4,295,032,833 ≈ **2.1e19** hashes, about a fifth of block 954784's 1.098e20 — a sound floor,
+misread by a factor of 4.3e9 in the direction that looks alarming rather than safe. The
+reference's API had the better name first.
+
+So `SPV.verifyTxInclusion` and `NotaryHash.verify` now take `minDifficulty` beside `minWork`:
+
+```js
+NotaryHash.verify(cert, { header, minDifficulty: '2.5e10' })  // difficulty, as quoted
+NotaryHash.verify(cert, { header, minWork: '1e20' })          // hashes, as counted
+```
+
+Exactly one of the two: passing both throws rather than leaving the caller to guess which
+applied. The conversion is exact — a fractional or exponent-form difficulty is expanded by
+moving the decimal point, never through a float — and `minDifficulty` also satisfies the 9.13.0
+notice, so a caller stating a policy in difficulty is not warned.
+
 ## [9.13.0] - 2026-09-29
 
 ### Deprecated — verifying an anchor with a header and no trust policy
