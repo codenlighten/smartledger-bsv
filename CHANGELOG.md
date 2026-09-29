@@ -82,6 +82,20 @@ was missing the adjustment, which ran that row under a flag set `VerifyScript` r
 outright: it failed for the wrong reason and stopped testing clean stacks at all. A vector
 file states the flags a row names, not the ones its runner adds.
 
+### Changed — the one behaviour that tightens
+
+Everything else here either refuses something the network refuses or accepts something it
+accepts. This is the exception, stated plainly so nobody meets it by surprise: a flag word
+carrying `CLEANSTACK` **without** `P2SH` used to verify after Genesis, and now returns false
+with `SCRIPT_ERR_INVALID_FLAGS`, which is what the node does in every era.
+
+It is not reachable through any flag set this library produces — `mainnetFlags()` and
+`currentConsensusFlags()` both include `P2SH` — so only a hand-assembled flag word is
+affected, and the fix is to add `SCRIPT_VERIFY_P2SH`, which is what the node's own test
+harness does. It ships in a minor rather than waiting for the major because the alternative
+is disagreeing with the node about which flag sets are valid; STABILITY.md § Consensus
+tracking is the clause that allows it.
+
 ### Fixed — `CLEANSTACK` without `P2SH` threw an internal error
 
 Those flags come from a caller, so the node names the problem
