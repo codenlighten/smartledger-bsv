@@ -184,6 +184,17 @@ function classifyFlags (flagStr) {
  * only the spending transaction carries the version under test.
  */
 function evaluate (row, flags) {
+  // DoTest's one flag adjustment, which the rows themselves do not state:
+  //
+  //   if(flags & SCRIPT_VERIFY_CLEANSTACK) flags |= SCRIPT_VERIFY_P2SH;
+  //
+  // Without it a row naming CLEANSTACK alone is verified under a flag set the node refuses
+  // outright, so it fails for the wrong reason and the row silently stops testing clean
+  // stacks at all.
+  if ((flags & Interpreter.SCRIPT_VERIFY_CLEANSTACK) !== 0) {
+    flags |= Interpreter.SCRIPT_VERIFY_P2SH
+  }
+
   const scriptSig = fromBitcoindString(row.scriptSig)
   const scriptPubKey = fromBitcoindString(row.scriptPubKey)
 

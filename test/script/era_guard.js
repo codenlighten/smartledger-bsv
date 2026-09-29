@@ -76,10 +76,11 @@ describe('era-flag diagnostics', function () {
       var r = run(BASE | Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE)
       r.ok.should.equal(false)
       r.err.should.equal('SCRIPT_ERR_INVALID_FLAGS')
-      // And with the bit it requires, the cap is lifted and the script passes.
+      // And with the bit it requires, the flag set is accepted and the cap is lifted.
       var ok = run(BASE | Interpreter.SCRIPT_UTXO_AFTER_GENESIS |
         Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE)
       ok.err.should.not.equal('SCRIPT_ERR_INVALID_FLAGS')
+      ok.err.should.not.equal('SCRIPT_ERR_PUSH_SIZE')
     })
 
     it('stays silent once SCRIPT_UTXO_AFTER_GENESIS actually lifts the cap', function () {
