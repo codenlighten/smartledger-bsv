@@ -196,6 +196,20 @@ describe('a header is not believed about its own difficulty', function () {
       })
     })
 
+    it('range-checks a BN target or floor, which is not compact bits', function () {
+      var BN = bsv.crypto.BN
+      // A BN of 2^256 is not a limit at all: every target is below it, so the cap would
+      // admit the free forgery it exists to stop.
+      expect(function () { genesisProof({ powLimit: new BN(1).shln(256) }) }).to.throw(/powLimit as a BN/)
+      expect(function () { genesisProof({ powLimit: new BN(0) }) }).to.throw(/powLimit as a BN/)
+      expect(function () { genesisProof({ powLimit: new BN(-1) }) }).to.throw(/powLimit as a BN/)
+      expect(function () { genesisProof({ minWork: new BN(-1) }) }).to.throw(/minWork as a BN/)
+      // A real target as a BN still works, and means what it says.
+      var regtest = require('../../lib/spv/merkleproof').targetFromBits(0x207fffff)
+      genesisProof({ powLimit: regtest }).targetAllowed.should.equal(true)
+      genesisProof({ minWork: new BN('4295032833', 10) }).workSufficient.should.equal(true)
+    })
+
     it('does not judge the policy inputs when the work checks are off', function () {
       genesisProof({ requirePow: false, minWork: 'abc', powLimit: 'zz' }).valid.should.equal(true)
     })

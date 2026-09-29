@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.13.0] - 2026-09-29
+
+### Deprecated — verifying an anchor with a header and no trust policy
+
+9.12.0 stopped a **free** forgery. It does not stop a **cheap** one: the default limit is
+difficulty 1, which costs about **4.3e9** double-SHA256 attempts — seconds on one consumer GPU,
+well under a second on an ASIC — while a real mainnet header carries about **1e20** (measured:
+`1.098e20` at block 954784's `bits` of `0x182afffe`, a factor of 2.6e10). So a caller whose only
+input is "a header" has proved inclusion in something that cost very little, unless the header
+came from a source it trusts.
+
+`NotaryHash.verify(certificate, { header })` now warns once when neither `minWork` nor
+`blockHashAtHeight` is given, and **10.0.0 will require one of them**. Per STABILITY.md this is
+marked in a minor and breaks in the major; nothing throws today, and `requirePow: false` is
+silent because none of it applies. There is no universally right default to pick instead:
+`minWork` depends on the chain and the application, and testnet would break under a mainnet
+floor.
+
+### Fixed — a `powLimit` or `minWork` passed as a BN was not range-checked
+
+`powLimit: BN(2^256)` admitted the very forgery the cap exists to refuse, because every target
+is below 2^256; `BN(0)` admitted nothing; a negative BN `minWork` passed any header. A BN
+`powLimit` must now be above zero and below 2^256, and a BN `minWork` must not be negative.
+Compact bits and decimal strings were already checked.
+
+Both found by an independent verification of the published 9.12.0 and of
+`smartledger-bsv-core`, which agreed on all 35 checks.
+
 ## [9.12.0] - 2026-09-29
 
 **A block header is no longer believed about the difficulty it declares.** A forged header cost

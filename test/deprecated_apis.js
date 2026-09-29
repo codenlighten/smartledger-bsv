@@ -131,4 +131,76 @@ describe('deprecated APIs', function () {
       warned.should.deep.equal([])
     })
   })
+
+  // The proof-of-work limit added in 9.12.0 rules out a FREE forgery, not a cheap one: a
+  // header at difficulty 1 costs about 4.3e9 hashes, seconds on one GPU, while a real
+  // mainnet header carries about 1e20. A caller whose only input is "a header" is therefore
+  // trusting where the header came from, so 9.13.0 says so and 10.0.0 will require a policy.
+  describe('NotaryHash.verify() with a header and no trust policy', function () {
+    var fixture = require('./data/notaryhash-reference-certs.json').certificates.fullHex
+    var headerId = bsv.BlockHeader.fromBuffer(Buffer.from(fixture.header, 'hex')).id
+
+    // The fixture's own header is synthetic and meets no target, so for the case that has to
+    // VERIFY, mine one at regtest difficulty over the same Merkle root and name it in the
+    // envelope, as the issuer would.
+    function minedAnchor () {
+      var real = bsv.BlockHeader.fromBuffer(Buffer.from(fixture.header, 'hex'))
+      for (var nonce = 0; nonce < 500000; nonce++) {
+        var h = new bsv.BlockHeader({
+          version: real.version,
+          prevHash: real.prevHash,
+          merkleRoot: real.merkleRoot,
+          time: real.time,
+          bits: 0x207fffff,
+          nonce: nonce
+        })
+        if (h.validProofOfWork()) {
+          var certificate = JSON.parse(JSON.stringify(fixture.certificate))
+          certificate.spv.blockHash = h.id
+          return { certificate: certificate, header: h.toBuffer().toString('hex'), id: h.id }
+        }
+      }
+      throw new Error('could not mine a regtest header')
+    }
+
+    it('still verifies, which is the whole point of a deprecation', function () {
+      var a = minedAnchor()
+      var report = bsv.NotaryHash.verify(a.certificate, {
+        header: a.header, powLimit: 0x207fffff
+      })
+      report.valid.should.equal(true, JSON.stringify(report.errors))
+      warned.length.should.equal(1)
+    })
+
+    it('warns once, naming both ways out and the version that will require one', function () {
+      bsv.NotaryHash.verify(fixture.certificate, { header: fixture.header })
+      bsv.NotaryHash.verify(fixture.certificate, { header: fixture.header })
+      warned.length.should.equal(1)
+      warned[0].should.match(/blockHashAtHeight/)
+      warned[0].should.match(/minWork/)
+      warned[0].should.match(/4\.3e9/)
+      warned[0].should.match(/10\.0\.0/)
+    })
+
+    it('is silent when the caller states a policy', function () {
+      var a = minedAnchor()
+      bsv.NotaryHash.verify(a.certificate, {
+        header: a.header, powLimit: 0x207fffff, blockHashAtHeight: a.id
+      }).valid.should.equal(true)
+      bsv.NotaryHash.verify(a.certificate, {
+        header: a.header, powLimit: 0x207fffff, minWork: 1
+      }).valid.should.equal(true)
+      warned.should.deep.equal([])
+      // The fixture's own header, whatever the verdict, is equally silent with a policy.
+      bsv.NotaryHash.verify(fixture.certificate, {
+        header: fixture.header, blockHashAtHeight: headerId
+      })
+      warned.should.deep.equal([])
+    })
+
+    it('is silent when the work checks are off, since none of it applies', function () {
+      bsv.NotaryHash.verify(fixture.certificate, { header: fixture.header, requirePow: false })
+      warned.should.deep.equal([])
+    })
+  })
 })
