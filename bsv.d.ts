@@ -1009,8 +1009,18 @@ declare module '@smartledger/bsv' {
              * declares its own target, so without this a forged header costs nothing to make.
              */
             powLimit?: number | string | object;
-            /** Minimum work the header must represent: 2^256 / (target + 1). Difficulty 1 is about 4.295e9. */
+            /**
+             * Minimum work the header must represent, in HASHES: 2^256 / (target + 1).
+             * Difficulty 1 is about 4.295e9. Use `minDifficulty` to say it in difficulty.
+             */
             minWork?: number | string | object;
+            /**
+             * The same floor in DIFFICULTY, which is the unit difficulty is quoted in: a real
+             * BSV header is about 2.6e10, i.e. about 1.1e20 hashes. Exactly one of the two —
+             * passing both throws, because they are 4.3e9 apart and silence would hide which
+             * one applied.
+             */
+            minDifficulty?: number | string;
         }
         interface InclusionResult {
             valid: boolean;
@@ -1740,11 +1750,16 @@ declare module '@smartledger/bsv' {
              */
             powLimit?: number | string;
             /**
-             * Minimum work the header must represent. Difficulty 1 is about 4.295e9, and a
-             * real mainnet header carries about 1e20. Either this or `blockHashAtHeight` will
-             * be required in 10.0.0.
+             * Minimum work the header must represent, in HASHES. Difficulty 1 is about
+             * 4.295e9, and a real mainnet header carries about 1e20. Either this,
+             * `minDifficulty` or `blockHashAtHeight` will be required in 10.0.0.
              */
             minWork?: number | string;
+            /**
+             * The same floor in DIFFICULTY (a real BSV header is about 2.6e10). Exactly one
+             * of this and `minWork`; passing both throws.
+             */
+            minDifficulty?: number | string;
             /** Pass false only for test fixtures. Defaults to true. */
             requirePow?: boolean;
         }
