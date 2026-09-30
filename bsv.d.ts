@@ -540,6 +540,13 @@ declare module '@smartledger/bsv' {
              */
             isAfterGenesis(): boolean;
             isAfterChronicle(): boolean;
+            /**
+             * False where Chronicle applies and the spending transaction's version is
+             * above 1, which is how a transaction opts into malleability. LOW_S,
+             * MINIMALDATA, MINIMALIF, NULLFAIL, NULLDUMMY, SIGPUSHONLY and CLEANSTACK
+             * are not applied to such a transaction.
+             */
+            enforceNonMalleability(): boolean;
             /** 520 before Genesis, UNLIMITED after. */
             maxScriptElementSize(): number;
             /** 10,000 before Genesis, UNLIMITED after. */
