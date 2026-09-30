@@ -1,4 +1,30 @@
 {
+  "authoritative": "nodeFlagsHex — it equals the set named in nodeFlags exactly. flagsHexAsRun is what this library was invoked with and additionally carries libraryOnlyFlags, which the node does not define and which change none of these verdicts.",
+  "nodeFlagBits": {
+    "0": "P2SH",
+    "1": "STRICTENC",
+    "2": "DERSIG",
+    "3": "LOW_S",
+    "4": "NULLDUMMY",
+    "5": "SIGPUSHONLY",
+    "6": "MINIMALDATA",
+    "7": "DISCOURAGE_UPGRADABLE_NOPS",
+    "8": "CLEANSTACK",
+    "9": "CHECKLOCKTIMEVERIFY",
+    "10": "CHECKSEQUENCEVERIFY",
+    "13": "MINIMALIF",
+    "14": "NULLFAIL",
+    "15": "COMPRESSED_PUBKEYTYPE",
+    "16": "SIGHASH_FORKID",
+    "18": "GENESIS",
+    "19": "UTXO_AFTER_GENESIS",
+    "20": "CHRONICLE",
+    "21": "UTXO_AFTER_CHRONICLE"
+  },
+  "libraryOnlyFlagBits": {
+    "11": "ENABLE_MONOLITH_OPCODES",
+    "12": "ENABLE_MAGNETIC_OPCODES"
+  },
   "narrowerNames": {
     "EVAL_FALSE_IN_STACK": "EVAL_FALSE",
     "EVAL_FALSE_NO_RESULT": "EVAL_FALSE",
@@ -20,8 +46,9 @@
       "nodeExpects": "MUST_USE_FORKID",
       "regressionClass": "false-accept in <= 9.14.0",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
+        "DERSIG",
         "GENESIS",
         "LOW_S",
         "MINIMALDATA",
@@ -33,7 +60,12 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3d586f",
+      "nodeFlagsHex": "0x3d406f",
+      "libraryOnlyFlags": [
+        "ENABLE_MAGNETIC_OPCODES",
+        "ENABLE_MONOLITH_OPCODES"
+      ],
+      "flagsHexAsRun": "0x3d586f",
       "prevoutScriptHex": "76a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000006b483045022100dfef1d8a69c1db59d9577aca3234a811a94af469ee201644072df50e574d04830220595165479ab33d0e7840a20393eafb225c8c59d409512648f1edf92a34fcd6a3012102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -48,8 +80,9 @@
       "nodeExpects": "SIG_HASHTYPE",
       "regressionClass": "false-accept in <= 9.14.0",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
+        "DERSIG",
         "GENESIS",
         "LOW_S",
         "MINIMALDATA",
@@ -61,7 +94,12 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3d586f",
+      "nodeFlagsHex": "0x3d406f",
+      "libraryOnlyFlags": [
+        "ENABLE_MAGNETIC_OPCODES",
+        "ENABLE_MONOLITH_OPCODES"
+      ],
+      "flagsHexAsRun": "0x3d586f",
       "prevoutScriptHex": "76a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000006b483045022100cb49039ee8f74b621d7abce4fa1c01849b26375d1b0eb0fe974cbd336c8a8695022014332328f23fa1da7fb612994eb6a3fccf98258f173a65ed5425fcc915b92a86602102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -76,7 +114,8 @@
       "nodeExpects": "ILLEGAL_CHRONICLE",
       "regressionClass": "false-accept in <= 9.14.0",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
+        "DERSIG",
         "GENESIS",
         "LOW_S",
         "MINIMALDATA",
@@ -87,7 +126,12 @@
         "STRICTENC",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0xd586f",
+      "nodeFlagsHex": "0xd406f",
+      "libraryOnlyFlags": [
+        "ENABLE_MAGNETIC_OPCODES",
+        "ENABLE_MONOLITH_OPCODES"
+      ],
+      "flagsHexAsRun": "0xd586f",
       "prevoutScriptHex": "76a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000006a473044022033201ca66b55d61ebf66c5840bbab32b08273d84c2e995d61e251ad819f2fff502205e8b6808f420149e091c16d95d4e31fc896d98625279d1abac869dc5fb275b9c612102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -102,7 +146,7 @@
       "nodeExpects": "MINIMALIF",
       "regressionClass": "agreed before and after",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
         "MINIMALIF",
@@ -110,7 +154,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3c2001",
+      "nodeFlagsHex": "0x3c2001",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3c2001",
       "prevoutScriptHex": "52635168",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000000000ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -125,7 +171,7 @@
       "nodeExpects": "CLEANSTACK",
       "regressionClass": "agreed before and after",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "CLEANSTACK",
         "GENESIS",
@@ -133,7 +179,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3c0101",
+      "nodeFlagsHex": "0x3c0101",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3c0101",
       "prevoutScriptHex": "61",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000025151ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -148,7 +196,7 @@
       "nodeExpects": "SIG_PUSHONLY",
       "regressionClass": "agreed before and after",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
         "P2SH",
@@ -156,7 +204,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3c0021",
+      "nodeFlagsHex": "0x3c0021",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3c0021",
       "prevoutScriptHex": "61",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000025161ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -171,7 +221,7 @@
       "nodeExpects": "OK",
       "regressionClass": "false-reject in <= 9.14.0",
       "txVersion": 2,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
         "MINIMALIF",
@@ -179,7 +229,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3c2001",
+      "nodeFlagsHex": "0x3c2001",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3c2001",
       "prevoutScriptHex": "52635168",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0200000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000000000ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -194,7 +246,7 @@
       "nodeExpects": "OK",
       "regressionClass": "false-reject in <= 9.14.0",
       "txVersion": 2,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "CLEANSTACK",
         "GENESIS",
@@ -202,7 +254,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3c0101",
+      "nodeFlagsHex": "0x3c0101",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3c0101",
       "prevoutScriptHex": "61",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0200000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000025151ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -217,7 +271,7 @@
       "nodeExpects": "OK",
       "regressionClass": "false-reject in <= 9.14.0",
       "txVersion": 2,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
         "P2SH",
@@ -225,7 +279,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3c0021",
+      "nodeFlagsHex": "0x3c0021",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3c0021",
       "prevoutScriptHex": "61",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0200000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000025161ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -240,7 +296,7 @@
       "nodeExpects": "SIG_HIGH_S",
       "regressionClass": "agreed before and after",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
         "LOW_S",
@@ -249,7 +305,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3d0009",
+      "nodeFlagsHex": "0x3d0009",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3d0009",
       "prevoutScriptHex": "76a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd000000006c493046022100d1f47bc77886b58056612b480adbc32ccc037db3a5288c524fe3699864daaf65022100ba7e1e95f73590365a0fb997b611eb8ea9ea8849f7acadeef2062b65acf10493412102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -264,7 +322,7 @@
       "nodeExpects": "MINIMALDATA",
       "regressionClass": "agreed before and after",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
         "MINIMALDATA",
@@ -272,7 +330,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3c0041",
+      "nodeFlagsHex": "0x3c0041",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3c0041",
       "prevoutScriptHex": "51",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc00000000034c0101ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -287,7 +347,7 @@
       "nodeExpects": "NULLFAIL",
       "regressionClass": "agreed before and after",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
         "NULLFAIL",
@@ -296,7 +356,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3d4001",
+      "nodeFlagsHex": "0x3d4001",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3d4001",
       "prevoutScriptHex": "ac91",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc000000002c093006020101020101412102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -311,15 +373,18 @@
       "nodeExpects": "SIG_NULLDUMMY",
       "regressionClass": "agreed before and after",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
+        "NULLDUMMY",
         "P2SH",
         "SIGHASH_FORKID",
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3d0011",
+      "nodeFlagsHex": "0x3d0011",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3d0011",
       "prevoutScriptHex": "512102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f2751ae91",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0000000003010100ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -334,7 +399,7 @@
       "nodeExpects": "OK",
       "regressionClass": "false-reject in <= 9.14.0",
       "txVersion": 2,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
         "LOW_S",
@@ -343,7 +408,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3d0009",
+      "nodeFlagsHex": "0x3d0009",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3d0009",
       "prevoutScriptHex": "76a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0200000001dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd000000006c4930460221009ead55f1188517bf5820aca0dc2f30056934d725ebe84dda8b425d733830972002210096d72b9888b769ffa2b80dc7b1f13d73ee64accc47fc65516854ff0837034ef9412102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -358,7 +425,7 @@
       "nodeExpects": "OK",
       "regressionClass": "false-reject in <= 9.14.0",
       "txVersion": 2,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
         "MINIMALDATA",
@@ -366,7 +433,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3c0041",
+      "nodeFlagsHex": "0x3c0041",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3c0041",
       "prevoutScriptHex": "51",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0200000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc00000000034c0101ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -381,7 +450,7 @@
       "nodeExpects": "OK",
       "regressionClass": "false-reject in <= 9.14.0",
       "txVersion": 2,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
         "NULLFAIL",
@@ -390,7 +459,9 @@
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3d4001",
+      "nodeFlagsHex": "0x3d4001",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3d4001",
       "prevoutScriptHex": "ac91",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0200000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc000000002c093006020101020101412102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -405,15 +476,18 @@
       "nodeExpects": "OK",
       "regressionClass": "false-reject in <= 9.14.0",
       "txVersion": 2,
-      "flags": [
+      "nodeFlags": [
         "CHRONICLE",
         "GENESIS",
+        "NULLDUMMY",
         "P2SH",
         "SIGHASH_FORKID",
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x3d0011",
+      "nodeFlagsHex": "0x3d0011",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x3d0011",
       "prevoutScriptHex": "512102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f2751ae91",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0200000001cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc0000000003010100ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -428,10 +502,12 @@
       "nodeExpects": "EVAL_FALSE",
       "regressionClass": "agreed before and after",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "P2SH"
       ],
-      "flagsHex": "0x1",
+      "nodeFlagsHex": "0x1",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x1",
       "prevoutScriptHex": "a9149f7fd096d37ed2c0e3f7f0cfc924beef4ffceb6887",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000020100ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -446,12 +522,14 @@
       "nodeExpects": "OK",
       "regressionClass": "false-reject in <= 9.14.0",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "GENESIS",
         "P2SH",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0xc0001",
+      "nodeFlagsHex": "0xc0001",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0xc0001",
       "prevoutScriptHex": "a9149f7fd096d37ed2c0e3f7f0cfc924beef4ffceb6887",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000020100ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -466,12 +544,14 @@
       "nodeExpects": "OK",
       "regressionClass": "agreed before and after",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "GENESIS",
         "P2SH",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0xc0001",
+      "nodeFlagsHex": "0xc0001",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0xc0001",
       "prevoutScriptHex": "b4",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000503aabbcc55ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
@@ -486,13 +566,15 @@
       "nodeExpects": "INVALID_NUMBER_RANGE",
       "regressionClass": "false-accept in <= 9.14.0",
       "txVersion": 1,
-      "flags": [
+      "nodeFlags": [
         "GENESIS",
         "P2SH",
         "UTXO_AFTER_CHRONICLE",
         "UTXO_AFTER_GENESIS"
       ],
-      "flagsHex": "0x2c0001",
+      "nodeFlagsHex": "0x2c0001",
+      "libraryOnlyFlags": [],
+      "flagsHexAsRun": "0x2c0001",
       "prevoutScriptHex": "b4",
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000503aabbcc55ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",

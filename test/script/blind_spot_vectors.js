@@ -48,7 +48,32 @@ describe('cross-implementation blind-spot vectors', function () {
       var tx = new Transaction(v.spendingTxHex)
       var scriptSig = Script.fromBuffer(Buffer.from(v.scriptSigHex, 'hex'))
       var scriptPubkey = Script.fromBuffer(Buffer.from(v.prevoutScriptHex, 'hex'))
-      var flags = parseInt(v.flagsHex, 16)
+      var flags = parseInt(v.flagsHexAsRun, 16)
+
+      // The names and the hex must not be two readings with two answers. A session running
+      // these against two SDKs found nulldummy-v1 reading OK by name and rejected by hex,
+      // because the name list was a subset of the bits actually set.
+      var fromNames = v.nodeFlags.reduce(function (acc, name) {
+        var bit = Object.keys(corpus.nodeFlagBits).find(function (b) {
+          return corpus.nodeFlagBits[b] === name
+        })
+        expect(bit, name + ' is not a node flag').to.not.equal(undefined)
+        return acc | (1 << Number(bit))
+      }, 0)
+      expect(fromNames, 'nodeFlags must reconstruct nodeFlagsHex exactly')
+        .to.equal(parseInt(v.nodeFlagsHex, 16))
+
+      // Only bits the node does not define may differ between the two, and they must be
+      // declared as such.
+      var extra = flags & ~parseInt(v.nodeFlagsHex, 16)
+      var declared = v.libraryOnlyFlags.reduce(function (acc, name) {
+        var bit = Object.keys(corpus.libraryOnlyFlagBits).find(function (b) {
+          return corpus.libraryOnlyFlagBits[b] === name
+        })
+        return acc | (1 << Number(bit))
+      }, 0)
+      expect(extra, 'every bit beyond nodeFlagsHex must be declared in libraryOnlyFlags')
+        .to.equal(declared)
 
       expect(tx.version, 'txVersion must match the serialised transaction').to.equal(v.txVersion)
       expect(tx.inputs[0].script.toBuffer().toString('hex'),
