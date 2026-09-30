@@ -7,7 +7,7 @@
  * in SmartLedger-BSV v3.0.2 after successful fixes.
  */
 
-const bsv = require('./index.js');
+const bsv = require('../index.js');
 
 console.log('🔬 SmartLedger-BSV v3.0.2 - Signature Verification Test');
 console.log('======================================================\n');

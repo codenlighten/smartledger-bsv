@@ -6,7 +6,7 @@
  * Uses only real UTXOs to create and broadcast a transaction
  */
 
-const bsv = require('./index.js');
+const bsv = require('../index.js');
 const https = require('https');
 
 console.log('🚀 Simple Real BSV Transaction Test');

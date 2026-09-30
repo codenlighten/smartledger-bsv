@@ -9,7 +9,7 @@
  * Usage: node opcode_map.js
  */
 
-const bsv = require('./index.js');
+const bsv = require('../index.js');
 const { Opcode, Script } = bsv;
 const Interpreter = bsv.Script.Interpreter;
 
@@ -40,11 +40,18 @@ const OPCODE_CATEGORIES = {
     ]
   },
   
+  // Every flagValue below is read from the Interpreter rather than written out. They used to
+  // be literals, and two of the three were wrong: MONOLITH said 1<<18 and MAGNETIC 1<<19, which
+  // are SCRIPT_GENESIS and SCRIPT_UTXO_AFTER_GENESIS. A caller OR-ing the value it was handed to
+  // "enable opcodes" would instead have declared the output post-Genesis and lifted every
+  // consensus limit. They were right when written and went stale when the flags moved to 1<<11
+  // and 1<<12; a second copy of a constant is the bug, not the digits.
+
   // Monolith opcodes (May 2018 upgrade)
   MONOLITH: {
     description: 'Monolith opcodes - require SCRIPT_ENABLE_MONOLITH_OPCODES',
     flag: 'SCRIPT_ENABLE_MONOLITH_OPCODES',
-    flagValue: (1 << 18),
+    flagValue: Interpreter.SCRIPT_ENABLE_MONOLITH_OPCODES,
     opcodes: [
       'OP_CAT', 'OP_SPLIT', 'OP_NUM2BIN', 'OP_BIN2NUM', 'OP_AND', 'OP_OR', 'OP_XOR', 'OP_DIV', 'OP_MOD'
     ]
@@ -54,7 +61,7 @@ const OPCODE_CATEGORIES = {
   MAGNETIC: {
     description: 'Magnetic opcodes - require SCRIPT_ENABLE_MAGNETIC_OPCODES',
     flag: 'SCRIPT_ENABLE_MAGNETIC_OPCODES',
-    flagValue: (1 << 19),
+    flagValue: Interpreter.SCRIPT_ENABLE_MAGNETIC_OPCODES,
     opcodes: [
       'OP_INVERT', 'OP_MUL', 'OP_LSHIFT', 'OP_RSHIFT'
     ]
@@ -73,7 +80,7 @@ const OPCODE_CATEGORIES = {
   NOPS: {
     description: 'NOP opcodes - may be discouraged with SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS',
     flag: 'SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS',
-    flagValue: (1 << 7),
+    flagValue: Interpreter.SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS,
     opcodes: [
       'OP_NOP2', 'OP_NOP3', 'OP_NOP4', 'OP_NOP5', 'OP_NOP6', 'OP_NOP7', 'OP_NOP8', 'OP_NOP9', 'OP_NOP10'
     ]

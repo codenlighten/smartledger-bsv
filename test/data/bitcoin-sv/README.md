@@ -76,11 +76,12 @@ the crediting input's scriptSig is `OP_0 OP_0`.
 
 ## Flags, and one place this fork differs
 
-Flags are mapped by **name**, never by value. This library assigns
-`MONOLITH_OPCODES` and `MAGNETIC_OPCODES` to bits `1<<18` and `1<<19`, which
-are the bits the node uses for `SCRIPT_GENESIS` and `SCRIPT_UTXO_AFTER_GENESIS`
-— mapping by value would quietly run vectors under the wrong rules while
-appearing to pass.
+Flags are mapped by NAME, never by value. An earlier version of this note said this
+library puts `MONOLITH_OPCODES` and `MAGNETIC_OPCODES` on bits `1<<18` and `1<<19`,
+colliding with the node's `SCRIPT_GENESIS` and `SCRIPT_UTXO_AFTER_GENESIS`. That was true
+once and is not now: they moved to `1<<11` and `1<<12`, which the node leaves unassigned,
+so bits 18 and 19 mean the same thing on both sides. Name mapping remains correct for a
+better reason — the node has no such flags at all, so there is no value to map to.
 
 The corpus never names `MONOLITH` or `MAGNETIC`, because the node has no such
 flags: those opcodes were restored on BSV in 2018 and are simply enabled. This

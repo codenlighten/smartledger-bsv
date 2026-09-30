@@ -30,10 +30,14 @@ const BufferWriter = bsv.encoding.BufferWriter
 
 const rawVectors = require('../test/data/bitcoin-sv/script_tests.json')
 
-// Mapped by name rather than by value. This library assigns MONOLITH and
-// MAGNETIC to 1<<18 and 1<<19, which are the bits the node uses for
-// SCRIPT_GENESIS and SCRIPT_UTXO_AFTER_GENESIS, so mapping by value would
-// quietly mean something else.
+// Mapped by name rather than by value, and the reason is no longer the one this comment used
+// to give. It said this library puts MONOLITH and MAGNETIC on 1<<18 and 1<<19, colliding with
+// the node's SCRIPT_GENESIS and SCRIPT_UTXO_AFTER_GENESIS. That collision was real once and was
+// removed: they moved to 1<<11 and 1<<12, which the node leaves unassigned. Bits 18 and 19 now
+// mean the same thing on both sides.
+//
+// Name mapping is still right, for a better reason: the node has no MONOLITH or MAGNETIC flag
+// at all, so there is no value to map to. A row names a rule; only the name is portable.
 const FLAG_MAP = {
   NONE: 'SCRIPT_VERIFY_NONE',
   P2SH: 'SCRIPT_VERIFY_P2SH',
