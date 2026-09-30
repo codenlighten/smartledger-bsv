@@ -65,8 +65,9 @@ function main () {
   }).sort()
 
   // ---- 2. flag pairs ----
-  const flagNames = Object.keys(harness.FLAG_MAP).concat(
-    ['GENESIS', 'UTXO_AFTER_GENESIS', 'UTXO_AFTER_CHRONICLE'])
+  // Names come from the rows themselves, not from a lookup table: the corpus states its own
+  // flags, and a table would only reintroduce the mismatch that made the shared vectors give
+  // two answers earlier today.
   const setCount = {}
   const pairCount = {}
   for (const r of parsed) {
