@@ -6,10 +6,17 @@ implementation writes, and two rules for reading them. With both, any implementa
 produces certificates the reference verifies, and reads certificates the way the reference
 does.
 
-Prepared 2026-09-11, with the open points decided [below](#decisions). **Status: filed**
-as [bsv-blockchain/BRCs#247](https://github.com/bsv-blockchain/BRCs/pull/247) on 2026-09-11. It is meant to be a separate pull request from
-[bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246), which is under
-review and deliberately narrow; this text builds on it for the batch leaf datum.
+Prepared 2026-09-11, with the open points decided [below](#decisions). **Status: MERGED** as
+[bsv-blockchain/BRCs#247](https://github.com/bsv-blockchain/BRCs/pull/247), filed 2026-09-11 and
+merged **2026-09-18**. It was a separate pull request from
+[bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246), deliberately narrow
+and merged the same day; this text builds on it for the batch leaf datum.
+
+**The merged spec is the authority, not this document.** Eight of the sixty-nine lines quoted
+below were reworded before merging. The substance is unchanged — the field values and the two
+reading rules are as proposed — but quote
+[`apps/0220.md`](https://github.com/bsv-blockchain/BRCs/blob/master/apps/0220.md) rather than
+this file.
 
 ---
 

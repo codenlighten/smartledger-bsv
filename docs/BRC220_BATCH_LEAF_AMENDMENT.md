@@ -5,10 +5,22 @@ in a leaf. This proposes the definition, with the reasoning that led to it.
 
 Prepared 2026-08-17 while implementing BRC-220 in `@smartledger/bsv`.
 
-**Status: filed** as [bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246)
-on 2026-09-11, together with a clarification of the ECDSA digest convention. Its review
-asked that `leafIndex` be stated as counted from 0 and that the vector say how `i` is
-written; both are in #246 and below. Before filing
+**Status: MERGED** as [bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246),
+filed 2026-09-11 and merged **2026-09-18**, together with a clarification of the ECDSA digest
+convention. Its review asked that `leafIndex` be stated as counted from 0 and that the vector say
+how `i` is written; both are in #246 and below.
+
+**The merged spec is the authority, not this document.** The maintainers reflowed the wording
+before merging — denser sentences, `SHA256` rather than `SHA-256` — so the blockquotes below are
+what was *proposed*, and ten of their fourteen lines no longer appear verbatim in
+[`apps/0220.md`](https://github.com/bsv-blockchain/BRCs/blob/master/apps/0220.md). **The rule
+merged unchanged in substance**, which was checked rather than assumed: this library reproduces
+the merged spec's own published batch example exactly — root
+`abb53eb3b2e3530d51685c6813bb85c85892d2f214c2dc504029d071434ac074` and leaf 4's audit path of a
+single `left` sibling `060ca4e4…befd`, from `test/data/brc220-batch-vector.json` through
+`lib/notaryhash/merkle.js`. Quote the merged text, not this.
+
+Before filing
 it was checked against the BRC-220 reference implementation, whose batcher uses exactly
 this leaf (`leaves = batch.map(e => e.proofHash)`), and the vector below was rebuilt
 without any of this library's code — the root from the reference's own RFC 6962 tree.

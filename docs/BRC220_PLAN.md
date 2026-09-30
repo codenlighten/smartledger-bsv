@@ -179,8 +179,11 @@ summarising rather than anything in the document.
   document, in the `proofHash` definition, and nowhere in the batch text. We read `d` as
   `proofHash`; so does the reference implementation's batcher, and given the same five
   proofs it builds the same root. Reading it as `canonicalBytes` is equally sound and
-  produces a different root, so the two do not interoperate. Filed upstream as
-  [bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246); see
+  produces a different root, so the two do not interoperate. **Settled upstream: merged as
+  [bsv-blockchain/BRCs#246](https://github.com/bsv-blockchain/BRCs/pull/246) on 2026-09-18**, so
+  `d = proofHash` is now what BRC-220 says rather than how we read it. This library reproduces the
+  merged spec's own published example — root `abb53eb3…c074` and leaf 4's single `left` sibling
+  `060ca4e4…befd`. See
   [BRC220_BATCH_LEAF_AMENDMENT.md](BRC220_BATCH_LEAF_AMENDMENT.md), enforced in
   `test/notaryhash/batch_leaf.js`.
 - **`createdAt` is advisory for trust but load-bearing for the hash.** §Verification calls
