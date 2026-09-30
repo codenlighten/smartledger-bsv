@@ -26,11 +26,12 @@ var corpus = require('../data/blind-spot-vectors.json')
 describe('cross-implementation blind-spot vectors', function () {
   it('covers both blind spots, in both directions', function () {
     var classes = corpus.vectors.map(function (v) { return v.regressionClass })
-    expect(corpus.vectors.length).to.be.at.least(9)
+    expect(corpus.vectors.length).to.be.at.least(13)
     expect(classes).to.include('false-accept in <= 9.14.0')
     expect(classes).to.include('false-reject in <= 9.14.0')
     var spots = corpus.vectors.map(function (v) { return v.blindSpot })
-    expect(new Set(spots).size).to.equal(2)
+    expect(new Set(spots).size).to.equal(4)
+    expect(corpus.narrowerNames).to.be.an('object')
   })
 
   corpus.vectors.forEach(function (v) {
@@ -50,8 +51,12 @@ describe('cross-implementation blind-spot vectors', function () {
       var ok = interp.verify(scriptSig, scriptPubkey, tx, 0, flags, new BN(v.prevoutSatoshis))
       var got = ok ? 'OK' : interp.errstr.replace(/^SCRIPT_ERR_/, '')
 
-      expect(got, v.comment).to.equal(v.nodeExpects)
-      expect(got, 'the recorded 9.15.0 verdict is stale').to.equal(v.smartledgerBsv_9_15_0)
+      // Our name may be NARROWER than the node's, which is agreement, not a mismatch.
+      var resolved = corpus.narrowerNames[got] || got
+      expect(resolved, v.comment).to.equal(v.nodeExpects)
+      expect(got, 'the recorded verdict is stale').to.equal(v.smartledgerBsv_9_15_0)
+      expect(v.agreesWithNode, 'agreesWithNode must be true for every published vector')
+        .to.equal(true)
     })
   })
 })

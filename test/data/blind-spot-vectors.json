@@ -1,5 +1,15 @@
 {
-  "note": "Cross-implementation vectors for two structural blind spots in bitcoin-sv v1.2.2 script_tests.json. Every row of that corpus carries transaction version 1, and no row pairs SCRIPT_VERIFY_LOW_S with a hash-type expectation, so neither defect class below is reachable by replaying it. Flag names are the node's. nodeExpects is the verdict derived from bitcoin-sv v1.2.2 source, not from a live node.",
+  "narrowerNames": {
+    "EVAL_FALSE_IN_STACK": "EVAL_FALSE",
+    "EVAL_FALSE_NO_RESULT": "EVAL_FALSE",
+    "EVAL_FALSE_NO_P2SH_STACK": "EVAL_FALSE",
+    "EVAL_FALSE_IN_P2SH_STACK": "EVAL_FALSE",
+    "SIG_DER_INVALID_FORMAT": "SIG_DER",
+    "SIG_DER_HIGH_S": "SIG_HIGH_S",
+    "INVALID_OPERAND_SIZE": "OPERAND_SIZE",
+    "INVALID_SPLIT_RANGE": "SPLIT_RANGE"
+  },
+  "note": "Cross-implementation vectors for four defect classes in bitcoin-sv v1.2.2 script_tests.json. Every row of that corpus carries transaction version 1, and no row pairs SCRIPT_VERIFY_LOW_S with a hash-type expectation, so neither defect class below is reachable by replaying it. Flag names are the node's. nodeExpects is the verdict derived from bitcoin-sv v1.2.2 source, not from a live node.",
   "source": "@smartledger/bsv 9.15.0",
   "generated": "2026-09-30",
   "vectors": [
@@ -28,7 +38,8 @@
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000006b483045022100dfef1d8a69c1db59d9577aca3234a811a94af469ee201644072df50e574d04830220595165479ab33d0e7840a20393eafb225c8c59d409512648f1edf92a34fcd6a3012102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
       "scriptSigHex": "483045022100dfef1d8a69c1db59d9577aca3234a811a94af469ee201644072df50e574d04830220595165479ab33d0e7840a20393eafb225c8c59d409512648f1edf92a34fcd6a3012102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27",
-      "smartledgerBsv_9_15_0": "MUST_USE_FORKID"
+      "smartledgerBsv_9_15_0": "MUST_USE_FORKID",
+      "agreesWithNode": true
     },
     {
       "id": "lowS-masks-sig-hashtype",
@@ -55,7 +66,8 @@
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000006b483045022100cb49039ee8f74b621d7abce4fa1c01849b26375d1b0eb0fe974cbd336c8a8695022014332328f23fa1da7fb612994eb6a3fccf98258f173a65ed5425fcc915b92a86602102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
       "scriptSigHex": "483045022100cb49039ee8f74b621d7abce4fa1c01849b26375d1b0eb0fe974cbd336c8a8695022014332328f23fa1da7fb612994eb6a3fccf98258f173a65ed5425fcc915b92a86602102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27",
-      "smartledgerBsv_9_15_0": "SIG_HASHTYPE"
+      "smartledgerBsv_9_15_0": "SIG_HASHTYPE",
+      "agreesWithNode": true
     },
     {
       "id": "lowS-masks-illegal-chronicle",
@@ -80,7 +92,8 @@
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000006a473044022033201ca66b55d61ebf66c5840bbab32b08273d84c2e995d61e251ad819f2fff502205e8b6808f420149e091c16d95d4e31fc896d98625279d1abac869dc5fb275b9c612102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
       "scriptSigHex": "473044022033201ca66b55d61ebf66c5840bbab32b08273d84c2e995d61e251ad819f2fff502205e8b6808f420149e091c16d95d4e31fc896d98625279d1abac869dc5fb275b9c612102466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27",
-      "smartledgerBsv_9_15_0": "ILLEGAL_CHRONICLE"
+      "smartledgerBsv_9_15_0": "ILLEGAL_CHRONICLE",
+      "agreesWithNode": true
     },
     {
       "id": "minimalif-v1",
@@ -102,7 +115,8 @@
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000000000ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
       "scriptSigHex": "",
-      "smartledgerBsv_9_15_0": "MINIMALIF"
+      "smartledgerBsv_9_15_0": "MINIMALIF",
+      "agreesWithNode": true
     },
     {
       "id": "cleanstack-v1",
@@ -124,7 +138,8 @@
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000025151ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
       "scriptSigHex": "5151",
-      "smartledgerBsv_9_15_0": "CLEANSTACK"
+      "smartledgerBsv_9_15_0": "CLEANSTACK",
+      "agreesWithNode": true
     },
     {
       "id": "sigpushonly-v1",
@@ -146,7 +161,8 @@
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000025161ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
       "scriptSigHex": "5161",
-      "smartledgerBsv_9_15_0": "SIG_PUSHONLY"
+      "smartledgerBsv_9_15_0": "SIG_PUSHONLY",
+      "agreesWithNode": true
     },
     {
       "id": "minimalif-v2",
@@ -168,7 +184,8 @@
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0200000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000000000ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
       "scriptSigHex": "",
-      "smartledgerBsv_9_15_0": "OK"
+      "smartledgerBsv_9_15_0": "OK",
+      "agreesWithNode": true
     },
     {
       "id": "cleanstack-v2",
@@ -190,7 +207,8 @@
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0200000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000025151ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
       "scriptSigHex": "5151",
-      "smartledgerBsv_9_15_0": "OK"
+      "smartledgerBsv_9_15_0": "OK",
+      "agreesWithNode": true
     },
     {
       "id": "sigpushonly-v2",
@@ -212,7 +230,87 @@
       "prevoutSatoshis": 100000,
       "spendingTxHex": "0200000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000025161ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
       "scriptSigHex": "5161",
-      "smartledgerBsv_9_15_0": "OK"
+      "smartledgerBsv_9_15_0": "OK",
+      "agreesWithNode": true
+    },
+    {
+      "id": "p2sh-before-genesis-failing-redeem",
+      "blindSpot": "P2SH was removed at Genesis; only the reference corpus covers this",
+      "comment": "Before Genesis the redeem script runs, and this one leaves false on the stack. An implementation that skips P2SH evaluation here accepts a spend the network rejects.",
+      "nodeExpects": "EVAL_FALSE",
+      "regressionClass": "agreed before and after",
+      "txVersion": 1,
+      "flags": [
+        "P2SH"
+      ],
+      "flagsHex": "0x1",
+      "prevoutScriptHex": "a9149f7fd096d37ed2c0e3f7f0cfc924beef4ffceb6887",
+      "prevoutSatoshis": 100000,
+      "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000020100ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
+      "scriptSigHex": "0100",
+      "smartledgerBsv_9_15_0": "EVAL_FALSE_IN_P2SH_STACK",
+      "agreesWithNode": true
+    },
+    {
+      "id": "p2sh-after-genesis-failing-redeem",
+      "blindSpot": "P2SH was removed at Genesis; only the reference corpus covers this",
+      "comment": "Genesis removed P2SH. The output is an ordinary script, so the hash-and-equal IS the whole check and the pushed bytes are data, never code. An implementation that still evaluates the redeem script rejects a spend the network accepts.",
+      "nodeExpects": "OK",
+      "regressionClass": "false-reject in <= 9.14.0",
+      "txVersion": 1,
+      "flags": [
+        "GENESIS",
+        "P2SH",
+        "UTXO_AFTER_GENESIS"
+      ],
+      "flagsHex": "0xc0001",
+      "prevoutScriptHex": "a9149f7fd096d37ed2c0e3f7f0cfc924beef4ffceb6887",
+      "prevoutSatoshis": 100000,
+      "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000020100ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
+      "scriptSigHex": "0100",
+      "smartledgerBsv_9_15_0": "OK",
+      "agreesWithNode": true
+    },
+    {
+      "id": "op-left-out-of-range-before-chronicle",
+      "blindSpot": "restored opcodes follow the OUTPUT era, so a local opt-in flag reads as a NOP",
+      "comment": "Pre-Chronicle UTXO: the byte is OP_NOP4, so it does nothing and the operands stay on the stack. Top of stack is 5, which is true, so the script succeeds.",
+      "nodeExpects": "OK",
+      "regressionClass": "agreed before and after",
+      "txVersion": 1,
+      "flags": [
+        "GENESIS",
+        "P2SH",
+        "UTXO_AFTER_GENESIS"
+      ],
+      "flagsHex": "0xc0001",
+      "prevoutScriptHex": "b4",
+      "prevoutSatoshis": 100000,
+      "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000503aabbcc55ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
+      "scriptSigHex": "03aabbcc55",
+      "smartledgerBsv_9_15_0": "OK",
+      "agreesWithNode": true
+    },
+    {
+      "id": "op-left-out-of-range-after-chronicle",
+      "blindSpot": "restored opcodes follow the OUTPUT era, so a local opt-in flag reads as a NOP",
+      "comment": "Post-Chronicle UTXO: OP_LEFT is a real opcode and a length past the end is an error. An implementation treating 0xb3 as a NOP consumes nothing, leaves the operands, and accepts.",
+      "nodeExpects": "INVALID_NUMBER_RANGE",
+      "regressionClass": "false-accept in <= 9.14.0",
+      "txVersion": 1,
+      "flags": [
+        "GENESIS",
+        "P2SH",
+        "UTXO_AFTER_CHRONICLE",
+        "UTXO_AFTER_GENESIS"
+      ],
+      "flagsHex": "0x2c0001",
+      "prevoutScriptHex": "b4",
+      "prevoutSatoshis": 100000,
+      "spendingTxHex": "0100000001bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000503aabbcc55ffffffff01ac840100000000001976a914531260aa2a199e228c537dfa42c82bea2c7c1f4d88ac00000000",
+      "scriptSigHex": "03aabbcc55",
+      "smartledgerBsv_9_15_0": "INVALID_NUMBER_RANGE",
+      "agreesWithNode": true
     }
   ]
 }
