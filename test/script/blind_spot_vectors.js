@@ -26,11 +26,18 @@ var corpus = require('../data/blind-spot-vectors.json')
 describe('cross-implementation blind-spot vectors', function () {
   it('covers both blind spots, in both directions', function () {
     var classes = corpus.vectors.map(function (v) { return v.regressionClass })
-    expect(corpus.vectors.length).to.be.at.least(13)
+    expect(corpus.vectors.length).to.be.at.least(21)
     expect(classes).to.include('false-accept in <= 9.14.0')
     expect(classes).to.include('false-reject in <= 9.14.0')
     var spots = corpus.vectors.map(function (v) { return v.blindSpot })
     expect(new Set(spots).size).to.equal(4)
+    // All seven EnforceNonMalleability sites in the node must have a vector, at both versions.
+    var ids = corpus.vectors.map(function (v) { return v.id })
+    ;['minimalif', 'cleanstack', 'sigpushonly', 'lowS-highS', 'minimaldata', 'nullfail',
+      'nulldummy'].forEach(function (rule) {
+      expect(ids, rule + ' needs both versions').to.include(rule + '-v1')
+      expect(ids, rule + ' needs both versions').to.include(rule + '-v2')
+    })
     expect(corpus.narrowerNames).to.be.an('object')
   })
 
