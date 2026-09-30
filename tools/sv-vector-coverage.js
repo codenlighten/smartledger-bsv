@@ -34,6 +34,22 @@ const harness = require('./sv-vector-harness')
 
 const rows = require('../test/data/bitcoin-sv/script_tests.json')
 
+// Flags BSV mainnet requires today. A low row count on one of these is worse than a low count
+// on a policy flag, which presence/absence alone cannot say.
+const MANDATORY_ON_MAINNET = ['SIGHASH_FORKID', 'STRICTENC', 'UTXO_AFTER_GENESIS']
+
+// Worse than untested: the row format has no name for these, so the case cannot be written as a
+// row at all and no amount of adding vectors to this file will cover it. Found by the
+// bsv-scale-protocol session, checking for a bare CHRONICLE token and finding none.
+const CANNOT_EXPRESS = [
+  {
+    flag: 'CHRONICLE (block era, 1<<20)',
+    why: 'no row names it — 42 rows carry UTXO_AFTER_CHRONICLE, the OUTPUT era, and none ' +
+         'carries the block era. ILLEGAL_CHRONICLE gates on the block era, so that verdict ' +
+         'is unreachable from this file by construction. It needs a hand-built vector.'
+  }
+]
+
 /** Every SCRIPT_ERR_* this engine can produce, read from the source that produces them. */
 function emittableVerdicts () {
   const files = ['../lib/script/interpreter.js', '../lib/script/script.js']
@@ -79,12 +95,23 @@ function main () {
   }
   // Flags that can mask another check by returning before it.
   const MASKERS = ['LOW_S', 'DERSIG', 'STRICTENC', 'MINIMALDATA', 'SIGPUSHONLY', 'CLEANSTACK']
+  // A pair can be absent for two very different reasons, and they call for different fixes.
+  // The bsv-scale-protocol session made this point: with LOW_S in one row of 1483, most
+  // "untested pairs" are really reporting the scarcity of a single flag, and reading them as
+  // 13 independent gaps invites 13 vectors when adding rows that set LOW_S at all is cheaper
+  // and covers most of them.
+  const SCARCE = 5
   const missingPairs = []
+  const scarcePairs = []
+  const neverSet = []
   for (const a of MASKERS) {
+    if (!setCount[a]) { neverSet.push(a); continue }
     for (const b of MASKERS) {
-      if (a >= b) continue
-      if (!setCount[a] || !setCount[b]) continue
-      if (!pairCount[a + '+' + b]) missingPairs.push(a + ' + ' + b)
+      if (a >= b || !setCount[b]) continue
+      if (pairCount[a + '+' + b]) continue
+      const entry = `${a} (${setCount[a]}) + ${b} (${setCount[b]})`
+      if (setCount[a] <= SCARCE || setCount[b] <= SCARCE) scarcePairs.push(entry)
+      else missingPairs.push(entry)
     }
   }
 
@@ -103,11 +130,35 @@ function main () {
   out.push('agreement here says nothing about them')
   for (const v of unexercised) out.push('  ' + v)
   out.push('')
-  out.push('--- flag pairs never set together ---')
+  out.push('--- how often each flag is set at all ---')
+  out.push('a flag that is mandatory in production and set in a handful of rows is a standing')
+  out.push('risk, not a gap to be closed once')
+  for (const f of Object.keys(setCount).sort((x, y) => setCount[x] - setCount[y])) {
+    const pct = ((setCount[f] / parsed.length) * 100).toFixed(1)
+    const note = MANDATORY_ON_MAINNET.includes(f) ? '   <- mandatory on BSV mainnet' : ''
+    out.push(`  ${String(setCount[f]).padStart(5)}  ${pct.padStart(5)}%  ${f}${note}`)
+  }
+  out.push('')
+  if (neverSet.length) {
+    out.push('--- masking flags no row sets at all ---')
+    out.push('every pair containing one of these would read as a gap; they are excluded above')
+    for (const f of neverSet) out.push('  ' + f)
+    out.push('')
+  }
+  out.push('--- pairs never set together, though BOTH flags are common ---')
   out.push('a check can only be shadowed by another check that is also on, so masking is')
-  out.push('covered per PAIR, not per flag')
-  if (missingPairs.length === 0) out.push('  (none among the masking flags)')
+  out.push('covered per PAIR, not per flag. These are the real gaps.')
+  if (missingPairs.length === 0) out.push('  (none)')
   for (const p of missingPairs) out.push('  ' + p)
+  out.push('')
+  out.push(`--- pairs absent because one flag is scarce (<= ${SCARCE} rows) ---`)
+  out.push('adding rows that set the scarce flag at all is cheaper than one vector per pair')
+  for (const p of scarcePairs) out.push('  ' + p)
+  out.push('')
+  out.push('--- rules this corpus format cannot express ---')
+  for (const f of CANNOT_EXPRESS) {
+    out.push(`  ${f.flag}: ${f.why}`)
+  }
   out.push('')
   out.push('--- transaction version ---')
   for (const v of Object.keys(byVersion).sort()) {

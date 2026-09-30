@@ -70,6 +70,44 @@ describe('what the SV Node script corpus cannot tell us', function () {
     expect(hashTypeWithLowS, 'but none of them sets LOW_S').to.equal(0)
   })
 
+  it('sets LOW_S in exactly one row, while every real node has it on', function () {
+    // The bsv-scale-protocol session's sharpening: LOW_S does not merely fail to co-occur with
+    // a hash-type expectation, it barely occurs at all. So most "untested pairs" report the
+    // scarcity of this one flag rather than 13 independent gaps, and the cheap fix is rows that
+    // set LOW_S at all.
+    var lowS = 0
+    parsed.forEach(function (r) {
+      if (String(r.flagStr).split(',').map(function (x) { return x.trim() }).indexOf('LOW_S') !== -1) lowS++
+    })
+    expect(lowS).to.equal(1)
+  })
+
+  it('sets SIGHASH_FORKID in 4 rows, though FORKID is mandatory on mainnet', function () {
+    // Frequency versus importance: presence/absence calls this covered. It is the flag the
+    // MISSING_FORKID false accept lived behind, exercised in 0.3% of rows.
+    var n = 0
+    parsed.forEach(function (r) {
+      if (String(r.flagStr).indexOf('SIGHASH_FORKID') !== -1) n++
+    })
+    expect(n).to.equal(4)
+  })
+
+  it('cannot express the block-era Chronicle flag at all', function () {
+    // Strictly worse than untested. 42 rows carry UTXO_AFTER_CHRONICLE, the OUTPUT era; no row
+    // names the BLOCK era, which is what ILLEGAL_CHRONICLE gates on. So that verdict is
+    // unreachable from this file by construction and needs a hand-built vector — which is why
+    // blind-spot-vectors.json carries nodeFlagsHex.
+    var bare = 0
+    var utxoEra = 0
+    parsed.forEach(function (r) {
+      var on = String(r.flagStr).split(',').map(function (x) { return x.trim() })
+      if (on.indexOf('CHRONICLE') !== -1) bare++
+      if (on.indexOf('UTXO_AFTER_CHRONICLE') !== -1) utxoEra++
+    })
+    expect(bare, 'the format has no name for the block-era flag').to.equal(0)
+    expect(utxoEra).to.equal(42)
+  })
+
   it('leaves the engine able to emit verdicts no row asks for', function () {
     var expected = {}
     parsed.forEach(function (r) { if (r.expected && r.expected !== 'OK') expected[r.expected] = true })
