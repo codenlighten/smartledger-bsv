@@ -16,6 +16,13 @@
 // masking pair never set together.
 //
 // The instrument is the bsv-scale-protocol session's idea, ported from its Rust harness.
+//
+// Two of the assertions below are confirmed by an independent parser in another language, which
+// is worth more than either count alone: that session recounted the byte-identical file
+// (sha256 a77f8b94…) and agrees on all fifteen flag frequencies, on there being no bare
+// CHRONICLE token, and on every row carrying version 1. The disagreement that got us there was
+// diagnostic only because the files were established identical first — otherwise two different
+// numbers from two projects is a shrug.
 
 var expect = require('chai').expect
 var harness = require('../../tools/sv-vector-harness')
