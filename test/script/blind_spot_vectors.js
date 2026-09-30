@@ -24,6 +24,25 @@ var BN = bsv.crypto.BN
 var corpus = require('../data/blind-spot-vectors.json')
 
 describe('cross-implementation blind-spot vectors', function () {
+  // Every label must be a name the node itself renders. One row said MUST_USE_FORKID, which is
+  // the ENUM suffix; the node's table calls that error MISSING_FORKID, and the other twenty rows
+  // used table names. A Rust implementation running these caught it, which is one implementation
+  // too many for a file that adjudicates consensus.
+  it('labels every verdict with a name the node actually renders', function () {
+    var nodeNames = {}
+    Object.keys(corpus.nodeErrorNames).forEach(function (k) {
+      nodeNames[corpus.nodeErrorNames[k]] = true
+    })
+    expect(Object.keys(nodeNames).length, 'the node name table must be vendored')
+      .to.be.at.least(40)
+    corpus.vectors.forEach(function (v) {
+      if (v.nodeExpects === 'OK') return
+      expect(nodeNames, v.id + ' expects "' + v.nodeExpects +
+        '", which is not a name FormatScriptError produces')
+        .to.have.property(v.nodeExpects)
+    })
+  })
+
   it('covers both blind spots, in both directions', function () {
     var classes = corpus.vectors.map(function (v) { return v.regressionClass })
     expect(corpus.vectors.length).to.be.at.least(21)
@@ -84,7 +103,9 @@ describe('cross-implementation blind-spot vectors', function () {
       var got = ok ? 'OK' : interp.errstr.replace(/^SCRIPT_ERR_/, '')
 
       // Our name may be NARROWER than the node's, which is agreement, not a mismatch.
-      var resolved = corpus.narrowerNames[got] || got
+      // Three ways our name can legitimately differ from the node's: identical, narrower
+      // (we say which EVAL_FALSE), or simply a different label for the same error.
+      var resolved = corpus.narrowerNames[got] || corpus.nodeShortNames[got] || got
       expect(resolved, v.comment).to.equal(v.nodeExpects)
       expect(got, 'the recorded verdict is stale').to.equal(v.smartledgerBsv_9_15_0)
       expect(v.agreesWithNode, 'agreesWithNode must be true for every published vector')
