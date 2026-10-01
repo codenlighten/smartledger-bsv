@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.16.0] - 2026-10-01
+
+### Security — `OP_CHECKMULTISIG`'s counts were decoded with the era's length, not four bytes
+
+Both counts used `maxScriptNumLength()`, which is 750,000 bytes after Genesis and 32,000,000 after
+Chronicle. The node hardcodes four and says why:
+
+```cpp
+// initialize to max size of CScriptNum::MAXIMUM_ELEMENT_SIZE (4 bytes)
+// because only 4 byte integers are supported by OP_CHECKMULTISIG / OP_CHECKMULTISIGVERIFY
+nKeysCountSigned = CScriptNum(stack.stacktop(-i).GetElement(), requireMinimal,
+                              CScriptNum::MAXIMUM_ELEMENT_SIZE).getint();
+```
+
+These two are the **only** operand decodes in the interpreter that do not take the era's length.
+Every other one does, which is precisely why passing it here looked correct. The consequence was a
+**false accept**: a 5-byte key or signature count that the node refuses as `SCRIPTNUM_OVERFLOW` in
+every era was accepted. Present in 9.15.0 and earlier.
+
+### Fixed — the Magnetic opcodes needed a flag the node does not have
+
+`OP_MUL`, `OP_LSHIFT`, `OP_RSHIFT` and `OP_INVERT` were refused unless
+`SCRIPT_ENABLE_MAGNETIC_OPCODES` was set. `IsOpcodeDisabled` disables `OP_2MUL` and `OP_2DIV` and
+nothing else, so those four execute in every era the node can validate. Measured against the
+node's own corpus with the library-only opcode bits withheld: **77 rows refused as
+`DISABLED_OPCODE`**, every one a false reject. Fail-closed, so nothing was wrongly accepted, but
+they are spends the network accepts.
+
+This landed after the 9.15.0 tag, so 9.15.0 shipped without it — and `@smartledger/bsv-core@1.0.2`
+was briefly more correct than the published library. That is the reason this release exists now
+rather than later.
+
+Both flag constants remain exported and accepted; setting either is redundant.
+
+### Fixed — a disabled opcode in an unexecuted branch
+
+The era decides, not the branch. The node reads
+`IsOpcodeDisabled(opcode, era) && (!utxo_after_genesis || fExec)`, so an unexecuted disabled opcode
+is fatal before Genesis and harmless after it. The behaviour was already right in all four
+combinations; a comment claimed it was fatal in every era, and no test pinned any of it. Both
+fixed.
+
+### Added — portable cross-implementation vectors, now 25
+
+`test/data/blind-spot-vectors.json` carries raw-byte vectors for five defect classes the node's
+own corpus cannot reach, with the node's flag names, its error-name table vendored beside them,
+and a generator so the file is a build product rather than hand-maintained.
+
+They are not decorative: they found a false accept in the official
+[`bsv-blockchain/go-sdk`](https://github.com/bsv-blockchain/go-sdk/issues/373) and five unguarded
+malleability sites in an independent Rust implementation. `@bsv/sdk` 2.8.11 agrees with all of
+them. Four rows covering the Magnetic opcodes were added by a second session after it observed
+that the original set could not have caught the gate above.
+
+### Added — `npm run vectors:sv-coverage`, which reports what a corpus cannot test
+
+A 1483/1483 score says we agree with the corpus; it says nothing about rules the corpus never
+exercises, and the percentage cannot tell the two apart. The report names them on four axes:
+verdicts no row asks for, masking flag pairs never set together, how often each flag appears at all
+against whether mainnet requires it, and rules the row format cannot express. Run against the
+node's vectors it names both defect classes released in 9.15.0 — so it would have pointed at them
+before either was found.
+
 ## [9.15.0] - 2026-09-29
 
 ### Security — `LOW_S` masked every STRICTENC signature check, on this library's own default flags
