@@ -356,6 +356,52 @@ for (const after of [false, true]) {
   })
 }
 
+// ---- Blind spot 5: a harness that injects opcode-enable flags the node does not define.
+// The corpus has 77 rows for MUL, LSHIFT, RSHIFT and INVERT, but both this library's harness and
+// @smartledger/bsv-core's granted MONOLITH and MAGNETIC to every row, so a gate keyed on those
+// bits never fired. Published @smartledger/bsv 9.15.0 and bsv-core <= 1.0.1 refused all four
+// opcodes without the flag, scoring 1483/1483 throughout. These vectors carry node flags only,
+// with no library-only bits, so they test the node's rule rather than ours.
+const MAGNETIC_SCRIPT = 'OP_1 OP_1 OP_LSHIFT OP_2 OP_EQUALVERIFY OP_2 OP_1 OP_RSHIFT OP_1 OP_EQUALVERIFY ' +
+  'ff OP_INVERT 00 OP_EQUALVERIFY OP_2 OP_3 OP_MUL OP_6 OP_EQUAL'
+const AFTER_GENESIS = I.SCRIPT_VERIFY_P2SH | I.SCRIPT_GENESIS | I.SCRIPT_UTXO_AFTER_GENESIS
+for (const after of [false, true]) {
+  const r = rawSpend('', MAGNETIC_SCRIPT, 1)
+  record({
+    id: 'magnetic-opcodes-' + (after ? 'after' : 'before') + '-genesis',
+    blindSpot: 'harnesses grant opcode-enable flags the node does not define, so a gate keyed on them never fires',
+    comment: 'LSHIFT, RSHIFT, INVERT and MUL, each checked by value. The node has no flag for them: IsOpcodeDisabled disables only OP_2MUL and OP_2DIV. An implementation that gates these four on a local opt-in rejects a spend the network accepts.',
+    nodeExpects: 'OK',
+    regressionClass: 'false-reject in published 9.15.0',
+    tx: r.tx,
+    unlock: r.unlock,
+    lockScript: r.lk,
+    flags: after ? AFTER_GENESIS : I.SCRIPT_VERIFY_P2SH
+  })
+}
+
+// Before Genesis a disabled opcode fails even in a branch that does not run, so a gate that
+// marks MUL as disabled rejects this script although MUL is never executed. OP_2MUL in the same
+// position is the control: it IS disabled, so an implementation that removed the Magnetic gate
+// by un-disabling everything accepts it, and that is a false accept.
+for (const op of ['OP_MUL', 'OP_2MUL']) {
+  const r = rawSpend('', 'OP_0 OP_IF ' + op + ' OP_ENDIF OP_1', 1)
+  const disabled = op === 'OP_2MUL'
+  record({
+    id: (disabled ? 'disabled-2mul' : 'magnetic-mul') + '-unexecuted-before-genesis',
+    blindSpot: 'harnesses grant opcode-enable flags the node does not define, so a gate keyed on them never fires',
+    comment: disabled
+      ? 'OP_2MUL in a branch that does not run, before Genesis. It is still disabled, and before Genesis a disabled opcode fails whether or not it executes. An implementation that dropped the Magnetic gate by enabling every opcode accepts this.'
+      : 'OP_MUL in a branch that does not run, before Genesis. OP_MUL is not disabled, so the branch is skipped and the script succeeds. An implementation that treats MUL as disabled rejects it even though it never runs.',
+    nodeExpects: disabled ? 'DISABLED_OPCODE' : 'OK',
+    regressionClass: disabled ? 'agreed before and after' : 'false-reject in published 9.15.0',
+    tx: r.tx,
+    unlock: r.unlock,
+    lockScript: r.lk,
+    flags: I.SCRIPT_VERIFY_P2SH
+  })
+}
+
 console.log(JSON.stringify({
   authoritative: 'nodeFlagsHex — it equals the set named in nodeFlags exactly. flagsHexAsRun is what this library was invoked with and additionally carries libraryOnlyFlags, which the node does not define and which change none of these verdicts.',
   nodeErrorNames: NODE_ERROR_NAMES,
@@ -369,7 +415,7 @@ console.log(JSON.stringify({
     'FORKID bit is accepted under STRICTENC + EnableSighashForkID where the node rejects it). ' +
     'They also surfaced five unguarded EnforceNonMalleability sites in an independent Rust ' +
     'implementation. @bsv/sdk 2.8.11 agreed on all of them.',
-  note: 'Cross-implementation vectors for four defect classes in bitcoin-sv v1.2.2 script_tests.json. Every row of that corpus carries transaction version 1, and no row pairs SCRIPT_VERIFY_LOW_S with a hash-type expectation, so neither defect class below is reachable by replaying it. Flag names are the node\'s. nodeExpects is the verdict derived from bitcoin-sv v1.2.2 source, not from a live node.',
+  note: 'Cross-implementation vectors for five defect classes in bitcoin-sv v1.2.2 script_tests.json. Every row of that corpus carries transaction version 1, and no row pairs SCRIPT_VERIFY_LOW_S with a hash-type expectation, so neither defect class below is reachable by replaying it. Flag names are the node\'s. nodeExpects is the verdict derived from bitcoin-sv v1.2.2 source, not from a live node.',
   source: '@smartledger/bsv 9.15.0',
   generated: new Date().toISOString().slice(0, 10),
   vectors

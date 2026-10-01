@@ -56,7 +56,9 @@ describe('cross-implementation blind-spot vectors', function () {
     expect(classes).to.include('false-accept in <= 9.14.0')
     expect(classes).to.include('false-reject in <= 9.14.0')
     var spots = corpus.vectors.map(function (v) { return v.blindSpot })
-    expect(new Set(spots).size).to.equal(4)
+    // The fifth is the harness rather than the corpus: both harnesses granted MAGNETIC to every
+    // row, so the corpus's 77 Magnetic rows could not see a gate keyed on it.
+    expect(new Set(spots).size).to.equal(5)
     // All seven EnforceNonMalleability sites in the node must have a vector, at both versions.
     var ids = corpus.vectors.map(function (v) { return v.id })
     ;['minimalif', 'cleanstack', 'sigpushonly', 'lowS-highS', 'minimaldata', 'nullfail',
