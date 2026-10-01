@@ -13,6 +13,7 @@ Nothing about the work itself is sent to the service.
 
 | date | covers | type | record | signer | tag |
 | --- | --- | --- | --- | --- | --- |
+| 2026-10-01 | `lib/` at v9.16.1 — the 9.16.1 release: the shift opcodes' cost and count validation, and `OP_NUM2BIN`'s `INT32_MAX` bound | software, published | [`0bd4ddcb…88a4c`](https://iptrust.org/v/0bd4ddcb2e391911a31495cff3e74593e7d31ed19fb5975ef1691ca105e88a4c) | Gregory J. Ward | `ip-2026-10-01` |
 | 2026-09-30 | `lib/` at v9.15.0 — the 9.15.0 release: the signature check that never ran, and Chronicle's malleability relaxations | software, published | [`8aecf47f…30179`](https://iptrust.org/v/8aecf47ff500fbd316e965b8292ef12426d9fa55c276b7d0f21c889732030179) | Gregory J. Ward | `ip-2026-09-30` |
 
 Authors on every record for this project: Gregory J. Ward, Bryan W. Daugherty, Shawn M. Ryan.
