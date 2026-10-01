@@ -76,6 +76,29 @@ describe('the Magnetic opcodes need no flag, as on the node', function () {
     run('OP_2 OP_2MUL', NODE_FLAGS).should.equal('DISABLED_OPCODE')
   })
 
+  // Suggested by the second session auditing this port, from a mutation probe it ran: the gate's
+  // reach depended on the era, and removing it must not also un-disable OP_2MUL/OP_2DIV. These
+  // are the false-accept side of the claim "removing the Magnetic gate cannot accept anything the
+  // node rejects".
+  it('runs a Magnetic opcode in an UNEXECUTED branch in BOTH eras', function () {
+    // Before the fix this was DISABLED_OPCODE pre-Genesis, because the node's
+    //   IsOpcodeDisabled(opcode, era) && (!utxo_after_genesis || fExec)
+    // fires on an unexecuted opcode when the UTXO predates Genesis. With OP_MUL no longer
+    // disabled, the first operand of that `&&` is false in every era.
+    var preGenesis = Interpreter.SCRIPT_VERIFY_P2SH
+    run('OP_0 OP_IF OP_MUL OP_ENDIF OP_1', preGenesis).should.equal('OK')
+    run('OP_0 OP_IF OP_MUL OP_ENDIF OP_1', NODE_FLAGS).should.equal('OK')
+  })
+
+  it('still disables OP_2MUL in an unexecuted branch pre-Genesis', function () {
+    // The control. OP_2MUL IS disabled until Chronicle, so the era rule must still bite — this
+    // is what would break if the fix had removed too much.
+    var preGenesis = Interpreter.SCRIPT_VERIFY_P2SH
+    run('OP_0 OP_IF OP_2MUL OP_ENDIF OP_1', preGenesis).should.equal('DISABLED_OPCODE')
+    // Post-Genesis an unexecuted disabled opcode is harmless, per the same rule.
+    run('OP_0 OP_IF OP_2MUL OP_ENDIF OP_1', NODE_FLAGS).should.equal('OK')
+  })
+
   it('the Monolith opcodes were already ungated and still are', function () {
     run('aa bb OP_CAT aabb OP_EQUAL', NODE_FLAGS).should.equal('OK')
     run('OP_7 OP_3 OP_DIV OP_2 OP_EQUAL', NODE_FLAGS).should.equal('OK')
