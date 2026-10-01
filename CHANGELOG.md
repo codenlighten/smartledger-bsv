@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.16.1] - 2026-10-01
+
+Three resource and validation defects in the shift and binary-conversion opcodes, found by a
+differential fuzzer run against this package and by independent review of the first fix. The
+conformance corpus passes 1483/1483 before and after: every one of these was invisible to it.
+
+### Security — `OP_LSHIFT` and `OP_RSHIFT` did work proportional to the shift COUNT
+
+Both built the shifted value as a bignum and then truncated it, so `ushln(n)` allocated a value of
+the shifted width — the count's magnitude, not the operand's. A short script could therefore buy
+an unbounded amount of work from a verifier, in **every era**, since a count of 2^31-1 fits the
+four bytes allowed before Genesis, and `IsOpcodeDisabled` in the node disables only `OP_2MUL`
+and `OP_2DIV` — never the shifts. Confirmed by execution: a pre-Genesis `OP_LSHIFT` with a count
+of 2^31-1 is accepted and returns one zero byte. Past a certain count the implied length is not a valid array
+length and bn.js raised a `RangeError`, which the evaluator reported as
+`SCRIPT_ERR_UNKNOWN_ERROR`. **That is a false reject**, not merely a slow one: the node returns
+zero bytes for the same script, so this library refused spends the node accepts. So the path had
+two faults at once — unbounded work, and a wrong verdict in the direction of refusal. No false
+accept was found on this path; the false accept in this release is the separate empty-operand bug
+below.
+
+Both opcodes now follow the node's shape, which bounds the work by the operand:
+
+```cpp
+CScriptNum n{top, requireMinimal, params.MaxScriptNumLength(), utxo_after_genesis};
+if(n < 0) return SCRIPT_ERR_INVALID_NUMBER_RANGE;
+if(n >= values.size() * bits_per_byte) fill(begin(values), end(values), 0);
+else { ... LShift(values, n.getint()) ... }
+```
+
+The count is compared as a bignum before any narrowing, and a shift reaching the operand's full
+width returns that many zero bytes directly. The node's `LShift` allocates
+`valtype result(x.size(), 0x00)` and loops over `x.size()`; nothing it allocates follows the
+count. Verified against the previous implementation on 719,360 operand-and-count pairs — every value at
+operand lengths 1 to 4, sampled above 4096 per length, at every count from 0 to 8·len+4, both
+directions — and against an independent bit-string model. That equivalence covers the **valid
+counts for which the previous implementation completed**, and over those the output is
+byte-identical. It deliberately does not cover the counts that previously threw, or the
+empty-operand counts in the next section, where the verdict changes on purpose; both are covered
+by their own tests.
+
+### Security — an invalid shift count was accepted whenever the operand was empty
+
+Both opcodes short-circuited when the value being shifted was empty, popping the count without
+decoding it, and therefore without any of its three checks. A negative count, a count too wide for
+the era, and a non-minimally-encoded count were all accepted, where the node refuses each by name.
+**A false accept.** The node's only guard before the decode is `stack.size() < 2`, and it checks
+`n < 0` before it reads the operand at all.
+
+This one was found by review of the first shift fix, which corrected the cost and left this in
+place.
+
+### Fixed — `OP_NUM2BIN`'s size was not bounded by `INT32_MAX`
+
+The node caps it in every era, **before** the element-size test:
+
+```cpp
+if(n < 0 || n > std::numeric_limits<int32_t>::max()) return SCRIPT_ERR_PUSH_SIZE;
+const auto size{n.to_size_t_limited()};
+if(!utxo_after_genesis && (size > MAX_SCRIPT_ELEMENT_SIZE_BEFORE_GENESIS))
+    return SCRIPT_ERR_PUSH_SIZE;
+```
+
+The era only widens the second test; the first is fixed. Without it a size above `INT32_MAX`
+passed the post-Genesis element check, which is effectively unbounded, and the allocation that
+followed was proportional to the operand's **value** rather than its length. A size the node
+refuses without allocating is now refused the same way, and the bound is checked on the bignum
+before narrowing, because `toNumber()` rounds past 2^53 and returns `Infinity` at extreme widths
+rather than failing.
+
+**This cap matches the node; it does not make the opcode cheap.** A size just under `INT32_MAX` is
+consensus-valid and still requests an allocation approaching 2 GB, from a script of a few bytes —
+so a limit on script size does not address it. **This release adds no execution or allocation
+budget, and this package enforces none.** Evaluating untrusted scripts therefore needs a bound on
+execution resources, not just on input size: run it in a process whose memory and CPU time are
+capped, or do not evaluate untrusted scripts in a process you need to keep alive.
+
+### Note on `OP_DIV` and `OP_MOD`
+
+Both are quadratic in operand length. **This is not a consensus divergence, and it is not fixed in
+this release.** The node shares the shape: `OP_DIV`/`OP_MOD` are bounded only by
+`params.MaxScriptNumLength()` and its `bsv::bint` division is also schoolbook, so verdicts and
+bounds match and changing ours would diverge from consensus.
+
+Parity settles the verdict, not the cost. **Quadratic CPU exhaustion remains a risk when
+evaluating attacker-controlled scripts**, and the node's practical protection is policy rather
+than consensus — `DEFAULT_MAX_SCRIPT_SIZE_POLICY_AFTER_GENESIS` of 500 KB and
+`DEFAULT_STACK_MEMORY_USAGE_POLICY_AFTER_GENESIS` of 100 MB. Neither is a CPU-time bound, and this
+package enforces neither. Measured here: 320 KB of operand takes about 18 seconds, growing by
+roughly 4× per doubling. Bound execution resources yourself, as above. An opt-in budget is under
+consideration and will not change default behaviour.
+
 ## [9.16.0] - 2026-10-01
 
 ### Security — `OP_CHECKMULTISIG`'s counts were decoded with the era's length, not four bytes
