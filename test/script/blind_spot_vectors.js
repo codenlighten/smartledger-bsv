@@ -11,8 +11,15 @@
 //   - no row pairs SCRIPT_VERIFY_LOW_S with a hash-type expectation, so a signature check that
 //     masks another is unreachable too.
 //
-// Both cost real bugs while the corpus read 1483/1483. This replays each vector from its raw
-// bytes — the same form another implementation consumes — and requires the interpreter's verdict
+// Both cost real bugs while the corpus read 1483/1483 — and not only here. These vectors found a
+// false accept in the official bsv-blockchain/go-sdk v1.7.0, filed as go-sdk#373: its
+// checkHashTypeEncoding returns before the MUST_USE_FORKID check, so a signature with no FORKID
+// bit is accepted under STRICTENC + EnableSighashForkID. A different mechanism from ours, the
+// same consequence, and invisible to its 9,398-row replay of the reference corpus for the same
+// reason it was invisible here. They also surfaced five unguarded EnforceNonMalleability sites in
+// an independent Rust implementation. @bsv/sdk 2.8.11 agreed on all 21.
+//
+// This replays each vector from its raw bytes — the same form another implementation consumes — and requires the interpreter's verdict
 // to equal the one derived from bitcoin-sv v1.2.2's source.
 
 var expect = require('chai').expect

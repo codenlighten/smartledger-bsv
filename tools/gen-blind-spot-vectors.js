@@ -363,6 +363,12 @@ console.log(JSON.stringify({
   nodeFlagBits: NODE_FLAGS,
   libraryOnlyFlagBits: LIBRARY_ONLY_FLAGS,
   narrowerNames: NARROWER,
+  foundInThirdPartyImplementations: 'These vectors found a false accept in the official ' +
+    'bsv-blockchain/go-sdk v1.7.0, filed as https://github.com/bsv-blockchain/go-sdk/issues/373 ' +
+    '(checkHashTypeEncoding returns before the MUST_USE_FORKID check, so a signature with no ' +
+    'FORKID bit is accepted under STRICTENC + EnableSighashForkID where the node rejects it). ' +
+    'They also surfaced five unguarded EnforceNonMalleability sites in an independent Rust ' +
+    'implementation. @bsv/sdk 2.8.11 agreed on all of them.',
   note: 'Cross-implementation vectors for four defect classes in bitcoin-sv v1.2.2 script_tests.json. Every row of that corpus carries transaction version 1, and no row pairs SCRIPT_VERIFY_LOW_S with a hash-type expectation, so neither defect class below is reachable by replaying it. Flag names are the node\'s. nodeExpects is the verdict derived from bitcoin-sv v1.2.2 source, not from a live node.',
   source: '@smartledger/bsv 9.15.0',
   generated: new Date().toISOString().slice(0, 10),
