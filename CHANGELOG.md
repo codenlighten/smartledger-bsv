@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.17.0] - 2026-10-03
+
+### Deprecated — `Script.fromHex` accepts a string that does not decode whole
+
+`Buffer.from(str, 'hex')` stops at the first character it cannot decode — including the trailing
+nibble of an odd-length string — and returns what it had. So `Script.fromHex` has always answered
+a malformed string with a **shorter script, or none, and no error**:
+
+```js
+Script.fromHex('<html>503</html>')        // 0 bytes
+Script.fromHex('76a91')                   // 2 bytes, the last nibble dropped
+Script.fromHex('<p2pkh hex>' + '\nmore')  // the 25-byte prefix, still a valid P2PKH
+```
+
+A caller that builds an output from the result pays to a truncated script with nothing to tell it,
+and `Transaction#addOutput` accepts a zero-byte script without complaint. `Script.fromString`,
+directly below it in the source, has always refused non-hex with `JSUtil.isHexa`; this function
+never did.
+
+The damage is bounded in one useful way: **truncation can only drop a suffix.** It cannot alter the
+bytes it did decode, so an address derived from the result is always the one the input's leading
+bytes named, never a third party's. That makes this a correctness problem rather than a theft one.
+
+A string that does not decode whole now emits a deprecation notice naming the replacement, once per
+process. **Nothing throws and no verdict changes**; the notice is the whole change. `10.0.0` will
+refuse it, which under STABILITY.md cannot land before 2027-09-01.
+
+Callers wanting the strict behaviour today should check the round trip, which separates every
+truncating input from every whole one:
+
+```js
+if (Script.fromHex(h).toHex() !== h.toLowerCase()) throw new Error('not whole hex')
+```
+
+Found while answering a downstream consumer about an upgrade: its paymail resolver passes a remote
+host's string to `Script.fromHex`. That consumer was not exposed — it gates the result on
+`isPublicKeyHashOut()` — but it had no help from this library in getting there.
+
+
+### Changed — `@noble/curves`, `@noble/hashes` and `@noble/ciphers` to `^2.4.0`
+
+The declared range was already `^2.3.0`, so a fresh consumer install had been resolving 2.4.0
+while the shipped bundles still inlined 2.3.0. This release realigns them: the floor moves to
+`^2.4.0` and the bundles are a reproducible build of it. All three declare `engines` of
+`node >= 20.19.0`, unchanged, so the supported runtime floor does not move. Five bundles grew by
+2-3 KB.
+
 ## [9.16.1] - 2026-10-01
 
 Three resource and validation defects in the shift and binary-conversion opcodes, found by a
