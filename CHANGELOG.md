@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.19.0] - 2026-10-03
+
+### Security — `merkle.leafIndex` was not validated against the path beside it
+
+A batch certificate's `merkle.leafIndex` could be changed to any other value in range and the
+inclusion proof still verified. On a 25-leaf batch, a proof for leaf 3 verified while claiming to
+be leaf 0, leaf 7 or leaf 24.
+
+The cause is a seam between the two certificate formats. A sided audit path folds by its **own**
+sides, and `Certificate.normalize` returns a non-legacy certificate untouched — so for a
+**reference** certificate `leafIndex` was read and never used. A **legacy** certificate was fine,
+because normalising it derives the sides from `leafIndex`, so a wrong index produced a wrong fold
+and failed. Moving a certificate from the legacy format to the reference one therefore silently
+lost a check.
+
+**This was never a false accept of an invalid proof.** A corrupted path hash and a flipped side
+were both refused before this release and are refused now; inclusion itself was sound. What was
+wrong is that `leafIndex` was an **unvalidated assertion sitting beside validated ones**, and a
+reader shown "leaf 3 of 25" had no way to tell which of those fields was load-bearing. For a
+numbered edition — "card 3 of 25" — that field is the claim the holder cares about.
+
+`NotaryHash.verifyBatchInclusion` now recomputes the side sequence the stated index implies and
+refuses a mismatch, naming it:
+
+```
+merkle.leafIndex 7 disagrees with the path: node 2 is marked "right" but leaf 7 of 25 requires "left"
+merkle.leafIndex 24 in a tree of 25 leaves needs 2 path nodes; the path has 5
+```
+
+No hashing is added: RFC 6962 already determines the sides from the index and the tree size, so
+the check is one pass over the path. Verified across a 25-leaf tree that every leaf verifies at its
+own index and **every leaf is refused at any other index**, 25 of 25.
+
+`leafCount` is deliberately not treated the same way. A mis-stated count that implies the same side
+sequence is indistinguishable here by construction, which is exactly what the on-chain
+`u32be(leafCount)` in the batch record is for — `recordMatchesCertificate` compares it, and that
+comparison is the authority.
+
+Found by the ordinals mint that anchors BRC-220 proofs: its own tamper test caught the difference
+when it moved from the legacy format to the reference one, and it reported the seam rather than
+the symptom.
+
 ## [9.18.0] - 2026-10-03
 
 9.17.0 was committed but never published to npm; its contents are included here. The version
