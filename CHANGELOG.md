@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.18.0] - 2026-10-03
+
+9.17.0 was committed but never published to npm; its contents are included here. The version
+number is skipped on the registry rather than reused, so a reader comparing git to npm cannot find
+two different 9.17.0s.
+
+### Fixed — `NotaryHash.verifySignature` reported a missing `createdAt` as a signature failure
+
+It derived its inputs from `Certificate.toProofInput`, which also decodes `createdAt` because the
+proofHash commits to the creation time. **The signature does not.** So on a certificate with no
+`createdAt`, `toUnixSeconds(undefined)` threw, the function's `try/catch` turned that into `false`,
+and the caller was told the signature did not match its payloadHash and public key.
+
+That is the one answer a caller cannot act on correctly. `verifySignature` returning `false` means
+exactly one thing to every reader — the cryptography does not check out — so the remedy they reach
+for is their key, their digest convention or their endian handling. On this library that has
+historically been the right place to look, which makes the misdirection worse rather than better.
+
+The regression arrived with the BRC-220 reference format work; 9.3.0 answered `true` for all of
+these. Measured, identical inputs:
+
+| certificate | 9.3.0 | 9.16.1 | 9.18.0 |
+|---|---|---|---|
+| no `createdAt` | true | **false** | true |
+| with `createdAt` | true | true | true |
+| `anchor: {txid}`, no `createdAt` | true | **false** | true |
+| `anchor: {}`, no `createdAt` | true | **false** | true |
+
+`Certificate.toSignatureInput` now returns only the five fields a signature check uses, and
+`toProofInput` builds on it by adding `createdAtUnix`. Nothing that should fail now passes: a
+signature over a different digest, a different public key, a flipped byte, a truncated signature
+and a certificate missing `signature`, `publicKey` or `payloadHash` are all still `false`.
+**Certificate completeness is unchanged** — `Certificate.validateShape` lists every missing
+required field by name, and `NotaryHash.verify` runs it first and returns before the signature
+check, so a certificate with no `createdAt` is still not a valid certificate.
+
+### Added — `NotaryHash.verifySignatureOnly(payloadHash, signature, publicKey, algorithm?)`
+
+For the case that exposed the bug: verifying a submitted signature **before** spending anything to
+anchor it, when no certificate exists yet and so there is no `createdAt`, `proofHash` or `anchor`.
+Certificate metadata cannot influence the answer because none is passed.
+
+It takes Buffers or hex, and **throws** on input it cannot decode rather than returning `false`. A
+boolean that means both "the signature does not match" and "your hex was malformed" is the
+ambiguity this entry point exists to remove, and a pre-flight check is where acting on the wrong
+one costs money.
+
+Reported with a complete reproduction by the ordinals mint that anchors BRC-220 proofs, which hit
+it as a pre-anchor check rejecting every valid submission with a 400.
+
 ## [9.17.0] - 2026-10-03
 
 ### Deprecated — `Script.fromHex` accepts a string that does not decode whole

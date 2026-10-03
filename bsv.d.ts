@@ -1509,12 +1509,19 @@ declare module '@smartledger/bsv' {
         }
 
         /** The raw proof fields a certificate's strings decode to. */
-        interface ProofFields {
+        /**
+         * What a SIGNATURE check depends on. Deliberately has no `createdAt`: the proofHash
+         * commits to the creation time, the signature does not.
+         */
+        interface SignatureFields {
             algorithm: string;
             hashAlgorithm: string;
             payloadHash: Buffer;
             publicKey: Buffer;
             signature: Buffer;
+        }
+
+        interface ProofFields extends SignatureFields {
             createdAtUnix: number;
         }
 
@@ -1627,6 +1634,12 @@ declare module '@smartledger/bsv' {
             function normalize(certificate: object): Certificate;
             /** Decode a string field. Hex may carry `0x`; base64 may be URL-safe or unpadded. */
             function decodeBytes(value: string, encoding: CertificateEncoding, name?: string): Buffer;
+            /**
+             * Only the fields a signature check uses. `toProofInput` adds `createdAtUnix`
+             * for the proofHash; taking the wider one made a certificate with no
+             * `createdAt` unverifiable.
+             */
+            function toSignatureInput(certificate: object): SignatureFields;
             function toProofInput(certificate: object): ProofFields;
             function recomputeProofHash(certificate: object): Buffer;
             /** Validity check 2. Strict boolean; false on anything malformed. */
@@ -1790,8 +1803,21 @@ declare module '@smartledger/bsv' {
         }
 
         function registerSuite(algorithm: string, suite: Suite): typeof Suites;
-        /** Check 1, offline. */
+        /** Check 1, offline. Needs only the fields the signature covers. */
         function verifySignature(certificate: object): boolean;
+        /**
+         * Check a signature with no certificate involved — for verifying a submission
+         * before anchoring it, when there is no `createdAt`, `proofHash` or `anchor` yet.
+         *
+         * THROWS on input it cannot decode, rather than returning false, so "does not
+         * match" and "malformed input" are never the same answer.
+         */
+        function verifySignatureOnly(
+            payloadHash: Buffer | string,
+            signature: Buffer | string,
+            publicKey: Buffer | string,
+            algorithm?: string
+        ): boolean;
         /** `reverse(SHA256(SHA256(rawTx)))`, as displayed. */
         function txidFromRawTx(rawTx: Buffer | string): string;
         function recordFromRawTx(rawTx: Buffer | string): OnChainRecord | null;
