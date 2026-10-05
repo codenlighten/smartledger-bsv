@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.20.0] - 2026-10-05
+
+A security release. One verifier accepted a forged proof outright; another accepted eight tampered
+certificates. Both defects are the same shape: **a field that looks checked and is not.**
+
+### Security — `ZKProver.verifyMembershipProof` accepted a forged proof
+
+It took the proof alone and returned
+
+```js
+proof.setCommitments.includes(proof.valueCommitment) && proof.isMember
+```
+
+where **every value in that expression came from the prover**. Nothing bound the commitments to a
+set the verifier knew, nothing opened the value commitment, and `isMember` was the prover's own
+claim. So this returned `true`:
+
+```js
+verifyMembershipProof({ type: 'MembershipProof',
+                        setCommitments: ['x'], valueCommitment: 'x', isMember: true })
+```
+
+A forgery needed no key, no salt and no set. This is the same defect `verifyAgeProof` and
+`verifyRangeProof` had before 8.2.0, in the one function that fix did not reach.
+
+The verifier now takes `(proof, opening, set)`: the **verifier** supplies the set it believes in,
+the holder supplies `{ value, salt }`, both commitments are recomputed, the prover's array must
+equal the verifier's set commitment-for-commitment in order — so a prover cannot append one — and
+membership is decided against the verifier's set. `proof.isMember` is no longer consulted.
+`generateMembershipProof` now returns the `salt` so a holder can build the opening.
+
+This is **not zero-knowledge and cannot be**, consistent with this module's header note. One salt
+covers every member, so a verifier holding the set and the salt can recompute every commitment, and
+a low-entropy set is not hidden from anyone who sees the proof. The honest claim is "this value is
+in a set the verifier already holds" — a membership *check*. A caller needing the value or set
+hidden needs a different primitive; per-attribute fresh salts under an issuer-signed RFC 6962 root
+is the construction to reach for.
+
+Reported against 9.19.0 by a consumer that had reviewed these proofs in July and re-tested them.
+**No test in this repository covered the forged path** — the suite count did not move when the fix
+landed.
+
+### Security — `NotaryHash.verify` accepted eight tampered certificates
+
+Each is a single edited field, covered by no signature and checked by nothing, on one real mainnet
+batch certificate (block 954784):
+
+| case | change | now |
+|---|---|---|
+| T01 | `anchor.blockTime` + 3600 | refused |
+| T02 | `anchor.blockTime` − 100000000 | refused |
+| T03 | `anchor.blockHeight` − 1000 | refused |
+| T05 | `anchor.vout` = 1 (a payment output) | refused |
+| T06 | `anchor.vout` = 99 (past the last output) | refused |
+| T07 | `spv.merkleProof.index` + 2^(nodes+3) | refused |
+| T19 | `createdAt` `.000Z` → `.123Z` | refused |
+| T20 | `createdAt` `.000Z` → `Z` | refused |
+
+The rules now enforced:
+
+- **`anchor.blockTime` must equal the time in the 80-byte header**, and `anchor.blockHeight` must
+  equal `spv.blockHeight`. A `null` is not a claim — a certificate issued before confirmation
+  legitimately carries nulls, and only a stated value is checked.
+- **The record is read from `anchor.vout` and no other output.** Scanning every output made
+  `anchor.vout` decorative: it could name a payment output, or one past the end, and the record was
+  still found elsewhere in the transaction.
+- **A TSC `index` must fit its path.** A path of n nodes addresses at most 2^n leaves, so a larger
+  index describes a tree the path cannot belong to.
+- **`createdAt` must be the canonical rendering of its second**, in the reference format. The
+  proofHash commits to `createdAtUnix`, so `...04.000Z`, `...04.527Z` and `...04Z` produce the
+  **same** commitment — the sub-second component is not covered by the proof at all. Applied to the
+  reference format only: certificates written by 8.3.0–9.8.0 carry a millisecond component, exist
+  in the wild, and are still read.
+
+Verified against an external 27-case oracle with seven pinned mainnet headers: **27/27 agreement**,
+with both honest cases still accepted.
+
+Found and measured independently by two consumer sessions — the verification API that uses this
+library as a second, independent anchor verifier, and the NotaryHash SDK session whose SPEC the
+rules come from. The eight were reproduced here with a separate harness before any change.
+
 ## [9.19.0] - 2026-10-03
 
 ### Security — `merkle.leafIndex` was not validated against the path beside it

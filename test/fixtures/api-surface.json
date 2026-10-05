@@ -529,7 +529,7 @@
   "bsv.NotaryHash.Suites.unregister": "function(1)",
   "bsv.NotaryHash.Suites.verify": "function(4)",
   "bsv.NotaryHash.isValid": "function(2)",
-  "bsv.NotaryHash.recordFromRawTx": "function(1)",
+  "bsv.NotaryHash.recordFromRawTx": "function(2)",
   "bsv.NotaryHash.recordMatchesCertificate": "function(2)",
   "bsv.NotaryHash.registerSuite": "function(2)",
   "bsv.NotaryHash.txidFromRawTx": "function(1)",
