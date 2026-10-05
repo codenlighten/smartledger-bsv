@@ -1,0 +1,72 @@
+{
+  "note": "One real NotaryHash batch certificate from BSV mainnet block 954784, with that block's header fields, used to test checks on certificate fields that no signature covers. Public chain data. Extracted from the 27-case tamper set measured by the CannaTrack verification API session and the NotaryHash SDK session; the full set lives in their repositories.",
+  "source": "tx d0dfc32896b4b5014139eb5cbd6d303243c357aeeb346d6c523fd9eee8a31657 , block 954784",
+  "block": {
+    "hash": "000000000000000020db34a9d8d1dcef6056a4bc22c66eab2921103b40306a0c",
+    "height": 954784,
+    "version": 973078528,
+    "previousblockhash": "0000000000000000005f740ac511d72fe7ed9552e72a03c3a00391800cda7bfa",
+    "merkleroot": "8303a29cb3637dd946f676b04ded9c1db596ef41068e8c744aa474b374d8a9b6",
+    "time": 1782209816,
+    "bits": "182afffe",
+    "nonce": 463748636
+  },
+  "certificate": {
+    "protocol": "NotaryHash",
+    "version": "1.0",
+    "mode": "full",
+    "algorithm": "ECDSA-secp256k1",
+    "hashAlgorithm": "SHA-256",
+    "payloadHash": "2ba62ec2e81849e880c2b615f5d2cf071a55b72bbb42cc1f4840de1acd0574eb",
+    "publicKey": "026b179f3c40f3db07d6d4ceea027dbb7d6da883b8913d51194cdce1061a6c89c3",
+    "signature": "0926f912f1b2d993f42e0b4cc1f60a2948f5de49f3f338a95b0cbdfb7f7b73e40504d0aca299cd7be52c2ffd079bc2b4069f116234b177c01be808ac2141cf12",
+    "encoding": "hex",
+    "proofHash": "40108dad1616a6fb0510b980ae546c656a8414a17dec1415fdac73a47264e05c",
+    "createdAt": "2026-06-23T10:06:04.000Z",
+    "anchor": {
+      "type": "batch",
+      "network": "bsv-mainnet",
+      "txid": "d0dfc32896b4b5014139eb5cbd6d303243c357aeeb346d6c523fd9eee8a31657",
+      "vout": 0,
+      "blockHeight": 954784,
+      "blockTime": 1782209816
+    },
+    "merkle": {
+      "root": "7bb623d4a1217ab215fd236afdf9c59733bc3e6ea1e7bd72b38167141c7c566e",
+      "leafIndex": 0,
+      "leafCount": 4,
+      "path": [
+        {
+          "hash": "a7d41bbd00f466e32cb9adf897fa91b3b19608a50338c24dc26a6479ac713b10",
+          "side": "right"
+        },
+        {
+          "hash": "608ea7a0b1ab240ba70daf7f1b7c2d0da1a8166ce3bdf9370f2393c114714e73",
+          "side": "right"
+        }
+      ]
+    },
+    "spv": {
+      "rawTx": "0100000001c81b9501dbf2ac9653739836169b5d1bc4c02632e537f655a4d3d7d0809e5574010000006a47304402202318b0a2815e871e8fab347038f2bc1fe07b33dfbfffb65cb5f87f3558daa5a00220632e36fffb8356a8f04674ad5a6158165e77481360136414059f41d8447de06b4121020bb8737158ca7c6d28176b433d8b4b182658697a2f3d026280437de161e82124ffffffff02000000000000000037006a0a4e4f544152594841534801010102207bb623d4a1217ab215fd236afdf9c59733bc3e6ea1e7bd72b38167141c7c566e04000000040dc30000000000001976a9143bc6821455c4dc7041dd4046039fb0b2e3b5cee388ac00000000",
+      "blockHash": "000000000000000020db34a9d8d1dcef6056a4bc22c66eab2921103b40306a0c",
+      "blockHeight": 954784,
+      "merkleProof": {
+        "index": 519,
+        "nodes": [
+          "9d7a7135e42c167319ec94c6009ee7f4164dd52081b3a09e53e34654331240e0",
+          "2afc412246a37c35e0b49ecbffb0847cf5ba041a9ead25aae35f652f88a77b12",
+          "e80adb4244ea5f0823c7af54c702acc827a37abce21e4c942fcfe6055923ed32",
+          "211ab6a4312bb367bf6a96aa47b7e63fef4ebf81c12f5b361e772d0b9fd99d68",
+          "8ffe203bb75f780b6d14bb84d781cba39ff44195f5c4e7f54dbd8a47affd139c",
+          "ac37eb70c092ad5f19137e19d46c6c1051cfca3922300e45239077ef56ffe567",
+          "c97a945451e4fb6b6413a0093804e9c9c44890cc5719673608113d15e9de0e38",
+          "4c13e8e214717726d656c27c4aedfd8eda8d5a837cd92aee33ae0174fe9562b1",
+          "c7738b8587722ed00599ca5cebcc49697ae7458fa10e74f56ba5e00ca493fd1e",
+          "54c39b5b5a4907a5217a5613b69ed32648f6ca0700abbdb0303f2b89b09842e4",
+          "e9a894cc49a73ea314245a60fa72aa889a7b8a5d802043d0bf780963051fe29e"
+        ]
+      },
+      "format": "TSC"
+    }
+  }
+}

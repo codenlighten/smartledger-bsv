@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.21.0] - 2026-10-05
+
+### Added — `opts.network` on `NotaryHash.verify`, opt-in
+
+`anchor.network` is the last field in a certificate that no signature covers. A mainnet certificate
+relabelled `"bsv-testnet"` verified, and so did one relabelled `"not-a-chain"`.
+
+BRC-220 calls the field descriptive — the headers decide the chain, not the label — so accepting
+any value is conformant, and this check is therefore **opt-in**: a default would break every
+testnet caller for no gain. Pass `opts.network` and a certificate naming another chain is refused
+by name; omit it and nothing changes.
+
+Worth exactly what it claims: **it compares a label against the caller's own setting, and proves
+nothing about which chain the header source serves.** A caller who needs that must obtain headers
+from a source it trusts for the chain it means — the same reason this library never fetches one.
+
+Raised by the NotaryHash SDK session after a third session relabelled a mainnet certificate and
+both verifiers accepted it. Their verifier takes the same option, so the two agree.
+
+### Documented — 8.3.1 was a signature-convention break, and it orphaned certificates
+
+**If you anchored NotaryHash certificates with 8.3.0, some of them can no longer be verified by any
+later version, and there was no symptom until the fix landed.**
+
+8.3.0 reversed the payload digest in **both** the signer and the verifier. The two cancelled, so
+certificates it produced verified perfectly under 8.3.0. 8.3.1 corrected both halves at once —
+which was right — and in doing so made every 8.3.0-signed certificate unverifiable, because the
+signature is genuinely over `reverse(payloadHash)`.
+
+Measured on five mainnet certificates, three library versions, nothing else changed:
+
+| | 8.3.0 | 8.3.1 | 9.18–9.21 |
+|---|---|---|---|
+| four certificates signed 2026-08-16 | **verify** | fail | fail |
+| one control signed 2026-08-20 | fail | **verify** | **verify** |
+
+The two eras are mutually unverifiable, which is only possible if both sides of 8.3.0 reversed.
+Confirmed four ways: in Python with no SDK, through `NotaryHash.verify`, through
+`crypto.ECDSA.verify` directly, and here against the reporter's committed fixture — the four
+failing certificates verify over `reverse(payloadHash)` and not over `payloadHash`, and the control
+is the exact inverse.
+
+**No reversing path will be added.** Accepting two derivations of one value is how the 8.3.0–9.8.0
+certificate-format split happened, and a compatibility mode would reintroduce it. These
+certificates also cannot be rescued by re-anchoring: the signature does not survive, so the key
+holder would have to sign again — a new statement made today, not a restoration of an old one. The
+remedy is to label them with the version that verifies them.
+
+Recorded because the general shape is worth more than the incident: **a convention that is wrong
+but self-consistent leaves no symptom until the day it is corrected.** Reported and measured by the
+ordinals session that holds the affected certificates.
+
 ## [9.20.0] - 2026-10-05
 
 A security release. One verifier accepted a forged proof outright; another accepted eight tampered
