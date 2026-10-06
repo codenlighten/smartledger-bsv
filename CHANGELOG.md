@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.22.1] - 2026-10-06
+
+### Changed — signing many inputs is no longer quadratic in the number of inputs
+
+No behavioural change. **Verified byte-identical**: the same nine transactions signed before and
+after produce the same bytes and the same txid, including the `SIGHASH_SINGLE` and `SIGHASH_NONE`
+cases that take different preimage branches.
+
+The FORKID preimage's `hashPrevouts`, `hashSequence` and `hashOutputs` were recomputed on every
+sighash, and each costs a pass over all inputs or all outputs. They are **identical for every input
+of a transaction**, so signing *n* inputs ran three O(n) digests *n* times:
+
+| inputs | 9.22.0 | 9.22.1 |
+|---|---|---|
+| 100 | 0.9 s | 0.5 s |
+| 1,000 | 10.7 s | 8.9 s |
+| 3,000 | 70.1 s | 39.7 s |
+| 5,000 | **194.2 s** | **~100 s** |
+
+`Transaction#sign` now opens a cache for the duration of one call and removes it in a `finally`, so
+nothing survives the call and **there is no invalidation to get wrong**. The alternative — memoizing
+on the transaction and clearing at each of the 11 sites that mutate inputs or outputs — was rejected
+for exactly that reason: a missed site yields a *wrong signature*, which is a different class of
+failure from a stale fee.
+
+The window covers the apply loop as well as signature collection, because `applySignature` →
+`addSignature` **re-verifies** each signature before applying it, which recomputes the preimage —
+measured larger than collection at 5,000 inputs (68.7 s against 50.3 s). Widening it is safe
+because the apply loop only changes each input's *script*, and none of the three digests depends on
+a script: `hashPrevouts` covers outpoints, `hashSequence` covers sequence numbers, `hashOutputs`
+covers outputs.
+
+`SIGHASH_SINGLE` is deliberately **not** cached: it hashes the one output at the input's index, so
+it differs per input, and a shared value would sign every input over the same output. A test asserts
+that `SIGHASH_SINGLE` still produces a distinct script per input.
+
+**It is still superlinear** — per-input cost goes from 4.84 ms at 100 inputs to 20.50 ms at 5,000 —
+so something else in the per-input path remains O(n). The signature re-verification on apply is the
+largest remaining term. This release halves the cost; it does not make signing linear, and a
+consolidation sweep over tens of thousands of coins will still feel it.
+
+Found while answering a consumer that batches a daily settlement of up to 5,000 inputs.
+
 ## [9.22.0] - 2026-10-06
 
 ### Security — the membership commitment was over a non-injective encoding
