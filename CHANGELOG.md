@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.22.0] - 2026-10-06
+
+### Security — the membership commitment was over a non-injective encoding
+
+9.20.0 fixed the headline forgery in `ZKProver.verifyMembershipProof` — a verifier that compared
+only prover-supplied values with each other — and **left a second forgery in place.** The
+commitment was `sha256(JSON.stringify(member) + ':' + salt)`, and `JSON.stringify` is not
+injective:
+
+```js
+JSON.stringify(null) === JSON.stringify(NaN) === JSON.stringify(Infinity)  // '"null"'
+JSON.stringify({ a: 1, b: undefined }) === JSON.stringify({ a: 1 })        // '{"a":1}'
+```
+
+So a prover could claim `NaN` was a member of `[null]`, or `{a:1,b:undefined}` a member of
+`[{a:1}]`, and **every recomputed commitment matched.** Key order was the mirror of the same flaw:
+two spellings of one object committed differently, so a legitimate caller could be refused.
+
+Members and claimed values are now encoded with **RFC 8785 canonical JSON** (`bsv.JCS`, already in
+this library) over a value domain validated recursively — null, boolean, finite number, string,
+array, and plain objects of those. JCS sorts keys and refuses non-finite numbers and `undefined`
+outright; the recursive check adds the one case JCS does not catch, an `undefined` **property
+value**, which it drops exactly as `JSON.stringify` does. Anything outside the domain throws, and
+the verifier answers `false` — the honest verdict for a value this construction cannot commit to
+unambiguously.
+
+`generateMembershipProof` also no longer refuses object members. It compared with
+`set.includes(value)`, which is reference equality, so generating a proof for a structurally equal
+object threw `Value not in set` and the function was unusable with object members at all.
+Membership is now structural, over the same canonical form the commitment uses.
+
+**Found by red-teaming the 9.20.0 fix, not by a test.** That is the second time in two releases
+that a fix closed the stated problem and left an adjacent one standing, and both were found by
+someone looking at the fix rather than at the original report.
+
+### Still open, and stated rather than fixed
+
+An external review of these releases raised three limits worth recording, none of which this
+release closes:
+
+- **A `null` deletes a claim rather than editing it.** `anchor.blockTime` and `anchor.blockHeight`
+  are checked only when non-null, because a certificate issued before confirmation legitimately
+  carries nulls. So a tamper can *remove* a field to avoid its check. A strict mode that requires
+  them, or a verdict that distinguishes "not verified" from "verified", is the proper answer.
+- **Several checks establish consistency, not authenticity.** `anchor.blockHeight` equalling
+  `spv.blockHeight` can be satisfied by editing both; `createdAt` being canonically formatted says
+  nothing about when the certificate was issued; `opts.network` compares a name. These bound what a
+  tamper can do without a trusted chain source — they do not authenticate the claims.
+- **The TSC `index < 2^nodes.length` bound does not prove the index is below the real transaction
+  count.** A tighter bound needs a trustworthy count, which the certificate does not carry.
+
 ## [9.21.0] - 2026-10-05
 
 ### Added — `opts.network` on `NotaryHash.verify`, opt-in
