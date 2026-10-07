@@ -15,13 +15,13 @@ seeking a quote for an independent security review of its cryptographic core.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 12,678 lines. Sighash construction and signing; ECDSA, nonce
+  Tier 1 — 12,681 lines. Sighash construction and signing; ECDSA, nonce
   derivation and signature encoding; the consensus-flag and era surface of the
   script interpreter; BRC-220 signing; the covenant verification harness; RFC
   8785 canonicalization; and the covenant-facing entrypoints of the smart
   contract module.
 
-  Tier 2 — 1,607 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
+  Tier 2 — 1,623 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
   decoding surface.
 
 JavaScript (CommonJS), Node >= 20.19. The code is public.

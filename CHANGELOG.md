@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.26.2] - 2026-10-07
+
+### Fixed — the library printed to the console during ordinary operation
+
+Both reported or surfaced by the `smartledger-wallet` session, which is on 9.26.1 in production.
+
+**ECIES `decrypt()` wrote a `console.log` on every call** when the caller had set
+`fixedPublicKey` — so a wallet decrypting a page of messages got one line per message, on a
+channel it could not silence. The advice in the notice is worth giving; giving it repeatedly is
+not. It now follows the same idiom as the interpreter's era hint: `console.warn`, **once per
+process**, silenceable with `ECIES.notices = false` or `BSV_NO_ECIES_NOTICE=1`.
+
+**`ECDSA#calci` wrote expected exceptions to stderr.** It tries all four recovery ids and most do
+not yield a point — the throw *is* the signal that an id is wrong, and `continue` is the handling.
+It called `console.error(e)` first, so ordinary message signing printed stack traces. Nothing is
+swallowed that matters: if no id works the loop falls through and the caller is told.
+
+Neither changes any returned value, and a test now asserts that signing a message and decrypting
+three times write nothing to `console.log` or `console.error`.
+
+**Not changed, having looked:** importing the package prints nothing, and the other `console` calls
+in `lib/` are either interactive debugger tools where output is the purpose
+(`script_interpreter.js`, `stack_examiner.js`, `covenant_builder.js`) or behind an explicit
+`debug(enabled)` switch. `lib/smart_contract/opcode_list.js` prints at module top level but is
+required by nothing, so it never fires for a consumer.
+
+### Verified — the wallet's browser pins match this build exactly
+
+They pin three browser files by SRI and asked to be told if our build disagreed. Computed from the
+published 9.26.1 tarball:
+
+```
+bsv.bundle.js        1,096,275 bytes   sha384-kMbrG7nRThsrLmHkucEADL5/…   EXACT MATCH
+bsv-ecies.min.js       141,453 bytes   sha384-iX7ag/1sZMmIBter7ifc0XmH…   EXACT MATCH
+bsv-message.min.js      34,621 bytes   sha384-eShyjd68/NEEh/6tumD9/8rV…   EXACT MATCH
+```
+
+`bsv-message.min.js` is byte-identical to 9.10.0, as they reported — confirmed by comparing the two
+published tarballs. **Note that `bsv-ecies.min.js` changes in this release**, since the notice fix
+is in it.
+
 ### Fixed — `examples/gateway` reported a non-measurement as a verdict
 
 **Repo only; `examples/` is not in the package's `files` list, so nothing published changed and
