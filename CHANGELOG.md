@@ -39,8 +39,13 @@ fold is needed to reach it.
 - `opts.allowUnknownSpvFormat` accepts it anyway, for a caller that knows the label is wrong and
   does not care.
 
-The real repair belongs upstream — bring the field under the signature — which is a service and
-spec change, not one a verifier can make.
+**Correction to this entry, same day.** It first said the real repair was to bring the field under
+the signature. That is impossible, and the notaryhash service session was right to say so: the SPV
+envelope does not exist until the block does and is replaced after a reorganisation, so no key that
+signed the record can ever cover it. Everything under `spv` and `anchor` is unsigned **by
+construction**. The remedy is therefore not a signature but what this check does — decline to
+return a verdict about evidence we did not read — and, better, to say what *was* checked, which is
+why `proofIntegrity` stays `true` here.
 
 ### Added — the service's tamper vector, vendored
 
