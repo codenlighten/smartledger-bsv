@@ -143,4 +143,58 @@ describe('NotaryHash unchecked claims', function () {
         .valid.should.equal(true)
     })
   })
+
+  describe('the legacy relabel bypass', function () {
+    // `version` is not signed. The proof hash begins with the fixed bytes "NotaryHash/1.0" and
+    // u8(1) whatever the JSON member says, so anyone can relabel a current certificate as
+    // legacy for free. Certificate.normalize then rebuilds a legacy anchor from a fixed key set
+    // and DROPS anchor.seal, so the seal refusal — which read the normalized object — did not
+    // fire and a forged seal verified as valid again. Found by the block-penn-station session
+    // about half an hour after the refusal shipped.
+    //
+    // The general rule this pins: a refusal that exists only on one normalization path is
+    // optional whenever the caller can choose the path.
+    function legacy (mutate) {
+      return clone(function (c) {
+        c.version = 1
+        c.anchor.seal = { vout: 1, previous: null, previousId: null, signature: '00'.repeat(64) }
+        if (mutate) mutate(c)
+      })
+    }
+
+    it('still refuses a seal when the certificate is relabelled as legacy', function () {
+      var r = bsv.NotaryHash.verify(legacy(), opts)
+      r.legacy.should.equal(true)
+      r.valid.should.equal(false)
+    })
+
+    it('refuses a forged seal on the legacy path, in every shape', function () {
+      bsv.NotaryHash.verify(legacy(function (c) {
+        c.anchor.seal.previousId = '11'.repeat(32)
+        c.anchor.seal.previous = { txid: '22'.repeat(32), vout: 1 }
+      }), opts).valid.should.equal(false)
+      bsv.NotaryHash.verify(legacy(function (c) { c.anchor.seal = null }), opts)
+        .valid.should.equal(false)
+      bsv.NotaryHash.verify(legacy(function (c) { c.anchor.seal = 'x' }), opts)
+        .valid.should.equal(false)
+    })
+
+    // The fixture's T00 is a BATCH certificate, and a batch refuses `version: 1` for an
+    // independent reason ("on-chain record does not match"), which is why the bypass showed up
+    // only on direct certificates. So these two assert the SEAL behaviour specifically rather
+    // than the whole verdict — asserting `valid` here would pass or fail for the wrong reason.
+    it('does not raise the seal refusal when a legacy certificate has no seal', function () {
+      var r = bsv.NotaryHash.verify(clone(function (c) {
+        c.version = 1
+        delete c.anchor.seal
+      }), opts)
+      r.legacy.should.equal(true)
+      r.errors.join(' | ').should.not.match(/anchor\.seal/)
+    })
+
+    it('honours allowUncheckedSeal on the legacy path too', function () {
+      var r = bsv.NotaryHash.verify(legacy(), Object.assign({ allowUncheckedSeal: true }, opts))
+      r.errors.join(' | ').should.not.match(/does not verify seals/)
+    })
+  })
 })

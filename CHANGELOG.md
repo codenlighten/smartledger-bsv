@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.26.1] - 2026-10-07
+
+### Fixed — relabelling a certificate as legacy bypassed the seal refusal
+
+`version` is not signed. The proof hash begins with the fixed bytes `"NotaryHash/1.0"` and `u8(1)`
+whatever the JSON member says, so **anyone could set `version: 1` on a current sealed certificate**
+and a forged seal verified as `valid` again — the refusal added in 9.25.0 was optional for an
+attacker. Found by the block-penn-station session's rerun about half an hour after it shipped.
+
+The mechanism, which is the part worth keeping:
+
+- `Certificate.normalize` rebuilds a **legacy** anchor from a fixed key set — `type`, `network`,
+  `txid`, `vout`, `blockHeight`, `blockTime` — and therefore **drops `anchor.seal`**;
+- `NotaryHash.verify` normalizes on the line after it records `report.legacy`, **shadowing its own
+  parameter**, so every downstream check — including `verifyAnchorSPV`'s own seal check — reads
+  normalized input whether it knows it or not;
+- so the seal check could not see a seal on a legacy certificate, and the legacy path kept the
+  height, time and format checks while silently losing this one.
+
+`anchor.seal` is now captured **before** the translation and the verdict accounts for it, so the
+refusal holds on both paths. A genuine legacy certificate — one with no seal — verifies unchanged,
+and `allowUncheckedSeal` works on both paths.
+
+**The general rule, now in the source:** *a refusal that exists only on one normalization path is
+optional whenever the caller can choose the path.* Anything under `anchor` outside that fixed key
+set is in the same position and must be checked before translation.
+
+### And a correction to 9.26.0's release notes
+
+9.26.0 said `version: 1` needed no change because it is the documented 8.3.0–9.8.0 marker. The
+first half stands — reading it is deliberate, and `verify` reports `legacy: true`. The conclusion
+did not: an unsigned discriminator that selects a *weaker* code path is a security boundary, not a
+compatibility detail, and I had checked that the legacy path was intentional without checking that
+it was equally strict.
+
+9.26.0's replay of the vendored fixture reported zero undesigned differences while this was open,
+which is true and less reassuring than it sounds: **the fixture is the set of differences as of
+9.24.0, so it cannot contain a path that first opened in 9.25.0.** Their observation, and it belongs
+next to every regression fixture.
+
 ## [9.26.0] - 2026-10-07
 
 One rule, replacing a special case that had already caused a bug: **absent is absent, present and
