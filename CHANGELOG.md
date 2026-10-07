@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.25.0] - 2026-10-07
+
+Two claims a certificate can carry that this library does not verify, and answered `valid` about
+anyway. Both found by the **block-penn-station session's differential fuzz** — 3,573 inputs, our
+`examples/gateway` adapter against an independent Python verifier written from the NotaryHash spec
+rather than from our code. Same verdict on 3,137 of them; the disagreements were ours.
+
+### Fixed — `anchor.seal` was not verified, and a certificate carrying one still verified
+
+A sealed record asserts it is the **one successor** of another: its transaction spends a
+one-satoshi seal output of the predecessor's transaction, and an output is spent once. That is
+checked by `@smartledger/notaryhash` (`verifySealedLink`, their SPEC 5b). **This library implements
+none of it**, and verified the 1.0 parts of such a certificate and answered `valid` — presenting an
+unchecked chain-of-custody claim as verified.
+
+319 fuzz inputs with a damaged seal verified here, including:
+
+- a certificate relabelled as the successor of a record it is not, naming a transaction its own
+  transaction does not spend;
+- a seal signature of 64 zero bytes;
+- a seal replaced by `true`, `"x"` or `[]`;
+- the **first** record of a chain given an invented predecessor.
+
+Their verifier and the notaryhash SDK refuse every one. A certificate carrying `anchor.seal` is now
+refused, with `opts.allowUncheckedSeal` for a caller that wants the 1.0 verdict and will check the
+seal itself. An absent or `null` seal is no claim and is unaffected.
+
+### Fixed — a false `anchor.blockHeight` verified when `spv.blockHeight` was null
+
+`anchor.blockHeight` was compared with `spv.blockHeight` **only when both were present**, so nulling
+or deleting `spv.blockHeight` removed the only value it was ever checked against. A certificate
+claiming `anchor.blockHeight: 1` then verified against a mainnet block at height 970038 — the height
+was bound to nothing. `anchor.blockTime` was still checked, so this was the height alone.
+
+A present `anchor.blockHeight` must now be **checkable**: if the SPV envelope does not say which
+height it proves, the claim is refused rather than skipped. Introduced in 9.20.0 with the rest of
+the anchor checks; the guard was written as a consistency test when it needed to be a coverage test.
+
+### Fixed — `examples/gateway` broke its own three-state contract
+
+The adapter returned `invalid` for a certificate with **no `spv` member**. The service issues
+certificates in that state and fills the envelope when a block arrives, so "there is no proof of
+inclusion yet" is `indeterminate` — the same "I could not look" the file spends two paragraphs
+insisting on. It now returns `indeterminate` and says to re-fetch.
+
+The adapter also enumerated the two options it knew about when calling `NotaryHash.verify` and
+dropped everything else, which silently disabled `allowUncheckedSeal` and `allowUnknownSpvFormat`
+for its callers. It forwards them now.
+
+### The common rule
+
+Both library fixes are the one adopted in 9.24.0 for `spv.format`: **verifying a proof is not
+accepting a self-described certificate.** A statement the verifier never read cannot be covered by a
+verdict of `valid`. Each refusal has an opt-out, because a caller that checks the claim by other
+means should not be blocked by our inability to check it.
+
 ## [9.24.0] - 2026-10-07
 
 ### Changed — a certificate whose `spv.format` is not TSC is now refused

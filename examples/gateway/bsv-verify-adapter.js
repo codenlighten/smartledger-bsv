@@ -53,6 +53,19 @@ function verifyCertificate (certificate, opts) {
   // Structure and signature first: these need nothing from the chain, so a malformed or
   // unsigned certificate is INVALID even with no header available. Answering "indeterminate"
   // here would let a forgery hide behind a network outage.
+  // One exception, and it is the three-state rule applied to structure rather than to the
+  // network: a certificate with NO spv member has not been mined yet. The service issues it in
+  // that state and fills the envelope when a block arrives. "There is no proof of inclusion
+  // yet" is `indeterminate` — the same "I could not look" as a missing header. This example
+  // called it `invalid` until the block-penn-station session pointed out that the contract it
+  // ships with said otherwise.
+  if (!certificate.spv || typeof certificate.spv !== 'object') {
+    return result(VERDICT.INDETERMINATE, [
+      'the certificate has no SPV envelope, so it has not been mined yet; re-fetch it once its ' +
+        'transaction is in a block. This is not a rejection.'
+    ], null, false)
+  }
+
   var triage
   try {
     triage = NotaryHash.verify(certificate, { skipAnchor: true })
@@ -91,7 +104,14 @@ function verifyCertificate (certificate, opts) {
   try {
     full = NotaryHash.verify(certificate, {
       header: opts.header,
-      blockHashAtHeight: opts.blockHashAtHeight
+      blockHashAtHeight: opts.blockHashAtHeight,
+      // Every other option the caller passed goes through. The library grows options — today
+      // allowUncheckedSeal and allowUnknownSpvFormat — and an adapter that enumerates only the
+      // ones it knew about silently disables each new one. Dropping an opt-out is how a caller
+      // ends up unable to turn off a refusal it understands better than we do.
+      allowUncheckedSeal: opts.allowUncheckedSeal,
+      allowUnknownSpvFormat: opts.allowUnknownSpvFormat,
+      network: opts.network
     })
   } catch (e) {
     // A throw here is our inability to complete the check, not a verdict about the certificate.
