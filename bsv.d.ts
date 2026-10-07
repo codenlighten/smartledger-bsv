@@ -1118,11 +1118,11 @@ declare module '@smartledger/bsv' {
         generateSelectiveProof(credential: object, revealedFields: string[], nonce: string): object;
         verifySelectiveProof(proof: object, publicData: object): boolean;
         generateAgeProof(ageCredential: object, minimumAge: number, nonce: string): object;
-        verifyAgeProof(proof: object, minimumAge: number, issuerDID: string): boolean;
+        verifyAgeProof(proof: object, requiredAge: number, opening: object): boolean;
         generateRangeProof(value: number, min: number, max: number, nonce: string): object;
-        verifyRangeProof(proof: object, min: number, max: number): boolean;
-        generateMembershipProof(value: string, validSet: string[], nonce: string): object;
-        verifyMembershipProof(proof: object, validSet: string[]): boolean;
+        verifyRangeProof(proof: object, min: number, max: number, opening: object): boolean;
+        generateMembershipProof(set: any[], value: any, salt?: string): object;
+        verifyMembershipProof(proof: object, opening: object, set: any[]): boolean;
 
         // Anchoring
         /**
@@ -2049,7 +2049,7 @@ declare module '@smartledger/bsv' {
     export function validateCredential(credential: object, schema: string | object): { valid: boolean; errors?: string[] };
     export function generateSelectiveProof(credential: object, revealedFields: string[], nonce: string): object;
     export function generateAgeProof(ageCredential: object, minimumAge: number, nonce: string): object;
-    export function verifyAgeProof(proof: object, minimumAge: number, issuerDID: string): boolean;
+    export function verifyAgeProof(proof: object, requiredAge: number, opening: object): boolean;
     export function createPresentation(credentials: object[], holderDID: string, holderPrivateKey: PrivateKey, options?: object): object;
     export function getCredentialSchemas(): { [name: string]: object };
     export function createCredentialTemplate(credentialType: string): object;

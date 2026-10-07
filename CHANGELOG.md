@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.23.0] - 2026-10-07
+
+### Fixed — the GDAF class could not generate or verify a membership proof at all
+
+`bsv.GDAF` exposes what `index.js` calls "Direct Access Methods (for easier developer experience)":
+thin wrappers that forward to the `ZKProver` module. **Four of them forwarded the wrong arguments**,
+so the documented class-level API was inert.
+
+| call through `new bsv.GDAF()` | before | now |
+|---|---|---|
+| `generateMembershipProof(set, value)` | threw `Set must be array` | returns a proof |
+| `verifyMembershipProof(proof, opening, set)` | `false` for every proof | verifies |
+| `verifyRangeProof(proof, min, max, opening)` | `false` for every proof | verifies |
+| `verifyAgeProof(proof, requiredAge, opening)` | an issuer DID arrived as the opening | verifies |
+
+Two separate drifts, both between a wrapper and the module it delegates to:
+
+- `generateMembershipProof` has taken `(set, value, salt)` in the module **since v5.4.0**, while the
+  wrapper passed `(value, validSet, nonce)` — the first two arguments swapped. The set arrived as the
+  value, so `checkArgument(Array.isArray(set))` threw and **no proof could be generated through the
+  class at any version since 5.4.0**.
+- `verifyMembershipProof` and `verifyRangeProof` gained the verifier-supplied set and the opening in
+  **9.20.0**, when the forgeable verifiers were fixed. The wrappers were not updated, so the module
+  received `set`/`opening` as `undefined` and its own guard — *"without a verifier-supplied set and an
+  opening there is nothing to check the prover's array against"* — answered `false` for **every**
+  proof, genuine or forged.
+
+**Nothing was accepted that should have been refused.** All four failed closed: three returned
+`false` and one threw. The 9.20.0 and 9.22.0 security fixes are unaffected, and the original
+forgery is still refused through both paths. The defect was that the class API verified nothing
+rather than that it verified wrongly.
+
+**Why no test caught it:** every proof test called the module directly
+(`require('lib/gdaf/zk-prover')`), never the class wrapper, so the wrappers had no coverage at all.
+The new `test/gdaf/wrapper_signatures.js` closes that two ways — five tests exercise the class path
+end to end, and a **general guard compares every delegating wrapper to its target by parameter
+name**, so the next signature change on either side fails the suite instead of silently disabling a
+verifier.
+
+Found while answering a consumer session's question about which version to pin.
+
+### Changed — the class-path signatures now mirror the module
+
+`bsv.d.ts` documented the broken shapes and is corrected. The affected declarations are
+`generateMembershipProof(set, value, salt?)`, `verifyMembershipProof(proof, opening, set)`,
+`verifyRangeProof(proof, min, max, opening)` and `verifyAgeProof(proof, requiredAge, opening)`.
+`api-surface.json` records the two arity changes.
+
+This is a minor release because those public signatures change, but no working call can break: the
+old shapes threw or returned `false` unconditionally, so nothing could have depended on a correct
+result from them.
+
 ## [9.22.1] - 2026-10-06
 
 ### Changed — signing many inputs is no longer quadratic in the number of inputs
