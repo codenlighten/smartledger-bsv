@@ -240,67 +240,70 @@ try {
 }
 
 // GDAF Direct Access Methods (for easier developer experience)
-bsv.createDID = function(publicKey) {
+bsv.createDID = function (publicKey) {
   var gdaf = new bsv.GDAF()
   return gdaf.createDID(publicKey)
 }
 
-bsv.resolveDID = function(did) {
+bsv.resolveDID = function (did) {
   var gdaf = new bsv.GDAF()
   return gdaf.resolveDID(did)
 }
 
-bsv.createEmailCredential = function(issuerDID, subjectDID, email, issuerPrivateKey) {
+bsv.createEmailCredential = function (issuerDID, subjectDID, email, issuerPrivateKey) {
   var gdaf = new bsv.GDAF()
   return gdaf.createEmailCredential(issuerDID, subjectDID, email, issuerPrivateKey)
 }
 
-bsv.createAgeCredential = function(issuerDID, subjectDID, ageThreshold, birthDate, issuerPrivateKey) {
+bsv.createAgeCredential = function (issuerDID, subjectDID, ageThreshold, birthDate, issuerPrivateKey) {
   var gdaf = new bsv.GDAF()
   return gdaf.createAgeCredential(issuerDID, subjectDID, ageThreshold, birthDate, issuerPrivateKey)
 }
 
-bsv.createKYCCredential = function(issuerDID, subjectDID, level, piiHashes, issuerPrivateKey) {
+bsv.createKYCCredential = function (issuerDID, subjectDID, level, piiHashes, issuerPrivateKey) {
   var gdaf = new bsv.GDAF()
   return gdaf.createKYCCredential(issuerDID, subjectDID, level, piiHashes, issuerPrivateKey)
 }
 
-bsv.verifyCredential = function(credential, options) {
+// ASYNC, and `valid` is internal consistency only — not trust. A Promise is truthy, so a missing
+// `await` always passes; and a self-issued credential verifies `valid: true` with the issuer's own
+// DID. Compare `issuerDID` against your trust anchor. Full note in lib/gdaf/index.js.
+bsv.verifyCredential = function (credential, options) {
   var gdaf = new bsv.GDAF()
   return gdaf.verifyCredential(credential, options)
 }
 
-bsv.validateCredential = function(credential, schema) {
+bsv.validateCredential = function (credential, schema) {
   var gdaf = new bsv.GDAF()
   return gdaf.validateCredential(credential, schema)
 }
 
-bsv.generateSelectiveProof = function(credential, revealedFields, nonce) {
+bsv.generateSelectiveProof = function (credential, revealedFields, nonce) {
   var gdaf = new bsv.GDAF()
   return gdaf.generateSelectiveProof(credential, revealedFields, nonce)
 }
 
-bsv.generateAgeProof = function(ageCredential, minimumAge, nonce) {
+bsv.generateAgeProof = function (ageCredential, minimumAge, nonce) {
   var gdaf = new bsv.GDAF()
   return gdaf.generateAgeProof(ageCredential, minimumAge, nonce)
 }
 
-bsv.verifyAgeProof = function(proof, minimumAge, issuerDID) {
+bsv.verifyAgeProof = function (proof, minimumAge, issuerDID) {
   var gdaf = new bsv.GDAF()
   return gdaf.verifyAgeProof(proof, minimumAge, issuerDID)
 }
 
-bsv.createPresentation = function(credentials, holderDID, holderPrivateKey, options) {
+bsv.createPresentation = function (credentials, holderDID, holderPrivateKey, options) {
   var gdaf = new bsv.GDAF()
   return gdaf.createPresentation(credentials, holderDID, holderPrivateKey, options)
 }
 
-bsv.getCredentialSchemas = function() {
+bsv.getCredentialSchemas = function () {
   var gdaf = new bsv.GDAF()
   return gdaf.getAllSchemas()
 }
 
-bsv.createCredentialTemplate = function(credentialType) {
+bsv.createCredentialTemplate = function (credentialType) {
   var gdaf = new bsv.GDAF()
   return gdaf.createTemplate(credentialType)
 }
@@ -310,214 +313,214 @@ bsv.LTP = require('./lib/ltp')
 bsv.JCS = require('./lib/util/jcs')
 
 // LTP Right Token Primitives
-bsv.prepareRightToken = function(type, issuerDID, subjectDID, claim, issuerPrivateKey, options) {
+bsv.prepareRightToken = function (type, issuerDID, subjectDID, claim, issuerPrivateKey, options) {
   return bsv.LTP.Right.prepareRightToken(type, issuerDID, subjectDID, claim, issuerPrivateKey, options)
 }
 
-bsv.prepareRightTokenVerification = function(token, options) {
+bsv.prepareRightTokenVerification = function (token, options) {
   return bsv.LTP.Right.prepareRightTokenVerification(token, options)
 }
 
-bsv.prepareRightTokenTransfer = function(token, newOwnerDID, currentOwnerKey, options) {
+bsv.prepareRightTokenTransfer = function (token, newOwnerDID, currentOwnerKey, options) {
   return bsv.LTP.Right.prepareRightTokenTransfer(token, newOwnerDID, currentOwnerKey, options)
 }
 
-bsv.prepareRightTypeValidation = function(type) {
+bsv.prepareRightTypeValidation = function (type) {
   return bsv.LTP.Right.prepareRightTypeValidation(type)
 }
 
 // LTP Obligation Token Primitives
-bsv.prepareObligationToken = function(type, issuerDID, obligorDID, obligation, issuerPrivateKey, options) {
+bsv.prepareObligationToken = function (type, issuerDID, obligorDID, obligation, issuerPrivateKey, options) {
   return bsv.LTP.Obligation.prepareObligationToken(type, issuerDID, obligorDID, obligation, issuerPrivateKey, options)
 }
 
-bsv.prepareObligationVerification = function(token, options) {
+bsv.prepareObligationVerification = function (token, options) {
   return bsv.LTP.Obligation.prepareObligationVerification(token, options)
 }
 
-bsv.prepareObligationFulfillment = function(token, fulfillment, obligorKey, options) {
+bsv.prepareObligationFulfillment = function (token, fulfillment, obligorKey, options) {
   return bsv.LTP.Obligation.prepareObligationFulfillment(token, fulfillment, obligorKey, options)
 }
 
-bsv.prepareObligationBreachAssessment = function(token, breach, assessor) {
+bsv.prepareObligationBreachAssessment = function (token, breach, assessor) {
   return bsv.LTP.Obligation.prepareObligationBreachAssessment(token, breach, assessor)
 }
 
-bsv.prepareObligationMonitoringReport = function(obligations, criteria) {
+bsv.prepareObligationMonitoringReport = function (obligations, criteria) {
   return bsv.LTP.Obligation.prepareObligationMonitoringReport(obligations, criteria)
 }
 
 // LTP Claim Validation Primitives
-bsv.prepareClaimValidation = function(claim, schemaName) {
+bsv.prepareClaimValidation = function (claim, schemaName) {
   return bsv.LTP.Claim.prepareClaimValidation(claim, schemaName)
 }
 
-bsv.prepareClaimAttestation = function(claim, schemaName, attestor) {
+bsv.prepareClaimAttestation = function (claim, schemaName, attestor) {
   return bsv.LTP.Claim.prepareClaimAttestation(claim, schemaName, attestor)
 }
 
-bsv.prepareClaimDispute = function(claimHash, disputant, dispute) {
+bsv.prepareClaimDispute = function (claimHash, disputant, dispute) {
   return bsv.LTP.Claim.prepareClaimDispute(claimHash, disputant, dispute)
 }
 
-bsv.prepareBulkClaimValidation = function(claims, schemaName) {
+bsv.prepareBulkClaimValidation = function (claims, schemaName) {
   return bsv.LTP.Claim.prepareBulkClaimValidation(claims, schemaName)
 }
 
-bsv.prepareClaimTemplate = function(schemaName, options) {
+bsv.prepareClaimTemplate = function (schemaName, options) {
   return bsv.LTP.Claim.prepareClaimTemplate(schemaName, options)
 }
 
 // LTP Proof Generation Primitives
-bsv.prepareSignatureProof = function(token, privateKey, options) {
+bsv.prepareSignatureProof = function (token, privateKey, options) {
   return bsv.LTP.Proof.prepareSignatureProof(token, privateKey, options)
 }
 
-bsv.prepareSignatureVerification = function(token, publicKey) {
+bsv.prepareSignatureVerification = function (token, publicKey) {
   return bsv.LTP.Proof.prepareSignatureVerification(token, publicKey)
 }
 
-bsv.prepareSelectiveDisclosure = function(token, revealedFields, nonce) {
+bsv.prepareSelectiveDisclosure = function (token, revealedFields, nonce) {
   return bsv.LTP.Proof.prepareSelectiveDisclosure(token, revealedFields, nonce)
 }
 
-bsv.prepareSelectiveDisclosureVerification = function(proof, expectedNonce) {
+bsv.prepareSelectiveDisclosureVerification = function (proof, expectedNonce) {
   return bsv.LTP.Proof.prepareSelectiveDisclosureVerification(proof, expectedNonce)
 }
 
-bsv.prepareLegalValidityProof = function(token, jurisdiction, nonce) {
+bsv.prepareLegalValidityProof = function (token, jurisdiction, nonce) {
   return bsv.LTP.Proof.prepareLegalValidityProof(token, jurisdiction, nonce)
 }
 
-bsv.prepareZeroKnowledgeProof = function(token, statement, nonce) {
+bsv.prepareZeroKnowledgeProof = function (token, statement, nonce) {
   return bsv.LTP.Proof.prepareZeroKnowledgeProof(token, statement, nonce)
 }
 
 // LTP Registry Management Primitives
-bsv.prepareRegistry = function(config) {
+bsv.prepareRegistry = function (config) {
   return bsv.LTP.Registry.prepareRegistry(config)
 }
 
-bsv.prepareTokenRegistration = function(token, registryConfig, options) {
+bsv.prepareTokenRegistration = function (token, registryConfig, options) {
   return bsv.LTP.Registry.prepareTokenRegistration(token, registryConfig, options)
 }
 
-bsv.prepareTokenApproval = function(tokenId, approver, registryConfig) {
+bsv.prepareTokenApproval = function (tokenId, approver, registryConfig) {
   return bsv.LTP.Registry.prepareTokenApproval(tokenId, approver, registryConfig)
 }
 
-bsv.prepareTokenRevocation = function(tokenId, revocation, registryConfig) {
+bsv.prepareTokenRevocation = function (tokenId, revocation, registryConfig) {
   return bsv.LTP.Registry.prepareTokenRevocation(tokenId, revocation, registryConfig)
 }
 
-bsv.prepareTokenStatusQuery = function(tokenId, registryConfig) {
+bsv.prepareTokenStatusQuery = function (tokenId, registryConfig) {
   return bsv.LTP.Registry.prepareTokenStatusQuery(tokenId, registryConfig)
 }
 
-bsv.prepareTokenSearch = function(criteria, registryConfig) {
+bsv.prepareTokenSearch = function (criteria, registryConfig) {
   return bsv.LTP.Registry.prepareTokenSearch(criteria, registryConfig)
 }
 
-bsv.prepareStatisticsQuery = function(registryConfig) {
+bsv.prepareStatisticsQuery = function (registryConfig) {
   return bsv.LTP.Registry.prepareStatisticsQuery(registryConfig)
 }
 
-bsv.prepareAuditLogQuery = function(registryConfig, options) {
+bsv.prepareAuditLogQuery = function (registryConfig, options) {
   return bsv.LTP.Registry.prepareAuditLogQuery(registryConfig, options)
 }
 
 // LTP Blockchain Anchoring Primitives
-bsv.prepareTokenCommitment = function(token, options) {
+bsv.prepareTokenCommitment = function (token, options) {
   return bsv.LTP.Anchor.prepareTokenCommitment(token, options)
 }
 
-bsv.prepareBatchCommitment = function(tokens, options) {
+bsv.prepareBatchCommitment = function (tokens, options) {
   return bsv.LTP.Anchor.prepareBatchCommitment(tokens, options)
 }
 
-bsv.verifyTokenAnchor = function(token, txid, txData) {
+bsv.verifyTokenAnchor = function (token, txid, txData) {
   return bsv.LTP.Anchor.verifyTokenAnchor(token, txid, txData)
 }
 
-bsv.formatRevocation = function(tokenId, revocationData) {
+bsv.formatRevocation = function (tokenId, revocationData) {
   return bsv.LTP.Anchor.formatRevocation(tokenId, revocationData)
 }
 
 // Backward Compatibility: Direct LTP Functions (Wrapper Layer)
 // These functions provide the old-style direct API that demos expect
 
-bsv.createRightToken = function(rightData, privateKey, options) {
+bsv.createRightToken = function (rightData, privateKey, options) {
   var ltp = new bsv.LTP()
   return ltp.createRightToken(rightData, privateKey, options)
 }
 
-bsv.verifyLegalToken = function(token, publicKey) {
+bsv.verifyLegalToken = function (token, publicKey) {
   var ltp = new bsv.LTP()
   return ltp.verifyToken(token, publicKey)
 }
 
-bsv.validateLegalClaim = function(claimData, schemaType) {
+bsv.validateLegalClaim = function (claimData, schemaType) {
   var ltp = new bsv.LTP()
   return ltp.validateClaim(claimData, schemaType)
 }
 
-bsv.createSelectiveDisclosure = function(token, revealedFields, nonce) {
+bsv.createSelectiveDisclosure = function (token, revealedFields, nonce) {
   var ltp = new bsv.LTP()
   return ltp.createSelectiveDisclosure(token, revealedFields, nonce)
 }
 
-bsv.createLegalRegistry = function(config) {
+bsv.createLegalRegistry = function (config) {
   return bsv.LTP.Registry.prepareRegistry(config)
 }
 
-bsv.createLegalValidityProof = function(token, jurisdiction, nonce) {
+bsv.createLegalValidityProof = function (token, jurisdiction, nonce) {
   var ltp = new bsv.LTP()
   return ltp.createLegalValidityProof(token, jurisdiction, nonce)
 }
 
 // LTP Static Data Access (unchanged)
-bsv.getRightTypes = function() {
+bsv.getRightTypes = function () {
   return bsv.LTP.Right.getRightTypes()
 }
 
-bsv.getObligationTypes = function() {
+bsv.getObligationTypes = function () {
   return bsv.LTP.Obligation.getObligationTypes()
 }
 
-bsv.getObligationPriority = function() {
+bsv.getObligationPriority = function () {
   return bsv.LTP.Obligation.getObligationPriority()
 }
 
-bsv.getObligationStatus = function() {
+bsv.getObligationStatus = function () {
   return bsv.LTP.Obligation.getObligationStatus()
 }
 
-bsv.getClaimSchemas = function() {
+bsv.getClaimSchemas = function () {
   return bsv.LTP.Claim.getSchemas()
 }
 
-bsv.getClaimSchemaNames = function() {
+bsv.getClaimSchemaNames = function () {
   return bsv.LTP.Claim.getSchemaNames()
 }
 
-bsv.getClaimSchema = function(schemaName) {
+bsv.getClaimSchema = function (schemaName) {
   return bsv.LTP.Claim.getSchema(schemaName)
 }
 
-bsv.createClaimTemplate = function(schemaName) {
+bsv.createClaimTemplate = function (schemaName) {
   return bsv.LTP.Claim.createTemplate(schemaName)
 }
 
 // LTP Utility Functions
-bsv.canonicalizeClaim = function(claim, canonicalization) {
+bsv.canonicalizeClaim = function (claim, canonicalization) {
   return bsv.LTP.Claim.canonicalize(claim, canonicalization)
 }
 
-bsv.hashClaim = function(claim, canonicalization) {
+bsv.hashClaim = function (claim, canonicalization) {
   return bsv.LTP.Claim.hash(claim, canonicalization)
 }
 
-bsv.addCustomClaimSchema = function(name, schema) {
+bsv.addCustomClaimSchema = function (name, schema) {
   return bsv.LTP.Claim.addSchema(name, schema)
 }
 
