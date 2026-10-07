@@ -5,12 +5,16 @@ github.com/codenlighten/vg-wallet (wallet.verifiedgrades.com), and vendored here
 because it was generated in temporary session scratch and this copy is the durable one. They are
 committing the same harness into their repo when the bump work is approved.
 
+Superseded copy: this is now taken from their repo's stable path, `vg-wallet/compat/`, not from
+session scratch.
+
 ```
-gen.cjs                  node gen.cjs <versionDir>            -> writes <versionDir>/artifacts.json
-check.cjs                node check.cjs <verifierDir> <artifacts.json>
-artifacts-7.5.5.json     generated under @smartledger/bsv 7.5.5
-artifacts-8.1.0.json     generated under 8.1.0
-artifacts-9.26.2.json    generated under 9.26.2
+gen.cjs                      captures the installed version; refuses to overwrite a fixture
+check.cjs                    reads EVERY fixture with the installed library, or with the copy
+                             under a directory passed as argv[2]
+fixtures/bsv-7.5.5.json      written by @smartledger/bsv 7.5.5 through the wallet's own calls
+fixtures/bsv-8.1.0.json      written by 8.1.0
+fixtures/bsv-9.26.2.json     written by 9.26.2
 ```
 
 Each `check.cjs` run makes **14 assertions** over the surface a real wallet uses: Shamir 2-of-3
@@ -33,7 +37,8 @@ for v in 7.5.5 8.1.0 9.26.2; do
 done
 ```
 
-All three files pass 14/14 against the current tree — **42 of 42**.
+13 checks per fixture; **39 of 39** against the current tree, matching their own run. Their
+`refuses()` helper counts a throw as a refusal, which is the right reading for the negative cases.
 
 ## Why it is kept
 

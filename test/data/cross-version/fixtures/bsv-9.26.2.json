@@ -1,0 +1,44 @@
+{
+ "version": "9.26.2",
+ "mnemonic": "spatial lunch leg head chuckle lawsuit brain park runway monkey grant note",
+ "shares": [
+  "{\"v\":2,\"id\":1,\"threshold\":2,\"shares\":3,\"length\":74,\"splitId\":\"155d5132a16ffac3\",\"share\":\"801d6937fdb5b90170980f1106b2bec37fd29715e01b3cafabfc3e1b96593c6efc06be505b2c290ea71a919a0f172a9c5ab2e1835108d59b5d2e33b52bf3ec164f0e31f82cab4960d3c471f3962876a610d\",\"checksum\":null}",
+  "{\"v\":2,\"id\":2,\"threshold\":2,\"shares\":3,\"length\":74,\"splitId\":\"155d5132a16ffac3\",\"share\":\"802b13bfeabb521bb82be639b75e2a5da78e0470462cf2640032370cc665b347b02736abed6f9896a7bdaade66384e901e8e7820ab0a424cad94de916fadf14a84a6a8ca426fe51b3ee2d8ceea4a1655eb5\",\"checksum\":null}",
+  "{\"v\":2,\"id\":3,\"threshold\":2,\"shares\":3,\"length\":74,\"splitId\":\"155d5132a16ffac3\",\"share\":\"80367a88170ef4edffb5fe6e27fa56981f0a75532431089dd9c88f41467e891fcb77be4d7011b75e17d00c12fe6d622b622a0f41fd0480f142bdca72a3280acecd7e6fd4d8933e7d9a00bfda3e648604bdd\",\"checksum\":null}"
+ ],
+ "identityAddress": "15nd7WgkV6Tjr5t4p7WU6D5dUfVgj6hrs6",
+ "tokenAddress": "14nzzeRrC36pYzp6JNvD818WCRRDXBrjCq",
+ "identityDid": "did:smartledger:02913ea25dcc1209627c92946c72289352dd0bce0a2b6443417c179a0b907cccc4",
+ "challenge": "vg-wallet recovery challenge 1234",
+ "signature": "H+B/jYAr9ow8R6Q3CLp6itCVjzEQ5RwFqGoJxdWNxyEDKbryuCCIzrXdHScN1fX77D1zFdHQhyYEPEZnEdN+ShM=",
+ "otherAddress": "1H1M8jQ8Utmusccz1uRXqyU7XNqXao4rfq",
+ "issuerDid": "did:smartledger:02cecbefc3af95a8564a9b1b2b2353783977a61e531fdbbd0324f54e107f006825",
+ "credential": {
+  "@context": [
+   "https://www.w3.org/2018/credentials/v1",
+   "https://smartledger.technology/contexts/email/v1"
+  ],
+  "id": "urn:uuid:6df1115b-d929-42bf-aa92-f36c94469744",
+  "type": [
+   "VerifiableCredential",
+   "EmailVerifiedCredential"
+  ],
+  "issuer": "did:smartledger:02cecbefc3af95a8564a9b1b2b2353783977a61e531fdbbd0324f54e107f006825",
+  "issuanceDate": "2026-10-07T22:43:31.517Z",
+  "credentialSubject": {
+   "id": "did:smartledger:02913ea25dcc1209627c92946c72289352dd0bce0a2b6443417c179a0b907cccc4",
+   "email": "a@b.c",
+   "verified": true,
+   "verificationMethod": "email_verification",
+   "verificationTimestamp": "2026-10-07T22:43:31.516Z"
+  },
+  "proof": {
+   "type": "EcdsaSecp256k1Signature2019",
+   "created": "2026-10-07T22:43:31.519Z",
+   "verificationMethod": "did:smartledger:02cecbefc3af95a8564a9b1b2b2353783977a61e531fdbbd0324f54e107f006825#keys-1",
+   "proofPurpose": "assertionMethod",
+   "jws": "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJKV1QifQ..MEQCIGd8kWjfr1V0P2O3MolLxjSN7YbKVr9mnUO-EovYBw4kAiB6YDDiuRf5BGfpiC4p7kqWq6-qRO_ijmLbuhWb14_w1A"
+  },
+  "rootHash": "b0769e9236447625b28ccd771cbd8f49ee1e4ff5daf9cc848abd8f8daa753e14"
+ }
+}
