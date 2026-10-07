@@ -17,6 +17,7 @@ require('chai').should()
 var fs = require('fs')
 var path = require('path')
 var adapter = require('../../examples/gateway/bsv-verify-adapter')
+var bsv = require('../..')
 
 var FIXTURE = path.join(__dirname, '..', 'data', 'differential',
   'penn-station-9.24.0-differences.jsonl')
@@ -103,5 +104,66 @@ describe('differential fixture (block-penn-station)', function () {
     }).map(function (r) { return pathKey(r.path) + ' = ' + JSON.stringify(r.value) })
     stillValid.forEach(function (d) { console.log('        still valid: ' + d) })
     stillValid.length.should.be.below(4)
+  })
+})
+
+describe('gateway adapter reason strings', function () {
+  // The adapter reported `report.shape` as if it were a boolean. Testing `=== false` never
+  // matched an array, so the accurate diagnosis was discarded — and because `verify` returns
+  // early on a shape problem, `signature` and `proofIntegrity` are still their initial `false`,
+  // never measured. The adapter then reported those two as findings.
+  //
+  // So a wrong `mode` came back as "signature does not verify" when the signature verifies, and
+  // a 2.0 certificate said the same where the library had plainly said 'unsupported version'.
+  // Reporting a non-measurement as a verdict, in the file whose whole subject is that
+  // distinction. The block-penn-station session reported the symptom three times.
+  var V = require('../data/notaryhash-tamper-cases.json')
+  var genuine, opts
+
+  before(function () {
+    var blocks = Array.isArray(V.blocks) ? V.blocks : Object.keys(V.blocks).map(function (k) { return V.blocks[k] })
+    var byHash = {}
+    var byHeight = {}
+    blocks.forEach(function (b) {
+      var h = bsv.BlockHeader.fromObject({
+        version: b.version,
+        prevHash: Buffer.from(b.previousblockhash, 'hex').reverse(),
+        merkleRoot: Buffer.from(b.merkleroot, 'hex').reverse(),
+        time: b.time,
+        bits: typeof b.bits === 'string' ? parseInt(b.bits, 16) : b.bits,
+        nonce: b.nonce
+      })
+      byHash[b.hash] = h.toBuffer().toString('hex')
+      byHeight[b.height] = b.hash
+    })
+    genuine = V.cases.filter(function (c) { return c.id === 'T00' })[0].certificate
+    opts = { header: byHash[genuine.spv.blockHash], blockHashAtHeight: byHeight[genuine.spv.blockHeight] }
+  })
+
+  function reasonFor (mutate) {
+    var c = JSON.parse(JSON.stringify(genuine))
+    mutate(c)
+    return adapter.verifyCertificate(c, opts).reasons.join(' | ')
+  }
+
+  it('names the mode problem instead of blaming the signature', function () {
+    reasonFor(function (c) { c.mode = 'zz' }).should.match(/mode must be "full" or "hybrid"/)
+    reasonFor(function (c) { c.mode = 'zz' }).should.not.match(/signature does not verify/)
+  })
+
+  it('says unsupported version for a 2.0 certificate', function () {
+    reasonFor(function (c) { c.version = '2.0' }).should.match(/unsupported version/)
+    reasonFor(function (c) { c.version = '2.0' }).should.not.match(/signature does not verify/)
+  })
+
+  it('still blames the signature when the signature is actually wrong', function () {
+    reasonFor(function (c) { c.signature = '00'.repeat(64) })
+      .should.match(/signature does not verify/)
+  })
+
+  it('leaves the genuine certificate valid with no reasons', function () {
+    var r = adapter.verifyCertificate(genuine, opts)
+    r.verdict.should.equal('valid')
+    r.reasons.should.deep.equal([])
   })
 })

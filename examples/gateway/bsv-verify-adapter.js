@@ -79,9 +79,23 @@ function verifyCertificate (certificate, opts) {
     return result(VERDICT.INVALID, ['certificate could not be parsed: ' + e.message], null, false)
   }
 
+  // `report.shape` is an ARRAY of problems, not a boolean. Testing `=== false` never matched,
+  // so the accurate diagnosis was thrown away — and because `verify` returns EARLY on a shape
+  // problem, `signature` and `proofIntegrity` are still their initial `false`, never measured.
+  // The adapter reported those two as findings, so a wrong `mode` came back as "signature does
+  // not verify" when the signature verifies perfectly well, and a 2.0 certificate said the
+  // same where the library had plainly said 'unsupported version: "2.0"'.
+  //
+  // That is this file reporting a non-measurement as a verdict, which is the exact
+  // distinction it spends two paragraphs at the top insisting on. The block-penn-station
+  // session reported the symptom three times before it was fixed.
+  if (Array.isArray(triage.shape) && triage.shape.length) {
+    return result(VERDICT.INVALID, triage.shape.slice(), triage, triage.legacy)
+  }
+
+  // Only now are these two measured values rather than defaults.
   if (triage.signature === false) reasons.push('signature does not verify')
   if (triage.proofIntegrity === false) reasons.push('proof does not reconstruct the record')
-  if (triage.shape === false) reasons.push('certificate shape is not recognised')
   if (reasons.length) {
     return result(VERDICT.INVALID, reasons, triage, triage.legacy)
   }
