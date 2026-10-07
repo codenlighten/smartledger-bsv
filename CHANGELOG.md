@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.24.0] - 2026-10-07
+
+### Changed — a certificate whose `spv.format` is not TSC is now refused
+
+`spv.format` names the format the inclusion proof is checked as. **No signature covers it**, and
+the proof is folded as TSC whatever the field says, so a certificate can carry a genuine proof, a
+genuine signature and a genuine root while declaring a format nobody implements. We accepted that;
+we now refuse it.
+
+The case is the NotaryHash service's own tamper vector T28: the genuine mainnet certificate with
+**exactly one unsigned field changed**, `"TSC"` → `"BUMP"`. Everything else — proof, signature,
+merkle root, headers — is untouched and verifies.
+
+The argument for accepting it was that every cryptographic fact checks out, and that refusing on an
+unsigned field lets anyone who can alter a certificate in transit turn a valid record into a
+rejection. That does not survive the distinction it elides: **verifying a proof is not accepting a
+self-described certificate.** We can establish that the proof folds as TSC to the committed root;
+we cannot return an unqualified `valid` for a document that says it is something we never read. The
+availability worry was overweighted too — an attacker who can rewrite the label can rewrite the
+proof, so refusing grants no capability that tampering did not already have.
+
+The divergence it prevents is not hypothetical. A caller could store or display our `valid: true`
+as verification of a BUMP-labelled certificate, which a BUMP-aware consumer then rejects; **the
+contradiction between two verdicts on one document is itself the failure**, and no successful BUMP
+fold is needed to reach it.
+
+- `proofIntegrity` still reports `true`, because the fold did succeed and a caller diagnosing this
+  needs to know the proof is sound and only the label is wrong.
+- `TSC` is matched case-insensitively, and a certificate with no `spv.format` is unaffected.
+- `opts.allowUnknownSpvFormat` accepts it anyway, for a caller that knows the label is wrong and
+  does not care.
+
+The real repair belongs upstream — bring the field under the signature — which is a service and
+spec change, not one a verifier can make.
+
+### Added — the service's tamper vector, vendored
+
+`test/data/notaryhash-tamper-cases.json` is the NotaryHash service's own 32-case tamper set,
+single-field changes to one real mainnet batch certificate (block 954784), each with the service
+verifier's recorded verdict. Vendored with its provenance; the cases are not ours.
+
+A test asserts our verdict equals theirs on **31 of 32**. The exception is T27, which relabels
+`anchor.network`, because this library checks that label only when the caller passes `opts.network`
+— an opt-in since 9.21.0, and the test pins that it refuses once the caller does.
+
+Independently confirmed on the three newest cases: we refuse T29 (`anchor.type` relabelled), T30
+(`merkle` removed) and T31 (`createdAt` before 1970) — the last returning a verdict rather than
+throwing, which was a defect on the service side and never here.
+
+The vector's own harness note is worth repeating, because it caught a false finding of mine:
+`blockHashAtHeight` must come from a height-indexed chain source, never from
+`certificate.spv.blockHash`. Passing the certificate's own hash is circular and makes a height
+tamper (T26) pass.
+
 ## [9.23.0] - 2026-10-07
 
 ### Fixed — the GDAF class could not generate or verify a membership proof at all
