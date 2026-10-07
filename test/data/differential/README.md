@@ -28,8 +28,19 @@ One JSON object per line: `base`, `path`, `value`, `certificate`, `header` (160 
 
 **`expected` is THEIR verdict**, following NotaryHash's rules plus their envelope's stricter network
 label. Where we differ by a stated choice, assert our choice and keep theirs as a comment — their
-own caution, and a fair one. The known differences by design are the opt-in `anchor.network` label
-(27 inputs at 9.25.0) and our stricter refusal of a wrong `mode` on a batch certificate.
+own caution, and a fair one. The known differences by design are the opt-in `anchor.network` label (27 inputs) and the 6
+sealed certificates we refuse by default.
+
+**The `mode` lines are stale, not disputed.** The fixture records their pre-2.4.1 verdict of
+`valid` on 25 inputs; notaryhash 2.4.1 made `mode` a form rule and they adopted it the same day, so
+all three verifiers now refuse them. Measured against this file: it says valid x25 where all three
+of us say invalid.
+
+That is the second time this fixture has been evidence about the past rather than the present — the
+first was 9.26.0's replay reporting no undesigned differences while a bypass opened in 9.25.0 was
+wide open. **A frozen oracle ages in both directions**: it can miss a path that opened after it was
+captured, and it can disagree with a peer who has since moved. Its verdicts are a snapshot, and the
+date in its name is load-bearing.
 
 Two soundness defects in this library were found by this run and fixed in **9.25.0**: `anchor.seal`
 was never verified, and a false `anchor.blockHeight` verified when `spv.blockHeight` was null. A

@@ -27,10 +27,15 @@ var BY_DESIGN = {
   // anchor.network is checked only when the caller names the chain (opt-in since 9.21.0,
   // because BRC-220 calls the label descriptive). Their envelope makes it normative.
   'anchor.network': 'opt-in network label',
-  // A wrong `mode` on a batch certificate: we refuse, they accept, because nothing on chain
-  // carries a mode for a batch record. Our refusal is safe; its reason string is still wrong
-  // (it blames the signature, which verifies) and that is queued.
-  mode: 'we are stricter on batch mode',
+  // A wrong `mode`: skipped because the FIXTURE IS STALE here, not because we disagree. It
+  // records their pre-2.4.1 verdict of `valid` on all 25 lines; notaryhash 2.4.1 made mode a
+  // form rule ("full" or "hybrid") and they adopted it the same day, so all three verifiers now
+  // refuse these. Measured: fixture says valid x25, we say invalid x25, and so do they.
+  //
+  // This is the fixture being evidence about the PAST for a second time, now on their side
+  // rather than ours — the first was 9.26.0's replay reporting no differences while a path
+  // opened in 9.25.0 was wide open. A frozen oracle ages in both directions.
+  mode: 'fixture records their pre-2.4.1 verdict; all three verifiers now refuse these',
   // `version: 1` — the NUMBER — is the 8.3.0–9.8.0 certificate marker, so this library
   // recognises it as a legacy certificate and reports `legacy: true` alongside the verdict.
   // It is not loose typing: `Certificate.isLegacy` is a documented compatibility path, and
