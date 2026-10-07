@@ -84,11 +84,34 @@ describe('NotaryHash unchecked claims', function () {
         .valid.should.equal(true)
     })
 
-    it('treats an absent or null seal as no claim at all', function () {
-      bsv.NotaryHash.verify(clone(function (c) { c.anchor.seal = null }), opts)
-        .valid.should.equal(true)
+    // One rule for every member, which is the block-penn-station session's argument and better
+    // than the null exemption this first shipped with: absent is absent, present and wrong is
+    // wrong. A verifier that reads a wrong-typed member as absent has to decide the same for
+    // `false`, `0` and `''` next — and that exemption is exactly what made this library call
+    // `spv: "zz"` "not mined yet" for the few hours between the two fixes.
+    it('treats only an ABSENT seal as no claim', function () {
       bsv.NotaryHash.verify(clone(function (c) { delete c.anchor.seal }), opts)
         .valid.should.equal(true)
+    })
+
+    it('refuses a null seal as a malformed member, not as an absent one', function () {
+      var r = bsv.NotaryHash.verify(clone(function (c) { c.anchor.seal = null }), opts)
+      r.valid.should.equal(false)
+      r.errors.join(' | ').should.match(/anchor\.seal is present but is not an object/)
+    })
+
+    it('does not let allowUncheckedSeal wave a malformed seal through', function () {
+      // That opt-out means "I will check the seal myself", which nobody can do with a seal
+      // that is not a seal.
+      ;[null, 'x', [], 7].forEach(function (seal) {
+        bsv.NotaryHash.verify(clone(function (c) { c.anchor.seal = seal }),
+          Object.assign({ allowUncheckedSeal: true }, opts)).valid.should.equal(false)
+      })
+    })
+
+    it('refuses a null spv.format by the same rule', function () {
+      bsv.NotaryHash.verify(clone(function (c) { c.spv.format = null }), opts)
+        .valid.should.equal(false)
     })
   })
 

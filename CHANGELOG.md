@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.26.0] - 2026-10-07
+
+One rule, replacing a special case that had already caused a bug: **absent is absent, present and
+wrong is wrong.** From the block-penn-station session, whose rerun of its differential fuzz against
+9.25.0 found a regression 9.25.0 itself introduced, hours old.
+
+### Fixed — `examples/gateway` called a wrong-typed `spv` member "not mined yet"
+
+9.25.0 made a certificate with **no** `spv` member return `indeterminate`, which was right: the
+service issues certificates in that state and fills the envelope when a block arrives. It was
+written as `!certificate.spv || typeof certificate.spv !== 'object'`, which also swallowed
+`spv: "zz"`, `spv: 0`, `spv: true` and `spv: 42` — **66 inputs** told to re-fetch a certificate that
+re-fetching will never repair.
+
+`indeterminate` is now only for `undefined` and `null`. A member that is present and is a string, a
+boolean or a number is a malformed certificate, and invalid.
+
+### Changed — a null `anchor.seal` or `spv.format` is a malformed member, not an absent one
+
+Both shipped with a null exemption: `seal !== undefined && seal !== null`. The argument against it
+is theirs and is better than mine was — a verifier that reads a wrong-typed member as absent has to
+decide the same for `false`, `0` and `''` next, and **that exemption is exactly what produced the
+`spv` bug above**, in this library and in the notaryhash SDK on the same day.
+
+So `anchor.seal: null` and `spv.format: null` are now refused as malformed members. And
+`allowUncheckedSeal` does **not** wave a malformed seal through: that opt-out means "I will check
+the seal myself", which nobody can do with a seal that is not a seal.
+
+### Added — the independent verifier's differences, vendored as a regression fixture
+
+`test/data/differential/penn-station-9.24.0-differences.jsonl` — 436 inputs, 1,494,064 bytes,
+sha256 `fe5007e3179fccd9ebec813fe5eaa924e70dccf9ea4ff9a1aee53ee60b9e5fb0`. **Theirs, not ours**,
+vendored with permission because the directory it was produced in is git-ignored on their side.
+Every input where our adapter disagreed with their Python verifier at 9.24.0.
+
+`test/notaryhash/differential_fixture.js` replays it. The remaining differences are by design and
+named in the test: the opt-in `anchor.network` label, our stricter refusal of a wrong `mode` on a
+batch certificate, and `version: 1`.
+
+### Not changed — `version: 1` is the legacy marker, and I was wrong to accept that one
+
+I told them I would tighten `version` as the **number** 1, since the reference format says the
+string `"1.0"`. Checking before changing it: `LEGACY_VERSION = 1`, `Certificate.isLegacy` treats it
+as an 8.3.0–9.8.0 certificate, and `verify` reports `legacy: true` beside the verdict. It is a
+documented compatibility path, not loose typing, and tightening it would stop us reading
+certificates that format actually produced. Retracted.
+
 ## [9.25.0] - 2026-10-07
 
 Two claims a certificate can carry that this library does not verify, and answered `valid` about

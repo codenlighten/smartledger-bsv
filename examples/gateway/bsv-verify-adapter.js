@@ -59,7 +59,13 @@ function verifyCertificate (certificate, opts) {
   // yet" is `indeterminate` — the same "I could not look" as a missing header. This example
   // called it `invalid` until the block-penn-station session pointed out that the contract it
   // ships with said otherwise.
-  if (!certificate.spv || typeof certificate.spv !== 'object') {
+  // Only an ABSENT envelope is indeterminate. A member that is present and is a string, a
+  // boolean or a number is a malformed certificate, and re-fetching will never help — so it
+  // falls through to the checks below and is invalid. Writing this as
+  // `!certificate.spv || typeof certificate.spv !== 'object'` called `spv: "zz"` "not mined
+  // yet", which the block-penn-station fuzz caught across 66 inputs within hours of the fix
+  // that introduced it.
+  if (certificate.spv === undefined || certificate.spv === null) {
     return result(VERDICT.INDETERMINATE, [
       'the certificate has no SPV envelope, so it has not been mined yet; re-fetch it once its ' +
         'transaction is in a block. This is not a rejection.'
