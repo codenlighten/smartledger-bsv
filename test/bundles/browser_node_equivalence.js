@@ -147,7 +147,7 @@ describe('browser bundles match the Node build', function () {
     // ECIES printed a notice per decrypt, so a sign-in filled the user's console and buried
     // anything real. Fixed in 9.26.2; this holds it.
     var seen = { log: 0, warn: 0, error: 0 }
-    var sandboxed = loadBundles.call(null)
+    var sandboxed = loadBundles()
     var seed = sandboxed.Mnemonic.fromString(MNEMONIC).toSeed()
     var key = sandboxed.HDPrivateKey.fromSeed(seed).deriveChild(PATH).privateKey
     var real = { log: console.log, warn: console.warn, error: console.error }
