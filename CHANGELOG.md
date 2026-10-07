@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `examples/gateway` reported a non-measurement as a verdict
+
+**Repo only; `examples/` is not in the package's `files` list, so nothing published changed and
+there is no new version.**
+
+The adapter read `report.shape` as if it were a boolean. It is an **array** of problems, so
+`triage.shape === false` never matched and the accurate diagnosis was discarded. And because
+`NotaryHash.verify` returns **early** on a shape problem, `signature` and `proofIntegrity` are still
+their initial `false` at that point — never measured. The adapter reported those two as findings.
+
+```
+mode = "zz"     before: signature does not verify     now: mode must be "full" or "hybrid"
+version = 2.0   before: signature does not verify     now: unsupported version: "2.0"
+bad signature   before: signature does not verify     now: unchanged — it really is the signature
+```
+
+**The library was right throughout**; only the example mistranslated it. This was the file
+reporting a non-measurement as a verdict, which is the distinction it spends two paragraphs at the
+top insisting on, and the block-penn-station session reported the symptom three times before it was
+fixed.
+
+
 ## [9.26.1] - 2026-10-07
 
 ### Fixed — relabelling a certificate as legacy bypassed the seal refusal
