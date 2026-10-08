@@ -7,6 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.27.0] - 2026-10-08
+
+### Fixed — selective disclosure committed over a non-injective encoding
+
+**I fixed one instance of this defect class in 9.22.0 and did not apply it to the siblings.** The
+membership commitment was moved to RFC 8785 canonical JSON over a validated domain; the
+selective-disclosure leaf was left as
+
+```js
+field.path + ':' + JSON.stringify(field.value) + ':' + field.salt
+```
+
+`JSON.stringify` is not injective: `null`, `NaN` and `Infinity` all render as `"null"`. So a
+genuine proof disclosing `null` verified **`valid: true`** after the disclosed value was changed
+in-process to `NaN` or `Infinity` — a verdict about a value the issuer never committed to.
+
+Reported **with a working reproduction** by the `aumtoken` session against 9.26.2, the same session
+that reported the 9.19.0 membership forgery, and reproduced here before this was written. Their
+honest limit, worth keeping: `NaN` does not survive JSON, so this needs an in-process object or a
+non-JSON transport — which is how a library used in its caller's process is used.
+
+Their second point is also fixed: **`':'` is a separator that can occur in a path**, so a crafted
+path could move the boundary between the three components. Both sides now use one shared encoder
+that applies `canonicalMember` to the value and a decimal byte-length prefix to each component.
+
+```
+genuine proof disclosing null        valid: true
+value swapped to NaN / Infinity      valid: false — "not a permitted type"
+value swapped to a string / 0 / false valid: false — "hash mismatch"
+```
+
+Two distinct reasons, deliberately: *"I cannot commit to that type"* is not the same finding as
+*"that is not the value that was committed"*.
+
+**This changes the leaf hash and therefore the credential root**, so selective-disclosure proofs
+issued before this release do not verify after it. Same as 9.22.0, and the same answer: a proof
+whose encoding was ambiguous was never evidence of the value it named. Re-issue rather than migrate.
+
+**Nothing in the suite pinned the old encoding** — 5,314 tests passed through a change that alters
+every credential root. `test/gdaf/selective_disclosure_encoding.js` closes that with seven cases.
+
+### Fixed — `opts.network` was defeated by deleting the label
+
+When the caller **names the chain it expects**, the comparison ran only while `anchor.network` was
+both present and non-null. So a **wrong** label was refused and a **missing** one verified:
+
+```
+with opts.network = 'bsv-mainnet'
+  anchor.network = 'bsv-testnet'   refused
+  anchor.network = null            VALID     <- the check the caller asked for, defeated
+  anchor.network deleted           VALID
+```
+
+Reported by the `cannatrack-verification-api` session against 9.26.2, found first by `smart-git`
+in its own verifier. A missing, null, empty or non-string label is now an error **when the caller
+has named a chain**, with a distinct message saying the certificate carries nothing to check
+against. The opt-in is unchanged: pass no `network` and nothing is compared, because BRC-220 calls
+the label descriptive.
+
+**This is the third instance of one guard pattern in this file.** The same mistake as the
+`anchor.blockHeight` check fixed in 9.25.0, and the same null exemption dropped from `anchor.seal`
+and `spv.format` in 9.26.0. I fixed two and did not look for the third — *absent is absent, present
+and wrong is wrong*, and when the caller has asked the question, absent is also wrong.
+
+### Not fixed, and recorded rather than bundled
+
+`generateAgeProof` and `generateRangeProof` still hash their proof objects with `JSON.stringify`.
+That is **the same encoding family**, but the values flowing in are numeric bounds the verifier also
+receives as separate arguments, so the exploit path is not obvious and **I have not constructed
+one**. Unlike the case above, where a reproduction was handed to me. Shipping a verified fix beside
+an unverified change would make both harder to trust.
+
+The GDAF merkle tree also has no RFC 6962 leaf/node domain separation and duplicates the last node
+on odd levels (CVE-2012-2459's shape). The `aumtoken` session traced the exploitability I had
+flagged as unknown: verification **recomputes** each leaf from the disclosed field and its salt
+before walking the path, so passing an internal node off as a leaf needs a preimage — theoretical.
+The duplication is real but they could find no way for a holder to disclose a value the issuer had
+not committed to. Worth fixing for hygiene; not an emergency. Their analysis, credited.
+
 ## [9.26.2] - 2026-10-07
 
 ### Fixed — the library printed to the console during ordinary operation

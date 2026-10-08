@@ -197,4 +197,50 @@ describe('NotaryHash unchecked claims', function () {
       r.errors.join(' | ').should.not.match(/does not verify seals/)
     })
   })
+
+  describe('opts.network, when the caller names the chain', function () {
+    // The THIRD instance of one guard pattern in this file. The comparison ran only when
+    // anchor.network was present and non-null, so DELETING the label defeated the check the
+    // caller had asked for: a wrong label refused, a missing one verified. Reported by the
+    // cannatrack-verification-api session on 9.26.2, found first by smart-git in its own
+    // verifier.
+    //
+    // The same mistake as anchor.blockHeight in 9.25.0 and the same null exemption dropped from
+    // anchor.seal and spv.format in 9.26.0. I fixed two and did not look for the third.
+    var NET = 'bsv-mainnet'
+
+    it('refuses a label that disagrees', function () {
+      var r = bsv.NotaryHash.verify(clone(function (c) { c.anchor.network = 'bsv-testnet' }),
+        Object.assign({ network: NET }, opts))
+      r.valid.should.equal(false)
+      r.errors.join(' | ').should.match(/anchor\.network is "bsv-testnet"/)
+    })
+
+    it('refuses a label that is null, absent or not a string', function () {
+      ;[
+        function (c) { c.anchor.network = null },
+        function (c) { delete c.anchor.network },
+        function (c) { c.anchor.network = 7 },
+        function (c) { c.anchor.network = '' }
+      ].forEach(function (mutate) {
+        var r = bsv.NotaryHash.verify(clone(mutate), Object.assign({ network: NET }, opts))
+        r.valid.should.equal(false)
+        r.errors.join(' | ').should.match(/carries no anchor\.network/)
+      })
+    })
+
+    it('leaves the genuine certificate valid', function () {
+      bsv.NotaryHash.verify(genuine, Object.assign({ network: NET }, opts))
+        .valid.should.equal(true)
+    })
+
+    it('still checks nothing when the caller does not name a chain', function () {
+      // The opt-in is deliberate: BRC-220 calls the label descriptive, so a testnet caller must
+      // not start failing because a default appeared.
+      bsv.NotaryHash.verify(clone(function (c) { c.anchor.network = 'bsv-testnet' }), opts)
+        .valid.should.equal(true)
+      bsv.NotaryHash.verify(clone(function (c) { delete c.anchor.network }), opts)
+        .valid.should.equal(true)
+    })
+  })
 })

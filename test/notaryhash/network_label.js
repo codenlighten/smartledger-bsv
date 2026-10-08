@@ -70,10 +70,27 @@ describe('anchor.network is checked only when the caller names a chain', functio
       Object.assign({}, opts, { network: 'bsv-testnet' })).valid.should.equal(true)
   })
 
-  it('an absent anchor.network is not a mismatch', function () {
+  // THIS TEST USED TO ASSERT THE OPPOSITE, and that is why two later sweeps missed the hole.
+  //
+  // It read "an absent anchor.network is not a mismatch" and required `valid: true`. So when the
+  // caller named a chain, deleting the label defeated the check it had asked for — a wrong label
+  // refused, a missing one accepted — and the suite recorded that as intended. The 9.25.0 fix to
+  // anchor.blockHeight and the 9.26.0 removal of the null exemption from anchor.seal and
+  // spv.format both walked past it, because a passing test said it was deliberate.
+  //
+  // Reported by the cannatrack-verification-api session, found first by smart-git. A test can
+  // pin a defect as firmly as it pins a property, and it is then the last place anyone looks.
+  it('refuses an absent anchor.network once the caller has named a chain', function () {
     const c = JSON.parse(JSON.stringify(cert))
     delete c.anchor.network
-    NotaryHash.verify(c, Object.assign({}, opts, { network: 'bsv-mainnet' }))
-      .valid.should.equal(true)
+    const r = NotaryHash.verify(c, Object.assign({}, opts, { network: 'bsv-mainnet' }))
+    r.valid.should.equal(false)
+    r.errors.join(' | ').should.match(/carries no anchor\.network/)
+  })
+
+  it('still ignores an absent anchor.network when no chain is named', function () {
+    const c = JSON.parse(JSON.stringify(cert))
+    delete c.anchor.network
+    NotaryHash.verify(c, opts).valid.should.equal(true)
   })
 })
