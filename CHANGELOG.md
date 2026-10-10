@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.28.0] - 2026-10-10
+
+### Added — `PushTx.valueCovenantSingle`, an output covenant under SIGHASH_SINGLE
+
+Proposed by the ticketmint-july2026 session. The proposal's other half, `grind({ sighashType })`,
+already shipped, so this is the only new surface — and the case for it is that it is **not** sugar.
+I tried to show it was, by composing it the obvious way:
+
+```js
+var lock = PushTx.valueCovenant(PushTx.hashOutputs([pinned]))
+PushTx.assertSighashType(lock, PushTx.SIGHASH_SINGLE_FORKID)   // appended afterwards
+```
+
+That lock rejects the **honest** single-output spend. `pushTxCore` consumes the preimage copy it
+checks, so an assertion appended after the covenant body has nothing left to read; the flag has to
+be asserted while a copy is still on the stack. Both orderings produce a 428-byte script, so size
+gives no hint which one works. Failing to dismiss the helper is what established it was worth
+shipping: it is the correct ordering of a composition that an experienced caller gets wrong first.
+
+```js
+var lock = PushTx.valueCovenantSingle(pinnedOutput)   // or its 32-byte hashOutputs digest
+var g = PushTx.grind(spend, 0, lock, sats, { sighashType: PushTx.SIGHASH_SINGLE_FORKID })
+```
+
+It takes a `Transaction.Output` or the digest, defaults to `SIGHASH_SINGLE|FORKID`, accepts the
+`ANYONECANPAY` variant, and **throws rather than build a lock whose name would be a lie** if given
+a non-SINGLE flag.
+
+**It constrains ONE output and leaves every other output free.** Under `SIGHASH_SINGLE` the
+BIP-143 preimage's `hashOutputs` commits to the output at the spending input's index alone, so a
+spender may append anything further — including outputs that send the asset's satoshis elsewhere.
+A covenant pinning a 0-satoshi burn constrains the burn and nothing else. The proposing session
+reported this and I had not reproduced it; it is now measured here, and asserted in
+`test/smart_contract/single_output_covenant.js` so that changing the behaviour has to come past a
+test. That is the point of the flag for marketplace trades, and it is the wrong tool for binding
+where value goes — `valueCovenant` commits to every output under `SIGHASH_ALL`.
+
+
 ## [9.27.0] - 2026-10-08
 
 ### Fixed — selective disclosure committed over a non-injective encoding

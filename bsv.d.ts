@@ -1339,6 +1339,12 @@ declare module '@smartledger/bsv' {
             function extractHashOutputs(script: Script): Script;
             function hashOutputs(outputs: Transaction.Output[]): Buffer;
             function valueCovenant(expectedHashOutputs: Buffer): Script;
+            /**
+             * SIGHASH_SINGLE output covenant: binds the output at the spending input's own
+             * index and NOTHING else — a spender may append any further outputs, including
+             * ones that move the asset's satoshis. Use valueCovenant to bind every output.
+             */
+            function valueCovenantSingle(pinned: Transaction.Output | Buffer, opts?: { sighashType?: number }): Script;
             function sFromPreimage(preimage: Buffer): Buffer | null;
             /** Grind a malleable field until the in-script signature is canonical. Legacy: a bare number is maxTries. */
             function grind(spend: Transaction, inputIndex: number, lockingScript: Script, satoshis: number, opts?: GrindOpts | number): GrindResult;

@@ -1225,6 +1225,7 @@
   "bsv.SmartContract.PushTx.reverseBytes": "function(2)",
   "bsv.SmartContract.PushTx.sFromPreimage": "function(1)",
   "bsv.SmartContract.PushTx.valueCovenant": "function(1)",
+  "bsv.SmartContract.PushTx.valueCovenantSingle": "function(2)",
   "bsv.SmartContract.SIGHASH": "function(1)",
   "bsv.SmartContract.SIGHASH#analyze": "function(0)",
   "bsv.SmartContract.SIGHASH#checkCompliance": "function(1)",
