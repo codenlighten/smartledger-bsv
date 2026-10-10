@@ -23,6 +23,7 @@ require('chai').should()
 var bsv = require('../..')
 var Script = bsv.Script
 var PrivateKey = bsv.PrivateKey
+var Transaction = bsv.Transaction
 var PushTx = bsv.SmartContract.PushTx
 var help = bsv.SmartContract.CovenantHelpers
 
@@ -96,6 +97,70 @@ describe('valueCovenantSingle (SIGHASH_SINGLE output covenant)', function () {
     var r = spendWith(PushTx.valueCovenantSingle(pinned),
       [pinned, help.p2pkhOutput(attacker, 1)])
     r.ok.should.equal(true)
+  })
+
+  it('refuses an all-zero pin, which would pin nothing while looking like it pins', function () {
+    // Under SIGHASH_SINGLE, 32 zero bytes is not a digest: it is what BIP-143 puts in
+    // hashOutputs when the input's index is out of range, i.e. there is no output there.
+    // Measured before the guard existed: a lock pinned to zeros verified against a spend
+    // with NO outputs at all. Caught by an outside review of the API, not by these tests.
+    ;(function () { PushTx.valueCovenantSingle(Buffer.alloc(32)) }).should.throw(/all-zero pin/)
+  })
+
+  it('refuses an out-of-range index when a real output is pinned', function () {
+    var pinned = pinnedOutput()
+    var lock = PushTx.valueCovenantSingle(pinned)
+    var spend = help.fundAndSpend(lock, SATS, { outputs: [] }).spend
+    spend.outputs.length.should.equal(0)
+    var g = PushTx.grind(spend, 0, lock, SATS, { sighashType: SINGLE })
+    spend.inputs[0].setScript(new Script().add(g.preimage))
+    help.verify(spend.inputs[0].script, lock, { tx: spend, satoshis: SATS })
+      .ok.should.equal(false)
+  })
+
+  describe('it pins the output at the INPUT\'s index, not output 0', function () {
+    // The covenant reads hashOutputs out of its own preimage, and under SIGHASH_SINGLE that
+    // is the output sharing the spending input's index. Put the covenant at input 1 and the
+    // pinned output has to be at output 1. Worth asserting because "pins one output" is
+    // easy to read as "pins the first output".
+    var other = PrivateKey.fromRandom()
+
+    function spendAtIndexOne (lock, outputs) {
+      var fundA = new Transaction().addOutput(new Transaction.Output({
+        script: Script.buildPublicKeyHashOut(other.toAddress()), satoshis: 5000 }))
+      var fundB = new Transaction().addOutput(new Transaction.Output({
+        script: lock, satoshis: SATS }))
+      var spend = new Transaction()
+      spend.addInput(new Transaction.Input({
+        prevTxId: fundA.hash, outputIndex: 0, script: Script.empty()
+      }), Script.buildPublicKeyHashOut(other.toAddress()), 5000)
+      spend.addInput(new Transaction.Input({
+        prevTxId: fundB.hash, outputIndex: 0, script: Script.empty()
+      }), lock, SATS)
+      outputs.forEach(function (o) { spend.addOutput(o) })
+      var g = PushTx.grind(spend, 1, lock, SATS, { sighashType: SINGLE })
+      spend.inputs[1].setScript(new Script().add(g.preimage))
+      return help.verify(spend.inputs[1].script, lock,
+        { tx: spend, inputIndex: 1, satoshis: SATS })
+    }
+
+    it('accepts the pinned output at index 1 when the input is index 1', function () {
+      var pinned = pinnedOutput()
+      spendAtIndexOne(PushTx.valueCovenantSingle(pinned),
+        [help.p2pkhOutput(other, 4000), pinned]).ok.should.equal(true)
+    })
+
+    it('refuses the same output placed at index 0 instead', function () {
+      var pinned = pinnedOutput()
+      spendAtIndexOne(PushTx.valueCovenantSingle(pinned),
+        [pinned, help.p2pkhOutput(other, 4000)]).ok.should.equal(false)
+    })
+
+    it('refuses when there is no output at the input\'s index', function () {
+      var pinned = pinnedOutput()
+      spendAtIndexOne(PushTx.valueCovenantSingle(pinned),
+        [help.p2pkhOutput(other, 4000)]).ok.should.equal(false)
+    })
   })
 
   it('exists because the obvious composition fails the honest spend', function () {

@@ -35,6 +35,14 @@ It takes a `Transaction.Output` or the digest, defaults to `SIGHASH_SINGLE|FORKI
 `ANYONECANPAY` variant, and **throws rather than build a lock whose name would be a lie** if given
 a non-SINGLE flag.
 
+It pins the output at the **spending input's own index**, not output 0 — put the covenant at
+input 1 and the pinned output must be at output 1. An outside review of the API found one real
+hole in the first draft: **32 zero bytes is not a digest.** It is what BIP-143 puts in
+`hashOutputs` when the input's index is out of range for `SIGHASH_SINGLE`, so a lock pinned to
+it verified against a spend with **no outputs at all** — pinning nothing while looking like it
+pinned something. The constructor now refuses an all-zero pin, and the case is a test. A pin
+holding a real output already refused out-of-range spends.
+
 **It constrains ONE output and leaves every other output free.** Under `SIGHASH_SINGLE` the
 BIP-143 preimage's `hashOutputs` commits to the output at the spending input's index alone, so a
 spender may append anything further — including outputs that send the asset's satoshis elsewhere.
