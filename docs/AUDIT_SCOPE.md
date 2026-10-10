@@ -34,7 +34,7 @@ module sounds. That is a deliberate revision: an earlier version of this documen
 scoped Tier 1 as "the cryptographic core" and would have excluded four of the six real
 defects this codebase has produced. See §2.1.
 
-### Tier 1 — 12,700 lines
+### Tier 1 — 12,754 lines
 
 | Module | Lines | Why it matters |
 | --- | ---: | --- |
@@ -150,19 +150,23 @@ this repository.
 | `lib/address.js`, `lib/networks.js`, `lib/opcode.js`, `lib/hdprivatekey.js`, `lib/hdpublickey.js` (2,391 lines) | Cut to pay for §2.1 | Formatting, network constants and BIP-32 derivation. No defect has originated here, and `networks.js` in particular defines addressing constants — pubkey hashes, xpub prefixes, ports, DNS seeds — and contains **no consensus-flag logic at all**. |
 | The rest of the application layer — `lib/gdaf/`, `lib/ltp/`, `lib/ordinals/`, `lib/block/`, `lib/didweb/`, `lib/vcjwt/`, `lib/statuslist/`, most of `lib/smart_contract/`, plus assorted top-level files | Excluded | ~26,000 lines. Worth a separate engagement; including it here would blur the question in §1. Note the parts of it with a demonstrated defect history have been pulled *into* Tier 1 rather than left here — see §2.1. |
 
-Totals reconcile against `lib/`, which is 40,958 lines across 131 files:
+Totals reconcile against `lib/`, which is 41,012 lines across 131 files:
 
 ```
-tier 1      12,700
+tier 1      12,754
 tier 2       1,623
 excluded    26,635
             ------
-total       40,958
+total       41,012
 ```
 
-Measured 2026-08-29 at `a954c27`. These figures drift as the library changes — an
+Measured 2026-10-10 at `bb06e35`. These figures drift as the library changes — an
 earlier set was 445 lines light by the time it was read, most of it in
-`lib/script/interpreter.js`, which is priced against. **Re-run §7 immediately before
+`lib/script/interpreter.js`, which is priced against. `test/docs/audit_scope_figures.js` now recomputes all five figures and fails if this
+document disagrees with `lib/` or with itself — the enquiry text in §6 had drifted to a
+Tier 2 of 1,607 against the 1,623 in this table, which is exactly the failure this
+document exists to prevent, and §7 could not catch it because §7 reproduces the figures
+without checking the prose that quotes them. **Re-run §7 immediately before
 sending**, and update the date above with the commit measured.
 
 Core + optional = 12,854.
@@ -228,13 +232,13 @@ seeking a quote for an independent security review.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 12,700 lines. Sighash construction and signing; ECDSA, nonce
+  Tier 1 — 12,754 lines. Sighash construction and signing; ECDSA, nonce
   derivation and signature encoding; the consensus-flag and era-derivation
   surface of the script interpreter; BRC-220 signing and verification;
   key construction and serialisation; the covenant verification harness and
   the locking-script semantics built on it; RFC 8785 canonicalization.
 
-  Tier 2 — 1,607 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
+  Tier 2 — 1,623 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
   decoding surface.
 
 JavaScript (CommonJS), Node >= 20.19. The code is public.
