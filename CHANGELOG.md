@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.29.1] - 2026-10-11
+
+Error-name only. No outcome changes: every script that verified under 9.29.0 still verifies,
+and every script it refused is still refused. What changes is the reason reported on four
+operand shapes.
+
+### Fixed — the 9.29.0 guard ran one step too early in the node's order of checks
+
+The node's `CScriptNum` span constructor applies three checks **in order**:
+
+```
+1. span.size() > max_length          -> SCRIPT_ERR_SCRIPTNUM_OVERFLOW
+2. non-minimal encoding              -> SCRIPT_ERR_SCRIPTNUM_MINENCODE
+3. will not fit an int64             -> SCRIPT_ERR_SCRIPTNUM_OVERFLOW
+```
+
+9.29.0 placed the new int64 test **before** the bignum read, which performs 1 and 2. An
+operand that fails both 2 and 3 — non-minimal *and* wider than nine bytes — therefore reported
+`SCRIPTNUM_OVERFLOW` where the node reports `SCRIPTNUM_MINENCODE`. The same reject, for the
+wrong reason.
+
+Moved after the bignum read, so all three checks now fire in the node's order.
+
+Found hours after 9.29.0 shipped, by comparing error NAMES rather than accept/reject outcomes
+across the 24,568-row bsv-lean-proofs corpus: 4 rows differed, and the count fell from 484
+name mismatches to 480 with this change. An accept/reject comparison is structurally blind to
+it, which is the argument for comparing the reason as well as the verdict — the same point
+9.29.0 made about its own second vector.
+
+Pinned by a test asserting both directions: non-minimal and too wide reports MINENCODE,
+minimal and too wide reports OVERFLOW.
+
 ## [9.29.0] - 2026-10-11
 
 **A false accept in the interpreter.** A minor rather than a patch because consensus tracking
