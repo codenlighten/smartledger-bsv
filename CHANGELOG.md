@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.28.1] - 2026-10-11
+
+Three guards in `PushTx` that looked like validation and were not, plus a test that passed for
+the wrong reason. Nothing here changes a verdict on any script that was already being built
+correctly — two of the three were unreachable, and the third refuses input that never worked.
+
+Two came back from the TypeScript sibling, `@smartledger/bsv-core`, which had already found
+and fixed one of them; the third came from outside review of 9.28.0's new API. The same fixes
+landed in both libraries together so the two do not drift.
+
+### Fixed — the `s` buffer's size argument was silently ignored
+
+`sFromPreimage` ended with `s.toBuffer('be', 32)`. That is bn.js's **positional** signature,
+but `lib/crypto/bn.js` **replaces** `toBuffer` with an options-object form (`{ size, endian }`),
+so `'be'` became the whole opts object and `size` was never read. Measured: a small value came
+back as **one** byte, where `toBuffer({ size: 32 })` correctly gives 32.
+
+Two consequences, both silent. The guard beside it — `sBE[0] >= 0x01` — was **tautological**,
+because a natural-length big-endian buffer never carries a leading zero byte, so it could not
+be false and protected nothing. And a short `s` under `DER_PREFIX`, which declares `s` to be
+exactly `0x20` bytes, is a malformed signature.
+
+**Neither was reachable, for a reason that has nothing to do with buffer length.** The two
+filters above force `s` into `(Gx, n/2]`, and `Gx` is about `0.4766 * n`, so `s` is always
+`>= 2^255`, always 32 bytes, with a leading byte of `0x7a..0x7f`. That is why the bug never
+showed. Widen the minimal-`e` range or drop the low-S check and it becomes reachable — which
+is exactly what an in-script low-S normalisation does, leaving `s` uniform on `[0, n/2]` and a
+zero top byte about **1 time in 130**. A peer session building OP_PUSH_TX that way is the
+reason this was looked at at all. 20,000 probes confirm every accepted `s` is now 32 bytes.
+
+### Fixed — `valueCovenantSingle` accepted sighash words that build a dud lock
+
+The check was `(sighashType & 0x1f) !== Signature.SIGHASH_SINGLE`, a mask test, which admitted
+`0x03` (SIGHASH_SINGLE **without** FORKID) and anything carrying stray high bits. Those do not
+fail loudly: `pushTxCore`'s synthetic signature commits to the flag word, so the lock refuses
+the **honest** spend, at the same byte count — the exact class of silent mistake this helper
+exists to prevent.
+
+The sighash byte carries a base type in its low five bits plus `ANYONECANPAY` (0x80) and
+`FORKID` (0x40), so with SINGLE and FORKID both required there are exactly two legal words.
+They are now named rather than derived, and anything else is refused at construction with both
+of them in the message.
+
+### Fixed — the `Transaction.Output` discriminator was one duck-typed method
+
+`typeof pinned.toBufferWriter === 'function'` is satisfied by plenty of unrelated objects. It
+now also requires the two fields `hashOutputs` actually serialises. Deliberately **not**
+`instanceof Transaction.Output`: `lib/transaction` reaches this module through
+`lib/smart_contract`, so a runtime import would close a cycle.
+
+### Fixed — the covenant test depended on another test file raising the Genesis limits
+
+OP_PUSH_TX needs post-Genesis limits, because the preimage push exceeds the 520-byte
+pre-Genesis element cap. `test/smart_contract/single_output_covenant.js` never asked for them:
+it passed only because `covenants.js` sorts earlier and happens to call `useGenesisLimits()`
+first. That is an ordering dependency, not a fixture.
+
+It now saves `Interpreter.getLimits()` in a `before` and restores it in an `after`. The caps
+are **process-wide statics**, so the pair matters in both directions — in the sibling repo,
+leaving them raised turned two pre-Genesis consensus fixtures into false accepts, in files that
+had not been touched.
+
 ## [9.28.0] - 2026-10-10
 
 ### Added — `PushTx.valueCovenantSingle`, an output covenant under SIGHASH_SINGLE
