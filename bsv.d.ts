@@ -496,7 +496,12 @@ declare module '@smartledger/bsv' {
             pbegincodehash: number;
             nOpCount: number;
             vfExec: boolean[];
-            /** The node's error code for the last failure, or '' if none. */
+            /**
+             * The error code for the last failure, or '' if none. Mostly the node's
+             * `script_error.h` name, but eight are this library's own — four deliberately
+             * finer than the node's single `SCRIPT_ERR_EVAL_FALSE`, four differing only in
+             * spelling. Read `nodeErrstr` for the node's name.
+             */
             errstr: string;
             flags: number;
             script?: Script;
@@ -541,6 +546,14 @@ declare module '@smartledger/bsv' {
             isAfterGenesis(): boolean;
             isAfterChronicle(): boolean;
             /**
+             * `errstr` in the node's `script_error.h` spelling. A derived read, not a mode:
+             * nothing to set and nothing to restore, and `errstr` itself is untouched.
+             *
+             *   interp.errstr      'SCRIPT_ERR_EVAL_FALSE_NO_RESULT'
+             *   interp.nodeErrstr  'SCRIPT_ERR_EVAL_FALSE'
+             */
+            readonly nodeErrstr: string;
+            /**
              * False where Chronicle applies and the spending transaction's version is
              * above 1, which is how a transaction opts into malleability. LOW_S,
              * MINIMALDATA, MINIMALIF, NULLFAIL, NULLDUMMY, SIGPUSHONLY and CLEANSTACK
@@ -582,6 +595,17 @@ declare module '@smartledger/bsv' {
              * yields a validator stricter than consensus.
              */
             mainnetFlags(opts?: { afterChronicle?: boolean }): number;
+            /**
+             * This library's error names mapped to the node's `script_error.h` names. Eight
+             * entries: four where this library is deliberately finer than the node's single
+             * `SCRIPT_ERR_EVAL_FALSE`, and four that differ only in spelling.
+             */
+            NODE_ERROR_NAMES: { [ours: string]: string };
+            /**
+             * Translate an `errstr` to the node's spelling. A name the node shares is returned
+             * unchanged, so this is safe to apply to any string.
+             */
+            toNodeErrorName(name: string): string;
             /**
              * What `verify()` uses when given no flags. Every bit here is also in
              * `mainnetFlags()`; a test asserts that, because the two drifting apart

@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.31.0] - 2026-10-11
+
+Additive. No behaviour changes: `errstr` is untouched and every script verifies exactly as it
+did in 9.30.0.
+
+### Added — `nodeErrstr`, `Interpreter.toNodeErrorName()` and `Interpreter.NODE_ERROR_NAMES`
+
+This library's error names are mostly the node's, spelled identically. Eight are not, and
+until now every caller comparing a verdict against a node — or against a corpus recording
+node names — had to work that out for themselves.
+
+Four are **deliberately finer** than the node's. `script_error.h` has one
+`SCRIPT_ERR_EVAL_FALSE`; this library distinguishes four authoring mistakes, and telling a
+developer which one they made is worth more than matching a C++ enum:
+
+```
+SCRIPT_ERR_EVAL_FALSE_IN_STACK        SCRIPT_ERR_EVAL_FALSE_IN_P2SH_STACK
+SCRIPT_ERR_EVAL_FALSE_NO_RESULT       SCRIPT_ERR_EVAL_FALSE_NO_P2SH_STACK
+```
+
+The other four differ only in spelling, with no intent behind it, and are kept because
+changing `errstr` breaks anyone matching on it. Each was confirmed at its emit site rather
+than matched by name — ours fire on the NULLFAIL flag, the LOW_S check, the DER-format check,
+and a chunk carrying no opcode, which is the node's `GetOp` failure:
+
+```
+SCRIPT_ERR_NULLFAIL                -> SCRIPT_ERR_SIG_NULLFAIL
+SCRIPT_ERR_SIG_DER_HIGH_S          -> SCRIPT_ERR_SIG_HIGH_S
+SCRIPT_ERR_SIG_DER_INVALID_FORMAT  -> SCRIPT_ERR_SIG_DER
+SCRIPT_ERR_UNDEFINED_OPCODE        -> SCRIPT_ERR_BAD_OPCODE
+```
+
+```js
+var interp = new bsv.Script.Interpreter()
+interp.verify(unlock, lock, tx, 0, flags, satoshis)
+interp.errstr      // 'SCRIPT_ERR_EVAL_FALSE_NO_RESULT'  — what went wrong, precisely
+interp.nodeErrstr  // 'SCRIPT_ERR_EVAL_FALSE'            — what the node would call it
+```
+
+**A derived read, not a mode.** There is no switch to set and nothing to restore. A settable
+"strict names" flag would have been state that changes what a later caller sees, which is the
+shape of mistake the limits statics already make easy here; `nodeErrstr` is a getter and
+`errstr` is never modified. `Interpreter.toNodeErrorName()` is the same translation as a pure
+function, safe on any string: a name the node shares comes back unchanged.
+
+### Why, and what it closed
+
+A conformance replay of the 24,568-row bsv-lean-proofs corpus — whose expectations are
+`script_error.h` names, validated against a compiled bitcoin-sv v1.2.3 — reported 456
+error-name mismatches on rows where the verdict already agreed. Every one was the EVAL_FALSE
+granularity. Nothing was wrong on either side; the comparison had no mapping to apply.
+
+Reading `nodeErrstr` instead of `errstr`:
+
+```
+                        errstr        nodeErrstr
+rows where both reject   21,978          21,978
+name agrees              21,522          21,978
+name differs                456               0
+```
+
+With 9.30.0's 24,568 of 24,568 outcome agreement, this library now matches that corpus on
+**every verdict and every reason**.
+
+### The guard that keeps the mapping true
+
+`test/script/node_error_names.js` scans `lib/script/interpreter.js` for every
+`'SCRIPT_ERR_*'` literal it can assign to `errstr` and fails if any of them neither appears in
+`script_error.h` nor has a mapping. Adding a novel error name without deciding what the node
+calls it now breaks the build. It also asserts the mapping has no dead entries and that every
+target really exists in the header — a mapping to a plausible-looking name the node lacks
+would otherwise pass unnoticed.
+
 ## [9.30.0] - 2026-10-11
 
 **A consensus change, and it refuses scripts 9.29.x accepted.** A minor rather than a major
