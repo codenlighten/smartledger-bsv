@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.29.2] - 2026-10-11
+
+Error-name only, like 9.29.1. No outcome changes: the same scripts verify and the same scripts
+are refused.
+
+### Fixed — an undecodable push was reported as MINIMALDATA, or not noticed at all
+
+A push declaring more bytes than the script carries is a **decode** failure, and the node
+discovers it while reading the instruction, above every per-instruction check:
+
+```cpp
+if (!script.GetOp(pc, opcode, vchPushValue))
+    return SCRIPT_ERR_BAD_OPCODE;          // interpreter.cpp:450-451
+```
+
+That sits above the push-size, op-count, disabled-opcode and minimal-push checks, and above
+the `fExec` logic entirely. This library had the check but in the wrong place twice over —
+inside `if (fExec && isPush)` and *after* the minimal-push test — so:
+
+- a truncated push that was also a non-minimal push reported `MINIMALDATA`;
+- a truncated push inside a branch that never executes was skipped altogether, and the script
+  ran on to the end to report `UNBALANCED_CONDITIONAL`, or whatever else came first.
+
+Hoisted to instruction-read time and made unconditional.
+
+Found by replaying the 24,568-row bsv-lean-proofs corpus and comparing **error names** on rows
+where the verdict already agreed. 24 rows differed; the `bsv-lean-proofs-public-3f` session
+then replayed all 3,835 `BAD_OPCODE` rows through a compiled bitcoin-sv v1.2.3 oracle (3,835
+agree, 0 differ), which established that the node and their model were right and this library
+was wrong. Name mismatches fell from 480 to 456.
+
+**The 456 that remain are not a disagreement.** They are rows where the node reports its single
+`SCRIPT_ERR_EVAL_FALSE` and this library reports one of two finer codes,
+`EVAL_FALSE_IN_STACK` or `EVAL_FALSE_NO_RESULT`, because the two are different authoring
+mistakes. Confirmed against `script_error.h` at v1.2.3, which has exactly one `EVAL_FALSE`.
+The mapping for anyone comparing against node names is
+`{EVAL_FALSE_IN_STACK, EVAL_FALSE_NO_RESULT} -> EVAL_FALSE`.
+
+So after 9.29.0, 9.29.1 and this release, the library agrees with that corpus on every row and
+every reason, apart from reporting a strict superset of one code.
+
 ## [9.29.1] - 2026-10-11
 
 Error-name only. No outcome changes: every script that verified under 9.29.0 still verifies,

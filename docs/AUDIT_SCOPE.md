@@ -34,7 +34,7 @@ module sounds. That is a deliberate revision: an earlier version of this documen
 scoped Tier 1 as "the cryptographic core" and would have excluded four of the six real
 defects this codebase has produced. See §2.1.
 
-### Tier 1 — 12,889 lines
+### Tier 1 — 12,901 lines
 
 | Module | Lines | Why it matters |
 | --- | ---: | --- |
@@ -150,14 +150,14 @@ this repository.
 | `lib/address.js`, `lib/networks.js`, `lib/opcode.js`, `lib/hdprivatekey.js`, `lib/hdpublickey.js` (2,391 lines) | Cut to pay for §2.1 | Formatting, network constants and BIP-32 derivation. No defect has originated here, and `networks.js` in particular defines addressing constants — pubkey hashes, xpub prefixes, ports, DNS seeds — and contains **no consensus-flag logic at all**. |
 | The rest of the application layer — `lib/gdaf/`, `lib/ltp/`, `lib/ordinals/`, `lib/block/`, `lib/didweb/`, `lib/vcjwt/`, `lib/statuslist/`, most of `lib/smart_contract/`, plus assorted top-level files | Excluded | ~26,000 lines. Worth a separate engagement; including it here would blur the question in §1. Note the parts of it with a demonstrated defect history have been pulled *into* Tier 1 rather than left here — see §2.1. |
 
-Totals reconcile against `lib/`, which is 41,147 lines across 131 files:
+Totals reconcile against `lib/`, which is 41,159 lines across 131 files:
 
 ```
-tier 1      12,889
+tier 1      12,901
 tier 2       1,623
 excluded    26,635
             ------
-total       41,147
+total       41,159
 ```
 
 Measured 2026-10-11 at `0a33657`. These figures drift as the library changes — an
@@ -232,7 +232,7 @@ seeking a quote for an independent security review.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 12,889 lines. Sighash construction and signing; ECDSA, nonce
+  Tier 1 — 12,901 lines. Sighash construction and signing; ECDSA, nonce
   derivation and signature encoding; the consensus-flag and era-derivation
   surface of the script interpreter; BRC-220 signing and verification;
   key construction and serialisation; the covenant verification harness and
