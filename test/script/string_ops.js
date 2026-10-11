@@ -85,4 +85,106 @@ describe('String opcodes OP_SUBSTR / OP_LEFT / OP_RIGHT', function () {
     var lock = new Script().add(Opcode.OP_LEFT) // nothing to operate on
     interp.verify(new Script(), lock, new Transaction(), 0, CHRONICLE).should.equal(false)
   })
+
+  describe('the length operand is an int64, not a big number', function () {
+    // The node builds these operands with CScriptNum's span constructor and does NOT pass
+    // `big_int`, which DEFAULTS TO FALSE (src/script/script_num.h):
+    //
+    //   CScriptNum bn_len{stack.stacktop(-1).GetElement(), requireMinimal, params.MaxScriptNumLength()};
+    //
+    // so the value must survive `bsv::deserialize<int64_t>` and the constructor throws
+    // SCRIPT_ERR_SCRIPTNUM_OVERFLOW when it will not. `MaxScriptNumLength()` is therefore not
+    // the only bound: post-Chronicle it is 32,000,000, and a 600-byte operand clears that and
+    // still overflows. The rule is on the ENCODED LENGTH, not the value.
+    //
+    // This library used to read them as big numbers bounded only by maxScriptNumLength(), and
+    // ACCEPTED a script a compiled node rejects — `script-20261008-14051` from the
+    // bsv-lean-proofs corpus, an OP_RIGHT whose length operand was a 600-byte push of zeros.
+    // A false accept. The asymmetry is the node's and it is deliberate: OP_SPLIT and
+    // OP_NUM2BIN DO pass `utxo_after_genesis` as `big_int`, so they take big numbers after
+    // Genesis, while these three string opcodes take an int64 in every era.
+    //
+    // The whole post-Chronicle era, so these cases do not depend on how
+    // SCRIPT_ENABLE_CHRONICLE is treated.
+    var ERA = Interpreter.SCRIPT_UTXO_AFTER_GENESIS |
+              Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE |
+              Interpreter.SCRIPT_ENABLE_CHRONICLE
+
+    // `<data> <operand> <op>` — the operand is pushed as raw bytes, not as a number, so the
+    // encoded width is exactly what the test intends.
+    function withOperand (opcode, operandBuf) {
+      var lock = new Script().add(Buffer.from('aabbccdd', 'hex')).add(operandBuf).add(opcode)
+      var interp = new Interpreter()
+      interp.verify(new Script(), lock, new Transaction(), 0, ERA)
+      return interp.errstr || ''
+    }
+
+    it('overflows on an operand wider than 9 bytes, whatever its value', function () {
+      // 600 bytes of zeros is numerically 0. The node still overflows, because
+      // `if(d > n + 1) return {}` tests the span's SIZE.
+      withOperand(Opcode.OP_RIGHT, Buffer.alloc(600))
+        .should.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW')
+      withOperand(Opcode.OP_LEFT, Buffer.alloc(600))
+        .should.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW')
+      // 10 bytes is the first width that cannot be an int64.
+      withOperand(Opcode.OP_RIGHT, Buffer.alloc(10))
+        .should.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW')
+    })
+
+    it('overflows on the 11-byte operand a compiled node rejects', function () {
+      // `script-20261008-22371`, reduced: 11 bytes, so > 9. This library used to reject it
+      // too, but as INVALID_NUMBER_RANGE — the right answer for the wrong reason, which an
+      // accept/reject comparison cannot see.
+      withOperand(Opcode.OP_RIGHT, Buffer.from('0100000000000000000080', 'hex'))
+        .should.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW')
+    })
+
+    it('accepts 9 bytes only when the top byte carries nothing but the sign', function () {
+      // `if(d == n + 1 && (s.back() & 0x7f) != 0) return {}`. A 9-byte operand whose last
+      // byte is 0x00 or 0x80 is a sign extension of an 8-byte value; anything else overflows.
+      var signOnly = Buffer.concat([Buffer.alloc(8), Buffer.from([0x00])])
+      withOperand(Opcode.OP_RIGHT, signOnly).should.not.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW')
+      var dataInTop = Buffer.concat([Buffer.alloc(8), Buffer.from([0x01])])
+      withOperand(Opcode.OP_RIGHT, dataInTop).should.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW')
+    })
+
+    it('rejects a 9-byte operand whose low 8 bytes are a negative int64', function () {
+      // For d == 9 the node reads bytes 0..7 as a two's-complement int64 and then
+      // `if(result < 0) return {}`, with INT64_MIN allowed only when the sign byte is set.
+      var negative = Buffer.concat([Buffer.alloc(7), Buffer.from([0x80]), Buffer.from([0x00])])
+      withOperand(Opcode.OP_RIGHT, negative).should.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW')
+      // INT64_MIN with the sign byte set is the one permitted 9-byte negative.
+      var int64min = Buffer.concat([Buffer.alloc(7), Buffer.from([0x80]), Buffer.from([0x80])])
+      withOperand(Opcode.OP_RIGHT, int64min).should.not.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW')
+    })
+
+    it('still takes an ordinary operand, so the bound did not swallow the honest case', function () {
+      var lock = new Script().add(Buffer.from('aabbccdd', 'hex')).add(Opcode.OP_2)
+        .add(Opcode.OP_RIGHT).add(Buffer.from('ccdd', 'hex')).add(Opcode.OP_EQUAL)
+      var interp = new Interpreter()
+      interp.verify(new Script(), lock, new Transaction(), 0, ERA).should.equal(true)
+    })
+
+    it('bounds both of OP_SUBSTR\'s operands, the length one first', function () {
+      // The node constructs bn_len from stacktop(-1) before bn_begin from stacktop(-2), so
+      // when both are too wide the length operand is the one that reports.
+      var wide = Buffer.alloc(12)
+      var lock = new Script().add(Buffer.from('aabbccdd', 'hex')).add(wide).add(wide)
+        .add(Opcode.OP_SUBSTR)
+      var interp = new Interpreter()
+      interp.verify(new Script(), lock, new Transaction(), 0, ERA)
+      interp.errstr.should.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW')
+    })
+
+    it('leaves OP_SPLIT and OP_NUM2BIN on big numbers, as the node does', function () {
+      // The contrast that makes the rule above a rule and not a guess: these two pass
+      // `utxo_after_genesis` as `big_int`, so a wide operand is a RANGE question for them,
+      // never an overflow.
+      var lock = new Script().add(Buffer.from('aabbccdd', 'hex')).add(Buffer.alloc(12))
+        .add(Opcode.OP_SPLIT)
+      var interp = new Interpreter()
+      interp.verify(new Script(), lock, new Transaction(), 0, ERA)
+      interp.errstr.should.not.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW')
+    })
+  })
 })

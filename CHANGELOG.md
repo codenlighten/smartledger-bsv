@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.29.0] - 2026-10-11
+
+**A false accept in the interpreter.** A minor rather than a patch because consensus tracking
+overrides the versioning policy (see **Consensus tracking** in STABILITY.md): scripts that
+verified under 9.28.1 and earlier are refused here, and they were never valid on the network.
+
+### Fixed — OP_LEFT / OP_RIGHT / OP_SUBSTR accepted an operand the network rejects
+
+The length and offset operands of the Chronicle string opcodes were read as big numbers
+bounded only by `maxScriptNumLength()`. Post-Chronicle that is 32,000,000, so a 600-byte
+operand passed. The node rejects it with `SCRIPT_ERR_SCRIPTNUM_OVERFLOW`.
+
+`MaxScriptNumLength()` is not the only bound. `CScriptNum`'s span constructor takes a fourth
+argument, `big_int`, which **defaults to false** (`src/script/script_num.h`):
+
+```cpp
+explicit CScriptNum(std::span<const uint8_t>, min_encoding_check,
+                    size_t max_length = MAXIMUM_ELEMENT_SIZE, bool big_int = false);
+```
+
+and when it is false the value must survive `bsv::deserialize<int64_t>`, or the constructor
+throws:
+
+```cpp
+else if(const auto v{bsv::deserialize<int64_t>(span)}) m_value = *v;
+else throw scriptnum_overflow_error("script number overflow");
+```
+
+`deserialize<int64_t>` (`src/script/int_serialization.h`) tests the **encoded length, not the
+value**: more than 9 bytes always fails, and at exactly 9 the top byte must carry nothing but
+the sign. So an all-zero 600-byte operand is numerically 0 and still overflows.
+
+Which opcodes this applies to is a deliberate asymmetry in the node, and porting "the same as
+the neighbouring opcodes" is what produced this bug:
+
+```
+OP_SPLIT, OP_NUM2BIN          CScriptNum{..., MaxScriptNumLength(), utxo_after_genesis}
+                              -> big number after Genesis. Unchanged here; it was correct.
+OP_SUBSTR, OP_LEFT, OP_RIGHT  CScriptNum{..., MaxScriptNumLength()}   // big_int omitted
+                              -> int64, in every era, post-Chronicle included. Fixed.
+OP_CHECKMULTISIG counts       CScriptNum{..., CScriptNum::MAXIMUM_ELEMENT_SIZE}
+                              -> 4 bytes. Already correct.
+```
+
+Found by a vector from the bsv-lean-proofs corpus (`script-20261008-14051`, flags `0x3d66ef`,
+transaction version 2, coin era after-chronicle): an `OP_RIGHT` whose length operand is a
+600-byte push of zeros, which a compiled bitcoin-sv v1.2.3 rejects and this library accepted.
+A second row (`...-22371`, an 11-byte operand) was rejected here already, but as
+`SCRIPT_ERR_INVALID_NUMBER_RANGE` — the right outcome for the wrong reason, which an
+accept/reject comparison cannot detect. Both now report the node's code.
+
+**Our own conformance corpus could not have caught this.** All 22 of its `SCRIPTNUM_OVERFLOW`
+rows are pre-Genesis, where the 4-byte bound rejects such an operand long before the int64
+rule is reached. The gap was in the corpus, not only in the code — which is the argument for
+judging against vectors we did not generate.
+
+Seven regression tests in `test/script/string_ops.js`, including the two reduced vectors, the
+9-byte sign-only boundary in both directions, and the `OP_SPLIT` contrast that makes the rule
+a rule rather than a guess. Five of the seven were confirmed to FAIL with the new guard
+disabled; the other two are the honest-operand case and the `OP_SPLIT` contrast, which must
+pass either way.
+
 ## [9.28.1] - 2026-10-11
 
 Three guards in `PushTx` that looked like validation and were not, plus a test that passed for
