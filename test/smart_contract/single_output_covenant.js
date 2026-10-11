@@ -1,6 +1,6 @@
 'use strict'
 
-/* global describe, it */
+/* global describe, it, before, after */
 
 // valueCovenantSingle: an output covenant under SIGHASH_SINGLE.
 //
@@ -26,12 +26,27 @@ var PrivateKey = bsv.PrivateKey
 var Transaction = bsv.Transaction
 var PushTx = bsv.SmartContract.PushTx
 var help = bsv.SmartContract.CovenantHelpers
+var Interpreter = bsv.Script.Interpreter
 
 var SATS = 100000
 var SINGLE = PushTx.SIGHASH_SINGLE_FORKID
 
 describe('valueCovenantSingle (SIGHASH_SINGLE output covenant)', function () {
   this.timeout(20000)
+
+  // OP_PUSH_TX needs post-Genesis limits: the preimage push exceeds the 520-byte pre-Genesis
+  // element cap. Until now this file never asked for them — it passed only because
+  // covenants.js sorts earlier and happens to call useGenesisLimits() first, which is an
+  // ordering dependency, not a fixture. The caps are PROCESS-WIDE statics, so the pair also
+  // keeps this file from changing the rules for whatever runs after it: leaving them raised
+  // in the sibling repo turned two pre-Genesis consensus fixtures into false accepts, in
+  // files that had not been touched.
+  var savedLimits
+  before(function () {
+    savedLimits = Interpreter.getLimits()
+    Interpreter.useGenesisLimits()
+  })
+  after(function () { Interpreter.setLimits(savedLimits) })
 
   var beneficiary = PrivateKey.fromRandom()
   var attacker = PrivateKey.fromRandom()
@@ -82,10 +97,41 @@ describe('valueCovenantSingle (SIGHASH_SINGLE output covenant)', function () {
     var pinned = pinnedOutput()
     ;(function () {
       PushTx.valueCovenantSingle(pinned, { sighashType: PushTx.SIGHASH_ALL_FORKID })
-    }).should.throw(/SIGHASH_SINGLE variant/)
+    }).should.throw(/needs SIGHASH_SINGLE\|FORKID/)
     ;(function () { PushTx.valueCovenantSingle(Buffer.alloc(31)) }).should.throw(/32-byte/)
     ;(function () { PushTx.valueCovenantSingle('deadbeef') }).should.throw(/32-byte/)
     ;(function () { PushTx.valueCovenantSingle() }).should.throw(/32-byte/)
+  })
+
+  it('accepts only the two legal SIGHASH_SINGLE words, not a mask match', function () {
+    // The guard used to be `(sighashType & 0x1f) !== SIGHASH_SINGLE`, which let through
+    // 0x03 (SINGLE without FORKID) and anything carrying stray high bits. Neither fails
+    // loudly: pushTxCore's synthetic signature commits to the flag word, so the lock just
+    // refuses the honest spend, at the same byte count. Outside review found this; the
+    // mask test is the kind of check that looks like validation and is not.
+    var pinned = pinnedOutput()
+    PushTx.valueCovenantSingle(pinned, { sighashType: SINGLE })
+      .toHex().should.equal(PushTx.valueCovenantSingle(pinned).toHex())
+    PushTx.valueCovenantSingle(pinned,
+      { sighashType: PushTx.SIGHASH_SINGLE_ANYONECANPAY_FORKID }).toBuffer().length.should.be.above(0)
+    ;[0x03, 0x83, 0x143, 0x43 | 0x100, -1, 0, null, '0x43'].forEach(function (bad) {
+      ;(function () {
+        PushTx.valueCovenantSingle(pinned, { sighashType: bad })
+      }).should.throw(/needs SIGHASH_SINGLE\|FORKID/, 'accepted sighashType ' + String(bad))
+    })
+  })
+
+  it('refuses an object that merely has toBufferWriter', function () {
+    // `typeof pinned.toBufferWriter === 'function'` alone is a weak discriminator — many
+    // unrelated objects carry one — so the two fields hashOutputs actually serialises are
+    // required as well. Not `instanceof Transaction.Output`: lib/transaction reaches this
+    // module through lib/smart_contract, so importing it here would close a cycle.
+    ;(function () {
+      PushTx.valueCovenantSingle({ toBufferWriter: function () {} })
+    }).should.throw(/with script and satoshis/)
+    ;(function () {
+      PushTx.valueCovenantSingle({ toBufferWriter: function () {}, script: new Script() })
+    }).should.throw(/with script and satoshis/)
   })
 
   it('constrains ONE output and leaves the rest free — the documented hazard', function () {
