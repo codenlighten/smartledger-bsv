@@ -7,6 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.30.0] - 2026-10-11
+
+**A consensus change, and it refuses scripts 9.29.x accepted.** A minor rather than a major
+because consensus tracking overrides the versioning policy (STABILITY.md, **Consensus
+tracking**): the scripts this now refuses were never valid on the network.
+
+### Fixed — the Chronicle opcodes followed the BLOCK's era instead of the OUTPUT's
+
+`isAfterChronicle()` accepted either `SCRIPT_UTXO_AFTER_CHRONICLE` or
+`SCRIPT_ENABLE_CHRONICLE`. Those are different eras, and the node never conflates them:
+
+```
+SCRIPT_CHRONICLE (bit 20)             era of the BLOCK being built. Gates the malleability
+  == SCRIPT_ENABLE_CHRONICLE          relaxations, via EnforceNonMalleability.
+SCRIPT_UTXO_AFTER_CHRONICLE (bit 21)  era of the OUTPUT being spent. Gates the restored
+                                      opcodes and the per-era limits.
+```
+
+`IsUtxoAfterChronicle(flags)` alone is what the node tests, at every one of the eight sites
+that gate a Chronicle opcode (interpreter.cpp v1.2.3: OP_2MUL/OP_2DIV L417, OP_VER L600,
+OP_SUBSTR L611, OP_LEFT L644, OP_RIGHT L669, OP_LSHIFTNUM L694, OP_RSHIFTNUM L730,
+OP_VERIF/OP_VERNOTIF L775), and it is what derives `utxoEra`, hence `MaxScriptNumLength`.
+
+Accepting bit 20 made the restored opcodes **live when spending a pre-Chronicle output in a
+post-Chronicle block** — the ordinary mainnet case today, since almost every UTXO predates
+Chronicle. Worse, it is exactly the combination a correct caller must express: bit 20 is
+required for the malleability relaxations while bit 21 must stay clear for a pre-Chronicle
+output. The node treats those bytes as upgradable NOPs there; this library executed them.
+
+The previous behaviour was a deliberate compatibility choice — the old comment said "either
+enables them, so existing callers are unaffected" — and it cost consensus fidelity to keep.
+
+**Measured against 24,568 node-validated rows of the bsv-lean-proofs corpus: the old reading
+disagreed on 571 of them (487 false accepts, 84 false rejects); this one on none.**
+
+```
+                      9.29.2                 9.30.0
+outcome agreement      23,997  97.676%        24,568  100.000%
+false accepts             487                      0
+false rejects              84                      0
+```
+
+#### What a caller must change
+
+`mainnetFlags()` sets both bits, so **the default path is unchanged** and most callers need do
+nothing. If you passed `SCRIPT_ENABLE_CHRONICLE` on its own to reach the Chronicle opcodes,
+add the output-era flags:
+
+```js
+// before — worked by accident
+var flags = Interpreter.SCRIPT_ENABLE_CHRONICLE
+
+// after — the era of the output being spent
+var flags = Interpreter.SCRIPT_UTXO_AFTER_GENESIS |
+            Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE |
+            Interpreter.SCRIPT_ENABLE_CHRONICLE
+```
+
+`SCRIPT_UTXO_AFTER_CHRONICLE` requires `SCRIPT_UTXO_AFTER_GENESIS`; the node returns
+`SCRIPT_ERR_INVALID_FLAGS` otherwise and so does this library.
+
+#### And one combination that could not be expressed before
+
+A post-Chronicle block spending a pre-Chronicle output is now writable, and correct:
+
+```js
+var flags = Interpreter.mainnetFlags() & ~Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE
+// relaxations still follow bit 20 and the transaction version; the opcodes are NOPs
+```
+
+Note `mainnetFlags({ afterChronicle: false })` clears **both** bits, which is the
+everything-pre-Chronicle case, not this one.
+
+### Verification
+
+The conformance corpus **was not regenerated.** Its Chronicle suite passed bit 20 alone, so 17
+of its 452 cases changed; giving the suite the era word it should always have had reproduces
+every frozen value exactly. That is the evidence this release touched the era gating and
+nothing else — a regenerated fixture would have proved nothing, which is why
+`conformance/generate.js` demands `--force`.
+
+452 of 452 conformance cases match, 5,365 tests pass, and the two new cases in
+`test/script/chronicle.js` were confirmed to fail against the old predicate.
+
 ## [9.29.2] - 2026-10-11
 
 Error-name only, like 9.29.1. No outcome changes: the same scripts verify and the same scripts

@@ -118,7 +118,16 @@ function runChronicle (bsv, build, version) {
   build(script, bsv.Opcode, bsv)
   let verified
   try {
-    verified = i.verify(new bsv.Script(), script, tx, 0, I.SCRIPT_ENABLE_CHRONICLE, new bsv.crypto.BN(0))
+    // The POST-CHRONICLE ERA, not SCRIPT_ENABLE_CHRONICLE alone. The restored opcodes gate on
+    // `utxo_after_chronicle` — the era of the OUTPUT being spent — while bit 20 is the era of
+    // the BLOCK. This suite passed bit 20 alone and the opcodes ran, because the interpreter
+    // accepted either bit; once it stopped (9.30.0) all 17 Chronicle cases here became NOPs.
+    // The FIXTURES ARE UNCHANGED: giving the suite the era word it should always have had
+    // reproduces every frozen value, which is what shows the fix touched the era gating and
+    // nothing else.
+    const era = I.SCRIPT_UTXO_AFTER_GENESIS | I.SCRIPT_UTXO_AFTER_CHRONICLE |
+      I.SCRIPT_ENABLE_CHRONICLE
+    verified = i.verify(new bsv.Script(), script, tx, 0, era, new bsv.crypto.BN(0))
   } catch (err) {
     return { threw: err.name + ': ' + err.message }
   }
@@ -572,7 +581,12 @@ const cases = {
     return {
       off: at(0),
       discouraged: at(I.SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS),
-      on: at(I.SCRIPT_ENABLE_CHRONICLE)
+      // `on` means the OUTPUT being spent is post-Chronicle, which is what the node gates
+      // these opcodes on. It was written as bit 20, the BLOCK era, and worked only because the
+      // interpreter accepted either. The recorded VALUE is unchanged — the opcodes still
+      // execute — so this fixture is reproduced, not regenerated.
+      on: at(I.SCRIPT_UTXO_AFTER_GENESIS | I.SCRIPT_UTXO_AFTER_CHRONICLE |
+        I.SCRIPT_ENABLE_CHRONICLE)
     }
   },
 

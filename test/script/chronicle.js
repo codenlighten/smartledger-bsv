@@ -21,6 +21,15 @@ var Signature = bsv.crypto.Signature
 
 var CHRONICLE = Interpreter.SCRIPT_ENABLE_CHRONICLE
 
+// The POST-CHRONICLE ERA, which is what makes the restored opcodes live. SCRIPT_ENABLE_CHRONICLE
+// on its own does NOT: it is the era of the BLOCK, and the node gates every restored opcode on
+// `utxo_after_chronicle`, the era of the OUTPUT BEING SPENT. This file used to pass bit 20 alone
+// and the opcodes ran, which is the permissiveness 9.30.0 removed. `CHRONICLE` is kept for the
+// assertions that are about the BIT rather than about behaviour.
+var ERA = Interpreter.SCRIPT_UTXO_AFTER_GENESIS |
+          Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE |
+          Interpreter.SCRIPT_ENABLE_CHRONICLE
+
 /** Evaluate `build`ed script against a tx of `version`, returning the outcome. */
 function run (build, opts) {
   opts = opts || {}
@@ -30,7 +39,7 @@ function run (build, opts) {
   build(script)
   var interp = new Interpreter()
   var verified = interp.verify(
-    new Script(), script, tx, 0, opts.flags == null ? CHRONICLE : opts.flags, new BN(0)
+    new Script(), script, tx, 0, opts.flags == null ? ERA : opts.flags, new BN(0)
   )
   return {
     verified: verified,
@@ -94,6 +103,50 @@ describe('Chronicle script surface', function () {
       (Interpreter.mainnetFlags() & CHRONICLE).should.not.equal(0)
       ;(Interpreter.mainnetFlags({ afterChronicle: false }) & CHRONICLE).should.equal(0)
       Interpreter.CHRONICLE_ACTIVATION_HEIGHT.should.equal(943816)
+    })
+
+    it('needs the UTXO era, not the block era: bit 20 alone enables nothing', function () {
+      // The node gates every restored Chronicle opcode on `utxo_after_chronicle` — the era of
+      // the OUTPUT BEING SPENT — at all eight sites (interpreter.cpp v1.2.3: OP_2MUL/OP_2DIV
+      // L417, OP_VER L600, OP_SUBSTR L611, OP_LEFT L644, OP_RIGHT L669, OP_LSHIFTNUM L694,
+      // OP_RSHIFTNUM L730, OP_VERIF/OP_VERNOTIF L775). SCRIPT_ENABLE_CHRONICLE is bit 20, the
+      // era of the BLOCK, and gates the malleability relaxations instead.
+      //
+      // Until 9.30.0 this library accepted either bit, which made the opcodes live when
+      // spending a PRE-Chronicle output in a POST-Chronicle block — the ordinary mainnet case,
+      // and exactly the combination a correct caller must express, because bit 20 is required
+      // for the relaxations while bit 21 must stay clear for a pre-Chronicle output. Measured
+      // against 24,568 node-validated corpus rows, the old reading disagreed on 571.
+      var blockOnly = CHRONICLE | Interpreter.SCRIPT_UTXO_AFTER_GENESIS
+      var r = run(function (s) { s.add(Opcode.OP_VER) }, { flags: blockOnly, version: 7 })
+      r.verified.should.equal(false)
+      r.errstr.should.match(/BAD_OPCODE/)
+
+      // The same script with the UTXO era added does evaluate.
+      var ok = run(function (s) { s.add(Opcode.OP_VER) }, { flags: ERA, version: 7 })
+      ok.stack[ok.stack.length - 1].should.equal('7')
+    })
+
+    it('expresses a post-Chronicle block spending a pre-Chronicle output', function () {
+      // The combination that could not be expressed before: the relaxations follow the block
+      // era (bit 20), the opcodes follow the output era (bit 21). Clearing only bit 21 of
+      // mainnetFlags() must leave the relaxations on and the opcodes off.
+      var mixed = Interpreter.mainnetFlags() & ~Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE
+      ;(mixed & CHRONICLE).should.equal(CHRONICLE)
+      ;(mixed & Interpreter.SCRIPT_UTXO_AFTER_CHRONICLE).should.equal(0)
+
+      var r = run(function (s) { s.add(Opcode.OP_VER) }, { flags: mixed, version: 7 })
+      r.verified.should.equal(false)
+      r.errstr.should.match(/BAD_OPCODE/)
+
+      // And the block-era relaxations still answer to bit 20 and the transaction version,
+      // which is the whole reason a caller needs bit 20 set here.
+      var probe = new Interpreter()
+      probe.flags = mixed
+      probe.tx = { version: 2 }
+      probe.enforceNonMalleability().should.equal(false)
+      probe.tx = { version: 1 }
+      probe.enforceNonMalleability().should.equal(true)
     })
 
     it('mainnetFlags() actually evaluates a Chronicle script', function () {
@@ -280,7 +333,7 @@ describe('Chronicle script surface', function () {
     function shift (x, n, op, flags) {
       return run(function (s) {
         s.add(new BN(x).toScriptNumBuffer()).add(new BN(n).toScriptNumBuffer()).add(op)
-      }, { flags: flags == null ? CHRONICLE : flags })
+      }, { flags: flags == null ? ERA : flags })
     }
     function value (x, n, op) {
       var r = shift(x, n, op)
