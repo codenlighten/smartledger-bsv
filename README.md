@@ -190,7 +190,7 @@ const bsv = require('@smartledger/bsv')                 // 128 modules
 ### **Legal & Compliance**
 | Module | Size | Use Case | CDN |
 |--------|------|----------|-----|
-| **bsv-ltp.min.js** | 544KB | Legal Token Protocol | `unpkg.com/@smartledger/bsv@9.29.0/bsv-ltp.min.js` |
+| **bsv-ltp.min.js** | 545KB | Legal Token Protocol | `unpkg.com/@smartledger/bsv@9.29.0/bsv-ltp.min.js` |
 | **bsv-gdaf.min.js** | 1073KB | Digital Identity & Attestation | `unpkg.com/@smartledger/bsv@9.29.0/bsv-gdaf.min.js` |
 
 ### **Advanced Cryptography**
