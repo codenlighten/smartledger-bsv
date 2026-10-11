@@ -1,0 +1,64 @@
+{
+  "v": "iptrust/1",
+  "type": "Work",
+  "payload": {
+    "title": "@smartledger/bsv 9.28.1 library source: three inert guards in OP_PUSH_TX, and the Chronicle version gate confirmed against a reference node",
+    "workType": "software",
+    "commitment": {
+      "scheme": "iptrust-commit/1",
+      "kind": "manifest",
+      "c256": "dc421e04618cae1a08616a463ba6bb0060655d3d42dc6f6a3e46b02cc057b5dd",
+      "c3": "6a77f0e09007f04a965ed0d4ee525cae9b172072bb110a0a81066020233f9b89"
+    },
+    "creators": [
+      {
+        "name": "Bryan W. Daugherty",
+        "role": "co-author"
+      },
+      {
+        "name": "Gregory J. Ward",
+        "role": "author",
+        "signerKey": {
+          "suite": "secp256k1-prehash",
+          "publicKey": "03a2f39f201f556c3bdadeb2baa4bbb21c13afe04f2fc10c4e2f9e6b4fdafc34a8"
+        }
+      },
+      {
+        "name": "Shawn M. Ryan",
+        "role": "co-author"
+      }
+    ],
+    "claimant": {
+      "name": "Gregory J. Ward, Bryan W. Daugherty, Shawn M. Ryan",
+      "basis": "creator"
+    },
+    "status": "unpublished",
+    "aiUse": {
+      "used": true,
+      "description": "Human-led and human-directed: conceived, specified, directed and reviewed by the named authors. Implementation drafted with AI coding assistance under the authors' direction and accepted by them."
+    },
+    "statements": [
+      {
+        "role": "author",
+        "lang": "en",
+        "text": "I, Gregory J. Ward, state that I am an author of the work titled \"@smartledger/bsv 9.28.1 library source: three inert guards in OP_PUSH_TX, and the Chronicle version gate confirmed against a reference node\", whose content is committed to by dc421e04618cae1a08616a463ba6bb0060655d3d42dc6f6a3e46b02cc057b5dd, and that the information in this record is true to the best of my knowledge. I understand this record is evidence and does not itself create or register any right."
+      }
+    ]
+  },
+  "references": [],
+  "retrieval": {
+    "profile": "held"
+  },
+  "signatures": [
+    {
+      "protected": {
+        "role": "author",
+        "suite": "secp256k1-prehash",
+        "publicKey": "03a2f39f201f556c3bdadeb2baa4bbb21c13afe04f2fc10c4e2f9e6b4fdafc34a8",
+        "statementDigest": "079cac7595625a2504e12007d5385970e1b7762a062ddb5098926ab5bae70981",
+        "claimedSignedAt": "2026-10-11T16:43:46Z"
+      },
+      "sig": "bbf3e2ecc9d9f88115bb7edbec4c53ff88c74bd0cd5b9964abd6b5795654a27b11befe818f7a33c68720010bbfb4c78a57402079feba483d39afb2b8122824f6"
+    }
+  ]
+}

@@ -13,6 +13,7 @@ Nothing about the work itself is sent to the service.
 
 | date | covers | type | record | signer | tag |
 | --- | --- | --- | --- | --- | --- |
+| 2026-10-11 | `lib/` at v9.28.1 — the 9.28.1 release: three guards in `PushTx` that were inert (an ignored buffer size making its own check tautological, a mask test admitting sighash words that build a dud lock, and a one-method duck type), plus the Chronicle malleability version gate confirmed against a reference node across 28,512 judgments | software, unpublished at registration | [`457c5a03…22825`](https://iptrust.org/v/457c5a034c26933175c174869378f1dede87f7f4833b53d886ae8c762b022825) | Gregory J. Ward | `ip-2026-10-11` |
 | 2026-10-01 | `lib/` at v9.16.1 — the 9.16.1 release: the shift opcodes' cost and count validation, and `OP_NUM2BIN`'s `INT32_MAX` bound | software, published | [`0bd4ddcb…88a4c`](https://iptrust.org/v/0bd4ddcb2e391911a31495cff3e74593e7d31ed19fb5975ef1691ca105e88a4c) | Gregory J. Ward | `ip-2026-10-01` |
 | 2026-09-30 | `lib/` at v9.15.0 — the 9.15.0 release: the signature check that never ran, and Chronicle's malleability relaxations | software, published | [`8aecf47f…30179`](https://iptrust.org/v/8aecf47ff500fbd316e965b8292ef12426d9fa55c276b7d0f21c889732030179) | Gregory J. Ward | `ip-2026-09-30` |
 
@@ -34,9 +35,9 @@ neither is an `ip-*` tag.
 Verification runs in a separate worktree, so the working copy is never touched:
 
 ```sh
-git worktree add /tmp/at-tag ip-2026-09-30 && cp -r .iptrust /tmp/at-tag/
-(cd /tmp/at-tag && iptrust2 verify 8aecf47ff500fbd316e965b8292ef12426d9fa55c276b7d0f21c889732030179 --fetch-headers)
-git worktree remove --force /tmp/at-tag
+git worktree add /tmp/at-tag-smartledger-bsv ip-2026-09-30 && cp -r .iptrust /tmp/at-tag-smartledger-bsv/
+(cd /tmp/at-tag-smartledger-bsv && iptrust2 verify 8aecf47ff500fbd316e965b8292ef12426d9fa55c276b7d0f21c889732030179 --fetch-headers)
+git worktree remove --force /tmp/at-tag-smartledger-bsv
 ```
 
 Expect `verdict: valid` and `content: matched`. Block headers can come from any source, so the
