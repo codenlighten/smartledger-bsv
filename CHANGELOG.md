@@ -7,6 +7,119 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.32.0] - 2026-10-12
+
+Two defects in the credential proof systems, found by auditing the Merkle construction in
+`lib/gdaf/zk-prover.js` after an outside session asked about its missing RFC 6962 domain
+separation. The domain-separation question turned out to be the least of it.
+
+**No commitment and no Merkle root changes in this release.** Every root this library has
+ever produced is reproduced byte for byte, pinned by test against digests read out of the
+9.31.0 code. That was a design constraint, not a happy outcome — see the last section.
+
+### Fixed — the honest holder's selective-disclosure proof failed at most field counts
+
+`_buildMerkleTree` pairs a last odd node with ITSELF, and `_generateMerkleProof` emitted
+nothing for it. The verifier therefore skipped a level the builder had hashed, and a proof
+built by the holder, from the correct credential, against the correct root, did not verify:
+
+```
+fields  level sizes     fields that could not be disclosed
+  3     3,2,1           f2
+  5     5,3,2,1         f4
+  6     6,3,2,1         f4 AND f5
+  7     7,4,2,1         f6
+  9     9,5,3,2,1       f8
+```
+
+Selective disclosure worked only when every level was even — a field count that is a power of
+two. The same defect, from a separate copy of the same code, was present in `lib/ltp/proof.js`
+and reachable through `LTP.Proof.prepareSelectiveDisclosure`.
+
+Eleven tests covered this code and all of them passed, because the fixture credential in
+`test/gdaf/zk_prover.js` has exactly four fields and every selective-disclosure test disclosed
+the same one of them. Coverage that varies neither the field count nor the field cannot see
+this; the new tests sweep both axes, 1 to 40 fields, every field, 2,144 honest disclosures.
+
+The fix is confined to proof GENERATION: the self-pair is emitted as the node's own hash in
+the sibling position, which `_verifyMerkleProof` already handled for `isLeft: false`. So the
+verifier is untouched, no root moves, a verifier from 9.31.0 accepts proofs this release
+generates, and this release accepts every proof 9.31.0 generated validly.
+
+### Fixed — a forgeable field commitment in `lib/ltp/proof.js`
+
+`_hashField` hashed `path + ':' + JSON.stringify(value) + ':' + salt`, and `JSON.stringify`
+renders `null`, `NaN` and `Infinity` all as `"null"`. Measured through the public API: a proof
+disclosing `null` **still verified** after the disclosed value was changed to `NaN`, and again
+after it was changed to `Infinity`. A verified disclosure of a value the issuer never
+committed to.
+
+This is the defect `lib/gdaf/zk-prover.js` fixed in 9.22.0 and again for selective disclosure.
+`lib/ltp/proof.js` kept its own copy of the encoding and so kept the bug, which is why the
+permitted value domain now lives in one module, `lib/util/field-commit.js`, that both require.
+
+The fix VALIDATES THE DOMAIN and leaves the framing exactly as it was. `NaN`, `Infinity` and
+`undefined` are refused — a value that cannot be encoded unambiguously must not be committed
+to at all — and RFC 8785 is byte-identical to `JSON.stringify` for every value that can reach
+an LTP leaf, because `_traverseObject` recurses into objects and arrays alike so a leaf value
+is always a primitive. Verified commitment by commitment and root by root against 9.31.0.
+
+The obvious fix was to adopt the length-prefixed encoding the GDAF prover uses, and that was
+rejected: it would move every Merkle root this module has ever produced. See below.
+
+### Deprecated — field names containing the path separator
+
+Paths are segments joined with `.`, and nothing stopped a key from containing one. Measured on
+9.31.0, nested `{ a: { b: x } }` and flat `{ 'a.b': x }`:
+
+* produce the **same** `credentialRoot`;
+* a proof generated from either **verifies against the other's root**;
+* and one credential can carry both, after which two contradictory values are each provable
+  for the single path `a.b` under one root.
+
+So the root is not a commitment to a unique credential. `lib/ltp/proof.js` is worse again,
+because `_getNestedValue` reads the path back with `split('.')`, so a literal `'a.b'` key
+cannot be resolved at all and the commitment comes apart from the value it names.
+
+This **warns** and keeps working, naming 10.0.0. Refusing it outright is a behaviour break for
+a caller who uses dotted keys and never collides, and `STABILITY.md` permits a break inside a
+9.x minor only for an API that can lose funds. A credential root collision is serious and it
+is not that. Escaping the separator is the real fix and it moves every root, so it waits for
+the major.
+
+**The collision is live until then.** `test/gdaf/path_ambiguity.js` asserts it — the equal
+roots and both cross-verifying proofs — rather than hiding it, so the hazard cannot be
+forgotten and the eventual fix cannot land silently.
+
+### On what was deliberately NOT changed
+
+Three candidate changes were dropped for the same reason, and it is worth recording because
+the first instinct in each case was wrong:
+
+* **Unifying the two leaf framings.** The GDAF prover length-prefixes each component; LTP
+  still joins with `':'`. One encoding would be better, and switching LTP's would invalidate
+  every disclosure ever issued. Deferred to 10.0.0.
+* **Refusing dotted keys.** Above.
+* **Canonicalizing `proofHash` and `ageProofHash`.** Neither is consulted by any verification
+  path — `verifyRangeProof` and `verifyAgeProof` rest on a commitment plus a caller-supplied
+  opening — so canonicalizing them would change a value this API returns, which a caller may
+  have persisted or compared, for no security gain. Left byte-for-byte, and documented at both
+  sites as not being verification inputs.
+
+The common thread: a soundness fix that moves a published commitment is a different kind of
+change from one that does not, and the two should not ride together. What is fixed here is
+everything that could be fixed without moving one.
+
+### Also
+
+* `lib/util/field-commit.js` is new: the shared permitted value domain, plus the GDAF leaf
+  framing. Not exported from the public API; both consumers deep-require it.
+* `npm run lint:ratchet` and `npm run check:audit-scope` were both FAILING at 9.31.0, neither
+  being part of `prepublishOnly`. The ratchet had three pre-existing violations in a test file
+  with no baseline entry; the audit-scope figures and all three vendor RFQ letters still
+  quoted pre-9.29 line counts. Both are green, and the letters now state the measured
+  figures — Tier 1 12,993 and a 26,820-line excluded layer.
+
 ## [9.31.0] - 2026-10-11
 
 Additive. No behaviour changes: `errstr` is untouched and every script verifies exactly as it

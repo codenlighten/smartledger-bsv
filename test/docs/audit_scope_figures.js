@@ -70,8 +70,13 @@ describe('docs/AUDIT_SCOPE.md figures', function () {
     var total = lines(['lib'])
     var t1 = lines(TIER1_DIRS) + lines(TIER1_FILES)
     var t2 = lines(TIER2_DIRS)
-    measured = { tier1: t1, tier2: t2, excluded: total - t1 - t2, total: total,
-      files: jsFiles(path.join(ROOT, 'lib')).length }
+    measured = {
+      tier1: t1,
+      tier2: t2,
+      excluded: total - t1 - t2,
+      total: total,
+      files: jsFiles(path.join(ROOT, 'lib')).length
+    }
   })
 
   function stated (re, label) {
