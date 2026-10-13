@@ -35,8 +35,24 @@ Two call sites dereferenced it without asking:
   from `Transaction#_estimateSize()`, so fee estimation could not run on such a transaction at
   all.
 
-Both errors were untyped, so a consumer's `catch (e) { if (e instanceof bsv.errors...) }` could
-not classify them.
+Two further sites of the same class were found by **enumerating every `.script.` dereference
+in `lib/`** rather than grepping for the shape already fixed, after a peer session demonstrated
+the method on its own codebase. My first pass had been a pattern grep plus probes of what it
+surfaced, which is a sample, and it missed both:
+
+* `Transaction#sort()` — the BIP69 output comparator falls through to the script when two
+  outputs have equal satoshis, and threw `TypeError: ... (reading 'toBuffer')`.
+* `Policy#describe()` in the smart-contract DSL — a debugging aid, so it now prints
+  `(unparseable) <hex>` instead of throwing.
+
+All four errors were untyped, so a consumer's `catch (e) { if (e instanceof bsv.errors...) }`
+could not classify any of them.
+
+The same enumeration turned up a second null-returning accessor that is NOT a defect and is
+now pinned so it cannot be "fixed" by mistake: `Input#script` returns null when `isNull()` —
+prevTxId all zeros with outputIndex `0xffffffff`, i.e. the coinbase input every block has.
+Every path exercised on a coinbase transaction (round-trip, sort, size, inspect, toObject)
+already handles it.
 
 The dust check now asks whether the script is `null` before classifying, and a script that did
 not parse cannot satisfy either data-output test — so the verdict is the typed
@@ -50,8 +66,9 @@ here. An attempt to settle it on regtest was inconclusive, because those nodes e
 dust limit on any shape — a plain sub-dust P2PKH control was accepted too. `DUST_AMOUNT` here
 is our own policy constant guarding what we build.
 
-`getSize()` falls back to `_scriptBuffer.length` **only** when the script is `null`. A parsed
-script keeps the existing calculation deliberately — see the note below.
+`getSize()` and the BIP69 comparator fall back to the raw buffer **only** when the script is
+`null`. A parsed script keeps the existing calculation deliberately — see the note below.
+Output ordering for well-formed scripts is unchanged.
 
 ### Known — `getSize()` measures the Script object, which serialization does not
 
