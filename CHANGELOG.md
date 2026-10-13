@@ -7,6 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.33.1] - 2026-10-13
+
+Error-name and check-order only, like 9.29.1 and 9.29.2. No script that verified before
+verifies differently now, and no script that was refused is accepted.
+
+### Fixed — a truncated push counted as a push, so the push-only gate let it through
+
+`Script#isPushOnly()` tested only each chunk's opcode number. A push declaring more bytes
+than the script carries — `4c50` followed by ten bytes is `OP_PUSHDATA1` declaring eighty —
+counted as a push, so the gate passed, the scriptSig was evaluated, and the failure surfaced
+from the instruction read as `SCRIPT_ERR_BAD_OPCODE`.
+
+The node refuses it before evaluating. `VerifyScript` puts the push-only gate above
+`EvalScript`:
+
+```cpp
+if(VerifySigPushOnly(flags)) {
+    if((IsGenesis(flags) && !IsChronicle(flags)) ||
+       (IsChronicle(flags) && !IsMalleableTxnVersion(checker.Version()))) {
+        if(!scriptSig.IsPushOnly())
+            return SCRIPT_ERR_SIG_PUSHONLY;      // interpreter.cpp:2329-2331
+    }
+}
+... EvalScript(... scriptSig ...)
+```
+
+and `CScript::IsPushOnly` walks the script with `GetOp`, which **fails** on a push running
+past the end. So on today's mainnet flags the node reports `SCRIPT_ERR_SIG_PUSHONLY` and
+never runs the script, while this library reported `SCRIPT_ERR_BAD_OPCODE` from running it.
+Both reject, which is why only an error-NAME comparison could see it — the fifth divergence
+of that family here, and the first found by someone outside this project.
+
+With `SCRIPT_VERIFY_SIGPUSHONLY` off, and pre-Genesis where the gate's era test is not
+satisfied, the node also reports `BAD_OPCODE`. That is unchanged and now pinned, so the fix
+cannot be mistaken for "`SIG_PUSHONLY` always".
+
+Six shapes were wrong, not the one reported: `OP_PUSHDATA1`/`2`/`4` declaring more than they
+carry, a direct one-byte push opcode doing the same (`4b` + ten bytes, `0a` + five), and
+`01` — a one-byte push with nothing after it, whose buffer is present but **empty**.
+
+The condition itself already existed in the interpreter, added in 9.29.2 for a different
+divergence in the same family, and the node calls one `GetOp` from both places while this
+library had the test in only one of them. It now lives in `lib/script/push-decode.js` and
+both callers use it, for the reason `lib/util/field-commit.js` exists: a duplicated predicate
+drifts, and in this library it has already drifted twice.
+
+`isDataOut()` and `isSafeDataOut()` move with it, as the node's classifier does — `Solver`
+decides `TX_NULL_DATA` with the same `IsPushOnly` applied to the script after the
+`OP_RETURN`. An `OP_RETURN` followed by a truncated push is no longer a standard data output.
+
+**Also fixed, latent since 9.29.2:** the interpreter's copy of the test compared
+`len !== buf.length`, which is not the condition `GetOp2` fails on. A chunk holding MORE
+bytes than it declares is not a truncated push — it is a chunk that disagrees with its own
+serialization, and the extra bytes are the instructions that follow. `{opcodenum: 1, len: 1,
+buf: <aa51>}` serializes to `01 aa 51`, which parses back as a one-byte push and `OP_1`, both
+push-only, so the node answers true where we answered false. That is a **false reject** in a
+predicate that decides whether a scriptSig may be evaluated at all. The test is now `<`.
+
+### Changed — the stability policy now says what a predicate promises about a malformed script
+
+`STABILITY.md` did not answer what happens when the library disagrees with *unchanged*
+consensus, as opposed to consensus changing under it. It now states that a fix bringing the
+library back into agreement with the reference implementation is a bug fix, shipping at the
+smallest version that fits; that for a malformed script the promise is the node's answer and
+not last release's; and that this is not licence to change verdicts on well-formed scripts,
+which stay pinned by the conformance corpus.
+
+### Added — `docs/NODE_DIVERGENCES.md`, a register of open divergences
+
+Fixed divergences are in this file; open ones had nowhere to live and so depended on being
+remembered. The register carries one entry: a push whose **length field** is truncated
+(`4c`, `4d01`, `4e0100`) has no verdict here at all, because the eager parser has nothing to
+put in `len` and `Script.fromBuffer` throws. Both sides still reject and the throw is
+fail-closed, and it reaches less far than it sounds — transaction script parsing is lazy, so
+such a transaction still constructs, round-trips byte for byte and keeps its raw scriptSig
+readable; only `input.script` throws. Giving the parser a representation for an instruction
+it could not decode is a design change with its own false-accept risk, so it is recorded
+rather than rushed into a patch.
+
+Reported by the op-codes lab against 9.33.0 and `@smartledger/bsv-core` 1.5.0, from 24
+vectors judged by a compiled `bitcoin-sv` v1.2.3. Reproduced here before being accepted, and
+`IsPushOnly`, `GetOp2`, `VerifyScript` and `Solver` were read at v1.2.3 to confirm the
+mechanism rather than the symptom.
+
 ## [9.33.0] - 2026-10-13
 
 ### Fixed
