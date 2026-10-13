@@ -121,6 +121,10 @@ npm deprecate smartledger-bsv "No longer maintained. Current releases are publis
 
 Deliberately *not* said: that switching is drop-in. That has not been checked.
 
+**One clause here is Greg's to confirm, not mine.** "No longer maintained" asserts a
+maintenance decision, publicly and in his name. This page records the package as dormant by
+decision, but that sentence should be his before it ships.
+
 **Correction to an earlier draft of this page**, which called the unscoped package "a separate
 lineage whose version never appears in this repository's history". That was wrong. The git
 history begins at 5.4.0, but `CHANGELOG.md` documents releases back to 3.0.1 — including
@@ -141,10 +145,12 @@ is established and the severity is categorically different, a distinct message i
 where it is inferred from an incomplete table, it is not.
 
 ```
-Critical: PrivateKey.fromObject can silently return a different, publicly derivable key from a
-JSON round-trip, and funds sent to the resulting address may be unrecoverable. Fixed in 7.5.5.
-Upgrade to @smartledger/bsv@9.33.2 or later.
+Critical: PrivateKey.fromObject on a JSON round-trip can silently return a different private key that anyone can derive, so funds sent to its address can be taken. Fixed in 7.5.5, which does not address later security fixes; upgrade to @smartledger/bsv@9.33.2 or later.
 ```
+
+"Can be taken", not "may be unrecoverable": the substituted key is deterministic and derivable
+by anyone who knows the marker, so the funds are not merely stranded — a stranger can sweep
+them. A different and worse claim, and the accurate one.
 
 **2b. The 67 versions with an outstanding forgery — ONE message, naming 9.33.2.** An earlier
 draft of this page called for four distinct messages, one per defect, "because the fixed-in
@@ -159,16 +165,38 @@ an incomplete enumeration is worse than deliberate imprecision**, because it is 
 A single message naming the current version is correct whether or not the table is complete:
 
 ```
-Superseded. This version has a known security defect fixed in a later release; upgrade to
-@smartledger/bsv@9.33.2 or later.
+Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept forged proofs); other fixes were made earlier. Upgrade to @smartledger/bsv@9.33.2 or later.
 ```
+
+This names a defect without needing the table to be complete, because **one forgery is
+verified present in every version of the range**: the `lib/ltp/proof.js` field commitment,
+fixed in 9.32.0. Checked rather than assumed — the module and its vulnerable `_hashField`
+encoding are present in all **63** live versions from 7.5.5 to 9.31.0. The earlier defects are
+deliberately not named, because which of them a given version carries cannot be established
+from the table as it stands.
 
 **3. The consensus-only versions (9.32.0, 9.33.0) and 9.33.1.** These deserve their own
 wording — not silence, and not the forgery wording. A library that calls a script valid when
 the network rejects it can cause a failed broadcast, a wasted fee, or a bad pre-broadcast
-decision. "May accept scripts that network consensus rejects; upgrade to 9.33.2" is
-proportionate. A still-earlier draft proposed leaving them undeprecated because over-broad
+decision. A still-earlier draft proposed leaving them undeprecated because over-broad
 deprecation teaches people to ignore warnings; that argues for the wording, not for silence.
+
+9.32.0 and 9.33.0:
+
+```
+May accept scripts that network consensus rejects; upgrade to @smartledger/bsv@9.33.2 or later.
+```
+
+9.33.1 separately, because its only outstanding item is not a consensus false accept at all:
+
+```
+May throw an untyped error when reading some chain transactions; upgrade to @smartledger/bsv@9.33.2 or later.
+```
+
+"Some chain transactions", not "valid transactions": the measured trigger is an output script
+this library cannot decode, and nothing establishes that nothing else reaches the same
+dereference. The single-version range and the different kind of harm are what justify its own
+text, by the same rule as the fund-loss window — not a return to per-defect messaging.
 
 **4. Before executing any of it.** Deprecation warnings print on every affected install,
 including pinned builds and CI that may treat them as failures, and they generate support
