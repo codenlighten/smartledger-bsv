@@ -41,14 +41,28 @@ The 56 already-deprecated versions carry the public advisory GHSA-gw63-x79h-mhjc
 key published in an OP_RETURN, recoverable from chain data) and two non-reproducible-bundle
 notices. The other 71 install with no warning at all.
 
-These are the known defects and the version that fixed each. A live version is listed as
-affected when its number is below the fix:
+**This table is NOT a complete list, and the recommendation below is built so that it does
+not need to be.** It was first assembled by grepping CHANGELOG.md for false-accept and
+forgery language, which missed five defects that a second session found by reading the
+changelog independently (9.12.0, 9.25.0, 9.26.1, 9.27.0, and four `Fixed (security)` sections
+in 7.5.1-7.5.5). A keyword enumeration afterwards finds 28 security-relevant section headings
+across 26 versions — and still misses 9.25.0, 9.27.0 and 9.29.0, whose headings use other
+words. **The changelog's heading vocabulary is not an index of its security content**, so a
+complete table would mean reading all 127 version entries, which has not been done.
+
+Known defects and the version that fixed each. A live version is affected when its number is
+below the fix:
 
 | fixed in | class | defect |
 |---|---|---|
+| 7.5.1, 7.5.2, 7.5.3, 7.5.5 | security | four separate `Fixed (security)` sections, contents not catalogued here |
 | 8.2.0 | forgery | `verifyAgeProof` / `verifyRangeProof` accept a forged proof |
-| 9.20.0 | forgery | `verifyMembershipProof` accepts a forgery needing no key, no salt and no set; the certificate verifier accepts tampered certificates |
+| 9.12.0 | forgery | **a forged block header passed SPV verification.** A header was believed about the difficulty it declared, so a forgery cost one attempt to mine; `verifyHeaderChain` accepted whole chains |
+| 9.20.0 | forgery | `verifyMembershipProof` accepts a forgery needing no key, no salt and no set |
 | 9.22.0 | forgery | GDAF `zk-prover` forgeable field commitment |
+| 9.25.0 | forgery | a certificate's `anchor.seal` verified `valid` with the seal unchecked; a false `anchor.blockHeight` verified when `spv.blockHeight` was null |
+| 9.26.1 | forgery | relabelling a sealed certificate as `version: 1` bypassed the 9.25.0 seal refusal, so a forged seal verified `valid` again |
+| 9.27.0 | forgery | the selective-disclosure leaf committed over a non-injective encoding — `valid: true` for a value the issuer never committed to |
 | 9.29.0 | consensus | scriptnum operand size — a false accept in the interpreter |
 | 9.30.0 | consensus | Chronicle era axis — 487 false accepts against the node |
 | 9.32.0 | forgery | LTP `proof.js` forgeable field commitment: a verified disclosure of a value the issuer never committed to |
@@ -56,10 +70,16 @@ affected when its number is below the fix:
 | 9.33.1 | consensus | `isPushOnly` treats a truncated push as a push |
 | 9.33.2 | robustness | null-script dereferences — an untyped TypeError on a transaction read from a valid block |
 
-**Every live version contains the affected code.** This was checked rather than assumed: all
-four affected verifiers and both proof modules appear in the repository's first commit
-(5.4.0, 2026-06-15), and the oldest live version is 7.5.1. A fix's release number alone would
-not have established this.
+**Every live version contains the affected code.** Checked rather than assumed: all four
+affected verifiers and both proof modules appear in the repository's first commit (5.4.0,
+2026-06-15), and the oldest live version is 7.5.1.
+
+**The certificate verifier was not fixed once.** An earlier draft of this page said it was
+fixed in 9.20.0. It was still forgeable after that — through 9.25.0 (seal unchecked), 9.26.1
+(the `version: 1` relabel bypassing 9.25.0's refusal) and 9.27.0 (the non-injective
+disclosure leaf). A consumer on 9.21.0-9.24.0 told "upgrade past 9.20.0" would have remained
+exposed. This is why the disposition below recommends one message naming the current version
+rather than per-defect messages.
 
 Grouping the 71 live versions by the worst thing still outstanding in each:
 
@@ -68,7 +88,7 @@ Grouping the 71 live versions by the worst thing still outstanding in each:
 | a forgery | **67** | 7.5.1 .. 9.31.0 | a third party can forge something a verifier accepts |
 | consensus only | 2 | 9.32.0, 9.33.0 | the library calls a script valid that the network rejects |
 | robustness only | 1 | 9.33.1 | an untyped crash on some valid chain data |
-| nothing known | 1 | 9.33.2 | — |
+| no known forgery or consensus defect | 1 | 9.33.2 | documented limits remain — see below |
 
 ## Recommended disposition
 
@@ -84,23 +104,42 @@ publicly. A message that avoids claiming anything unverified about 4.4.0's own c
 npm deprecate smartledger-bsv "No longer maintained. Current releases are published as @smartledger/bsv; review migration requirements before switching."
 ```
 
-Deliberately *not* said: that 4.4.0 shares the scoped package's vulnerable code paths, or that
-switching is drop-in. Neither has been checked — 4.4.0 is a separate lineage whose
-`package.json` version never appears in this repository's history — and "predates the
-security fixes" would read as a security claim this inventory has not substantiated.
+Deliberately *not* said: that switching is drop-in. That has not been checked.
 
-**2. The 67 versions with an outstanding forgery.** These warrant deprecation, with the
-message naming the fix. Four distinct messages are needed, not one, because the fixed-in
-version differs per defect — a consumer on 9.25.0 should be told about 9.32.0, not 8.2.0.
+**Correction to an earlier draft of this page**, which called the unscoped package "a separate
+lineage whose version never appears in this repository's history". That was wrong. The git
+history begins at 5.4.0, but `CHANGELOG.md` documents releases back to 3.0.1 — including
+`## [4.4.0] - 2026-06-07` — so the project predates this repository and the unscoped 3.x/4.x
+versions are **the same lineage**. Worse for the earlier wording: 4.4.0 is the release that
+added `OP_SUBSTR` / `OP_LEFT` / `OP_RIGHT` to the interpreter, and 9.29.0 fixed an operand-size
+false accept in exactly those opcodes. So 4.4.0 plausibly shares at least that defect.
 
-**3. The 2 consensus-only versions (9.32.0, 9.33.0) and 9.33.1.** These deserve their own
-language, not silence and not the forgery language. A library that calls a script valid when
+This has not been confirmed against the 4.4.0 tarball, so the deprecation message above still
+claims nothing about its code — but the reason is now "unverified", not "unrelated".
+
+**2. The 67 versions with an outstanding forgery — ONE message, naming 9.33.2.** An earlier
+draft of this page called for four distinct messages, one per defect, "because the fixed-in
+version differs per defect". That plan is withdrawn, and the reason is the useful part:
+
+Per-defect messages require a COMPLETE defect table. This one is not complete, and the
+incompleteness is not random — it is concentrated in exactly the certificate-verifier
+defects, where the four-message plan would have told a consumer on 9.21.0-9.24.0 that their
+verifier was fixed in 9.20.0 when it stayed forgeable through 9.26.1. **Precision resting on
+an incomplete enumeration is worse than deliberate imprecision**, because it is believed.
+
+A single message naming the current version is correct whether or not the table is complete:
+
+```
+Superseded. This version has a known security defect fixed in a later release; upgrade to
+@smartledger/bsv@9.33.2 or later.
+```
+
+**3. The consensus-only versions (9.32.0, 9.33.0) and 9.33.1.** These deserve their own
+wording — not silence, and not the forgery wording. A library that calls a script valid when
 the network rejects it can cause a failed broadcast, a wasted fee, or a bad pre-broadcast
-decision, depending on what the consumer relies on. Something like "may accept scripts that
-network consensus rejects; upgrade to 9.33.1" is proportionate. The earlier draft of this
-page recommended leaving them alone on the grounds that over-broad deprecation teaches people
-to ignore warnings; that reasoning still holds for the *wording*, but it does not justify
-saying nothing.
+decision. "May accept scripts that network consensus rejects; upgrade to 9.33.2" is
+proportionate. A still-earlier draft proposed leaving them undeprecated because over-broad
+deprecation teaches people to ignore warnings; that argues for the wording, not for silence.
 
 **4. Before executing any of it.** Deprecation warnings print on every affected install,
 including pinned builds and CI that may treat them as failures, and they generate support
@@ -113,6 +152,24 @@ The count of packages depending on the unscoped one could not be established: np
 `depends:` search returns 398 results, but the first several are text matches on "bsv"
 (`@bsv/sdk`, `@bitgo/sdk-coin-bsv`, `@bsv/wallet-toolbox`) and none of the ones checked
 actually lists it as a dependency. Treat that number as unknown rather than large.
+
+## 9.33.2 has no known forgery or consensus defect, but it is not "nothing known"
+
+Two documented limits remain open and are recorded in the changelog rather than fixed:
+
+* **`OP_DIV` / `OP_MOD` are quadratic in operand length.** Not a consensus divergence — the
+  node agrees — but the node bounds it with policy this package does not copy, so quadratic
+  CPU exhaustion remains a risk with attacker-supplied scripts: 320 KB of operand takes about
+  18 seconds (CHANGELOG 9.16.1).
+* The 9.22.0 entry's own **"Still open"** list: a null deletes a claim rather than editing it,
+  the proof shows consistency rather than authenticity, and a TSC index bound.
+
+There is also one claim this page has softened. The 9.23.0 GDAF wrapper drift was described
+here and in the changelog as fail-closed rather than a hole, and for three of the four
+wrappers the changelog shows exactly that — `generateMembershipProof` threw, and
+`verifyMembershipProof` and `verifyRangeProof` returned `false` for every proof. The fourth
+row says only that `verifyAgeProof` "received an issuer DID as the opening"; it does not state
+the verdict. So "fail-closed" is supported for three of four and unstated for the fourth.
 
 ## The other packages
 
@@ -151,6 +208,24 @@ at that commit rather than by assuming the version-bump commit — 3 of 18 backf
 not the bump commit. `bsv` is 117/127 tagged; the 10 gaps (`1.5.6-fix1`, `3.0.2`-`3.3.5`) were
 published before this repository's first commit, whose `package.json` history begins at 5.4.0,
 so there is no commit to tag. `bsv-core` is 13/13.
+
+## How this page was checked, and what is still unchecked
+
+The version counts, dates and deprecation states come from the registry and are re-verified by
+`npm run check:npm-inventory`, which fails the suite if the package table drifts.
+
+The defect table was cross-checked by a second session reading `CHANGELOG.md` independently.
+That check confirmed the 67/2/1/1 partition and the nine fix versions in the first draft, and
+it found five defects the first draft had missed, the certificate-verifier error, the
+overstated "nothing known", and the wrong lineage claim about the unscoped package. Every one
+of its findings was verified against the changelog here before being written down.
+
+Still unchecked, and deliberately stated rather than glossed:
+
+* the defect table's **completeness** — see the note above its rows;
+* the contents of the four 7.5.x `Fixed (security)` sections;
+* whether the unscoped 4.4.0 tarball actually contains the operand-size false accept;
+* whether `verifyAgeProof` was fail-closed in the 9.23.0 wrapper case.
 
 ## Nothing here has been acted on
 
