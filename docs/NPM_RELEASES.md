@@ -55,7 +55,9 @@ below the fix:
 
 | fixed in | class | defect |
 |---|---|---|
-| 7.5.1, 7.5.2, 7.5.3, 7.5.5 | security | four separate `Fixed (security)` sections, contents not catalogued here |
+| 7.5.2 | key handling | `StatusList.getCredentialStatusEntry` was declared sync but is async, so `=== 'revoked'` compared a Promise and **every revoked credential passed**. Reachable by a caller trusting the `.d.ts` |
+| 7.5.3 | key handling | the 7.5.1 anchor key-material guard matched field NAMES only, so a WIF in `note`, an xprv in `ref` or a mnemonic in `memo` was still published to chain |
+| 7.5.5 | **fund loss** | `PrivateKey.fromObject` returned a valid ~40-bit key from the `'[REDACTED]'` marker. `fromObject(JSON.parse(JSON.stringify(key)))` — the natural persist/restore — silently yielded a different, deterministic key anyone can derive. **Funds sent to the resulting address are loseable, with no attacker involved** |
 | 8.2.0 | forgery | `verifyAgeProof` / `verifyRangeProof` accept a forged proof |
 | 9.12.0 | forgery | **a forged block header passed SPV verification.** A header was believed about the difficulty it declared, so a forgery cost one attempt to mine; `verifyHeaderChain` accepted whole chains |
 | 9.20.0 | forgery | `verifyMembershipProof` accepts a forgery needing no key, no salt and no set |
@@ -80,6 +82,19 @@ fixed in 9.20.0. It was still forgeable after that — through 9.25.0 (seal unch
 disclosure leaf). A consumer on 9.21.0-9.24.0 told "upgrade past 9.20.0" would have remained
 exposed. This is why the disposition below recommends one message naming the current version
 rather than per-defect messages.
+
+**A second defect class, in four live versions only.** The 7.5.x security sections are not
+verifier defects at all — they are key handling, and one of them loses money without an
+attacker. 7.5.1 introduced the `toJSON` redaction marker, and 7.5.5 fixed the parser that
+misread it, so the exposed window for the fund-loss defect is **exactly 7.5.1 - 7.5.4**, all
+four of which are live. 7.5.1 is additionally exposed to the StatusList bug, and 7.5.1-7.5.2
+to the field-name-only key-material guard. The original OP_RETURN private-key leak (the public
+advisory GHSA-gw63-x79h-mhjc) was itself fixed *in* 7.5.1, so no live version carries it.
+
+**What the 56 existing deprecations cover.** 54 of them are versions below 7.5.1 — the
+pre-advisory era. The other two are 7.7.0 and 7.8.0, deprecated for non-reproducible browser
+bundles, not for a security defect. So nothing from 7.5.1 onward carries a security
+deprecation today, including the four fund-loss versions.
 
 Grouping the 71 live versions by the worst thing still outstanding in each:
 
@@ -117,7 +132,21 @@ false accept in exactly those opcodes. So 4.4.0 plausibly shares at least that d
 This has not been confirmed against the 4.4.0 tarball, so the deprecation message above still
 claims nothing about its code — but the reason is now "unverified", not "unrelated".
 
-**2. The 67 versions with an outstanding forgery — ONE message, naming 9.33.2.** An earlier
+**2a. 7.5.1 - 7.5.4 — the fund-loss window, strongest wording.** These four get their own
+message, and the reason is NOT a reopening of the per-defect plan withdrawn below. That plan
+failed because defect-to-range mapping was unreliable; this range is *verified* and bounded at
+both ends (7.5.1 introduced the redaction marker, 7.5.5 fixed the parser that misread it), and
+the harm differs in kind — money lost through an honest round-trip, no attacker. Where a range
+is established and the severity is categorically different, a distinct message is warranted;
+where it is inferred from an incomplete table, it is not.
+
+```
+Critical: PrivateKey.fromObject can silently return a different, publicly derivable key from a
+JSON round-trip, and funds sent to the resulting address may be unrecoverable. Fixed in 7.5.5.
+Upgrade to @smartledger/bsv@9.33.2 or later.
+```
+
+**2b. The 67 versions with an outstanding forgery — ONE message, naming 9.33.2.** An earlier
 draft of this page called for four distinct messages, one per defect, "because the fixed-in
 version differs per defect". That plan is withdrawn, and the reason is the useful part:
 
@@ -223,7 +252,7 @@ of its findings was verified against the changelog here before being written dow
 Still unchecked, and deliberately stated rather than glossed:
 
 * the defect table's **completeness** — see the note above its rows;
-* the contents of the four 7.5.x `Fixed (security)` sections;
+* whether any version entry outside the sections already read contains a further defect;
 * whether the unscoped 4.4.0 tarball actually contains the operand-size false accept;
 * whether `verifyAgeProof` was fail-closed in the 9.23.0 wrapper case.
 
