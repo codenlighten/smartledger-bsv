@@ -127,6 +127,27 @@ Consensus behavior is pinned by 452 conformance cases (`npm run conformance`)
 generated against the reference implementation. Those vectors, not this
 library's own opinion, define what "correct" means here.
 
+The same reasoning settles a question the rules above do not answer on their own:
+what happens when the library *disagrees* with unchanged consensus. **A fix that
+brings this library back into agreement with the reference implementation about a
+script is a bug fix.** It ships at the smallest version that fits, without a
+deprecation cycle, because the alternative is announcing in advance that we will
+keep being wrong about the network for a year.
+
+Two consequences worth stating plainly, so the policy is not read as a loophole:
+
+- **What is promised about a script is the node's answer, not last release's
+  answer.** For a MALFORMED script — a push declaring more bytes than it carries,
+  a number longer than the era permits — the value a predicate like `isPushOnly()`
+  returned before is not a commitment. The commitment is that it agrees with the
+  node, and where it didn't, that is the defect.
+- **This is not licence to change verdicts on WELL-FORMED scripts.** Those are
+  pinned by the conformance corpus and by the test suite, and a change there is a
+  change to consensus behaviour, which only the first paragraph of this section
+  permits. A fix in this class must say which direction it moved — and whether any
+  script that used to verify now fails, which is the direction that can strand
+  coins.
+
 ## After 2027-09-01
 
 If a 10.0.0 becomes necessary, it will be announced at least one minor in

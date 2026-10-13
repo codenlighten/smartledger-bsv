@@ -570,6 +570,64 @@ describe('Script', function () {
       // like bitcoind, we regard OP_RESERVED as being "push only"
       Script('OP_RESERVED').isPushOnly().should.equal(true)
     })
+
+    describe('a push the script does not carry the bytes for is not a push', function () {
+      // The node answers this with no test of its own: IsPushOnly walks the script with
+      // GetOp, and GetOp FAILS on a push running past the end. Parsing eagerly, as this
+      // library does, keeps the broken push as a chunk with the declared length in `len`
+      // and the bytes present in `buf` — so the condition has to be asked for, and it
+      // wasn't. See lib/script/push-decode.js.
+      it('refuses a truncated OP_PUSHDATA1/2/4', function () {
+        // PUSHDATA1/2/4 each declaring 0x50 = 80 bytes with ten present.
+        Script.fromHex('4c50' + 'cd'.repeat(10)).isPushOnly().should.equal(false)
+        Script.fromHex('4d5000' + 'cd'.repeat(10)).isPushOnly().should.equal(false)
+        Script.fromHex('4e50000000' + 'cd'.repeat(10)).isPushOnly().should.equal(false)
+      })
+
+      it('refuses a truncated DIRECT push, not just a PUSHDATA', function () {
+        // The reported case was PUSHDATA1, but a one-byte opcode carries a length too.
+        Script.fromHex('4b' + 'cd'.repeat(10)).isPushOnly().should.equal(false)
+        Script.fromHex('0a' + 'cd'.repeat(5)).isPushOnly().should.equal(false)
+      })
+
+      it('refuses a one-byte push with no byte after it', function () {
+        // `buf` here is a ZERO-LENGTH buffer, not absent. A predicate written as
+        // `chunk.buf && ...` only catches this because an empty Buffer is truthy; one
+        // written against `chunk.buf.length` would let it through.
+        Script.fromHex('01').isPushOnly().should.equal(false)
+      })
+
+      it('still accepts the honest pushes, including the empty ones', function () {
+        Script.fromHex('4c0a' + 'cd'.repeat(10)).isPushOnly().should.equal(true)
+        Script.fromHex('0a' + 'cd'.repeat(10)).isPushOnly().should.equal(true)
+        Script.fromHex('4c00').isPushOnly().should.equal(true)
+        Script.fromHex('00').isPushOnly().should.equal(true)
+        Script.fromHex('51').isPushOnly().should.equal(true)
+      })
+
+      it('does NOT refuse a chunk whose buffer is longer than its declared length', function () {
+        // The condition is `buf.length < len`, matching GetOp2, and not `!==`. A chunk
+        // holding MORE bytes than it declares is not a truncated push: it is a chunk that
+        // disagrees with its own serialization, and the extra bytes are the instructions
+        // that follow. Writing this `!==` cost a FALSE REJECT, measured:
+        //
+        //   { opcodenum: 1, len: 1, buf: <aa51> }  serializes to  01 aa 51
+        //   01 aa 51 parses back as                push <aa>, OP_1   -- both push-only
+        //
+        // so the node, which only ever sees the bytes, answers true.
+        var hand = new Script({ chunks: [{ opcodenum: 1, len: 1, buf: Buffer.from('aa51', 'hex') }] })
+        hand.toHex().should.equal('01aa51')
+        Script.fromHex('01aa51').isPushOnly().should.equal(true)
+        hand.isPushOnly().should.equal(true)
+      })
+
+      it('stops treating a truncated push as a standard data output', function () {
+        // isDataOut() asks the same question, as the node's TX_NULL_DATA classification
+        // does with the same IsPushOnly, so it moves with it.
+        Script.fromHex('6a' + '4c50' + 'cd'.repeat(10)).isDataOut().should.equal(false)
+        Script.fromHex('6a' + '4c0a' + 'cd'.repeat(10)).isDataOut().should.equal(true)
+      })
+    })
   })
 
   describe('#classifyInput', function () {
