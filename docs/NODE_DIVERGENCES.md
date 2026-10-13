@@ -61,3 +61,66 @@ line in a patch.
 
 **What is pinned meanwhile:** that the failure is a typed, catchable `Script.InvalidBuffer`
 at the API boundary rather than an internal error, and exactly which operations still work.
+
+#### What the representation should be, and what the real obstacle is
+
+Updated 2026-10-13 after reading how `go-sdk` v1.7.2 handles the same shapes. The paragraph
+above said this needs "a representation for an instruction it could not decode" without
+saying what one would look like, which overstated the difficulty. There is a known answer:
+
+`go-sdk`'s `decodeInstruction` (a port of `GetOp2`) returns false when **either** the length
+field or the data runs past the end, and its parser then emits a single trailing instruction
+at `OP_INVALIDOPCODE` (`0xff`) holding the remaining bytes. Because `0xff > OP_16`, every
+opcode-number test rejects it without being told about truncation at all — `go-sdk`'s own
+`IsPushOnly` is opcode-number-only, exactly like ours was, and is nonetheless correct. The
+condition lives in one decode function, so every caller inherits it.
+
+Measured against this library's existing machinery, that representation needs **no change to
+`isPushOnly` and none to the interpreter**:
+
+| chunk | `isPushOnly()` | `verify()` under mainnet flags |
+|---|---|---|
+| `{opcodenum: 0xff, buf: <4c>}` | `false` | `SCRIPT_ERR_SIG_PUSHONLY` |
+| `{opcodenum: 0xff}` | `false` | `SCRIPT_ERR_SIG_PUSHONLY` |
+
+So the risk named above — that loosening the parser "must then be rejected correctly at every
+point downstream" — is **not** the real obstacle. The representation is fail-closed by
+construction, because it is an undefined opcode above `OP_16`.
+
+**The real obstacle is serialization fidelity.** `toBuffer` writes a chunk as its opcode byte
+followed by its buffer, so a `0xff` chunk holding `4c` serializes to `ff` — a byte that was
+never in the script, and one byte where there was one byte of something else. This library
+currently round-trips a malformed script EXACTLY: `4c50` + ten bytes re-serializes to itself,
+and a transaction carrying it re-serializes byte for byte, which is what makes such a
+transaction safe to parse, store and relay today. A fix must therefore teach `toBuffer` to
+emit the raw remainder for this chunk kind rather than an opcode byte, and prove the
+round-trip is still exact for every shape — including a truncated push appearing mid-script,
+where the undecodable remainder swallows every following instruction.
+
+That is a bounded, testable piece of work rather than an open-ended one, and the vectors to
+prove it are the ones below. It is still a deliberate change to what `Script.fromBuffer` may
+return, so it remains Greg's call rather than a patch.
+
+#### Node verdicts for these shapes
+
+From a compiled `bitcoin-sv` v1.2.3 on regtest, post-Chronicle flags, via the op-codes lab:
+
+| position | SIGPUSHONLY on | off |
+|---|---|---|
+| as the whole scriptSig | `SIG_PUSHONLY` | `BAD_OPCODE` |
+| at the end of an executed locking script | `BAD_OPCODE` | `BAD_OPCODE` |
+
+All three shapes behave identically. The locking-script row is not the flag failing: the
+push-only gate only ever tests the scriptSig, so for a locking script only the instruction
+read can fail.
+
+A third reported row — a truncated push inside an unexecuted `OP_IF` giving
+`UNBALANCED_CONDITIONAL` — was **not** accepted, because `EvalScript` calls `GetOp` at the
+top of its loop and returns `BAD_OPCODE` before `fExec` is computed (interpreter.cpp:450),
+while the `conditionals.empty()` test is only reached once the loop runs to completion
+(interpreter.cpp:1828). `UNBALANCED_CONDITIONAL` arises only when the push *decodes*: once
+any byte follows `4c`, that byte becomes the length field, the push is well-formed, and the
+`OP_IF` is simply left open. This library agrees with the node on those decodable cases
+(`00634c00` and `00634c01aa` both give `UNBALANCED_CONDITIONAL`). The divergence is confined
+to the genuinely undecodable shapes. That is the same byte-swallowing that makes a
+mid-script truncated push the hardest case to get right, which is why it is called out above.
