@@ -14,18 +14,19 @@ node-judged vector set, with the mechanism read rather than inferred.
    dangerous direction: a lock the library calls spendable, that the network will not let
    you spend, leaves coins stranded behind it. None are open.
 2. **FALSE REJECT** — the library refuses a script the network accepts. Costly but visible:
-   you find out before you commit funds. None are open.
+   you find out before you commit funds. One is open, below.
 3. **DIFFERENT REASON** — both reject, but with different error names or in a different
    check order. Invisible to an accept/reject comparison, which is why these are found by
-   comparing error *names* against a node. One is open, below.
-4. **NO ANSWER** — the library cannot produce a verdict at all. One is open, below.
+   comparing error *names* against a node. None are open.
+4. **NO ANSWER** — the library cannot produce a verdict at all. One is open, below — the same
+   entry, because a throw where the node accepts is both at once.
 
 ## Open
 
-### A push whose LENGTH FIELD is truncated has no verdict
+### A push whose LENGTH FIELD is truncated has no verdict — and after OP_RETURN the node ACCEPTS
 
-**Class:** no answer. **Found:** 2026-10-13, by the op-codes lab. **Status:** open; the fix
-is a design decision, not a patch.
+**Class:** no answer, and false reject where the node accepts. **Found:** 2026-10-13, by the
+op-codes lab. **Status:** open; the fix is a design decision, not a patch.
 
 A script ending in `4c` (OP_PUSHDATA1 with no length byte), `4d01` (OP_PUSHDATA2 with one of
 two) or `4e0100` (OP_PUSHDATA4 with two of four) declares a push whose length the script does
@@ -151,3 +152,55 @@ byte IS the length field, the push decodes with short data, and the chunk lands 
 So the "closed conditional" and mid-script positions — the ones expected to be hardest — are
 not affected at all. Only a shape sitting at the end of a script, with its length field
 truncated away, has no verdict here.
+
+#### After OP_RETURN, the node ACCEPTS — so this is a false reject, not only a silence
+
+Confirmed 2026-10-13 against a compiled v1.2.3 (336 node-judged rows, op-codes lab), and the
+mechanism read at that tag. Post-Genesis a top-level `OP_RETURN` terminates evaluation as
+SUCCESSFUL and the rest of the script is never read — the node says so in its own comment:
+
+```cpp
+case OP_RETURN: {
+    if (utxo_after_genesis) {
+        if (conditionals.empty()) {
+            // Terminate the execution as successful. The remaining of the script does not
+            // affect the validity (even in presence of unbalanced IFs, invalid opcodes etc)
+            return SCRIPT_ERR_OK;
+```
+
+So `6a4c`, `6a4d01` and `6a4e0100` — `OP_RETURN` followed by a cut-off length field — are
+**valid locking scripts** that any truthy scriptSig spends. This library cannot parse them, so
+it produces no verdict, and a caller that reads the throw as "invalid" refuses a spend the
+network allows. That is a FALSE REJECT: the safe direction, and visible rather than silent,
+but a divergence on the accept side rather than only on a name.
+
+Where the shape IS representable the two agree. Measured here with scriptSig `51`:
+
+| locking script | here | node |
+|---|---|---|
+| `6a4c`, `6a4d01`, `6a4e0100` | **unparseable** | `ACCEPT` |
+| `6a4c50`+10 bytes | `ACCEPT` | `ACCEPT` |
+| `6a4b`+10 bytes, `6a01` | `ACCEPT` | `ACCEPT` |
+
+Whether anything real produces such an output is unknown — most plausibly a data carrier with
+a damaged tail. It is recorded because it is an accept-side case, not because it is common.
+
+#### The proposed fix produces the node's answer in every position tested
+
+Simulating the `OP_INVALIDOPCODE` tail as a chunk, with no change to the interpreter:
+
+| script | simulated chunks | here | node |
+|---|---|---|---|
+| `6a4c` | `[OP_RETURN, {0xff, <4c>}]` | `ACCEPT` | `ACCEPT` |
+| `4c` | `[{0xff, <4c>}]` | `BAD_OPCODE` | `BAD_OPCODE` |
+| `634c` | `[OP_IF, {0xff, <4c>}]` | `BAD_OPCODE` | `BAD_OPCODE` |
+
+Including the accept-side case, which it gets right for the right reason: `OP_RETURN` returns
+before the tail is ever reached, exactly as in the node. The error name also tracks the
+push-only gate's era-and-version condition correctly, because that condition is upstream of
+the representation.
+
+**The one remaining obstacle is unchanged and is serialization.**
+`[OP_RETURN, {0xff, <4c>}].toHex()` gives `6aff`, not `6a4c`. The fix is therefore: emit the
+raw remainder for this chunk kind in `toBuffer`, and prove byte-exact round-tripping for every
+shape and position. Everything else about it is now measured rather than assumed.
