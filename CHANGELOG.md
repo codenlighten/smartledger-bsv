@@ -43,9 +43,12 @@ not parse cannot satisfy either data-output test — so the verdict is the typed
 `Transaction.DustOutputs` the expression already gives for any non-data output. This preserves
 **this library's** dust-exemption rule, which is the analogue of the node's parsing
 `Solver`/TX_NULL_DATA classification. It is deliberately not a claim of parity with the node's
-dust policy, whose OP_RETURN tests for that purpose (`IsUnspendable`, `IsKnownOpReturn`) are
-pure prefix tests on raw bytes and never parse; `DUST_AMOUNT` here is our own policy constant
-guarding what we build.
+dust policy. The node does have OP_RETURN tests that need no parse (`IsUnspendable`,
+`IsKnownOpReturn` — pure prefix tests on raw bytes), so a prefix-based rule could classify
+`6a4c` where ours cannot; which test governs the node's dust call site is **not** established
+here. An attempt to settle it on regtest was inconclusive, because those nodes enforced no
+dust limit on any shape — a plain sub-dust P2PKH control was accepted too. `DUST_AMOUNT` here
+is our own policy constant guarding what we build.
 
 `getSize()` falls back to `_scriptBuffer.length` **only** when the script is `null`. A parsed
 script keeps the existing calculation deliberately — see the note below.
