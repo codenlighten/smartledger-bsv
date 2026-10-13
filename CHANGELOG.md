@@ -48,6 +48,18 @@ surfaced, which is a sample, and it missed both:
 All four errors were untyped, so a consumer's `catch (e) { if (e instanceof bsv.errors...) }`
 could not classify any of them.
 
+The enumeration itself is now **self-enforcing** rather than a note in a commit message. The
+full list of 23 `.script.<prop>` dereferences in `lib/` lives in
+`test/transaction/null_script_deref_registry.js`, each with the reason its receiver cannot be
+null, and three assertions keep it honest: a new dereference anywhere in `lib/` fails until it
+is classified, an entry that no longer exists must be deleted, and every entry needs a real
+reason. A commit message does not reach the person who adds the next dereference; a failing
+test does. Verified by injecting one and watching it fail.
+
+Two of the sites the enumeration found were **already** guarded with `if (this.script)` —
+`Output#inspect` and `Input#toObject`. So the convention existed, and these four crashes were
+inconsistency with it rather than an unknown hazard.
+
 The same enumeration turned up a second null-returning accessor that is NOT a defect and is
 now pinned so it cannot be "fixed" by mistake: `Input#script` returns null when `isNull()` —
 prevTxId all zeros with outputIndex `0xffffffff`, i.e. the coinbase input every block has.
