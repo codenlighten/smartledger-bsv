@@ -145,6 +145,67 @@ bit applies the 4-byte pre-Genesis cap and rejects the padded value.
 
 ---
 
+## An absolute timelock is three rules, not one comparison
+
+Genesis reverted `OP_CHECKLOCKTIMEVERIFY` and `OP_CHECKSEQUENCEVERIFY` to upgradable
+NOPs for outputs created after it, so on post-Genesis BSV they enforce nothing (see the
+`isAfterGenesis()` short-circuit in `lib/script/interpreter.js`). Reading `nLockTime`
+out of the preimage is therefore the ONLY way to build an absolute timelock, with no
+CLTV backstop underneath it. **Do not hand-roll one.** Use the timelock DSL:
+
+```js
+var lock = bsv.SmartContract.DSL.policy().lockUntil(900000).compile()
+```
+
+It enforces all three of the node's `CheckLockTime` rules, each commented with its
+reason in `lib/smart_contract/dsl.js`. Checking only the number reproduces none of them.
+
+**1. `nSequence` of this input must be non-final.** `IsFinalTx()` ignores `nLockTime`
+outright when every input is `0xffffffff`, so without this the spend is minable in the
+next block however large a locktime it declares. One non-final input is enough to make
+the whole transaction non-final, and this input's `nSequence` is the one the preimage
+lets you see — so you do not need to reach into `hashSequence`.
+
+**2. The units must match the floor's.** `nLockTime` below 500,000,000 is a BLOCK
+HEIGHT; at or above it, a UNIX TIMESTAMP. A bare `nLockTime >= 900000` is satisfied by
+`1500000000` — a long-past timestamp — and that transaction is minable today. A height
+floor needs `floor <= nLockTime < 500000000`. A floor already at or above the threshold
+needs no guard, since `>= floor` implies `>= threshold`.
+
+**3. Sign-pad before `OP_BIN2NUM`**, per the section above: from 19 January 2038 the
+high bit is set, `00000080` minimally encodes to negative zero, and a timestamp floor
+becomes unsatisfiable.
+
+A floor of **0** is rejected: consensus reads `nLockTime` 0 as "no lock" and treats the
+transaction as final whatever any input's sequence says, so it would compile to a lock
+binding nothing.
+
+### What rule 3 does and does not protect
+
+For a HEIGHT-only floor, rule 3 is an availability rule, not a security one — and the
+distinction is worth stating because it is easy to assume the gap is exploitable.
+Measured against this library's interpreter, with floor 900000 and rules 1 and 2 in
+place but no sign-padding:
+
+```
+nLockTime = 900000      accepted    the honest spend
+            899999      rejected    too early
+            1500000000  rejected    rule 2 — the timestamp bypass
+            00000080     rejected    reads as negative zero, fails >= floor
+            0x80000000+900000  rejected    reads negative, fails >= floor
+            0xffffffff  rejected    reads -2147483647, fails >= floor
+            499999999   accepted    a legal far-future height
+```
+
+Every high-bit value fails CLOSED. Rule 2's `< 500000000` test is signed, so a negative
+value passes it, and the `>= floor` comparison is what catches them. So an unpadded
+height gadget is unexploitable — **but only because the floor is at least 1**. With a
+floor of 0, negative zero compares equal and `00000080` is ACCEPTED, which is the second
+reason `lockUntil` refuses a floor of 0. A timestamp floor still needs the padding to
+work at all after 2038.
+
+---
+
 ## Hashing the preimage does not authenticate it
 
 ```
