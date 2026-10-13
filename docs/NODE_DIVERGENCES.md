@@ -155,8 +155,15 @@ truncated away, has no verdict here.
 
 #### After OP_RETURN, the node ACCEPTS — so this is a false reject, not only a silence
 
-Confirmed 2026-10-13 against a compiled v1.2.3 (336 node-judged rows, op-codes lab), and the
-mechanism read at that tag. Post-Genesis a top-level `OP_RETURN` terminates evaluation as
+Confirmed 2026-10-13 by two independent harnesses and the mechanism read at that tag. The
+op-codes lab judged 336 rows against a compiled v1.2.3 (18 of them these shapes: 12 Chronicle
+cells across both flag words and tx versions 1 and 2, plus 6 pre-Chronicle). The
+locking-script-legos lab judged the same three locks against reference `VerifyScript` under two
+flag words with Chronicle bits set and cleared, and then **funded each lock on two live nodes
+(pre-Chronicle and Chronicle-era), broadcast the spends and mined them** — so these outputs are
+not merely consensus-valid, they are creatable and were created, and a wallet reading such an
+output back is a real scenario rather than a hypothetical one. No non-accept row in either
+harness. Post-Genesis a top-level `OP_RETURN` terminates evaluation as
 SUCCESSFUL and the rest of the script is never read — the node says so in its own comment:
 
 ```cpp
@@ -184,6 +191,17 @@ Where the shape IS representable the two agree. Measured here with scriptSig `51
 
 Whether anything real produces such an output is unknown — most plausibly a data carrier with
 a damaged tail. It is recorded because it is an accept-side case, not because it is common.
+
+**On the output side the refusal is a `null`, not a throw, and that had consequences.**
+`Output#setScriptFromBuffer` catches `Script.InvalidBuffer` and sets `_script = null`, keeping
+the raw bytes in `_scriptBuffer`. So a transaction carrying such an output constructs, round-
+trips byte-exact, and reports the raw script in `toObject()` and `inspect()` — but
+`output.script` is `null` for an output read from a valid, mined transaction. Two call sites
+dereferenced it without asking and threw a raw, untyped `TypeError` that a consumer's
+`instanceof` check could not classify: `Transaction#_hasDustOutputs` (reached from
+`getSerializationError()` and `serialize()`) and `Output#getSize` (reached from
+`_estimateSize()`, the fee path). Both were fixed in 9.33.2 / 1.5.2 without changing any
+verdict. The underlying `null` remains, and is the thing the parser change would remove.
 
 #### The proposed fix produces the node's answer in every position tested
 
@@ -214,8 +232,22 @@ The simulated representation gives all twelve cells identically, and for the str
 rather than by coincidence: the gate's era-and-version condition is evaluated before
 `IsPushOnly` is consulted, and the chunk is an undefined opcode either way.
 
-**The one remaining obstacle is unchanged and is serialization.**
-`[OP_RETURN, {0xff, <4c>}].toHex()` gives `6aff`, not `6a4c`. The fix is therefore: emit the
-raw remainder for this chunk kind in `toBuffer`, and prove byte-exact round-tripping for every
-shape and position. Everything else about it is now measured against a node rather than
-assumed.
+**The serialization obstacle now has an existence proof, so no axis is left unmeasured.**
+`[OP_RETURN, {0xff, <4c>}].toHex()` gives `6aff`, not `6a4c`, so the fix must emit the raw
+remainder for this chunk kind in `toBuffer` rather than re-encode the opcode number. That is
+exactly what go-sdk does, and it is lossless there:
+
+* the engine parser stores `ParsedOpcode{op: opcodeMalformed (0xff), Data: scr[i:]}` — the
+  raw script bytes from the undecodable instruction to end-of-script;
+* `opcodeparser.go:581` opens `bytes()` with `if o.isMalformed() { return o.Data, nil }`, so
+  the carried remainder is re-emitted verbatim and the `0xff` is **never serialized**. It is
+  internal identity only, which is what makes `IsPushOnly` and `FindAndDelete` treat the tail
+  as non-push and undeletable.
+
+Measured on go-sdk v1.7.2 through `Parse(nodeExact) -> Unparse`, bytes compared: `6a4c`,
+`4c51`, `4c`, `4d01`, `4e0100` and `514c51` all round-trip **byte-exact**, including the
+mid-script case where the tail swallows the following instruction. Both halves are required —
+a raw-remainder carry alone, serialized through the opcode number, would still give `ff`.
+
+So the representation is implementable without fidelity loss. What remains is to implement
+and prove it here, not to establish that it can be done.

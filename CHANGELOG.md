@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.33.2] - 2026-10-13
+
+Crash fixes only. No verdict changes: every script, well-formed or not, gets the same answer
+it got in 9.33.1, and the dust and size results are unchanged wherever they could be computed
+at all.
+
+### Fixed — two raw TypeErrors on an output script the node accepts and mines
+
+A locking script of `OP_RETURN` followed by a push whose LENGTH FIELD is cut off — `6a4c`,
+`6a4d01`, `6a4e0100` — is valid: post-Genesis a top-level `OP_RETURN` terminates evaluation as
+successful before the remainder is read. Two independent harnesses confirmed it against a
+compiled node on 2026-10-13, and one of them funded each lock on live nodes, broadcast the
+spends and mined them. So such an output can exist on chain and be read back.
+
+This library's `Script` parser is eager and throws on those bytes. `Output#setScriptFromBuffer`
+turns that throw into `_script = null`, keeping the raw bytes in `_scriptBuffer`, so a
+transaction carrying such an output constructs, round-trips byte-exact, and reports the raw
+script in `toObject()` and `inspect()` — but `output.script` is `null`.
+
+Two call sites dereferenced it without asking:
+
+* `Transaction#_hasDustOutputs` — `TypeError: Cannot read properties of null (reading
+  'isDataOut')`, below the dust threshold only. Reached from `getSerializationError()` and
+  `serialize()`.
+* `Output#getSize` — `TypeError: Cannot read properties of null (reading 'toBuffer')`. Reached
+  from `Transaction#_estimateSize()`, so fee estimation could not run on such a transaction at
+  all.
+
+Both errors were untyped, so a consumer's `catch (e) { if (e instanceof bsv.errors...) }` could
+not classify them.
+
+The dust check now asks whether the script is `null` before classifying, and a script that did
+not parse cannot satisfy either data-output test — so the verdict is the typed
+`Transaction.DustOutputs` the expression already gives for any non-data output. This preserves
+**this library's** dust-exemption rule, which is the analogue of the node's parsing
+`Solver`/TX_NULL_DATA classification. It is deliberately not a claim of parity with the node's
+dust policy, whose OP_RETURN tests for that purpose (`IsUnspendable`, `IsKnownOpReturn`) are
+pure prefix tests on raw bytes and never parse; `DUST_AMOUNT` here is our own policy constant
+guarding what we build.
+
+`getSize()` falls back to `_scriptBuffer.length` **only** when the script is `null`. A parsed
+script keeps the existing calculation deliberately — see the note below.
+
+### Known — `getSize()` measures the Script object, which serialization does not
+
+`output.script` hands out the live `Script` object, but `toBufferWriter` writes
+`_scriptBuffer`. A caller who mutates the script in place therefore sees the mutation in the
+object and in `getSize()`, while the transaction serializes **without** it:
+
+```js
+o.script.add(Buffer.from('deadbeef', 'hex'))
+o.script.toHex()                            // 6a0548656c6c6f04deadbeef
+o.getSize()                                 // 21
+o.toBufferWriter().toBuffer().length        // 16  — the mutation is dropped
+```
+
+Both sides are pinned in `test/transaction/output_unparseable_script.js` so neither can move
+unnoticed. This is not changed here: either resolution alters observable behaviour for
+well-formed scripts, which `STABILITY.md` protects, so it is a separate decision rather than
+part of a crash fix. The supported way to change an output's script is `setScript()`, which is
+honoured correctly.
+
 ## [9.33.1] - 2026-10-13
 
 Error-name and check-order only, like 9.29.1 and 9.29.2. No script that verified before
