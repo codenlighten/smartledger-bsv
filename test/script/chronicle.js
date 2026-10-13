@@ -347,6 +347,126 @@ describe('Chronicle script surface', function () {
       }).verified
     }
 
+    // The COUNT is narrowed to an int32 by the node's CScriptNum::operator>>=, which
+    // raises bsv::big_int_error above INT32_MAX and surfaces as SCRIPT_ERR_BIG_INT.
+    // This library had no such bound: the count fell through to the
+    // `shiftBy >= bitLength()` short-circuit, the opcode pushed an empty result, and
+    // `<v> <2^32+1> OP_RSHIFTNUM OP_DROP OP_1` VERIFIED — a FALSE ACCEPT of a lock the
+    // network refuses, which is the direction that strands coins.
+    //
+    // Reference verdicts are from a compiled bitcoin-sv v1.2.3 under flags 0x3d586f.
+    // Found by an outside lab building a locking-script catalogue on bsv-core 1.4.0,
+    // not by this suite: the existing count cases here are all far below the boundary.
+    describe('the shift COUNT is bounded by INT32_MAX', function () {
+      var INT32_MAX = 2147483647
+
+      it('shifts for every count up to INT32_MAX', function () {
+        isZero(5, INT32_MAX, Opcode.OP_RSHIFTNUM).should.equal(true)
+        isZero(5, INT32_MAX - 1, Opcode.OP_RSHIFTNUM).should.equal(true)
+        value(1024, 10, Opcode.OP_RSHIFTNUM).should.equal('1')
+      })
+
+      it('aborts with BIG_INT at and above 2^31, where the node does', function () {
+        ;[2147483648, 2147483649, 4294967297, 4503599627370496].forEach(function (n) {
+          var r = shift(5, n, Opcode.OP_RSHIFTNUM)
+          r.verified.should.equal(false, 'count ' + n + ' was accepted')
+          r.errstr.should.equal('SCRIPT_ERR_BIG_INT', 'count ' + n)
+        })
+      })
+
+      it('aborts on a count far past any float precision', function () {
+        // BN.prototype.toNumber here is parseInt(toString(10)), which does NOT throw
+        // past 2^53 — a 26-byte count narrowed to 4.1e62. So the bound has to be tested
+        // on the BN, before narrowing, or it is a bound on a rounded approximation.
+        var huge = new BN('ff'.repeat(25) + '7f', 16)
+        var r = run(function (s) {
+          s.add(new BN(5).toScriptNumBuffer()).add(huge.toScriptNumBuffer())
+            .add(Opcode.OP_RSHIFTNUM)
+        })
+        r.verified.should.equal(false)
+        r.errstr.should.equal('SCRIPT_ERR_BIG_INT')
+      })
+
+      it('aborts whatever the value is, because the count is read first', function () {
+        // The node narrows the count before it shifts anything, so a zero value aborts
+        // too. Asserted because "it only matters for large values" is the natural wrong
+        // guess, and it would make a narrower fix look sufficient.
+        ;[0, 1, -1, -5].forEach(function (x) {
+          var r = shift(x, 4294967297, Opcode.OP_RSHIFTNUM)
+          r.verified.should.equal(false, 'value ' + x)
+          r.errstr.should.equal('SCRIPT_ERR_BIG_INT', 'value ' + x)
+        })
+      })
+
+      it('still rejects a negative count as NUMBER_RANGE, checked before the bound', function () {
+        var r = shift(5, -1, Opcode.OP_RSHIFTNUM)
+        r.verified.should.equal(false)
+        r.errstr.should.equal('SCRIPT_ERR_INVALID_NUMBER_RANGE')
+      })
+
+      it('yields to the VALUE\'s own error, because the count is not read last', function () {
+        // Error PRECEDENCE, which the bound could easily have got wrong. The node builds
+        // a CScriptNum for the count, then one for the value, then shifts — so a value
+        // that fails its OWN validation must report its own error even when the count is
+        // also out of range. Measured: a non-minimal value with a 2^32+1 count gives
+        // SCRIPTNUM_MINENCODE, not BIG_INT. Had the bound been placed directly after the
+        // count was read, this would have returned BIG_INT and diverged again.
+        var r = run(function (s) {
+          s.add(Buffer.from('0500', 'hex'))
+            .add(new BN(4294967297).toScriptNumBuffer()).add(Opcode.OP_RSHIFTNUM)
+        }, { flags: ERA | Interpreter.SCRIPT_VERIFY_MINIMALDATA })
+        r.verified.should.equal(false)
+        r.errstr.should.equal('SCRIPT_ERR_SCRIPTNUM_MINENCODE')
+      })
+
+      it('reports BIG_INT for a value that is long but legal', function () {
+        // The mirror of the case above: under Chronicle the script-number length is
+        // 32,000,000, so a 750,001-byte value is valid and the count's bound is what
+        // fires. Confirms the previous test pins precedence and not merely "long values
+        // error somehow".
+        var r = run(function (s) {
+          s.add(Buffer.alloc(750001, 1))
+            .add(new BN(4294967297).toScriptNumBuffer()).add(Opcode.OP_RSHIFTNUM)
+        })
+        r.verified.should.equal(false)
+        r.errstr.should.equal('SCRIPT_ERR_BIG_INT')
+      })
+
+      it('exempts OP_LSHIFTNUM even for a zero value, where the size bound still fires', function () {
+        // The exemption argument rests on the result-size bound running first and
+        // applying whatever the value is — a zero value is the case where "the result is
+        // too big" reads least obviously, so it is the one worth asserting.
+        ;[0, 5].forEach(function (x) {
+          shift(x, 4294967297, Opcode.OP_LSHIFTNUM).errstr
+            .should.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW', 'value ' + x)
+        })
+        shift(0, 2147483647, Opcode.OP_LSHIFTNUM).errstr
+          .should.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW', 'count at INT32_MAX')
+      })
+
+      it('is a NOP before Chronicle, so the new error does not leak backwards', function () {
+        // A pre-Chronicle UTXO treats these bytes as upgradable NOPs on the network, and
+        // the new error must not make this library refuse a script the network accepts —
+        // that is the mirror of the bug being fixed here.
+        var r = shift(5, 4294967297, Opcode.OP_RSHIFTNUM, 0)
+        r.verified.should.equal(true, r.errstr)
+        r.stack.should.deep.equal(['5', '4294967297']) // untouched: nothing shifted or popped
+      })
+
+      it('leaves OP_LSHIFTNUM reporting SCRIPTNUM_OVERFLOW, which the node agrees with', function () {
+        // Deliberately NOT given the BIG_INT bound. operator<<= bounds the RESULT size
+        // first, and the size bound trips above ~256,000,000 — well under INT32_MAX — so
+        // the big_int path is unreachable for a left shift in every era where these
+        // opcodes are live. Adding the check would swap an agreeing error name for a
+        // disagreeing one, which is the defect class 9.31.0 went after.
+        ;[2147483648, 4294967297].forEach(function (n) {
+          var r = shift(5, n, Opcode.OP_LSHIFTNUM)
+          r.verified.should.equal(false)
+          r.errstr.should.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW', 'count ' + n)
+        })
+      })
+    })
+
     it('are upgradable NOPs before Chronicle, as the node has them', function () {
       // if(!utxo_after_chronicle) { ... else break; }  — a no-op, NOT an error.
       // Rejecting here would refuse scripts the network accepts.
