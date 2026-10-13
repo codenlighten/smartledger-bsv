@@ -115,12 +115,39 @@ push-only gate only ever tests the scriptSig, so for a locking script only the i
 read can fail.
 
 A third reported row — a truncated push inside an unexecuted `OP_IF` giving
-`UNBALANCED_CONDITIONAL` — was **not** accepted, because `EvalScript` calls `GetOp` at the
-top of its loop and returns `BAD_OPCODE` before `fExec` is computed (interpreter.cpp:450),
-while the `conditionals.empty()` test is only reached once the loop runs to completion
-(interpreter.cpp:1828). `UNBALANCED_CONDITIONAL` arises only when the push *decodes*: once
-any byte follows `4c`, that byte becomes the length field, the push is well-formed, and the
-`OP_IF` is simply left open. This library agrees with the node on those decodable cases
-(`00634c00` and `00634c01aa` both give `UNBALANCED_CONDITIONAL`). The divergence is confined
-to the genuinely undecodable shapes. That is the same byte-swallowing that makes a
-mid-script truncated push the hardest case to get right, which is why it is called out above.
+`UNBALANCED_CONDITIONAL` — was refused and has since been retracted at source. It could not
+be right, because `EvalScript` calls `GetOp` at the top of its loop and returns `BAD_OPCODE`
+before `fExec` is computed (interpreter.cpp:450), while the `conditionals.empty()` test is
+only reached once the loop runs to completion (interpreter.cpp:1828). An undecodable
+instruction therefore reports `BAD_OPCODE` whether its branch would have executed or not,
+which is the behaviour 9.29.2 landed here.
+
+The actual cause was better than the one guessed at from this side, and worth recording
+because it is a trap for anyone generating vectors: the row builder gave up before assembling
+the scriptSig for rows whose LOCKING script its own parser could not read, and recorded an
+EMPTY scriptSig. The node was then judging `''` against `63 4c`, where `OP_IF` meets an empty
+stack and returns `SCRIPT_ERR_UNBALANCED_CONDITIONAL` (interpreter.cpp, `case OP_IF`) **before
+the `4c` is ever read**. A verdict about a different script entirely. Confirmed here: `''`
+against `6351` gives `UNBALANCED_CONDITIONAL`, matching. Once the scriptSig was recorded, all
+those rows gave `BAD_OPCODE`. **A vector row's label cannot be trusted without its bytes** —
+an off-by-one-byte or missing-field row yields a plausible wrong answer rather than an obvious
+failure.
+
+#### How narrow the open divergence actually is
+
+Narrower than the three shapes suggest. The parser only fails when the length field is cut off
+at the very END of the script, with nothing following it. The moment any byte follows, that
+byte IS the length field, the push decodes with short data, and the chunk lands in the class
+9.29.2 already handles — where this library agrees with the node. Measured:
+
+| scriptSig | locking script | here | class |
+|---|---|---|---|
+| `00` | `634c6851` (`4c` takes `68` as length 104) | `BAD_OPCODE` | already agrees |
+| `00` | `634d016851` | `BAD_OPCODE` | already agrees |
+| `00` | `634e01006851` | `BAD_OPCODE` | already agrees |
+| `00` | `634c05cd`, `6301`, `6305cdcd` | `BAD_OPCODE` | already agrees |
+| `''` | `634c` | **unparseable** | the open divergence |
+
+So the "closed conditional" and mid-script positions — the ones expected to be hardest — are
+not affected at all. Only a shape sitting at the end of a script, with its length field
+truncated away, has no verdict here.
