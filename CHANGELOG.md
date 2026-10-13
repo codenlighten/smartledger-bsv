@@ -7,6 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.33.0] - 2026-10-13
+
+### Fixed
+
+- **`OP_RSHIFTNUM` accepted a shift count the node refuses — a FALSE ACCEPT.**
+  `<v> <2^32+1> OP_RSHIFTNUM OP_DROP OP_1` verified here and fails on the
+  network. That is the dangerous direction: a lock this library calls spendable
+  that no miner will accept, so coins sent to it stay there.
+
+  The node hands the count straight to `CScriptNum::operator>>=` as a
+  `CScriptNum` — `interpreter.cpp` does `values >>= n;` with no `getint()`,
+  unlike the bitwise `OP_RSHIFT` beneath it, which calls `n.getint()` and
+  chunks by `INT32_MAX`. That operator narrows the count to a 32-bit shift and
+  raises `bsv::big_int_error` above `INT32_MAX`, which `EvalScript`'s catch
+  turns into `SCRIPT_ERR_BIG_INT`. The script aborts; it does not shift.
+
+  This library had no bound at all: the count fell through to the
+  `shiftBy >= bitLength()` short-circuit, the opcode pushed an empty result and
+  the script ran on. Measured against a compiled bitcoin-sv v1.2.3 under flags
+  `0x3d586f`, counts at and above 2^31 abort with `SCRIPT_ERR_BIG_INT` and
+  counts at or below 2^31-1 shift; the value is irrelevant, because the count
+  is narrowed before anything is shifted. The boundary now matches on both
+  sides, inclusive case included.
+
+  Three details, each pinned by test:
+
+  - The bound is tested on the `BN`, **before** `toNumber()`.
+    `BN.prototype.toNumber` here is `parseInt(toString(10))`, which does not
+    throw past 2^53 — it returns a rounded float, and a 26-byte count narrowed
+    to `4.1e62`. A bound checked after narrowing is a bound on an
+    approximation.
+  - **Precedence.** Both operands are read first, in the node's order, so a
+    value failing its own `CScriptNum` validation still reports *its* error: a
+    non-minimal value with a 2^32+1 count gives `SCRIPT_ERR_SCRIPTNUM_MINENCODE`,
+    not `SCRIPT_ERR_BIG_INT`. Putting the check immediately after the count was
+    read would have diverged again, the other way.
+  - **`OP_LSHIFTNUM` is deliberately exempt.** Its result-size bound runs first
+    and fires whatever the value is, including zero, so a large count surfaces
+    as `SCRIPT_ERR_SCRIPTNUM_OVERFLOW` on both sides. It cannot reach the
+    `big_int` path: that size bound trips above `8 * 32,000,000 = 256,000,000`
+    while `INT32_MAX` is `2,147,483,647`, and 32,000,000 is the only
+    script-number length in play, since `maxScriptNumLength()` tests
+    `isAfterChronicle()` first and these opcodes are upgradable NOPs unless
+    that holds. `setLimits()` does not expose that length, so a caller cannot
+    raise it. Giving the left shift the check would swap an error name that
+    agrees with the node for one that disagrees.
+
+  Pre-Chronicle behaviour is asserted unchanged: for a pre-Chronicle UTXO these
+  bytes are upgradable NOPs, and the new error must not make this library refuse
+  a script the network accepts — the mirror of the bug being fixed.
+
+  Found by an outside lab building a locking-script catalogue on
+  `@smartledger/bsv-core` 1.4.0, with reference verdicts from a compiled node.
+  Not found here: every shift-count case this suite already had sits far below
+  the boundary. The same defect was present in `@smartledger/bsv-core` and is
+  fixed in 1.5.0.
+
+### Documentation
+
+- `valueCovenant`'s doc comment said only that "coins can only go where the
+  covenant says" and never mentioned change. It pins the digest of the **entire
+  output set** under SIGHASH_ALL — count, order, values and scripts — so exactly
+  one output set is admissible and a lock built from `hashOutputs([payout])`
+  rejects the spend `[payout, change]`. Pinning change fixes its *amount*, not
+  the fee, since extra inputs raise the input value while the outputs stay
+  identical. `valueCovenantSingle` is the one-output form, and it pins the
+  output at the spending **input's** index rather than one the caller chooses.
+- `docs/preimage.md` gains a section on absolute timelocks. Genesis reverted
+  `OP_CLTV`/`OP_CSV` to upgradable NOPs for outputs created after it, so reading
+  `nLockTime` out of the preimage is the only route and there is no backstop
+  under it. It is three rules — non-final `nSequence`, matching height/timestamp
+  units, and sign-padding before `OP_BIN2NUM` — and checking the number alone
+  reproduces none of them. All three are already in `policy().lockUntil`; the
+  section says not to hand-roll it. It also records what rule 3 does *not*
+  protect: with rules 1 and 2 in place every high-bit `nLockTime` fails closed,
+  so an unpadded height gadget is unexploitable — but only because the floor is
+  at least 1, since with a floor of 0 negative zero compares equal and
+  `00000080` is accepted.
+
 ## [9.32.0] - 2026-10-12
 
 Two defects in the credential proof systems, found by auditing the Merkle construction in
