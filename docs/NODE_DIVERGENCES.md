@@ -200,7 +200,22 @@ before the tail is ever reached, exactly as in the node. The error name also tra
 push-only gate's era-and-version condition correctly, because that condition is upstream of
 the representation.
 
+It also tracks the node across the TX-VERSION axis, which matters because the node's answer for
+these three shapes is itself version-dependent — confirmed on a compiled v1.2.3 over 292 rows
+at both versions. As the whole scriptSig, against lock `51`:
+
+| shape | v1, SIGPUSHONLY on | v2, on | v1, off | v2, off |
+|---|---|---|---|---|
+| `4c` | `SIG_PUSHONLY` | `BAD_OPCODE` | `BAD_OPCODE` | `BAD_OPCODE` |
+| `4d01` | `SIG_PUSHONLY` | `BAD_OPCODE` | `BAD_OPCODE` | `BAD_OPCODE` |
+| `4e0100` | `SIG_PUSHONLY` | `BAD_OPCODE` | `BAD_OPCODE` | `BAD_OPCODE` |
+
+The simulated representation gives all twelve cells identically, and for the structural reason
+rather than by coincidence: the gate's era-and-version condition is evaluated before
+`IsPushOnly` is consulted, and the chunk is an undefined opcode either way.
+
 **The one remaining obstacle is unchanged and is serialization.**
 `[OP_RETURN, {0xff, <4c>}].toHex()` gives `6aff`, not `6a4c`. The fix is therefore: emit the
 raw remainder for this chunk kind in `toBuffer`, and prove byte-exact round-tripping for every
-shape and position. Everything else about it is now measured rather than assumed.
+shape and position. Everything else about it is now measured against a node rather than
+assumed.
