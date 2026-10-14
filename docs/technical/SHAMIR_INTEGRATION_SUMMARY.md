@@ -47,7 +47,7 @@
 
 **1. Main Library Integration:**
 ```javascript
-var bsv = require('smartledger-bsv')
+var bsv = require('@smartledger/bsv')
 var shares = bsv.Shamir.split('secret', 3, 5)
 var secret = bsv.Shamir.combine(shares.slice(0, 3))
 ```

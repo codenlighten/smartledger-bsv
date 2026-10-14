@@ -19,7 +19,7 @@
 ## Quick Start
 
 ```javascript
-const SmartContract = require('smartledger-bsv').SmartContract
+const SmartContract = require('@smartledger/bsv').SmartContract
 
 // 🚀 Write covenant logic in JavaScript
 const builder = SmartContract.createCovenantBuilder()

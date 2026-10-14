@@ -1141,7 +1141,7 @@ declare module '@smartledger/bsv' {
         // Zero-knowledge
         generateSelectiveProof(credential: object, revealedFields: string[], nonce: string): object;
         verifySelectiveProof(proof: object, publicData: object): boolean;
-        generateAgeProof(ageCredential: object, minimumAge: number, nonce: string): object;
+        generateAgeProof(birthDate: Date | string, minimumAge: number, salt?: string): object;
         verifyAgeProof(proof: object, requiredAge: number, opening: object): boolean;
         generateRangeProof(value: number, min: number, max: number, nonce: string): object;
         verifyRangeProof(proof: object, min: number, max: number, opening: object): boolean;
@@ -2078,7 +2078,7 @@ declare module '@smartledger/bsv' {
     export function verifyCredential(credential: object, options?: object): { valid: boolean; [key: string]: any };
     export function validateCredential(credential: object, schema: string | object): { valid: boolean; errors?: string[] };
     export function generateSelectiveProof(credential: object, revealedFields: string[], nonce: string): object;
-    export function generateAgeProof(ageCredential: object, minimumAge: number, nonce: string): object;
+    export function generateAgeProof(birthDate: Date | string, minimumAge: number, salt?: string): object;
     export function verifyAgeProof(proof: object, requiredAge: number, opening: object): boolean;
     export function createPresentation(credentials: object[], holderDID: string, holderPrivateKey: PrivateKey, options?: object): object;
     export function getCredentialSchemas(): { [name: string]: object };

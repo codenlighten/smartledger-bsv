@@ -369,6 +369,14 @@ jobs:
         # invalidates every module reference an in-process suite is holding.
         run: npm run check:load-order
 
+      - name: No live doc installs the unscoped package (blocking)
+        # `smartledger-bsv` is a different, dormant package, and 14 of its 22 published versions
+        # return a broadcast-ready transaction with the caller's private key in the OP_RETURN.
+        # Our own docs told readers to require it, and one page said to install its 4.2.1 —
+        # one of those 14. A copied snippet installs a key-leaking package, so this is not a
+        # naming nit. Historical records (archive/, CHANGELOG, the review report) are exempt.
+        run: npm run check:package-name
+
       - name: Lint ratchet — no NEW violations repo-wide (blocking)
         # Grandfathers the standard@12 legacy baseline (.lint-baseline.json) but fails on
         # any file that gains a new violation, so the whole repo is gated without the big

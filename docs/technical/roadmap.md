@@ -504,7 +504,7 @@ bsv.GDAF.verifyPresentation(presentation)      // → boolean## 🧮 GDPR & Priv
 
 // External Application Integration Example// 1.  Create Right
 
-const bsv = require('smartledger-bsv')const claim = { assetId: "VIN1234", owner: "did:smartledger:greg" };
+const bsv = require('@smartledger/bsv')const claim = { assetId: "VIN1234", owner: "did:smartledger:greg" };
 
 const MyBlockchainAPI = require('my-blockchain-service')const token = bsv.LTP.createRightToken("VehicleTitle", "did:smartledger:greg", claim, issuerWIF);
 
@@ -1176,7 +1176,7 @@ Tokens are immutable once anchored.
 ## 🧱 **6. Interface Example**
 
 ```js
-import SmartLedgerBSV from 'smartledger-bsv';
+import SmartLedgerBSV from '@smartledger/bsv';
 
 // Identity
 const did = SmartLedgerBSV.GDAF.createDID(pubKey);

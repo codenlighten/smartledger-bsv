@@ -5,7 +5,133 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [9.36.0] - 2026-10-14
+
+### Fixed — `generateAgeProof` ignored its argument and attested a hardcoded birth date
+
+**A proof that a subject meets an age threshold could be obtained for a subject who does not.**
+`GDAF#generateAgeProof` and the top-level `bsv.generateAgeProof` took an `ageCredential`,
+discarded it, and committed to `new Date('1995-06-15')`:
+
+```js
+GDAF.prototype.generateAgeProof = function (ageCredential, minimumAge, nonce) {
+  // For this demo, we'll work with the birth date directly
+  // In a real implementation, this would extract from the credential
+  var birthDate = new Date('1995-06-15') // This should come from the credential creation
+  return this.zkProver.generateAgeProof(birthDate, minimumAge, nonce)
+}
+```
+
+Measured on **published 9.35.0**, installed from the registry:
+
+* a credential for a subject born **2015-03-01** produced a proof that `verifyAgeProof` returned
+  **`true`** for, at every `minimumAge` from **1 to 31**. 32 and above threw
+  `Age requirement not met` — for every caller, however old the subject;
+* two credentials, for subjects born **2015** and **1960**, produced **byte-identical**
+  `birthDateCommitment` and `opening`. The argument affected nothing;
+* `proof.opening.birthDate` was always `"1995-06-15"`.
+
+**Who this harms, and under what assumption.** This is not a cryptographic forgery: verification
+needs the opening, and the opening carries `birthDate` in plaintext, so a relying party that
+inspects it sees a date unrelated to the subject. The harm lands on a relying party that treats a
+`true` from this API as credential-backed evidence about the credential's subject — which is
+exactly what our own developer documentation showed it doing, down to the same 1995-06-15. That
+documentation is corrected here too, including an example that passed an issuer DID where the
+opening belongs (it returned `false`) and a comment claiming the birth date stayed private.
+
+**Why it could not simply be completed.** `createAgeCredential` stores only
+`credentialSubject.birthDateHash = sha256(birthDate.toISOString())`; the credential never carries
+the date, while the proof commits to `sha256('YYYY-MM-DD' + ':' + salt)`. There is no function
+from the credential to the proof — not a missing one, an impossible one. The declared signature
+promised what the credential format cannot supply.
+
+So the first argument is now **the birth date**: a `Date`, or a strict `YYYY-MM-DD` string
+(parsed as UTC and required to round-trip, which rejects `2015-02-30` rather than rolling it
+forward). A **credential is refused**, with an error that says why. Reading an unverified
+`credentialSubject.birthDate` out of a credential object was the tempting alternative and is the
+wrong one: it swaps a hardcoded date for a caller-supplied one while still looking like a
+statement about an authenticated credential, and nothing here checks an issuer signature, a
+subject binding or a status list. An invalid `Date`, a future date, and a non-date are all
+refused.
+
+What the proof means is unchanged and narrow: it shows a commitment consistent with the date the
+caller supplied, and attests nothing about whose date it is.
+
+#### Why this is a minor, and not the fund-loss exception
+
+`STABILITY.md` promises that **9.x will not break your code** before 2027-09-01, and a breaking
+correctness fix is meant to warn in a minor and flip in the major. Its one stated exception is an
+API that can lose funds — *"'Wrong' is not 'dangerous.' Only loss of funds qualifies."* This does
+not lose funds, so that exception does not apply and is not claimed.
+
+The argument is instead the one **9.23.0** already made, in this file, for the same situation:
+*"no working call can break: the old shapes threw or returned `false` unconditionally, so nothing
+could have depended on a correct result from them."* The compatibility promise attaches to working
+code. That was measured here rather than assumed — ten input shapes against published 9.35.0,
+including a `Date`, an ISO string, a credential, `undefined`, `null`, a number, a non-date string
+and the hardcoded date itself:
+
+```
+distinct birth dates returned across 10 accepted inputs: ["1995-06-15"]
+distinct commitments: 1
+inputs for which the proof matched what was asked: 0
+```
+
+`generateAgeProof` was a **constant function of its first argument**. It did not reject bad input
+and honour good input — it returned the same commitment for every input, `undefined` and `null`
+among them. So there is no call whose correct result this change takes away, and no caller who can
+have depended on one. That is narrower and stronger than the forgery precedent (9.20.0, 9.22.0,
+9.25.0, 9.26.1, 9.27.0 and 9.32.0 each flipped a `true` to a `false` in a minor), and it does not
+require reading the funds exception more broadly than it is written.
+
+One behaviour does change without throwing: a caller who passed a `Date` or a `YYYY-MM-DD` string
+now gets a proof about **that** date rather than about 1995-06-15. Being given the answer to the
+question you asked is not a break worth deferring to a major.
+
+### Fixed — the 9.23.0 wrapper fix missed the top-level forwarders, and its guard missed a method
+
+Three findings from auditing the above, each of which had been invisible for the same reason:
+a check that looked at one layer and reported success.
+
+* **`bsv.verifyAgeProof` still named its third parameter `issuerDID`.** 9.23.0 corrected
+  `GDAF#verifyAgeProof` to `opening` and left the top-level forwarder behind, so the documented
+  top-level API kept telling callers to pass a DID for two more minors. Forwarding was always
+  positional, so nothing failed — a DID is a string, the opening must be an object, and the
+  module answered `false`. `bsv.generateSelectiveProof` had the same kind of name drift. The
+  guard in `test/gdaf/wrapper_signatures.js` only ever compared the class layer to the module,
+  so it could not see this layer at all. It now compares both.
+* **The guard silently skipped `generateAgeProof`.** Its matcher required
+  `function (...) { return this.zkProver.x(...) }` on one line, so the one method with a body —
+  the one with the hardcoded date — was never examined. It inspected **7 of 8** delegating
+  methods while asserting only that it had found more than 5. The guard now detects delegation
+  loosely (any `this.zkProver` reference) and parses it strictly, and **fails on any delegating
+  method it cannot read** rather than passing over it. A first attempt at that assertion reused
+  the narrow pattern it was meant to audit and so shared its blind spot; it was caught by
+  mutating a wrapper to delegate via `apply`, which the fixed version rejects.
+* **A name check cannot see whether an argument is used.** Had the old body merely named its
+  local variable `birthDate`, every signature check would have passed while the proof was about
+  a fictitious person. The behaviour is therefore asserted directly: two different dates must
+  give different commitments under the same salt, the opening must carry the date supplied, and
+  a subject below the threshold must not yield a proof.
+
+### Fixed — our own docs told readers to install a package that leaks their private key
+
+`docs/COVENANT_DEVELOPMENT_RESOLVED.md` said to run `npm install smartledger-bsv@4.2.1`. That is
+the **unscoped** package — a different, dormant one — and its `4.2.1` is among the 14 published
+versions whose `GDAF.anchorCredential` and `anchorBatch` return a signed, broadcast-ready
+transaction with **the caller's private key in the OP_RETURN**, recoverable to the same WIF
+(GHSA-gw63-x79h-mhjc). The scoped `@smartledger/bsv@4.2.1` it offered as an alternative predates
+the 7.5.5 `PrivateKey.fromObject` fix, where a persist/restore round trip silently yielded a
+different, derivable key and funds sent to the resulting address are loseable.
+
+**24 references** across 13 live docs, demos and module READMEs required or installed the
+unscoped name. `docs/DOCUMENTATION_REVIEW_REPORT.md` had already noted the inconsistency —
+"Examples ... Others use `require('smartledger-bsv')`" — and nothing acted on it, because nothing
+failed. The new `npm run check:package-name` gate fails on any live file that would make a reader
+require, import or install the unscoped package, and runs in CI and `prepublishOnly`. Files that
+record the past rather than instruct are exempt. The gate found 5 of the 24 that a grep for the
+quoted form had missed, including the install command above.
+
 
 ### The signed-bytes dimension of the 9.35.0 fix is now node-confirmed
 
@@ -1338,6 +1464,32 @@ Two separate drifts, both between a wrapper and the module it delegates to:
 `false` and one threw. The 9.20.0 and 9.22.0 security fixes are unaffected, and the original
 forgery is still refused through both paths. The defect was that the class API verified nothing
 rather than that it verified wrongly.
+
+> **Corrected 2026-10-14**, after running the published artifacts (9.16.1, 9.19.0, 9.20.0,
+> 9.22.0 and 9.22.1 installed from the registry, each with a positive control) instead of
+> reading the diff. The verdict above holds — every one of the four failed closed, including
+> `verifyAgeProof`, whose row did not state its verdict — but two details of the mechanism
+> above are wrong:
+>
+> * **`verifyRangeProof` did not gain its `opening` in 9.20.0.** `ZKProver.verifyRangeProof`
+>   has been `(proof, min, max, opening)` since **8.2.0**, the release that fixed its forgery.
+>   Only `verifyMembershipProof` changed in 9.20.0, from `(proof)` to `(proof, opening, set)`.
+>   So the class-path *range* verifier answered `false` for every proof from 8.2.0 onward, a
+>   much longer window than this entry implied; the membership one from 9.20.0, as stated.
+> * **Two of the four forwarded the right arguments under the wrong names.** The wrappers for
+>   `verifyMembershipProof` and `verifyRangeProof` drop the last argument, so no caller can
+>   supply it and the class path is inert whatever is passed. But `generateMembershipProof` and
+>   `verifyAgeProof` forward every argument positionally and intact: only their parameter names
+>   and `bsv.d.ts` types were wrong. `g.generateMembershipProof(set, value)` — the module's
+>   order, not the wrapper's documented one — returns a real `MembershipProof` at every version
+>   from 9.20.0 to 9.22.1, so "no proof could be generated through the class at any version
+>   since 5.4.0" is false; it was false for the **documented** call. Likewise
+>   `g.verifyAgeProof(proof, age, opening)` returns a correct `true`, while the documented
+>   `issuerDID` string returns `false` because the module refuses a non-object opening.
+>
+> The second point is why the general guard in `test/gdaf/wrapper_signatures.js` compares
+> wrappers to their targets by parameter NAME. Arity alone would have caught only the two
+> dropped-argument drifts and missed both naming drifts entirely.
 
 **Why no test caught it:** every proof test called the module directly
 (`require('lib/gdaf/zk-prover')`), never the class wrapper, so the wrappers had no coverage at all.

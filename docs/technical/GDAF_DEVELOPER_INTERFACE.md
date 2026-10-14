@@ -9,7 +9,7 @@ The SmartLedger BSV library now provides **two interfaces** for using the Global
 Use GDAF features directly from the main `bsv` object - no extra objects to create!
 
 ```javascript
-const bsv = require('smartledger-bsv')
+const bsv = require('@smartledger/bsv')
 
 // Create DIDs directly
 const issuerDID = bsv.createDID(privateKey.toPublicKey())
@@ -32,8 +32,10 @@ const proof = bsv.generateSelectiveProof(
   nonce
 )
 
-// Verify proofs directly
-const isValid = bsv.verifyAgeProof(ageProof, 18, issuerDID)
+// Verify proofs directly. The third argument is the OPENING — `{ birthDate, salt }`, which
+// `generateAgeProof` returns as `proof.opening` — not an issuer DID. A DID is a string and
+// the opening must be an object, so passing one returns false.
+const isValid = bsv.verifyAgeProof(ageProof, 18, ageProof.opening)
 ```
 
 ## 🔧 **Advanced Interface** (For Complex Applications)
@@ -41,7 +43,7 @@ const isValid = bsv.verifyAgeProof(ageProof, 18, issuerDID)
 Use the full GDAF class for advanced configuration and control:
 
 ```javascript
-const bsv = require('smartledger-bsv')
+const bsv = require('@smartledger/bsv')
 
 // Create GDAF instance with custom options
 const gdaf = new bsv.GDAF({
@@ -67,7 +69,7 @@ const verification = gdaf.verifyCredential(credential, options)
 | `bsv.verifyCredential(cred, opts)` | Verify credential | Credential validation |
 | `bsv.validateCredential(cred, schema)` | Schema validation | W3C compliance check |
 | `bsv.generateSelectiveProof(...)` | ZK selective disclosure | Privacy-preserving proofs |
-| `bsv.generateAgeProof(...)` | ZK age proof | Age verification without birthdate |
+| `bsv.generateAgeProof(...)` | ZK age proof | Takes a birth date (Date or `YYYY-MM-DD`), not a credential |
 | `bsv.verifyAgeProof(...)` | Verify age proof | Age proof validation |
 | `bsv.createPresentation(...)` | Create VP | Multiple credential presentation |
 | `bsv.getCredentialSchemas()` | Get all schemas | Available credential types |
@@ -77,7 +79,7 @@ const verification = gdaf.verifyCredential(credential, options)
 
 ### Email Verification System
 ```javascript
-const bsv = require('smartledger-bsv')
+const bsv = require('@smartledger/bsv')
 
 // Setup
 const issuerKey = new bsv.PrivateKey()
@@ -100,9 +102,10 @@ console.log('Email credential valid:', isValid.valid)
 
 ### Age Verification (Privacy-Preserving)
 ```javascript
-const bsv = require('smartledger-bsv')
+const bsv = require('@smartledger/bsv')
 
-// Create age credential  
+// Create age credential. This commits to the birth date as
+// `credentialSubject.birthDateHash` and does NOT store the date itself.
 const ageCred = bsv.createAgeCredential(
   issuerDID,
   userDID,
@@ -111,17 +114,32 @@ const ageCred = bsv.createAgeCredential(
   issuerKey
 )
 
-// Generate ZK proof for age over 18 (without revealing actual age/birthdate)
-const ageProof = bsv.generateAgeProof(ageCred, 18, 'random-nonce')
+// Generate the proof FROM THE BIRTH DATE, not from the credential.
+//
+// This used to read `bsv.generateAgeProof(ageCred, 18, 'random-nonce')`, and the
+// implementation matched the example by ignoring the credential and committing to a
+// hardcoded 1995-06-15 — so this snippet "worked" for exactly one date and silently
+// produced a passing proof for any subject, including a minor. A credential is now
+// refused: it carries only the hash, so no age proof can be derived from it.
+const ageProof = bsv.generateAgeProof(new Date('1995-06-15'), 18, 'random-salt')
 
-// Verify the proof
-const canDrink = bsv.verifyAgeProof(ageProof, 18, issuerDID)
-console.log('Over 18:', canDrink) // true, but birthdate stays private!
+// Verify the proof with its OPENING, not an issuer DID.
+const canDrink = bsv.verifyAgeProof(ageProof, 18, ageProof.opening)
+console.log('Over 18:', canDrink) // true
 ```
+
+> **Read this before using the age-proof API.** Verification needs the opening, and the
+> opening contains `birthDate` **in plaintext** — so the birth date is disclosed to the
+> verifier, not hidden from it. This construction cannot do what its name suggests: it shows
+> a commitment consistent with a date the caller supplied, and attests nothing about whose
+> date it is. Nothing here checks an issuer signature, a subject binding or a status list. A
+> relying party that needs credential-backed age assurance must verify the credential itself
+> and must not treat a `true` from `verifyAgeProof` as evidence about the credential's
+> subject.
 
 ### KYC System
 ```javascript
-const bsv = require('smartledger-bsv')
+const bsv = require('@smartledger/bsv')
 
 // Create KYC credential with hashed PII
 const kycCred = bsv.createKYCCredential(
@@ -162,7 +180,7 @@ console.log('KYC valid:', kycValid.valid)
 You can even mix both approaches in the same application:
 
 ```javascript
-const bsv = require('smartledger-bsv')
+const bsv = require('@smartledger/bsv')
 
 // Quick operations with simple interface
 const did = bsv.createDID(publicKey)

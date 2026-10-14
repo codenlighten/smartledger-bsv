@@ -65,7 +65,7 @@ SmartLedger BSV v3.2.2
 ### Basic GDAF Usage
 
 ```javascript
-const bsv = require('smartledger-bsv')
+const bsv = require('@smartledger/bsv')
 
 // Initialize GDAF
 const gdaf = new bsv.GDAF()

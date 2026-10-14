@@ -40,7 +40,7 @@ const signature = bsv.Transaction.sighash.sign(
 Copy these functions for your covenant projects:
 
 ```javascript
-const bsv = require('smartledger-bsv');
+const bsv = require('@smartledger/bsv');
 
 /**
  * Create manual signature that matches transaction.sign()
@@ -82,7 +82,7 @@ function getCovenantPreimage(transaction, inputIndex, lockingScript, satoshis) {
 ## 📋 Working Example
 
 ```javascript
-const bsv = require('smartledger-bsv');
+const bsv = require('@smartledger/bsv');
 
 // Your UTXO
 const utxo = {
@@ -136,10 +136,23 @@ node custom_script_signature_test.js
 ## 📦 Installation
 
 ```bash
-npm install smartledger-bsv@4.2.1
-# or
-npm install @smartledger/bsv@4.2.1
+npm install @smartledger/bsv
 ```
+
+> **Do not install the versions this page used to name.** It pinned `4.2.1` of either package
+> name, because that is where the signature problem below was resolved. Both are now versions
+> you must not install:
+>
+> * `smartledger-bsv` is a **different, dormant package**, and its `4.2.1` is one of the 14
+>   published versions whose `GDAF.anchorCredential` and `anchorBatch` return a signed, broadcast-ready
+>   transaction with **the caller's private key in the OP_RETURN**, recoverable to the same WIF
+>   (GHSA-gw63-x79h-mhjc).
+> * `@smartledger/bsv@4.2.1` predates the 7.5.5 fix to `PrivateKey.fromObject`, which returned a
+>   valid ~40-bit key from the `'[REDACTED]'` marker — so a persist/restore round trip silently
+>   yielded a different, derivable key and **funds sent to the resulting address are loseable**.
+>
+> The fix this page documents has been in every release since; take the current one. See
+> `docs/NPM_RELEASES.md` for the full per-version picture.
 
 ## ✅ Verification Results
 

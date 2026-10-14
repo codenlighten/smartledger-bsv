@@ -278,19 +278,26 @@ bsv.validateCredential = function (credential, schema) {
   return gdaf.validateCredential(credential, schema)
 }
 
-bsv.generateSelectiveProof = function (credential, revealedFields, nonce) {
+bsv.generateSelectiveProof = function (credential, disclosePaths, salt) {
   var gdaf = new bsv.GDAF()
-  return gdaf.generateSelectiveProof(credential, revealedFields, nonce)
+  return gdaf.generateSelectiveProof(credential, disclosePaths, salt)
 }
 
-bsv.generateAgeProof = function (ageCredential, minimumAge, nonce) {
+// `birthDate`, not `ageCredential`. The name used to be the latter and the implementation
+// ignored it entirely, committing to a hardcoded date; a credential is now refused. See
+// `ageProofBirthDate` in lib/gdaf/index.js.
+bsv.generateAgeProof = function (birthDate, minimumAge, salt) {
   var gdaf = new bsv.GDAF()
-  return gdaf.generateAgeProof(ageCredential, minimumAge, nonce)
+  return gdaf.generateAgeProof(birthDate, minimumAge, salt)
 }
 
-bsv.verifyAgeProof = function (proof, minimumAge, issuerDID) {
+// `opening`, not `issuerDID`. 9.23.0 corrected the class wrapper's name here and left this
+// top-level forwarder behind, so the documented top-level API kept telling callers to pass a
+// DID for two more minors. A DID is a string; the opening must be an object, so it returned
+// false. The forwarding was always positional, which is why nothing failed.
+bsv.verifyAgeProof = function (proof, requiredAge, opening) {
   var gdaf = new bsv.GDAF()
-  return gdaf.verifyAgeProof(proof, minimumAge, issuerDID)
+  return gdaf.verifyAgeProof(proof, requiredAge, opening)
 }
 
 bsv.createPresentation = function (credentials, holderDID, holderPrivateKey, options) {

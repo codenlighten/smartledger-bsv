@@ -124,7 +124,9 @@ same error the review of this page caught for 9.33.1, made again one version alo
 ## Recommended disposition
 
 **1. The unscoped `smartledger-bsv` — do this one first, and the reason is not what this page
-first said.** 22 live versions, none deprecated, `latest` = 4.4.0 from 2026-06-08, and **429
+first said.** (State as this plan was written; all 22 were deprecated on 2026-10-13 — see
+“Applied” below. A deprecated version still installs, with a warning.) 22 live versions at the
+time, none deprecated, `latest` = 4.4.0 from 2026-06-08, and **429
 downloads in the last month** against 6,512 for the scoped package. So it is genuinely in use
 by someone, at the name a reader would try first, with no indication that it is not the
 maintained package.
@@ -607,12 +609,49 @@ Two further documented limits remain open and are recorded in the changelog rath
 * The 9.22.0 entry's own **"Still open"** list: a null deletes a claim rather than editing it,
   the proof shows consistency rather than authenticity, and a TSC index bound.
 
-There is also one claim this page has softened. The 9.23.0 GDAF wrapper drift was described
-here and in the changelog as fail-closed rather than a hole, and for three of the four
-wrappers the changelog shows exactly that — `generateMembershipProof` threw, and
-`verifyMembershipProof` and `verifyRangeProof` returned `false` for every proof. The fourth
-row says only that `verifyAgeProof` "received an issuer DID as the opening"; it does not state
-the verdict. So "fail-closed" is supported for three of four and unstated for the fourth.
+One claim this page had softened is now measured, and measuring it corrected two others.
+
+The 9.23.0 GDAF wrapper drift was described here and in the changelog as fail-closed rather than
+a hole. The changelog showed that directly for three of the four wrappers —
+`generateMembershipProof` threw, and `verifyMembershipProof` and `verifyRangeProof` returned
+`false` for every proof — while the fourth row said only that `verifyAgeProof` "received an
+issuer DID as the opening", without stating the verdict. The aggregate sentence covered it
+("three returned `false` and one threw"), but no row did, so it was listed below as unchecked.
+
+It was then run against the **published** artifacts — 9.16.1, 9.19.0, 9.20.0, 9.22.0 and 9.22.1,
+each installed from the registry into its own directory, resolved by absolute path, with the
+loaded name and version asserted before any call. On every one of them the class path returns
+`false` for a genuine age proof passed an issuer DID, `false` for a forged proof, `false` for a
+fabricated one and `false` with the argument omitted, while the module path returns `true` for
+the same genuine proof and its opening. **Fail-closed, confirmed for the fourth wrapper across
+the whole span by measurement, with a positive control at each version.**
+
+The same runs contradicted two claims in the 9.23.0 entry's description of the mechanism, and
+that entry now carries a dated correction:
+
+* **`verifyRangeProof` did not gain its `opening` in 9.20.0.** The module signature has been
+  `(proof, min, max, opening)` since **8.2.0** — the release that fixed its forgery — and the
+  wrapper has forwarded only three arguments all along, so the class-path range verifier
+  answered `false` for every proof from 8.2.0 onward, not from 9.20.0. A correction in the
+  more-severe direction: a longer window, though still fail-closed. Only `verifyMembershipProof`
+  changed in 9.20.0, `(proof)` → `(proof, opening, set)`.
+* **Two of the four were naming drifts, not argument drifts.** `verifyMembershipProof` and
+  `verifyRangeProof` *drop* their last argument, so no caller can supply it and the class path
+  is inert whatever is passed — a property of the wrapper source, not of a sample of inputs.
+  But `generateMembershipProof` and `verifyAgeProof` forward every argument **positionally and
+  intact**; only the parameter names and the `bsv.d.ts` types were wrong.
+  `g.generateMembershipProof(set, value)` returns a real `MembershipProof` at 9.20.0 through
+  9.22.1, so "no proof could be generated through the class at any version since 5.4.0" is
+  false — it was false for the *documented* call. Equally, `g.verifyAgeProof(proof, age,
+  opening)` returns a correct `true`.
+
+So the fail-closed property splits by kind. For the dropped-argument pair it is structural. For
+the misnamed pair it rests on the module refusing the wrong-typed value the documentation told
+callers to pass — for `verifyAgeProof`, a string where an object is required. Nothing in the
+suite asserted that refusal: the existing tests omit the opening or pass a wrong object. It is
+now asserted on both the class and module paths with a positive control, and the assertion was
+checked against a mutant that restores the pre-8.2.0 "trust `meetsRequirement`" shape, which it
+fails as it should.
 
 ## The other packages
 
@@ -628,6 +667,20 @@ items above; its own CHANGELOG maps them. Two caveats, neither a defect:
   cannot retrofit past ones.
 
 ## Live `@smartledger/bsv` versions, by outstanding class
+
+> **One defect found 2026-10-14 is not in the table above and affects EVERY live version,
+> including `9.35.0`.** `GDAF#generateAgeProof` and `bsv.generateAgeProof` ignored their first
+> argument and committed to a hardcoded `new Date('1995-06-15')`, so a proof that a subject meets
+> an age threshold could be obtained for a subject who does not — measured on published 9.35.0, a
+> credential for a subject born 2015-03-01 verified `true` at every `minimumAge` from 1 to 31. It
+> is fixed in **9.36.0**. It is a minor and not a major because `generateAgeProof` was a constant
+> function of its first argument — ten input shapes against published 9.35.0 returned one
+> commitment and zero proofs matching what was asked, `undefined` and `null` included — so there
+> is no working call for the fix to break, which is the same ground 9.23.0 stood on. The harm
+> requires a relying party that treats a `true` from this API as credential-backed evidence about
+> the credential's subject; that is what our own developer documentation showed it doing, and that
+> documentation is corrected. The table above gains its row once 9.36.0 is on the registry.
+
 
 ### Outstanding forgery (67)
   7.5.1, 7.5.2, 7.5.3, 7.5.4, 7.5.5, 7.5.6, 7.5.7, 7.5.8, 7.6.0, 7.6.1, 7.6.2, 7.7.1
@@ -680,7 +733,6 @@ Still unchecked, and deliberately stated rather than glossed:
 * the defect table's **completeness** — see the note above its rows. This is why the 63-version
   message names one forgery verified present in all 63 rather than enumerating defects;
 * whether any version entry outside the sections already read contains a further defect;
-* whether `verifyAgeProof` was fail-closed in the 9.23.0 wrapper case;
 * whether anything **other** than an undecodable output script reaches the same null dereference
   — hence "some chain transactions" in the three newest messages;
 * the other five `@smartledger/*` packages were not probed this way. They have no deprecated

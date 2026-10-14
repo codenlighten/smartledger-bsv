@@ -115,7 +115,7 @@ console.log('----------------------')
 console.log('• Main library: bsv.Shamir or bsv.crypto.Shamir')
 console.log('• Standalone: bsv-shamir.min.js (433 KB)')
 console.log('• CDN ready: Use in browser with <script> tag')
-console.log('• Node.js: require("smartledger-bsv").Shamir')
+console.log('• Node.js: require("@smartledger/bsv").Shamir')
 
 console.log('\n✨ Demo completed successfully!')
 console.log('Visit: https://github.com/codenlighten/smartledger-bsv for more examples')

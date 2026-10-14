@@ -1,6 +1,6 @@
 {
   "name": "@smartledger/bsv",
-  "version": "9.35.0",
+  "version": "9.36.0",
   "description": "Bitcoin SV library with an interpreter-verified script engine: OP_PUSH_TX covenants, BIP-143 preimage tooling, and consensus flags that match what miners actually enforce. Also ships DID:web / W3C VC-JWT credentials and the Legal Token Protocol.",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
@@ -97,6 +97,7 @@
   "scripts": {
     "lint": "standard",
     "check:load-order": "node scripts/check-address-load-order.js",
+    "check:package-name": "node scripts/check-package-name.js",
     "conformance": "node conformance/verify.js",
     "vectors:sv": "node tools/sv-vector-report.js",
     "vectors:sv-tx": "node tools/sv-tx-report.js",
@@ -135,7 +136,7 @@
     "test:browser": "echo 'Open tests/standalone-modules-test.html in browser for comprehensive testing'",
     "test:bundle": "echo 'Open tests/bundle-completeness-test.html in browser to verify bundle completeness'",
     "preimage:extract": "node examples/preimage/extract_preimage_bidirectional.js",
-    "prepublishOnly": "npm run build-all && npm run check:readme && npm run check:api && npm run check:types && npm run check:dts",
+    "prepublishOnly": "npm run build-all && npm run check:readme && npm run check:api && npm run check:types && npm run check:dts && npm run check:package-name",
     "sync-cdn": "node scripts/sync-cdn-urls.js",
     "version": "node scripts/sync-cdn-urls.js && node scripts/sync-version.js && node scripts/gen-esm-wrapper.js && git add README.md docs version.js index.mjs",
     "test:browser:ci": "node tests/browser-smoke-runner.js",

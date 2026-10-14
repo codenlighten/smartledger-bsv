@@ -9,7 +9,7 @@ The JavaScript-to-Bitcoin Script framework allows you to write complex covenant 
 ## 🚀 30-Second Quick Start
 
 ```javascript
-const SmartContract = require('smartledger-bsv').SmartContract
+const SmartContract = require('@smartledger/bsv').SmartContract
 
 // Write covenant logic in JavaScript
 const builder = SmartContract.createCovenantBuilder()
@@ -415,7 +415,7 @@ Object.keys(opcodes)
 ### With BSV Library
 
 ```javascript
-const bsv = require('smartledger-bsv')
+const bsv = require('@smartledger/bsv')
 const SmartContract = bsv.SmartContract
 
 // Create covenant from private key

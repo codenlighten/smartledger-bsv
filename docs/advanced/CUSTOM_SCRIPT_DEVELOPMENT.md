@@ -16,7 +16,7 @@ SmartLedger-BSV v3.0.2 provides complete signature capabilities for custom locki
 For any custom script, use the universal signature creation method:
 
 ```javascript
-const bsv = require('smartledger-bsv');
+const bsv = require('@smartledger/bsv');
 
 function createCustomSignature(transaction, privateKey, inputIndex, lockingScript, satoshis, sighashType = null) {
   sighashType = sighashType || (bsv.crypto.Signature.SIGHASH_ALL | bsv.crypto.Signature.SIGHASH_FORKID);
