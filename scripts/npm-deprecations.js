@@ -303,40 +303,44 @@ function main () {
     var applied = process.argv.slice(3)
     var before = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'))
     var attempt = 0
-    var pass = function () { return once().then(function (bad) {
-      if (!bad || ++attempt >= 4) process.exit(bad ? 1 : 0)
-      console.log('  (' + bad + ' mismatches; the CDN copy may be stale, retrying in 10s)')
-      return new Promise(function (r) { setTimeout(r, 10000) }).then(pass)
-    }) }
-    var once = function () { return readRegistry().then(function (now) {
-      var tiers = buildTiers(before)
-      var expected = JSON.parse(JSON.stringify(before))
-      tiers.forEach(function (t) {
-        if (applied.indexOf(t.id) < 0 && applied.indexOf('all') < 0) return
-        t.versions.forEach(function (v) { expected[t.pkg][v] = t.msg })
+    var pass = function () {
+      return once().then(function (bad) {
+        if (!bad || ++attempt >= 4) process.exit(bad ? 1 : 0)
+        console.log('  (' + bad + ' mismatches; the CDN copy may be stale, retrying in 10s)')
+        return new Promise(function (resolve) { setTimeout(resolve, 10000) }).then(pass)
       })
-      var bad = 0
-      var moved = 0
-      var total = 0
-      Object.keys(expected).forEach(function (pkg) {
-        Object.keys(expected[pkg]).forEach(function (v) {
-          total++
-          var e = expected[pkg][v]
-          var a = now[pkg] ? now[pkg][v] : undefined
-          if (e !== a) {
-            bad++
-            console.log('  MISMATCH ' + pkg + '@' + v +
+    }
+    var once = function () {
+      return readRegistry().then(function (now) {
+        var tiers = buildTiers(before)
+        var expected = JSON.parse(JSON.stringify(before))
+        tiers.forEach(function (t) {
+          if (applied.indexOf(t.id) < 0 && applied.indexOf('all') < 0) return
+          t.versions.forEach(function (v) { expected[t.pkg][v] = t.msg })
+        })
+        var bad = 0
+        var moved = 0
+        var total = 0
+        Object.keys(expected).forEach(function (pkg) {
+          Object.keys(expected[pkg]).forEach(function (v) {
+            total++
+            var e = expected[pkg][v]
+            var a = now[pkg] ? now[pkg][v] : undefined
+            if (e !== a) {
+              bad++
+              console.log('  MISMATCH ' + pkg + '@' + v +
               '\n    expected: ' + JSON.stringify(String(e).slice(0, 80)) +
               '\n    actual:   ' + JSON.stringify(String(a).slice(0, 80)))
-          }
-          if (before[pkg][v] !== a) moved++
+            }
+            if (before[pkg][v] !== a) moved++
+          })
         })
-      })
-      console.log('treating as applied: ' + (applied.join(', ') || '(none)'))
-      console.log(total + ' versions checked, ' + moved + ' changed since the snapshot, ' +
+        console.log('treating as applied: ' + (applied.join(', ') || '(none)'))
+        console.log(total + ' versions checked, ' + moved + ' changed since the snapshot, ' +
         bad + ' mismatches')
-      return bad
-    }) }
+        return bad
+      })
+    }
     return pass()
   }
 
