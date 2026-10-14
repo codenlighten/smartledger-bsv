@@ -18,9 +18,18 @@
 // interpreter. So the interpreter needed no change — which was a PREDICTION before the fix and
 // is this file afterwards.
 //
-// Both flag words are rebuilt from the library's own named constants rather than copied from
-// the oracle's hex: an undefined flag ORed into a word yields NaN, which looks exactly like a
-// defect, and a hard-coded word stops being the library's own answer the moment a bit moves.
+// Both flag words are rebuilt from the library's own named constants rather than written as
+// hex: an undefined flag ORed into a word yields NaN, which looks exactly like a defect, and a
+// hard-coded word stops being the library's own answer the moment a bit moves.
+//
+// AND THE WORDS ARE NOT COMPARABLE ACROSS IMPLEMENTATIONS. Corrected 2026-10-14 by the
+// op-codes lab: `0x3d586f` is THIS library's numbering of that flag set, and the reference
+// numbers the same set `0x3d406f` from its own `script_flags.h`. The two agree on which flags
+// are set and disagree on the bit positions, so comparing the hex between them is meaningless
+// even when it happens to pass — which it did, earlier the same day, and was read as
+// confirmation. What makes the rows below comparable is that the oracle maps flag NAMES to
+// this library's constants; the assertion in the first test pins only that our own derivation
+// has not moved.
 
 require('chai').should()
 var bsv = require('../..')
@@ -67,9 +76,11 @@ var ROWS = [
 ]
 
 describe('a cut-off push length after OP_RETURN', function () {
-  it('rebuilds both flag words from named constants, matching the oracle', function () {
-    // If this fails, every verdict below is being compared at the wrong flags and the
-    // agreement means nothing.
+  it('pins this library\'s own flag words, which are not the reference\'s numbering', function () {
+    // These are OUR bit positions for that set of flags, recorded so a change to them shows up
+    // here rather than silently moving every verdict below. They are deliberately NOT compared
+    // with the reference's words: it numbers the same set differently (0x3d406f post-Genesis),
+    // so an equal hex would be a coincidence and an unequal one would mean nothing.
     ;(POST_GENESIS >>> 0).should.equal(0x3d586f)
     ;(PRE_GENESIS >>> 0).should.equal(0x7)
   })

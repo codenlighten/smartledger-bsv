@@ -39,8 +39,14 @@ already agreed**, and all 6 that did not were these three shapes in both eras, f
 so confining leniency to a top-level `OP_RETURN` needed no new logic: it falls out of those
 scripts parsing and the interpreter deciding. That was written down as a prediction before the
 change and is now `test/script/optrue_return_truncated_tail.js`, where all 22 rows agree. Both
-flag words in it are rebuilt from the library's own named constants, not copied from the
-oracle's hex - an undefined flag ORed into a word yields NaN, which looks exactly like a defect.
+flag words in it are rebuilt from the library's own named constants rather than written as hex -
+an undefined flag ORed into a word yields NaN, which looks exactly like a defect.
+
+A correction to how that was first described here: the flag words of two implementations are NOT
+comparable. `0x3d586f` is this library's numbering of that set; the reference numbers the same
+set `0x3d406f`. They agree on which flags are set and differ on the bit positions, so an equal
+hex between them is a coincidence - and ours did match, briefly, which was read as confirmation.
+What makes the rows comparable is that the oracle maps flag NAMES to this library's constants.
 
 `STABILITY.md` settles the versioning: for a MALFORMED script the commitment is the node's
 answer, not the previous release's, so this is a bug fix rather than a relaxation. No
