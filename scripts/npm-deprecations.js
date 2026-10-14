@@ -124,7 +124,8 @@ function buildTiers (state) {
         'this version and recoverable to the same WIF, so broadcasting it exposes the key in ' +
         'chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently ' +
         'published smartledger-bsv version fixes either; migrate to ' +
-        '@smartledger/bsv@9.33.2 or later and ROTATE any key passed to those methods. ' + GHSA },
+        '@smartledger/bsv@9.33.2 or later - review migration requirements before switching - ' +
+        'and ROTATE any key passed to those methods. ' + GHSA },
 
     { id: 'U_stringify',
       pkg: 'smartledger-bsv',
@@ -133,8 +134,8 @@ function buildTiers (state) {
       msg: 'Critical: JSON.stringify(privateKey) includes the secret scalar, measured in ' +
         'this version, so any log, error report or request body built from that output ' +
         'carries the key to whoever can read it. No currently published smartledger-bsv ' +
-        'version fixes this; migrate to @smartledger/bsv@9.33.2 or later and rotate any key ' +
-        'that may have been stringified.' },
+        'version fixes this; migrate to @smartledger/bsv@9.33.2 or later - review migration ' +
+        'requirements before switching - and rotate any key that may have been stringified.' },
 
     { id: 'S_fundloss',
       pkg: '@smartledger/bsv',

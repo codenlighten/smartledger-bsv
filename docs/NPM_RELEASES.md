@@ -144,19 +144,32 @@ transaction but does not broadcast it, so the key reaches the chain when the cal
 message says so.
 
 ```
-Critical (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential and anchorBatch return a signed transaction whose OP_RETURN contains the caller's private key, measured in this version and recoverable to the same WIF, so broadcasting it exposes the key in chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently published smartledger-bsv version fixes either; migrate to @smartledger/bsv@9.33.2 or later and ROTATE any key passed to those methods. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
+Critical (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential and anchorBatch return a signed transaction whose OP_RETURN contains the caller's private key, measured in this version and recoverable to the same WIF, so broadcasting it exposes the key in chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently published smartledger-bsv version fixes either; migrate to @smartledger/bsv@9.33.2 or later - review migration requirements before switching - and ROTATE any key passed to those methods. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
 ```
 
 and for the eight without the anchor module:
 
 ```
-Critical: JSON.stringify(privateKey) includes the secret scalar, measured in this version, so any log, error report or request body built from that output carries the key to whoever can read it. No currently published smartledger-bsv version fixes this; migrate to @smartledger/bsv@9.33.2 or later and rotate any key that may have been stringified.
+Critical: JSON.stringify(privateKey) includes the secret scalar, measured in this version, so any log, error report or request body built from that output carries the key to whoever can read it. No currently published smartledger-bsv version fixes this; migrate to @smartledger/bsv@9.33.2 or later - review migration requirements before switching - and rotate any key that may have been stringified.
 ```
 
-Deliberately *not* said: that migrating is drop-in — which is why the word is "migrate", not
-"upgrade", across a package-name change. And "no **currently published** version fixes
-either", not "no fixed release exists", because the first phrasing is a claim about the 22
-versions actually tested and the second is also a claim about every future release.
+Deliberately *not* said: that migrating is drop-in. "Migrate", not "upgrade", across a
+package-name change, and "review migration requirements before switching" is kept rather than
+dropped for brevity — a reviewing session's point, and a fair one, since "migrate" alone reads
+as drop-in.
+
+What the surfaces actually show, since the clause should be backed either way: **one** top-level
+export is removed between unscoped 4.4.0 and scoped 9.33.2 — `SmartUTXO` — against four added,
+and `PrivateKey`, `Transaction` and `Script` each have the same number of statics with none
+removed. The anchor call shape also still works: 9.33.2 accepts a bare UTXO array as the third
+argument, which is what a 4.4.0 caller passes, and the probe above exercises exactly that. So
+the move is *narrower* than "not drop-in" suggests — which is the reason the message says
+"review migration requirements" rather than asserting either breakage or compatibility. Nobody
+has run a 4.4.0 consumer's code against 9.33.2.
+
+And "no **currently published** version fixes either", not "no fixed release exists", because
+the first phrasing is a claim about the 22 versions actually tested and the second is also a
+claim about every future release.
 
 **This is the one finding on this page that may deserve a security advisory rather than a
 deprecation.** GHSA-gw63-x79h-mhjc exists and is public; it names the scoped package. Adding
@@ -316,7 +329,25 @@ API or behaviour difference". The behavioural claim is supported — CHANGELOG 7
 derivation with zero differences — but it is a test result, not a proof, and the message now
 says which it is.
 
-**5. What executing this costs.** Deprecation warnings print on every affected install,
+**5. Two of these tiers are separate decisions, not part of one "run the set".** Raised by the
+reviewing session and correct on both counts:
+
+* **`S_ghsa54` overwrites 54 messages Greg wrote**, under a public advisory, and the
+  replacement also silently corrects that advisory's own description (the methods return a
+  signed transaction; they do not broadcast). Replacing hazardous upgrade advice is a good
+  reason to touch them, but it is a different kind of decision from adding a warning to a
+  version that has none, and it should get its own yes or no.
+* **`S_errname` and `S_crash` are the mild end.** 9.33.0 and 9.33.1 have an error-name
+  divergence where both sides reject, and a crash. Leaving those two undeprecated to keep
+  warnings meaningful is a defensible choice, and it is Greg's to make rather than one to fold
+  into a batch. The texts are drafted either way.
+
+A third, for the record: once the unscoped package is deprecated across all 22 versions, 4.4.0
+remains `latest` and every `npm install smartledger-bsv` prints the Critical text. That is the
+intent. A final unscoped release, or a dist-tag change, would be a separate publish decision
+and is not part of this set.
+
+**6. What executing this costs.** Deprecation warnings print on every affected install,
 including pinned builds and CI that may treat them as failures, and they generate support
 questions. 148 of the 149 published versions across the two packages end up deprecated; only
 `@smartledger/bsv@9.33.2` is left clean, which means "not deprecated under this plan", not
