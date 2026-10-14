@@ -34,10 +34,14 @@ var UPGRADE = 'upgrade to @smartledger/bsv@9.33.2 or later'
 
 // ---------------------------------------------------------------- registry
 
+// The registry is fronted by a CDN that can serve a packument a few seconds stale, so a read
+// taken straight after a write may still show the OLD message.  That direction is a false
+// ALARM rather than a false pass - the new text cannot appear unless it was stored - but it
+// makes a verify unusable, so ask for an uncached copy and let the caller retry.
 function packument (name) {
   return new Promise(function (resolve, reject) {
-    https.get('https://registry.npmjs.org/' + name.replace('/', '%2f'),
-      { headers: { accept: 'application/json' } },
+    https.get('https://registry.npmjs.org/' + name.replace('/', '%2f') + '?t=' + Date.now(),
+      { headers: { accept: 'application/json', 'cache-control': 'no-cache', pragma: 'no-cache' } },
       function (res) {
         if (res.statusCode !== 200) return reject(new Error(name + ': HTTP ' + res.statusCode))
         var body = ''
@@ -298,7 +302,13 @@ function main () {
   if (cmd === 'verify') {
     var applied = process.argv.slice(3)
     var before = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'))
-    return readRegistry().then(function (now) {
+    var attempt = 0
+    var pass = function () { return once().then(function (bad) {
+      if (!bad || ++attempt >= 4) process.exit(bad ? 1 : 0)
+      console.log('  (' + bad + ' mismatches; the CDN copy may be stale, retrying in 10s)')
+      return new Promise(function (r) { setTimeout(r, 10000) }).then(pass)
+    }) }
+    var once = function () { return readRegistry().then(function (now) {
       var tiers = buildTiers(before)
       var expected = JSON.parse(JSON.stringify(before))
       tiers.forEach(function (t) {
@@ -325,8 +335,9 @@ function main () {
       console.log('treating as applied: ' + (applied.join(', ') || '(none)'))
       console.log(total + ' versions checked, ' + moved + ' changed since the snapshot, ' +
         bad + ' mismatches')
-      process.exit(bad ? 1 : 0)
-    })
+      return bad
+    }) }
+    return pass()
   }
 
   console.error('usage: node scripts/npm-deprecations.js snapshot|manifest|plan|verify')

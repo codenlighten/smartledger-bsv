@@ -5,6 +5,11 @@ registry, what is still wrong with each, and a recommended disposition. Facts re
 registry on 2026-10-13; re-run `npm run check:npm-inventory` before acting on any of it, and
 the suite fails if the package table below drifts from the registry.
 
+**The deprecation counts below are the state AFTER the run described at the end of this page.**
+Everything between here and there is written as it was decided — "71 live", "none deprecated" —
+because the reasoning only makes sense against the state it was reasoning about. The pre-run
+state of every version is in `docs/npm-deprecations/snapshot-2026-10-13.json`.
+
 **A published version is immutable.** It cannot be edited or replaced. The levers are:
 
 | lever | effect | limits |
@@ -23,13 +28,13 @@ already printed into someone's CI log is not.
 
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
-| `@smartledger/bsv` | 127 | 56 | 71 | 9.33.2 | 2025-10-18 | 2026-10-13 |
+| `@smartledger/bsv` | 127 | 126 | 1 | 9.33.2 | 2025-10-18 | 2026-10-13 |
 | `@smartledger/bsv-core` | 13 | 0 | 13 | 1.5.2 | 2026-09-30 | 2026-10-13 |
 | `@smartledger/keys` | 23 | 0 | 23 | 4.0.0 | 2025-11-28 | 2026-10-07 |
 | `@smartledger/notaryhash` | 16 | 0 | 16 | 2.4.2 | 2026-06-27 | 2026-10-10 |
 | `@smartledger/crypto` | 14 | 0 | 14 | 3.2.0 | 2025-11-28 | 2026-10-07 |
 | `@smartledger/envelope` | 5 | 0 | 5 | 3.0.0 | 2025-12-03 | 2026-10-07 |
-| `smartledger-bsv` (unscoped) | 22 | 0 | 22 | **4.4.0** | 2025-10-18 | 2026-06-08 |
+| `smartledger-bsv` (unscoped) | 22 | 22 | 0 | **4.4.0** | 2025-10-18 | 2026-06-08 |
 | `@smartledger/sdk` | 0 installable | - | - | none | 2025-03-04 | 2025-03-04 |
 
 `@smartledger/sdk` holds the name only: 1.2.0 was published on 2025-03-04 and unpublished two
@@ -609,18 +614,65 @@ Still unchecked, and deliberately stated rather than glossed:
   versions and no known forgery or consensus defect, but that rests on their changelogs, which
   is exactly the standard this round found insufficient for `bsv`.
 
-## Nothing has been sent to the registry
+## Applied, 2026-10-13
 
-The manifest is built, every tier's range is pre-flighted, and the verifier runs clean against
-the untouched baseline. **No `npm deprecate`, unpublish or dist-tag change has been made.** The
-first call was attempted and refused by this session's permission boundary (a registry write is
-a public-surface change), which is the correct outcome: the plan above was reviewed, the token
-was shredded, and the remaining step is one command per tier once that is granted.
+All nine tiers are **sent and verified**: 148 of the 149 published versions across the two
+package names now carry the message recorded above, re-read from the registry byte for byte,
+with `@smartledger/bsv@9.33.2` the one version carrying none.
 
-Also deliberately not done:
+    node scripts/npm-deprecations.js verify all
+    149 versions checked, 148 changed since the snapshot, 0 mismatches
 
-* no `npm unpublish` — deprecation is reversible with `npm deprecate <pkg>@<range> ""`,
-  unpublish is not, and it breaks installs that currently work;
-* no `dist-tag` changes;
-* no security advisory created or amended, including adding the unscoped package's range to
-  GHSA-gw63-x79h-mhjc, which is the only mechanism here that would reach `npm audit`.
+Applied most severe first: the 14 unscoped key-disclosure versions, then the 8 stringify-leak
+ones, then the 4 fund-loss versions, then the 54 corrected advisory messages, then the 62
+forgery versions, then the 3 bundle versions and the three newest one at a time.
+
+Confirmed from the consumer side as well as from the metadata, because the metadata is not what
+a user sees:
+
+* `npm install smartledger-bsv` — prints the Critical key-disclosure text for 4.4.0;
+* `npm install @smartledger/bsv@7.5.3` — prints the Critical fund-loss text;
+* `npm install @smartledger/bsv` — prints **no** deprecation warning.
+
+### Two npm behaviours worth writing down, both found the hard way
+
+**`--userconfig` must come AFTER the two positional arguments.** Placed between the subcommand
+and the arguments —
+
+    npm deprecate --userconfig <path> <pkg@range> "<message>"     # WRONG
+
+— npm 10.9.9 sends an **empty** message and **exits 0**. The first call of this run did exactly
+that, and 9.33.1 briefly carried `deprecated: ""`, which npm treats as not deprecated. A silent
+no-op reported as success is the worst possible failure mode for a registry write, and only the
+read-back caught it.
+
+**A write that landed can still report `E422`.** The corrected call for 9.33.1 returned
+`422 Unprocessable Entity` on the `PUT` — and the message was stored correctly. So the exit code
+is advisory and the registry read is the authority. Every tier here was confirmed by re-reading
+the packument, never by npm's exit status.
+
+A third, smaller one: the registry is fronted by a CDN that can serve a packument a few seconds
+stale, so a verify taken immediately after a write may still show the old message. That
+direction is a false *alarm* rather than a false pass — the new text cannot appear unless it was
+stored — but it made one tier look like it had failed when it had not.
+`scripts/npm-deprecations.js verify` now sends a cache-busting read and retries up to four
+times before reporting a mismatch.
+
+### What is reversible, and how
+
+`npm deprecate <pkg>@<range> ""` clears a message. Restoring a *previous* message, rather than
+just clearing it, needs `docs/npm-deprecations/snapshot-2026-10-13.json` — the pre-run state of
+all 149 versions, committed before anything was sent. It is the only record of the 56 messages
+this run overwrote.
+
+### Still not done, and deliberately
+
+* **No security advisory was created or amended.** Adding the unscoped package's affected range
+  to GHSA-gw63-x79h-mhjc is the only mechanism here that would reach `npm audit`; a deprecation
+  warning does not. That is a louder, outward step and it is Greg's call.
+* **The advisory's own description still says the methods "published" the key.** Read at 7.5.0,
+  the module builds and *signs* a transaction and returns it, with no broadcast and no network
+  call anywhere in it. The new deprecation text says so; the advisory has not been touched.
+* No `npm unpublish`, and no `dist-tag` changes. 4.4.0 remains `latest` on the unscoped name, so
+  every bare install of it prints the Critical text — which is the intent. A final unscoped
+  release would be a separate publish decision.
