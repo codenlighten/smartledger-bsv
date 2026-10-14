@@ -2,7 +2,8 @@
 
 **Not created.** 9.34.0, the patched version this names, reached the registry on 2026-10-14, so
 the prerequisite is met. Creating it as a *draft* on GitHub is private to maintainers;
-publishing is what puts it in the GitHub Advisory Database and therefore into `npm audit`.
+publishing submits it to the GitHub Advisory Database — which, measured on
+2026-10-14, does **not** by itself make `npm audit` flag a version in its range.
 
     gh api --method POST repos/codenlighten/smartledger-bsv/security-advisories \
       --input docs/advisories/draft-ltp-salt-derivation.json

@@ -2,7 +2,8 @@
 
 **Not created.** This is the text for a new repository security advisory. Creating it as a
 *draft* on GitHub is private to maintainers; publishing it is what puts it in the GitHub
-Advisory Database and therefore into `npm audit`.
+Advisory Database — which, measured on 2026-10-14, does **not** by itself make
+`npm audit` flag a version in its range.
 
     gh api --method POST repos/codenlighten/smartledger-bsv/security-advisories \
       --input docs/advisories/draft-ltp-disclosure-commitment.json

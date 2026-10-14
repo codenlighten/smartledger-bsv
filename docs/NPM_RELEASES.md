@@ -687,7 +687,11 @@ items above; its own CHANGELOG maps them. Two caveats, neither a defect:
 > is no working call for the fix to break, which is the same ground 9.23.0 stood on. The harm
 > requires a relying party that treats a `true` from this API as credential-backed evidence about
 > the credential's subject; that is what our own developer documentation showed it doing, and that
-> documentation is corrected.
+> documentation is corrected. Advisory
+> [`GHSA-2j2f-5v2f-pvpq`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-2j2f-5v2f-pvpq)
+> (high) covers it: `@smartledger/bsv >= 3.3.2, < 9.36.0` and `smartledger-bsv >= 3.3.1, <= 4.4.0`,
+> ranges read from `lib/gdaf/index.js` in all 152 published versions of both names rather than
+> extrapolated — 136 carry the identical hardcoded date, 15 have no such module, 1 has the fix.
 
 
 ### Outstanding forgery (67)

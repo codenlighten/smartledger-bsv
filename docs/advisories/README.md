@@ -1,6 +1,6 @@
 # Prepared security advisories
 
-Four advisories, **all four now live on the repository**, built by
+Five advisories, **all five now live on the repository**, built by
 `node scripts/build-advisories.js` into the `.json` payload beside each markdown file.
 `npm run check:advisories` holds the payloads to the markdown.
 
@@ -10,8 +10,9 @@ Four advisories, **all four now live on the repository**, built by
 | `draft-fromobject-key-substitution.md` | [`GHSA-9r95-pq7h-p78g`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-9r95-pq7h-p78g) | **published**, critical (CVSS 9.1) |
 | `draft-ltp-disclosure-commitment.md` | [`GHSA-xc2p-cffw-qm3j`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-xc2p-cffw-qm3j) | **published**, high (CVSS 7.5) |
 | `draft-ltp-salt-derivation.md` | [`GHSA-5f36-cmq3-37xg`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-5f36-cmq3-37xg) | **published**, high (CVSS 7.5) |
+| `draft-ageproof-hardcoded-birthdate.md` | [`GHSA-2j2f-5v2f-pvpq`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-2j2f-5v2f-pvpq) | **published**, high (CVSS 7.5) — 2026-10-14 |
 
-Each was created from the committed payload and then read back from the API: all four store a
+Each was created from the committed payload and then read back from the API: all five store a
 description **byte-identical** to what was sent, and affected products matching exactly. None
 has a CVE.
 
@@ -38,6 +39,22 @@ above is the replacement, and it is the one that matters.
 
 Also absent from the public global API: `GET api.github.com/advisories/GHSA-gw63-x79h-mhjc`
 returns **404**, and `?ecosystem=npm&affects=@smartledger/bsv` returns zero.
+
+**A fifth advisory, 2026-10-14, repeats the result — but this data point is weak on its own and
+is recorded as such.** `GHSA-2j2f-5v2f-pvpq` covers `>= 3.3.2, < 9.36.0`, so `9.35.0` is inside
+it. Two minutes after publishing:
+
+```
+npm install @smartledger/bsv@9.35.0
+npm audit                              # found 0 vulnerabilities
+```
+
+with `minimist@1.2.0` added to the same project reporting both of its advisories in the same
+run, so the lookup works. **But two minutes is not a propagation test.** This only says the
+advisory had not propagated yet, which is unsurprising, and it is exactly the mistake the first
+version of the test above made. The evidence that matters remains the **two-month-old**
+`GHSA-gw63-x79h-mhjc`. Re-run this one after a few days; until then it is consistent with the
+gap and proves nothing by itself.
 
 **The cause is not established, and an earlier draft of this page guessed at it.** It said a CVE
 request is "likely the only way these reach `npm audit`". That was a leap: a CVE identifier and

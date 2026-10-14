@@ -47,6 +47,29 @@ var DRAFTS = [
     }
   },
   {
+    out: 'draft-ageproof-hardcoded-birthdate.json',
+    from: 'draft-ageproof-hardcoded-birthdate.md',
+    payload: {
+      summary: 'GDAF generateAgeProof discards the credential it is given and commits to a hardcoded birth date, so an age proof verifies for a subject who does not meet the threshold',
+      cvss_vector_string: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N',
+      cwe_ids: ['CWE-1288', 'CWE-287'],
+      vulnerabilities: [
+        {
+          package: { ecosystem: 'npm', name: '@smartledger/bsv' },
+          vulnerable_version_range: '>= 3.3.2, < 9.36.0',
+          patched_versions: '9.36.0',
+          vulnerable_functions: []
+        },
+        {
+          package: { ecosystem: 'npm', name: 'smartledger-bsv' },
+          vulnerable_version_range: '>= 3.3.1, <= 4.4.0',
+          patched_versions: null,
+          vulnerable_functions: []
+        }
+      ]
+    }
+  },
+  {
     out: 'draft-ltp-disclosure-commitment.json',
     from: 'draft-ltp-disclosure-commitment.md',
     payload: {
@@ -265,7 +288,12 @@ function emit (file, payload) {
       ' --input docs/advisories/' + d.out)
   })
   console.log('\nA created advisory is a DRAFT. Publishing it is a separate, deliberate step, and')
-  console.log('publishing is what puts it in the GitHub Advisory Database and so into npm audit.')
+  // NOT "and so into npm audit": that was measured FALSE on 2026-10-14. GHSA-gw63 had been
+  // published for two months and `npm audit` still reported 0 vulnerabilities for a version
+  // inside its range, with a minimist control proving the lookup works. See the README.
+  console.log('publishing submits it to the GitHub Advisory Database. Measured 2026-10-14:')
+  console.log('a published repository advisory did NOT make npm audit flag a version in its')
+  console.log('range, so do not expect one to. See docs/advisories/README.md.')
 })().catch(function (e) {
   console.error('failed: ' + e.message)
   process.exit(1)
