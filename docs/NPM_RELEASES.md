@@ -667,12 +667,35 @@ this run overwrote.
 
 ### Still not done, and deliberately
 
-* **No security advisory was created or amended.** Adding the unscoped package's affected range
-  to GHSA-gw63-x79h-mhjc is the only mechanism here that would reach `npm audit`; a deprecation
-  warning does not. That is a louder, outward step and it is Greg's call.
-* **The advisory's own description still says the methods "published" the key.** Read at 7.5.0,
-  the module builds and *signs* a transaction and returns it, with no broadcast and no network
-  call anywhere in it. The new deprecation text says so; the advisory has not been touched.
+**No security advisory was created or amended.** This is the gap that matters, because
+**a deprecation warning prints at install time and never reaches `npm audit`.** An advisory is
+what puts an entry in the GitHub Advisory Database, which is what `npm audit`, Dependabot and
+every scanner downstream of it read. So everything above tells a human watching their install
+output; only an advisory tells the tooling.
+
+Three pieces of advisory work are **prepared and not sent**, in `docs/advisories/`: an amendment
+adding the unscoped package to GHSA-gw63-x79h-mhjc, and new advisories for the fund-loss defect
+and the disclosure-commitment forgery. `node scripts/build-advisories.js` turns them into the
+exact API payloads. Each is one call, and a created advisory is a private draft until published.
+
+**The structural point, which cost a draft to learn.** The first amendment tried to warn, in the
+published advisory's *prose*, that its recommended `>= 7.5.3` is unsafe. That is useless where it
+matters: the advisory's machine-readable part says `@smartledger/bsv` is patched at 7.5.1, so a
+scanner treats 7.5.1 – 7.5.4 as **not affected by that advisory** whatever the text says.
+**Prose cannot change audit results.** Hence the split — the published advisory keeps its scope
+and gains the package it was missing, and the other two defects get their own ranges.
+
+**A correction to what this page said earlier.** It claimed the advisory's description overstates
+the defect by saying the key was "published". Reading the whole advisory, its body already
+conditions on broadcast — "any call ... that supplied a private key and *produced a broadcast
+transaction*". Only the one-line summary is loose. The amendment leaves that wording alone.
+
+**And a range I would have drawn wrongly.** The disclosure-commitment advisory's obvious range
+was `>= 7.5.5, < 9.32.0`, the 63 live versions the forgery was executed against. But that tells
+a 7.0.0 user they are unaffected, so the earlier versions were measured: 4.4.0, 5.4.0, 6.0.0,
+7.0.0, 7.4.0 and 7.5.0 all accept the forged disclosure. The honest range is `< 9.32.0`. That is
+the same mistake as the 9.33.0 text — a boundary drawn around whatever happened to be in the
+sweep — made again in a different place on the same day.
 * No `npm unpublish`, and no `dist-tag` changes. 4.4.0 remains `latest` on the unscoped name, so
   every bare install of it prints the Critical text — which is the intent. A final unscoped
   release would be a separate publish decision.
