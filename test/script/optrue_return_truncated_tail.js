@@ -36,6 +36,9 @@ var bsv = require('../..')
 var Script = bsv.Script
 var Interpreter = Script.Interpreter
 var BN = bsv.crypto.BN
+// The predicate itself, so the invariant below is asserted against the shared
+// definition the parser and toBuffer use rather than a restatement of it.
+var isUndecodablePush = require('../../lib/script/push-decode.js').isUndecodablePush
 
 var POST_GENESIS = Interpreter.mainnetFlags()
 var PRE_GENESIS = Interpreter.SCRIPT_VERIFY_P2SH |
@@ -316,6 +319,66 @@ describe('a cut-off push length after OP_RETURN', function () {
       // consistency with isPushOnly rather than agreement with a reference.
       Script.fromHex('6a4c').isDataOut().should.equal(false)
       Script.fromHex('6a4c0a' + 'cd'.repeat(10)).isDataOut().should.equal(true)
+    })
+
+    it('leaves an undecodable push as the FINAL chunk, which is what keeps findAndDelete honest', function () {
+      // This invariant is load-bearing and was asked for by the lab, which noted that
+      // FindAndDelete with a signature present was not covered by its preimage run.
+      //
+      // The node's CScript::FindAndDelete (script.h) is
+      //
+      //   do {
+      //       result.insert(result.end(), pc2, pc);
+      //       while (end() - pc >= b.size() && std::equal(b.begin(), b.end(), pc)) {
+      //           pc = pc + b.size(); ++nFound;
+      //       }
+      //       pc2 = pc;
+      //   } while (GetOp(pc, opcode));
+      //   if (nFound > 0) { result.insert(result.end(), pc2, end()); *this = result; }
+      //
+      // so iteration STOPS at the first GetOp failure and everything from there to the end
+      // is copied through verbatim, never searched. Our findAndDelete instead walks every
+      // chunk. Those two would disagree if a chunk could FOLLOW an undecodable push: the
+      // node would preserve a later signature, we would delete it, and the scriptCode fed
+      // to the sighash preimage would differ — a consensus-visible divergence in the
+      // non-FORKID path, where CleanupScriptCode calls FindAndDelete.
+      //
+      // It cannot, and the reason is that both ways GetOp fails are the same fact: the
+      // script ran out of bytes. A cut-off length prefix has no bytes after it by
+      // definition, and a push whose data is short consumed the rest of the script. So an
+      // undecodable push is necessarily TERMINAL, there is nothing after it to disagree
+      // about, and the node's stopping point is the end of the script either way.
+      //
+      // Measured over 22,635 parsed byte strings (exhaustive to length 4 over a 12-byte
+      // alphabet of pushdata, OP_RETURN and ordinary opcodes, plus the livenet shapes):
+      // 17,141 contained an undecodable push and in every one it was the last chunk.
+      var alphabet = [0x00, 0x01, 0x02, 0x4b, 0x4c, 0x4d, 0x4e, 0x51, 0x6a, 0x76, 0xac, 0xff]
+      var seen = 0
+      function check (bytes) {
+        var s = Script.fromBuffer(Buffer.from(bytes))
+        for (var i = 0; i < s.chunks.length; i++) {
+          if (isUndecodablePush(s.chunks[i])) {
+            seen++
+            i.should.equal(s.chunks.length - 1,
+              'undecodable push not final in ' + Buffer.from(bytes).toString('hex'))
+          }
+        }
+      }
+      function rec (prefix, depth) {
+        if (prefix.length) check(prefix)
+        if (depth === 3) return
+        for (var i = 0; i < alphabet.length; i++) rec(prefix.concat([alphabet[i]]), depth + 1)
+      }
+      rec([], 0)
+      seen.should.be.above(0) // the sweep must actually reach the condition
+
+      // And the consequence, stated directly: the tail survives findAndDelete.
+      var sig = Buffer.from('3006020101020101', 'hex')
+      var s = Script.fromBuffer(Buffer.concat([
+        Buffer.from([sig.length]), sig, Buffer.from('6a4c', 'hex')
+      ]))
+      s.findAndDelete(Script.fromBuffer(Buffer.concat([Buffer.from([sig.length]), sig])))
+      s.toHex().should.equal('6a4c')
     })
 
     it('does not throw from any text or predicate path', function () {

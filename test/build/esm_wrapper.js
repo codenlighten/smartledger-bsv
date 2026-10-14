@@ -79,9 +79,28 @@ describe('ESM wrapper (index.mjs)', function () {
   it('emits nothing on stderr at import', function () {
     // Re-exporting a deprecated getter would trip its console.warn at import time;
     // stderr must be empty for a bare `import './index.mjs'`.
+    //
+    // The child runs WITHOUT nyc's instrumentation, which is why the environment is
+    // filtered rather than inherited. nyc reaches a spawned child through NYC_CONFIG /
+    // NYC_CWD / NYC_PROCESS_ID and a NODE_PRELOAD_<hash> variable naming its
+    // register-env.js and wrap.js, so under `npm run coverage` the child instruments
+    // every module it loads and anything nyc has to say about that goes to STDERR,
+    // where this assertion would read it as the library's own output.
+    //
+    // This is defence in depth, not the fix for a specific failure: the 690
+    // "Transformation error for <path>" lines that were reaching stderr came from an
+    // obsolete blanket brace-expansion override forcing an incompatible major into
+    // minimatch@10, which broke nyc's instrumentation outright and reported 0%
+    // coverage. Removing that override fixed the cause. Filtering here is kept anyway,
+    // because the claim is about what importing the library prints and that claim
+    // should not depend on the harness staying quiet.
+    var env = {}
+    Object.keys(process.env).forEach(function (k) {
+      if (!/^NYC_/.test(k) && !/^NODE_PRELOAD_/.test(k)) env[k] = process.env[k]
+    })
     var res = spawnSync(process.execPath,
       ['--input-type=module', '-e', 'import ' + JSON.stringify('./index.mjs') + ';'],
-      { cwd: ROOT, encoding: 'utf8' })
+      { cwd: ROOT, encoding: 'utf8', env: env })
     res.status.should.equal(0)
     res.stderr.should.equal('')
   })
