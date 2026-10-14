@@ -30,6 +30,9 @@ var https = require('https')
 var SNAPSHOT = path.join(__dirname, '..', 'docs', 'npm-deprecations', 'snapshot-2026-10-14.json')
 var CURRENT = { '@smartledger/bsv': '9.36.0' } // must never be deprecated
 var GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc'
+// The age-proof advisory. A deprecation message is the only security notice most consumers ever
+// see, so the one tier whose defect has no other description in the set carries its link.
+var AGEPROOF_GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-2j2f-5v2f-pvpq'
 var UPGRADE = 'upgrade to @smartledger/bsv@9.36.0 or later'
 // The one clause every version from 3.3.2 to 9.33.2 needs, since all of them have
 // lib/ltp/proof and all of them derive the salt from the published nonce.
@@ -170,7 +173,7 @@ function buildTiers (state) {
         'verifyAgeProof as evidence about the credential subject is affected; verification ' +
         'needs the opening, which carries the birth date in plaintext. Fixed in 9.36.0, which ' +
         'takes the birth date itself and refuses a credential. ' +
-        UPGRADE.charAt(0).toUpperCase() + UPGRADE.slice(1) + '.' },
+        UPGRADE.charAt(0).toUpperCase() + UPGRADE.slice(1) + '. ' + AGEPROOF_GHSA },
 
     { id: 'U_anchor',
       pkg: 'smartledger-bsv',

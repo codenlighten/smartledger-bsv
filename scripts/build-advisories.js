@@ -223,7 +223,17 @@ function validate (name, p) {
   // purpose: a blocklist of embargoed ids would have to name them, in a public repository,
   // which is the thing it is there to prevent. The first version of this check did exactly
   // that.
-  var PUBLIC_IDS = ['GHSA-gw63-x79h-mhjc']
+  // Each id here was confirmed `state: published` through the repository's own advisories API
+  // before being added, on 2026-10-14 — the allowlist is worth nothing if entries are added on
+  // the belief that something is public. A private or draft advisory must never appear here, and
+  // the one embargoed id this project knows about is deliberately absent and unnamed.
+  var PUBLIC_IDS = [
+    'GHSA-gw63-x79h-mhjc',
+    'GHSA-9r95-pq7h-p78g',
+    'GHSA-xc2p-cffw-qm3j',
+    'GHSA-5f36-cmq3-37xg',
+    'GHSA-2j2f-5v2f-pvpq'
+  ]
   ;(String(p.description || '').match(/GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}/gi) || [])
     .forEach(function (id) {
       if (PUBLIC_IDS.indexOf(id) < 0) problems.push('names an advisory that is not on the public allowlist: ' + id)

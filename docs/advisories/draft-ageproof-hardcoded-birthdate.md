@@ -24,10 +24,10 @@ Authentication)
 | npm | `@smartledger/bsv` | `>= 3.3.2, < 9.36.0` | `9.36.0` |
 | npm | `smartledger-bsv` | `>= 3.3.1, <= 4.4.0` | none — migrate to `@smartledger/bsv@9.36.0` |
 
-**Severity** `AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N` — 7.5, high. No attacker is required: the
-library produces the false attestation on its own, for every caller, and a relying party that
-treats the result as credential-backed evidence admits a subject it should refuse. What fails is
-integrity; nothing is disclosed that was not already in the proof.
+**Severity** `AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N` — 7.5, high. What fails is integrity; nothing
+is disclosed that was not already in the proof. There is **no attacker**, so see the note under
+Impact on how to read that number — it is a conditional worst case for a relying application, not
+a demonstrated exploit.
 
 ---
 
@@ -59,6 +59,15 @@ API. The exposure is for a relying party that treats a `true` from `verifyAgePro
 about the credential's subject. Our own developer documentation demonstrated precisely that
 pattern, down to the same 1995-06-15, which is why the defect survived: the example worked.
 
+**On the 7.5 "high" attached to this advisory.** Read it as a conditional worst case for a
+relying application, not as a demonstrated exploit. CVSS models an attacker and there is none
+here: the library produces the false attestation on its own, for every caller, with no
+adversarial input. `AV:N` / `PR:N` / `UI:N` follow the convention this advisory set already uses
+for the other attacker-free defects in this package — `GHSA-9r95-pq7h-p78g`, where a JSON round
+trip loses funds with nobody involved — rather than any established remote attack path. `I:H`
+depends on the affected application: it holds where a relying party gates something that matters
+on a `true` from `verifyAgeProof`, and is lower where nothing is gated on it.
+
 ### Measurement
 
 Executed through the public API against published artifacts installed from the registry, not
@@ -82,13 +91,23 @@ On **`@smartledger/bsv@9.35.0`**, the release immediately before the fix:
 version of both package names and `generateAgeProof`'s body extracted: all **136** published versions that have the module carry the identical hardcoded `new Date('1995-06-15')` inside `generateAgeProof` — 122 scoped, from **3.3.2** through **9.35.0**, and all 14 unscoped, from **3.3.1** through **4.4.0** — with **no fetch failures**, no version lacking the method, and no version whose body differs. The **15** versions with no `lib/gdaf/index.js` at all (scoped `1.5.6-fix1` and `3.0.2`–`3.2.2`, unscoped `3.0.0`–`3.2.2`) are where each range opens, and `9.36.0` is the only version of either name that carries the fix. 152 versions were examined and 152 are accounted for. The
 per-version listing is in `docs/npm-deprecations/ageproof-by-version.tsv`.
 
-**Two eras, and only the later one is distinctive.** `ZKProver.verifyAgeProof` took no opening
-before 8.2.0 — arity 2 — and returned **`true` for a wholly invented proof** (`meetsRequirement:
-true`, a zero commitment, no opening, no salt, no key), measured on 5.4.0, 7.0.0 and 8.1.0. That
-is the separately recorded forgery fixed in 8.2.0. From **8.2.0** the verifier is sound: arity 3,
-and the same invented proof returns `false`. So 8.2.0 through 9.35.0 is the band where the
-**verifier was correct and the prover was not**, which is the condition this advisory describes.
-Below 8.2.0 the attestation was already worthless for a different reason.
+**Two eras, and the affected range deliberately spans both.** The range covers the versions that
+contain *this* defect — the hardcoded date — and that is every version with the module, from
+3.3.2 (scoped) and 3.3.1 (unscoped). The consequences differ by era, which is why both are
+described rather than the range being narrowed:
+
+* `ZKProver.verifyAgeProof` took no opening before **8.2.0** — arity 2 — and **accepted a wholly
+  invented proof** (`meetsRequirement: true`, a zero commitment, no opening, no salt, no key),
+  measured on 5.4.0, 7.0.0 and 8.1.0. That is the separately recorded forgery fixed in 8.2.0.
+* From **8.2.0** the verifier has arity 3 and **refuses that same invented proof**, measured.
+
+Stated narrowly on purpose: one invented proof was tested at each end. That shows the pre-8.2.0
+verifier accepted *the tested* proof and the later one refused it. It does **not** establish that
+the later verifier is sound in general, nor that every pre-8.2.0 attestation was worthless for
+every input. What the two measurements do support is that **8.2.0 through 9.35.0 is the band
+where this defect is the distinctive one**, because there the verifier refused the forgery we
+tested while the prover still fabricated the date. Below 8.2.0 a second, already-recorded defect
+is present as well, so an attestation there fails for more than one reason.
 
 ### Patches
 

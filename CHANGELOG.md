@@ -79,14 +79,29 @@ inputs for which the proof matched what was asked: 0
 
 `generateAgeProof` was a **constant function of its first argument**. It did not reject bad input
 and honour good input — it returned the same commitment for every input, `undefined` and `null`
-among them. So there is no call whose correct result this change takes away, and no caller who can
-have depended on one. That is narrower and stronger than the forgery precedent (9.20.0, 9.22.0,
-9.25.0, 9.26.1, 9.27.0 and 9.32.0 each flipped a `true` to a `false` in a minor), and it does not
-require reading the funds exception more broadly than it is written.
+among them. So no call produced a *correct* result that this change takes away, which is the same
+ground 9.23.0 stood on, and it does not require reading the funds exception more broadly than it
+is written.
 
-One behaviour does change without throwing: a caller who passed a `Date` or a `YYYY-MM-DD` string
-now gets a proof about **that** date rather than about 1995-06-15. Being given the answer to the
-question you asked is not a break worth deferring to a major.
+**Said plainly, because the weaker version of this argument does not hold up.** "No working call
+can break" is about correctness, not about observable behaviour, and the two are not the same
+thing. The old function did have observable behaviour: it returned a proof. A caller who passed a
+credential gets a **throw** now, and a caller who pinned the 1995-06-15 commitment in a fixture
+will see it change. Those callers are broken by this release. The claim is not that nobody can be
+affected — it is that nobody can be affected *in reliance on a correct answer*, because there was
+never a correct answer to rely on.
+
+So this is a **knowing behaviour-changing security fix shipped in a minor**, not a case the policy
+exempts. The basis is the 9.23.0 precedent above and the fact that every alternative is worse: the
+policy's warn-then-flip machinery needs an old default worth keeping, and here the old default is
+the defect itself, so a deprecation warning would leave a false age attestation in place for
+callers who do not read warnings. Six earlier forgery fixes (9.20.0, 9.22.0, 9.25.0, 9.26.1,
+9.27.0, 9.32.0) each flipped a `true` to a `false` in a minor on the same reasoning. If that
+trade is judged wrong, the alternative is a deprecation in 9.37.0 and the flip in 10.0.0, and the
+cost of that choice is the eleven months in between.
+
+One behaviour changes without throwing: a caller who passed a `Date` or a `YYYY-MM-DD` string now
+gets a proof about **that** date rather than about 1995-06-15.
 
 ### Fixed — the 9.23.0 wrapper fix missed the top-level forwarders, and its guard missed a method
 
