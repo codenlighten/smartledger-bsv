@@ -148,7 +148,8 @@
     "check:dts:update": "node scripts/check-dts-coverage.js --update",
     "vectors:sv-coverage": "node tools/sv-vector-coverage.js",
     "check:npm-inventory": "node scripts/npm-inventory.js --check",
-    "npm-inventory": "node scripts/npm-inventory.js"
+    "npm-inventory": "node scripts/npm-inventory.js",
+    "npm-deprecations": "node scripts/npm-deprecations.js"
   },
   "unpkg": "bsv.min.js",
   "jsdelivr": "bsv.min.js",
