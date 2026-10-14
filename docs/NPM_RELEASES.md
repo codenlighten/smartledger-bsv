@@ -690,6 +690,31 @@ just clearing it, needs `docs/npm-deprecations/snapshot-2026-10-13.json` — the
 all 149 versions, committed before anything was sent. It is the only record of the 56 messages
 this run overwrote.
 
+### 9.34.0 is built, reproduced and NOT published — the blocker is local, not npm
+
+Established 2026-10-14, in this order, before anything was sent:
+
+* public egress IP `172.56.32.181` (T-Mobile cellular), anonymous registry read 200;
+* of the three tokens, `NPM_TOKEN` and `NPM_TOKEN2` returned `E403` on three reads each and
+  `NPM_TOKEN3` returned `smartledger` on three reads each — stable, so a credential property
+  and not the transport;
+* a fresh `--depth 1` clone of `6bf25b9` from GitHub, `npm ci`, `npm run build-all`, `npm pack`
+  reproduced the tarball **byte for byte** against the working tree: shasum
+  `440c41ee98738fb95b75fe01437fc63ea9544aaf`, 283 files, and `git status` empty in the clone
+  after the build, so the committed bundles reproduce too;
+* the release's own claim was exercised against that tarball with published 9.33.2 as the
+  control — 9.33.2 yields the undisclosed date of birth, 9.34.0 does not, a proof minted by
+  published 9.33.2 still verifies under 9.34.0, and a substituted `NaN` is still refused.
+
+`npm publish` was then **refused locally by the permission classifier** as public-surface
+creation. That is a different failure from every previous one recorded here: npm was never
+reached. A registry read afterwards confirms `latest` is still 9.33.2 and 9.34.0 is absent, so
+it failed closed with nothing partially published. The tarball is proved reproducible, so the
+publish needs no rebuild — it is one command once authorized.
+
+The commit is tagged `v9.34.0`, and the tag message says plainly that the commit reproduces the
+tarball rather than that it is the published tree, because it is not.
+
 ### Pending, and blocked on publishing 9.34.0
 
 In this order, because each step is wrong before the one above it:
