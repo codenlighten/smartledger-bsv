@@ -180,30 +180,44 @@ describe('LTP.Proof selective disclosure', function () {
       })
     })
 
-    it('reproduces the 9.31.0 Merkle root at every token size', function () {
-      // Including the odd sizes, where the proof-generation fix applies — that fix touches
-      // the generator only, so the tree itself is untouched.
-      var PRE_FIX_ROOTS = {
-        1: '36f2133e7afa47ecda2ae56129308758174ad123a803cc158839929d1b934e40',
-        2: '430c54e876ac5db90fd9387eeb0efc18aba8a6b76d033c3194acda174bca11d6',
-        3: '4e911cbb6b525fbddc7bb69cec4a9f5eb44c5e76bd764bbc45e8a976c83b83db',
-        4: 'fa7e525fc40387c89074d23f59ec60679745ea9ea967db412e501a04c1040e30',
-        5: '9adff2a938b379b7c9e86c3971fd8797470580e4dd3104b9b0467e35efd81f1c',
-        6: 'cb3d40bbf1934b0fa0fd4ccf450220c969070cfdac1c3470872c1ef545598f65',
-        7: '9fab092975f239f73b9286ed813fd0e2f80a23bb26b82d86aa883b291152ce17',
-        8: '75ef9faa3a8a11804867c0834b78ffe672118eef91e21b8cba66e485844eb461',
-        9: '7e38b509c64e5cd09ff71708cc19459bded8222d0bcde4c342bcc835c06a2347',
-        10: '3ca0883b9e808f960232c188072556fc580bc9d7135bc01e93d1ce001429ff41',
-        11: '9f70fa2604bce2530cbad36358c11e4b0f1db032dc11c42a684ca4b0dda9324b',
-        12: 'f4195daefcc150cc77437e67e1c5cf49bb14449847925e7a4ff146899b3663ef'
+    it('pins the Merkle tree shape at every token size, under a fixed salt seed', function () {
+      // Including the odd sizes, where the 9.32.0 proof-generation fix applies — that fix
+      // touches the generator only, so the tree itself is untouched.
+      //
+      // These roots were PINNED AFRESH in 9.34.0 and are not the 9.31.0 ones. 9.34.0 stopped
+      // deriving each field's salt from the nonce, because the nonce travels inside the proof
+      // and that made every undisclosed field's salt — and so its value — recoverable by
+      // whoever held it (test/ltp/salt_derivation.js). The salt is now an HMAC under a master
+      // salt that is random per disclosure, so there is no derivation under which a pre-9.34.0
+      // root can be reproduced, deliberately: the only consumer that could have pinned one is
+      // outside this library, since nothing here signs or anchors this root and verification
+      // never re-derives it.
+      //
+      // What the 9.32.0 fix promised — that no commitment moved for a representable value — is
+      // still tested, by the value-by-value `_hashField` digests above, which do not depend on
+      // how the salt was produced.
+      var SEED = 'f'.repeat(64)
+      var ROOTS = {
+        1: '26223ffc6b4fea9bfa0e0b14cd66045aba1cb9159983e335641f3443053650a3',
+        2: 'e633bca9ff00f674c39cf07d1dd26cc993773a88efa75859c1413af3ec22401a',
+        3: '02693e2ccc89c4ccf5efbdfd416be93a09e0e63b397a85fd1a0cd7a5ad7fcbd1',
+        4: '6b7e868b6f6497eee07beb722b3fd70c7081702763361717656c52439ba25080',
+        5: '1879ea47400c2bf0ea8a272c4be1dfa3529cc1c1aa8a3324095929f8c13fd9a5',
+        6: '126f9598b32d104cf83d546a372302517b9258ef330a503ee98a3c3129cf5a1d',
+        7: '00169ed5be6e228be525d135fb8896a4156d59cad6f39da63487dda5aaf8d255',
+        8: '7d4ff8ca1a2691e144aa0ec1b7dc4a331bb63d677070f4337390465d672a90a3',
+        9: '861b5a6030d2c6b7c286385cd67eaeef2917e7dd46fb0cf65300c67428c24004',
+        10: '1f9474f072a7a3a18745af23eb4daa9b9869ee3e863c34b5afa8572443e2406d',
+        11: '2ad2a08d5ff66d5607106d58004ec11a5b9afec4097bd627c48621d3aeaa3fee',
+        12: '83a27fd5d8a10e58df424fca0cb052032ae38d2c0c248a04490eac12dbd42071'
       }
-      Object.keys(PRE_FIX_ROOTS).forEach(function (k) {
+      Object.keys(ROOTS).forEach(function (k) {
         var n = parseInt(k, 10)
         var token = { claim: {} }
         for (var i = 0; i < n; i++) token.claim['f' + i] = 'v' + i
-        var p = LTP.prepareSelectiveDisclosure(token, ['claim.f0'], NONCE)
+        var p = LTP.prepareSelectiveDisclosure(token, ['claim.f0'], NONCE, { saltSeed: SEED })
         p.success.should.equal(true)
-        ;(p.proof || p).merkleRoot.should.equal(PRE_FIX_ROOTS[k], n + ' fields')
+        ;(p.proof || p).merkleRoot.should.equal(ROOTS[k], n + ' fields')
       })
     })
   })

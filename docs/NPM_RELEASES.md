@@ -523,9 +523,31 @@ Two further suggestions were already the plan and are unchanged: the derivable a
 out of the deprecation messages and in this page, and nothing here claims that zero observed
 transactions proves any particular consumer is safe.
 
-## 9.33.2 has no known forgery or consensus defect, but it is not "nothing known"
+## 9.33.2 — corrected 2026-10-14: it has a known defect after all
 
-Two documented limits remain open and are recorded in the changelog rather than fixed:
+This section used to be headed *"9.33.2 has no known forgery or consensus defect"*. That was
+true as written and useless as reassurance, which is the lesson in it: the heading named the
+two classes that had been looked for.
+
+**An undisclosed field can be recovered from an LTP selective-disclosure proof.** The salt was
+derived as `sha256(nonce + path + index)`, and the nonce ships inside the proof, so every
+salt in the credential — including those of fields never disclosed — was recomputable by
+whoever held it. Measured on the 9.33.2 artifact installed from the registry: an undisclosed
+date of birth came back from the proof alone inside 100,000 hashes, under a second
+(`scripts/published-version-probes/ltp-salt-brute.js`).
+
+Every published version that has `lib/ltp/proof` reproduces it — scoped `>= 3.3.2`, unscoped
+`>= 3.3.1` — so this is not a recent regression. `lib/gdaf/zk-prover.js` in the same library
+already had it right and says why in its comments; this module kept its own copy of the
+commitment code and so kept the hazard, exactly as it kept the `JSON.stringify` ambiguity
+until 9.32.0.
+
+Fixed in **9.34.0** (built, not yet published): a fresh random master salt per disclosure that
+never travels in a proof, with `options.saltSeed` for a caller that needs a stable root.
+
+It was found while checking the wording of an advisory, not by the test suite.
+
+Two further documented limits remain open and are recorded in the changelog rather than fixed:
 
 * **`OP_DIV` / `OP_MOD` are quadratic in operand length.** Not a consensus divergence — the
   node agrees — but the node bounds it with policy this package does not copy, so quadratic
@@ -664,6 +686,21 @@ times before reporting a mismatch.
 just clearing it, needs `docs/npm-deprecations/snapshot-2026-10-13.json` — the pre-run state of
 all 149 versions, committed before anything was sent. It is the only record of the 56 messages
 this run overwrote.
+
+### Pending, and blocked on publishing 9.34.0
+
+In this order, because each step is wrong before the one above it:
+
+1. **Publish `@smartledger/bsv@9.34.0`.** Until it is on the registry there is nowhere to send
+   anyone, and an advisory naming it as the patched version would point at something that does
+   not exist.
+2. **Deprecate 9.33.2**, which is currently the only live version with no deprecation message
+   at all, for the salt defect. Doing it before step 1 would warn every installer and offer no
+   version to move to.
+3. **Extend the deprecation text on 9.32.0, 9.33.0 and 9.33.1**, whose messages name only the
+   defect each was deprecated for and now understate what is outstanding in them.
+4. **Create and then publish the advisories** in `docs/advisories/`. Creating is private;
+   publishing is what reaches `npm audit`.
 
 ### Still not done, and deliberately
 

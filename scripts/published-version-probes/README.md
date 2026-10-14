@@ -35,6 +35,14 @@ probes against the same version are cheap.
 | `ltp-forgery` | does an LTP selective disclosure of `null` still verify after the disclosed value is changed to `NaN` or `Infinity`? |
 | `interpreter-divergences` | three measured divergences: the `OP_RSHIFTNUM` shift count, a truncated push under `mainnetFlags()`, and an output script this library cannot decode |
 | `operand-width` | is an `OP_RIGHT` length operand bounded on its *encoded width*, as the node bounds it? |
+| `ltp-sweep` | all four LTP questions at once, one line per version: is the module there, does an honest disclosure verify, is a substituted value accepted, can an undisclosed field be recovered? |
+| `ltp-salt-brute` | can an **undisclosed** field be recovered from a selective-disclosure proof alone? |
+| `ltp-stale-commitment` | does upgrading the *verifier* repair a commitment an affected issuer already minted? (it does not) |
+
+`ltp-stale-commitment` takes **two** install directories, an issuer and a verifier, so it needs
+its own invocation rather than `run.sh`:
+
+    node scripts/published-version-probes/ltp-stale-commitment.js <issuerDir> <verifierDir>
 
 Nothing here broadcasts a transaction, and nothing writes to the registry. `anchor-leak`
 serialises the signed transaction locally and inspects its bytes.

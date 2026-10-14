@@ -1,0 +1,66 @@
+{
+ "_comment": "A selective-disclosure proof minted by the PUBLISHED @smartledger/bsv@9.33.2 artifact installed from the registry, before the 9.34.0 salt change. Committed so the claim that proofs issued before the change still verify is tested against a real one rather than a reconstruction.",
+ "_mintedBy": "9.33.2",
+ "_nonce": "fixture-nonce",
+ "proof": {
+  "type": "LegalTokenSelectiveDisclosure",
+  "created": "2026-10-14T11:04:38.912Z",
+  "proofPurpose": "selectiveDisclosure",
+  "verificationMethod": null,
+  "nonce": "fixture-nonce",
+  "merkleRoot": "3c80ed00836c107a28c3668996232a362ebccf3b6c18f357c3642fb49321640c",
+  "disclosures": [
+   {
+    "path": "claim.name",
+    "value": "Alice",
+    "commitment": "f22c7107804db07ed68e57ed3817378c42c5654f9993c4e0a8a40c3f6a4dda9d",
+    "salt": "ce21c35d03bcefe4bf7f67e28fa4e1044b44838abdfab9979ceacef8d0e8d75c"
+   },
+   {
+    "path": "claim.city",
+    "value": "Austin",
+    "commitment": "e5d4fa75e8c4028200814c334fc16220148a8d061badfd4385a74fab9f1e0a8b",
+    "salt": "bb222f9bec3f64149a73af8eae06e5dd1a9db440f9eaf0e068449bd9c2f7e70c"
+   }
+  ],
+  "merkleProofs": [
+   {
+    "path": "claim.name",
+    "leafIndex": 0,
+    "proof": [
+     {
+      "hash": "830b936229958f57384100e32522939ca22079a363556eab76c5b613c4c2d167",
+      "isLeft": false
+     },
+     {
+      "hash": "ffd8225679349b0c8c3a0062835ef36c119492002e5e31bf876d900a5be4adb4",
+      "isLeft": false
+     },
+     {
+      "hash": "d1034770c622878125a2f12359bcfcaabca94cc96e57f2e037ffb7ea19f98ba9",
+      "isLeft": false
+     }
+    ]
+   },
+   {
+    "path": "claim.city",
+    "leafIndex": 3,
+    "proof": [
+     {
+      "hash": "7d0d71a072dc1518a1b527ef5b66a73bffc4a84639abdca04ea5c3a471486e97",
+      "isLeft": true
+     },
+     {
+      "hash": "45c313541a9dbae4f2edb6c9b8c2d1fff242901ad2317b2cafd95e1d00cf0e73",
+      "isLeft": true
+     },
+     {
+      "hash": "d1034770c622878125a2f12359bcfcaabca94cc96e57f2e037ffb7ea19f98ba9",
+      "isLeft": false
+     }
+    ]
+   }
+  ],
+  "totalFields": 5
+ }
+}

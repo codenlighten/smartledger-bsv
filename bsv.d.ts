@@ -1190,7 +1190,7 @@ declare module '@smartledger/bsv' {
 
         createRightToken(rightData: object, privateKey: PrivateKey, options?: object): LtpResult;
         validateClaim(claimData: object, schemaType: string): { valid: boolean; errors?: string[] };
-        createSelectiveDisclosure(token: object, revealedFields: string[], nonce: string): object;
+        createSelectiveDisclosure(token: object, revealedFields: string[], nonce: string, options?: { saltSeed?: string }): object;
         verifyToken(token: object, publicKey: string | PublicKey): { valid: boolean; error?: string };
         transferRight(token: object, newOwner: string, ownerKey: PrivateKey, options?: object): LtpResult;
         createObligation(rightToken: object, obligationData: object, privateKey: PrivateKey): LtpResult;
@@ -2107,7 +2107,7 @@ declare module '@smartledger/bsv' {
     // LTP Proof primitives
     export function prepareSignatureProof(token: object, privateKey: PrivateKey, options?: object): object;
     export function prepareSignatureVerification(token: object, publicKey: string | PublicKey): object;
-    export function prepareSelectiveDisclosure(token: object, revealedFields: string[], nonce: string): object;
+    export function prepareSelectiveDisclosure(token: object, revealedFields: string[], nonce: string, options?: { saltSeed?: string }): object;
     export function prepareSelectiveDisclosureVerification(proof: object, expectedNonce: string): object;
     export function prepareLegalValidityProof(token: object, jurisdiction: object, nonce: string): object;
     export function prepareZeroKnowledgeProof(token: object, statement: object, nonce: string): object;
@@ -2132,7 +2132,7 @@ declare module '@smartledger/bsv' {
     export function createRightToken(rightData: object, privateKey: PrivateKey, options?: object): LtpResult;
     export function verifyLegalToken(token: object, publicKey: string | PublicKey): { valid: boolean; error?: string };
     export function validateLegalClaim(claimData: object, schemaType: string): { valid: boolean; errors?: string[] };
-    export function createSelectiveDisclosure(token: object, revealedFields: string[], nonce: string): object;
+    export function createSelectiveDisclosure(token: object, revealedFields: string[], nonce: string, options?: { saltSeed?: string }): object;
     export function createLegalRegistry(config: object): object;
     export function createLegalValidityProof(token: object, jurisdiction: object, nonce: string): object;
 

@@ -7,6 +7,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.34.0] - 2026-10-14
+
+### Fixed — an undisclosed field could be recovered from a selective-disclosure proof
+
+A selective disclosure is supposed to reveal the fields it names and hide the rest. The salt is
+the only thing hiding the rest, and `lib/ltp/proof.js` derived it as
+
+    sha256(nonce + path + index)
+
+where the **nonce ships inside the proof**, the path comes from the schema, and the index is a
+small integer. Nothing secret entered the derivation, so whoever held a proof could recompute
+the salt of *every* field in the token, including fields that were never disclosed. A disclosed
+field's Merkle path carries its sibling hashes, and a depth-0 sibling is an undisclosed field's
+leaf — so a candidate value could be hashed and compared against it.
+
+This was executed against the published 9.33.2 artifact installed from the registry, not
+against this tree: an undisclosed date of birth was recovered from the proof alone inside
+100,000 hashes, well under a second
+(`scripts/published-version-probes/ltp-salt-brute.js`). Low-entropy fields — a date, a
+postcode, a status, a name from a list — are recoverable outright; a national insurance or
+social security number is a few billion hashes, which is hours.
+
+`lib/gdaf/zk-prover.js` already had this right, and its comments say exactly why: a master salt
+that is random by default and **never travels in a proof**, with per-leaf salts derived from it.
+`lib/ltp/proof.js` kept its own copy of the commitment code and so kept the hazard. That is the
+second defect this module held because it duplicated code instead of sharing it — 9.32.0 fixed
+the first, the `JSON.stringify` ambiguity, the same way.
+
+The derivation now uses a fresh 32-byte master salt per disclosure, from the CSPRNG — which
+throws rather than falling back to anything weaker if none is available — and the per-field salt
+is `HMAC-SHA256` under it over a length-prefixed message, so no two `(path, index)` pairs can
+produce the same salt. The old concatenation could: path `a1` at index 2 and path `a` at index 12
+gave the same bytes. Nothing was exploitable through that on its own, since the path is inside
+the leaf hash as well, but the root was moving anyway and that is the only cheap moment to stop
+building on it.
+
+**The Merkle root moves.** Two disclosures of the same token no longer share a root, and a root
+can no longer be re-derived from `(token, nonce)`. Every proof already issued still verifies:
+a proof carries its own root and its own disclosed salts, and verification re-derives neither.
+What stops working is re-deriving a root and comparing it — which is the reproducibility the
+recovery above is built on.
+
+### Added — `options.saltSeed`, for a caller that needs a stable root
+
+    LTP.Proof.prepareSelectiveDisclosure(token, revealedFields, nonce, { saltSeed: secret })
+
+derives the salts from a seed the caller holds, so the root is reproducible. The seed must stay
+secret and must be kept by whoever needs to reproduce the root; supplying one makes two
+disclosures of the same token linkable, which is that caller's deliberate trade.
+
+The seed must be at least 32 characters and must not be the nonce, which is **refused** rather
+than warned about: the nonce is published inside the proof, so deriving the salts from it is the
+defect again. The length floor is a floor and not a measure of entropy — the seed has to come
+from a CSPRNG, which only the caller can arrange, and a guessable seed loses the undisclosed
+fields exactly as before. There is a test for that case, because a fix that merely renamed
+something would pass a test that only checks the good path.
+
+**Pre-9.34.0 Merkle roots cannot be reproduced, under any option.** The derivation changed as
+well as the seed, deliberately.
+
+`LTP#createSelectiveDisclosure` forwards the options object. A delegating wrapper that drops a
+new argument is how the GDAF class API went inert for four releases, so the forwarding has its
+own test.
+
+### Why this is a minor and not a major
+
+State the incompatibility first, because it is real: **a caller that stored a Merkle root and
+re-derives it from `(token, nonce)` to compare will not match after this release.** No option
+restores the old value.
+
+`STABILITY.md` covers the documented public API — the top-level exports, the `exports` subpaths,
+and the types in `bsv.d.ts`. The signature here changed only by gaining an optional fourth
+argument, and nothing throws that did not throw before except an unusable `saltSeed`, an option
+that did not exist. The root is not part of that surface, and nothing in this library binds it:
+`lib/ltp/proof.js` rebuilds the tree from the token on every call, verification compares against
+the root carried in the same proof and never re-derives one, and no code here signs or anchors
+it (`lib/ltp/anchor.js` roots a different tree, over token hashes). So no signature or anchor
+this library produces is invalidated. A consumer that pinned one outside the library is the
+population this breaks, and the paragraph above is for them.
+
+The alternative — warn in 9.x and flip in 10.0.0, which is what the policy asks for a breaking
+change — would mean shipping an exploitable default until at least 2027-09-01 and announcing in
+advance that undisclosed fields stay readable until then. The policy's own consensus-tracking
+section makes the same trade in the same direction: a fix that stops the library being wrong
+ships at the smallest version that fits, because the alternative is promising to keep being
+wrong. This is that case with the network replaced by the holder of a proof.
+
+### Not a consensus change
+
+Nothing in `lib/script`, `lib/transaction` or the interpreter is touched. Script verdicts, dust
+and size results are identical to 9.33.2.
+
 ## [9.33.2] - 2026-10-13
 
 Crash fixes only. No verdict changes: every script, well-formed or not, gets the same answer
