@@ -509,6 +509,67 @@ describe('Chronicle script surface', function () {
       })
     })
 
+    it('reads BOTH operands as big numbers, so the int64 rule does not apply here', function () {
+      // The int64-operand rule (see assertScriptNumFitsInt64) is on the ENCODED LENGTH, not the
+      // value: CScriptNum's span constructor defaults `big_int` FALSE and then requires
+      // `bsv::deserialize<int64_t>` to succeed, so a 10-or-more-byte operand is
+      // SCRIPTNUM_OVERFLOW however small its value. That is what 9.29.0 fixed for OP_SUBSTR,
+      // OP_LEFT and OP_RIGHT.
+      //
+      // These two opcodes are the OTHER side of that asymmetry, and they pass `big_int` TRUE
+      // for BOTH operands (interpreter.cpp, OP_LSHIFTNUM L703-L718 / OP_RSHIFTNUM L741-L756):
+      //
+      //   const CScriptNum n{s0, requireMinimal, max_len, true};
+      //   CScriptNum values{stack.stacktop(-1).GetElement(), requireMinimal, max_len, true};
+      //
+      // and `big_int` true takes the `bint::deserialize` branch UNCONDITIONALLY — the
+      // constructor ends `assert(big_int ? m_value.index() == 1 : m_value.index() == 0)`, so
+      // the representation follows the FLAG, never the magnitude. There is no int64 check on
+      // this path at all.
+      //
+      // So a wide operand here must be ACCEPTED. This is pinned because the obvious
+      // "consistency" fix — applying the int64 rule to every script-number operand — would be
+      // a FALSE REJECT, the mirror of the false accept 9.29.0 removed. OP_RIGHT is the control
+      // in the same test: the identical operand must overflow there, which shows the operand
+      // really is over the boundary and the rule really is live in this build.
+      var wide = Buffer.alloc(12, 0)
+      wide[0] = 0x01
+      wide[11] = 0x01 // non-zero top byte => minimally encoded, positive, 12 bytes
+
+      // Control: OP_RIGHT holds its length operand to the int64 rule.
+      var control = run(function (s) {
+        s.add(Buffer.from('aabbcc', 'hex')).add(wide).add(Opcode.OP_RIGHT)
+          .add(Opcode.OP_DROP).add(Opcode.OP_1)
+      })
+      control.verified.should.equal(false)
+      control.errstr.should.match(/SCRIPTNUM_OVERFLOW/)
+
+      // The shifts accept the same operand as a VALUE.
+      ;[Opcode.OP_LSHIFTNUM, Opcode.OP_RSHIFTNUM].forEach(function (op) {
+        var r = run(function (s) {
+          s.add(wide).add(new BN(1).toScriptNumBuffer()).add(op)
+            .add(Opcode.OP_DROP).add(Opcode.OP_1)
+        })
+        r.verified.should.equal(true)
+        ;(r.errstr == null || r.errstr === '').should.equal(true)
+      })
+
+      // As a COUNT the same width is rejected, but by the count's own bound rather than by the
+      // int64 rule — and the two opcodes report DIFFERENT names, which is the asymmetry below.
+      function wideCount (op) {
+        return run(function (s) {
+          s.add(new BN(5).toScriptNumBuffer()).add(wide).add(op)
+            .add(Opcode.OP_DROP).add(Opcode.OP_1)
+        })
+      }
+      var rs = wideCount(Opcode.OP_RSHIFTNUM)
+      rs.verified.should.equal(false)
+      rs.errstr.should.match(/BIG_INT/)
+      var ls = wideCount(Opcode.OP_LSHIFTNUM)
+      ls.verified.should.equal(false)
+      ls.errstr.should.match(/SCRIPTNUM_OVERFLOW/)
+    })
+
     it('rejects a negative shift count', function () {
       // if(n < 0) return SCRIPT_ERR_INVALID_NUMBER_RANGE
       ;[Opcode.OP_LSHIFTNUM, Opcode.OP_RSHIFTNUM].forEach(function (op) {
