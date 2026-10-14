@@ -15,35 +15,50 @@ Each was created from the committed payload and then read back from the API: all
 description **byte-identical** to what was sent, and affected products matching exactly. None
 has a CVE.
 
-## Publishing a repository advisory does NOT by itself reach `npm audit`
+## Measured: `npm audit` does not flag these versions, and the cause is not established
 
-Measured, and it corrects what this page said before. `GHSA-gw63-x79h-mhjc` has been published
-on this repository since **2026-08-07**, and as of 2026-10-14:
+Two separate findings, kept separate because the first is solid and the second is not.
 
-* `GET https://api.github.com/advisories/GHSA-gw63-x79h-mhjc` returns **404** — it is not in the
-  global GitHub Advisory Database;
-* `GET /advisories?ecosystem=npm&affects=@smartledger/bsv` returns **zero** advisories;
-* `npm audit` on a fresh install of `@smartledger/bsv@9.31.0` — a version inside two of these
-  published ranges — reports **0 vulnerabilities**.
+**The gap is real.** `GHSA-gw63-x79h-mhjc` has been published on this repository since
+**2026-08-07**. On 2026-10-14, in a fresh project with a lockfile, npm 10.9.9:
 
-`npm audit` has been powered by the GitHub Advisory Database since 2021, and GitHub's own
-documentation says Dependabot alerts come from **GitHub-reviewed** advisories and that it "does
-not create Dependabot alerts for unreviewed advisories". A repository advisory is a source for
-the database rather than an entry in it; something has to promote it into the reviewed set, and
-two months of this one sitting published shows that publishing is not that something.
+```
+npm install @smartledger/bsv@7.0.0     # 7.0.0 is INSIDE that advisory's "< 7.5.1" range
+npm audit                              # exit 0 — "found 0 vulnerabilities"
+```
 
-So the chain is longer than stated here before. **Requesting a CVE** through GitHub, which is a
-CNA, is the step that routes an advisory through their review — and on this evidence it is
-likely the only way these reach `npm audit` at all. That is a decision about permanent public
-identifiers and it has not been made; no CVE has been requested for any of the four.
+`auditReportVersion: 2`, every total zero, no `error` field. And the instrument works: the same
+command on `minimist@1.2.0` in the same session exits 1 and reports both of its advisories with
+their GHSA links. So the zero is a real negative and not a failed lookup.
 
-Until then the honest summary is: the advisories are public and linkable on the repository, and
-the install-time deprecation warnings are what actually reaches a consumer today.
+The first version of this test used `@smartledger/bsv@9.31.0`, which is **outside** the
+`< 7.5.1` range — so it measured nothing about the two-month-old advisory and only said that two
+advisories published ten minutes earlier had not propagated. A review caught that; the test
+above is the replacement, and it is the one that matters.
 
-The amendment has no markdown of its own: it is a set of surgical edits to the live advisory's
-text, held in `scripts/build-advisories.js` and applied to whatever that advisory currently says.
-The builder refuses to produce it if any of the four passages it edits is no longer there, so it
-cannot silently overwrite someone else's edit.
+Also absent from the public global API: `GET api.github.com/advisories/GHSA-gw63-x79h-mhjc`
+returns **404**, and `?ecosystem=npm&affects=@smartledger/bsv` returns zero.
+
+**The cause is not established, and an earlier draft of this page guessed at it.** It said a CVE
+request is "likely the only way these reach `npm audit`". That was a leap: a CVE identifier and
+GitHub's decision to review a package advisory are different processes, GitHub's own
+documentation presents the CVE request as optional and never as a promotion mechanism, and
+nothing here tests the claim. What the evidence supports is narrower — these advisories have not
+produced a global database entry that can be found, and some step is outstanding.
+
+What is documented: GitHub lists "security advisories reported on GitHub" as a *source* for the
+Advisory Database; it reviews advisories for validity and maps **reviewed** ones to supported
+ecosystems; Dependabot "doesn't create Dependabot alerts for unreviewed advisories"; and
+`npm audit` has been served by that database since 2021.
+
+So the next step is to **ask GitHub how to get these reviewed for database inclusion**, and to
+retest after. A CVE is a separate decision, worth taking on its own merits — a durable
+cross-system identifier for vulnerabilities that deserve one — and not as a presumed fix for
+this gap.
+
+**What reaches a consumer today** is the install-time deprecation warning, on 150 of the 151
+published versions across both package names. Users should not assume `npm audit` or Dependabot
+currently warns about the affected versions.
 
 ## Why these exist at all
 

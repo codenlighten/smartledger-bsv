@@ -769,27 +769,33 @@ is a failure this project has already paid for.
 Verified from the installed artifact rather than the tree: `npm install @smartledger/bsv@9.35.0`
 parses `6a4c` and no longer derives a field salt from the proof nonce.
 
-### Correction: publishing a repository advisory does not by itself reach `npm audit`
+### Correction: `npm audit` does not flag these versions, and I guessed at why
 
 This page has said throughout that a deprecation warning never reaches `npm audit` and that an
-advisory is the mechanism that does. The first half is right. The second was measured on
-2026-10-14 and is **wrong as stated**.
+advisory is the mechanism that does. The first half is right. The second does not hold, and the
+first attempt to explain it overreached — both corrections belong here.
 
-`GHSA-gw63-x79h-mhjc` has been published on this repository since 2026-08-07. Two months on:
-`GET api.github.com/advisories/GHSA-gw63-x79h-mhjc` returns **404**, a global query for
-`ecosystem=npm&affects=@smartledger/bsv` returns **zero**, and `npm audit` on a fresh install of
-9.31.0 — inside two published advisory ranges — reports **0 vulnerabilities**.
+**Measured.** `GHSA-gw63-x79h-mhjc` has been published since 2026-08-07. In a fresh project with
+a lockfile on npm 10.9.9, `npm install @smartledger/bsv@7.0.0` — **inside** that advisory's
+`< 7.5.1` range — then `npm audit` exits 0 with "found 0 vulnerabilities", every total zero and
+no error field. The instrument works: `minimist@1.2.0` in the same session exits 1 and reports
+both its advisories. The advisory is also absent from the public global API (404 by id, zero by
+ecosystem query).
 
-GitHub's documentation says Dependabot alerts come from **GitHub-reviewed** advisories and that
-it does not alert on unreviewed ones; `npm audit` has been served by the same database since
-2021. A repository advisory is a *source* for that database, not an entry in it. Something has
-to promote it into the reviewed set, and two months of this one sitting published is evidence
-that publishing is not that something — most likely a **CVE request**, which routes it through
-GitHub's review as a CNA.
+The first run of that test used 9.31.0, which is **outside** the `< 7.5.1` range, so it measured
+nothing about the old advisory at all and only showed that two advisories published ten minutes
+earlier had not propagated. A review caught it. Testing a version outside the range you are
+asking about is a wasted measurement that reads like a result.
 
-So the four advisories are public and linkable, and today the thing that actually reaches a
-consumer is the install-time deprecation warning. No CVE has been requested; that is a decision
-about permanent public identifiers and it has not been made. See `docs/advisories/README.md`.
+**And the cause is NOT established.** The first version of this section said a CVE request was
+"most likely" the missing step. That was a guess dressed as a finding: a CVE id and GitHub's
+decision to review a package advisory are different processes, and GitHub documents the CVE
+request as optional rather than as a promotion mechanism. What is documented is that repository
+advisories are a *source* for the database, that **reviewed** advisories are the ones mapped to
+ecosystems, and that Dependabot does not alert on unreviewed ones.
+
+So the next step is to ask GitHub how to get these reviewed, then retest. A CVE is a separate
+decision on its own merits, not a presumed fix. See `docs/advisories/README.md`.
 
 ### The published advisory was amended the same day
 
