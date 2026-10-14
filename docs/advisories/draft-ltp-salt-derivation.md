@@ -61,13 +61,24 @@ with four fields disclosing only `claim.name`:
 
 * `@smartledger/bsv@9.33.2`, the current release at the time of writing: the undisclosed
   `claim.dob` was **recovered** from the proof alone in under 100,000 hashes, well under a second.
-* Every published version that has the module reproduces it: scoped 3.3.2, 3.4.0, 4.4.0, 5.4.0,
-  6.0.0, 7.0.0, 7.5.0, 7.5.5, 9.0.0, 9.31.0, 9.32.0 and 9.33.2, and unscoped 3.3.1, 3.4.5, 4.1.0
-  and 4.4.0.
+* **Sixteen versions were executed**, spread across the range: scoped 3.3.2, 3.4.0, 4.4.0,
+  5.4.0, 6.0.0, 7.0.0, 7.5.0, 7.5.5, 9.0.0, 9.31.0, 9.32.0 and 9.33.2, and unscoped 3.3.1,
+  3.4.5, 4.1.0 and 4.4.0. All sixteen give up the field.
+* The other 118 were **read rather than executed**, so that "every version in the range" is a
+  reading and not an extrapolation from those sixteen. `lib/ltp/proof.js` was fetched for each
+  of the 134 published versions that have it and its salt-assignment line extracted: all 134
+  carry the identical line, `var salt = Hash.sha256(Buffer.from(nonce + path + index))`, with no
+  fetch failures and no version lacking the assignment. The per-version listing is in
+  `docs/npm-deprecations/ltp-salt-line-by-version.txt`.
 * Scoped versions 1.5.6-fix1 through 3.2.2, and unscoped 3.0.0 through 3.2.2, have no
-  `lib/ltp/proof` module; that is where each range opens. Presence was established twice over,
-  independently — from the CDN that serves the npm tarballs for all 149 published versions, and by
-  installing the versions at the boundary and loading the module.
+  `lib/ltp/proof` module; that is where each range opens. Presence was established **three times
+  over, by three different methods**, which agree exactly on the same 15 versions without it: a
+  CDN request per version for `lib/ltp/proof.js` across all 149 published versions; installing
+  the versions at each boundary and loading the module; and, by a second reviewer, fetching all
+  149 tarballs from the registry and listing their contents without extracting them.
+* The ranges above are semver intervals, but the registry is not continuous: there is no scoped
+  3.3.0 or 3.3.1, no unscoped 3.4.1 – 3.4.3, and no unscoped 4.3.x. Read each range as *the
+  published versions* it contains.
 * After the fix the same run returns nothing, while an honest disclosure still verifies and the
   separate value-substitution defect is still refused.
 

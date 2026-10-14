@@ -536,8 +536,11 @@ whoever held it. Measured on the 9.33.2 artifact installed from the registry: an
 date of birth came back from the proof alone inside 100,000 hashes, under a second
 (`scripts/published-version-probes/ltp-salt-brute.js`).
 
-Every published version that has `lib/ltp/proof` reproduces it — scoped `>= 3.3.2`, unscoped
-`>= 3.3.1` — so this is not a recent regression. `lib/gdaf/zk-prover.js` in the same library
+Every published version that has `lib/ltp/proof` carries it — scoped `>= 3.3.2`, unscoped
+`>= 3.3.1` — so this is not a recent regression. Sixteen of them were executed; the salt line in
+all 134 was read and is byte-identical
+(`docs/npm-deprecations/ltp-salt-line-by-version.txt`). The module-presence boundary agrees
+across three independent methods, one of them a second session's. `lib/gdaf/zk-prover.js` in the same library
 already had it right and says why in its comments; this module kept its own copy of the
 commitment code and so kept the hazard, exactly as it kept the `JSON.stringify` ambiguity
 until 9.32.0.
