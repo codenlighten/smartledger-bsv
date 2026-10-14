@@ -19,8 +19,17 @@ Advisory Database and therefore into `npm audit`.
 
 | ecosystem | package | vulnerable | patched |
 |---|---|---|---|
-| npm | `@smartledger/bsv` | `< 9.32.0` | `9.32.0` |
-| npm | `smartledger-bsv` | `>= 3.3.1, <= 4.4.0` | none — migrate to `@smartledger/bsv@9.33.2` |
+| npm | `@smartledger/bsv` | `>= 3.3.2, < 9.32.0` | `9.32.0` |
+| npm | `smartledger-bsv` | `>= 3.3.1, <= 4.4.0` | none — migrate to `@smartledger/bsv@9.34.0` |
+
+Each bound is the first or last published version measured to behave that way, not the edge of
+a sweep; the Measurement section below gives the readings.
+
+**Severity** `AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N` — 7.5, high. `AC:L` is for the first
+direction in the table below, where a consumer verifies a disclosure object it assembled
+itself and an attacker who influences that assembly substitutes the value. The second
+direction travels over plain JSON but additionally requires an issuer that committed a
+non-finite value.
 
 ---
 
@@ -32,9 +41,9 @@ Advisory Database and therefore into `npm audit`.
 path + ':' + JSON.stringify(value) + ':' + salt
 ```
 
-and `JSON.stringify` renders `null`, `NaN` and `Infinity` **all** as `"null"`. Three distinct
-values therefore share one commitment, so a verifier cannot tell which one the issuer actually
-committed to. It returns `valid: true` for a value that was never committed.
+and `JSON.stringify` renders `null`, `NaN`, `Infinity` and `-Infinity` **all** as `"null"`. Four
+distinct values therefore share one commitment, so a verifier cannot tell which one the issuer
+actually committed to. It returns `valid: true` for a value that was never committed.
 
 The same encoding defect was found and fixed in `lib/gdaf/zk-prover.js` in 9.22.0. This module
 kept its own copy of the code and so kept the defect, which is why the permitted domain now
@@ -45,7 +54,7 @@ lives in one shared module that both require.
 | direction | reachable over plain JSON? |
 |---|---|
 | the issuer commits `null`, an attacker presents `NaN` | **no** — `JSON.stringify` does not emit `NaN`, so this needs in-process access, which is the case when a consumer calls `verify` with an object it built itself |
-| the issuer commits `NaN` or `Infinity`, a holder presents `null` | **yes** — `null` survives JSON intact and the proof needs no tampering at all |
+| the issuer commits a non-finite number, a holder presents `null` | **yes** — `null` survives JSON intact and the proof needs no tampering at all |
 
 The second direction requires an issuer whose claim holds a JavaScript `NaN` or `Infinity`.
 That cannot arrive from `JSON.parse`, but it arrives easily from arithmetic: `Number(undefined)`
@@ -60,11 +69,18 @@ substitute `NaN` and then `Infinity` for the disclosed value, and re-verify.
 
 * **All 63** live versions from 7.5.5 to 9.31.0 accept the forged value, with the honest proof
   also verifying in all 63.
-* 4.4.0, 5.4.0, 6.0.0, 7.0.0, 7.4.0 and 7.5.0 accept it as well, which is why the range opens at
-  `< 9.32.0` rather than at 7.5.5 — a range drawn around the versions that happened to be in the
-  first sweep would have told users of those versions they were unaffected.
-* On the unscoped name, 3.3.1 and 4.4.0 accept it; 3.0.0 – 3.2.2 have no `lib/ltp/proof` module.
-* 9.32.0 and 9.33.2 refuse it, and report it as a verdict rather than throwing.
+* Below that sweep, 3.3.2, 3.4.0, 4.4.0, 5.4.0, 6.0.0, 7.0.0, 7.4.0 and 7.5.0 accept it too.
+  The range therefore opens at the **first published version that has the module at all**: every
+  scoped version from 1.5.6-fix1 to 3.2.2 has no `lib/ltp/proof`, and 3.3.2 is the first that
+  does. A range drawn around the versions that happened to be in the first sweep would have told
+  users of 7.0.0 they were unaffected.
+* On the unscoped name the module first appears in 3.3.1 and is present in all 14 versions from
+  there to 4.4.0; 3.0.0 – 3.2.2 do not have it. 3.3.1, 3.4.5, 4.1.0 and 4.4.0 were run and all
+  accept the forged value.
+* 9.32.0, 9.33.2 and 9.34.0 refuse it, and report it as a verdict rather than throwing.
+* Module presence was established twice over, independently: by asking the CDN that serves the
+  npm tarballs for `lib/ltp/proof.js` in each of the 149 published versions, and by installing
+  the versions at the boundary and loading it. The two agree.
 
 ### Patches
 
@@ -79,6 +95,30 @@ odd node that `_buildMerkleTree` had paired with itself, so an **honest** proof 
 non-power-of-two field count. That is an availability defect rather than a soundness one and is
 not part of this advisory.
 
+A third, unrelated defect in the same module was fixed in **9.34.0** and has its own advisory.
+9.34.0 is the release to move to.
+
+### Upgrading the verifier does not repair a commitment already minted
+
+The fix works in two places: 9.32.0 refuses to **mint** an ambiguous commitment, and it
+validates the disclosed value at **verification**. Only the second helps a proof that already
+exists, and it is not enough — because a commitment minted over `NaN` is byte-identical to one
+minted over `null`, and `null` is inside the permitted domain, so no domain check can reject
+it.
+
+Measured across versions rather than argued
+(`scripts/published-version-probes/ltp-stale-commitment.js`), with 9.31.0 as the issuer and
+9.33.2 as the verifier:
+
+| presented to the patched verifier | result |
+|---|---|
+| the `NaN` the issuer believes it committed | **invalid** — the domain check, working |
+| `null`, which that issuer never committed | **valid** — the forgery survives the upgrade |
+| an honestly committed `null` from the same issuer | valid — interoperation holds |
+
+A control in the same run confirms the patched version refuses to mint over `NaN` at all
+(`claim.x must be a finite number`), so new commitments cannot be ambiguous.
+
 ### Workarounds
 
 On an affected version, reject any disclosure whose value is not a string, a finite number, a
@@ -87,10 +127,16 @@ can be `NaN` or `Infinity`.
 
 ### Action required
 
-Upgrade to `>= 9.33.2`. On the unscoped `smartledger-bsv` there is nothing to upgrade to —
-migrate to `@smartledger/bsv@9.33.2` or later, reviewing migration requirements before
-switching.
+Upgrade to `9.34.0`. On the unscoped `smartledger-bsv` there is nothing to upgrade to —
+migrate to `@smartledger/bsv@9.34.0`, reviewing migration requirements before switching.
 
-Proofs issued by an affected version do not need reissuing: the commitments are byte-identical
-and interoperate in both directions. What changes is that the verifier no longer accepts a value
-outside the permitted domain.
+A proof issued by an affected version **whose committed values were all inside the permitted
+domain** — a string, a finite number, a boolean or `null` — does not need reissuing. Its
+commitments are byte-identical and interoperate in both directions, and what changes is only
+that the verifier no longer accepts a value outside the domain.
+
+A proof issued by an affected version over a **non-finite** value is a different matter, and
+upgrading does not fix it (see above). Identify any credential issued on an affected version
+whose claim values could have held `NaN` or `Infinity` — arithmetic over a missing field is the
+usual source, `Number(undefined)` being `NaN` — and reissue it from a patched version, or stop
+relying on it. A verifier-side upgrade cannot establish what such a commitment meant.

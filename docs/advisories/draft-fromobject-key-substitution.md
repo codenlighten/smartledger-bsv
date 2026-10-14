@@ -43,17 +43,23 @@ PrivateKey.fromObject(JSON.parse(JSON.stringify(key)))
 ```
 
 therefore returns a **valid-looking private key of about 40 bits**, with no error, a different
-WIF and a different address. Any funds sent to that address are spendable by anyone, because the
-substituted value does not depend on the original key: it is `768491671261` for every caller, so
-every affected round trip in the world lands on the **same** address.
+WIF and a different address. The substituted value does not depend on the original key: the
+scalar is `768491671261` for every caller, so every affected round trip in the world produces
+the **same publicly known scalar**, and therefore the same address for a given network and
+compression setting. Any funds sent to it are spendable by anyone.
 
-There is no attacker in this. A developer who persists a key as JSON and restores it funds an
-address that a stranger can sweep.
+No attacker-controlled input is required. A developer who persists a key as JSON and restores it
+funds an address that a stranger can sweep.
 
 ### Measurement
 
 Each version was installed from the registry and run
 (`scripts/published-version-probes/json-roundtrip.js`):
+
+**Severity.** Scored `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N` — 9.1, critical. The precondition is
+specific and should be read with the score: the key must have been restored through
+`fromObject(JSON.parse(JSON.stringify(key)))` on one of these four versions, and the resulting
+address must have been funded. There is no exploit step beyond watching a known address.
 
 | version | result |
 |---|---|
@@ -74,7 +80,8 @@ Fixed in **7.5.5**. `_transformObject` now validates before parsing: `bn` must b
 hexadecimal string, must not be the redaction marker, and must fall inside the valid key range.
 `toObject()` round-trips exactly, as before.
 
-7.5.5 does not address later security fixes. **Upgrade to `>= 9.33.2`.**
+7.5.5 fixes this defect and nothing later. Separate defects were fixed in 9.32.0 and 9.34.0, so
+the release to move to is **9.34.0**.
 
 ### Workarounds
 
@@ -83,7 +90,7 @@ affected version. `toObject()` was always the deliberate export and round-trips 
 
 ### Action required
 
-Upgrade to `>= 9.33.2`. Then, if any key in your system was ever restored through
+Upgrade to `9.34.0`. Then, if any key in your system was ever restored through
 `fromObject(JSON.parse(JSON.stringify(key)))` on 7.5.1 – 7.5.4, the address you derived from it
 was **not** derived from your key. Check whether you funded
 `1JGwrQuvMBkEt3SgYko5M2Vuncfi7JRyze` (livenet, compressed) or its testnet and uncompressed

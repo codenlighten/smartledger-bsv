@@ -36,7 +36,7 @@ var DRAFTS = [
     from: 'draft-fromobject-key-substitution.md',
     payload: {
       summary: 'PrivateKey.fromObject silently returns a different, publicly derivable private key when given a redacted JSON round-trip',
-      severity: 'critical',
+      cvss_vector_string: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N',
       cwe_ids: ['CWE-20', 'CWE-340'],
       vulnerabilities: [{
         package: { ecosystem: 'npm', name: '@smartledger/bsv' },
@@ -51,13 +51,39 @@ var DRAFTS = [
     from: 'draft-ltp-disclosure-commitment.md',
     payload: {
       summary: 'LTP.Proof selective disclosure accepts a disclosed value the issuer never committed to',
-      severity: 'high',
+      cvss_vector_string: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N',
       cwe_ids: ['CWE-345'],
       vulnerabilities: [
         {
           package: { ecosystem: 'npm', name: '@smartledger/bsv' },
-          vulnerable_version_range: '< 9.32.0',
+          vulnerable_version_range: '>= 3.3.2, < 9.32.0',
           patched_versions: '9.32.0',
+          vulnerable_functions: []
+        },
+        {
+          package: { ecosystem: 'npm', name: 'smartledger-bsv' },
+          vulnerable_version_range: '>= 3.3.1, <= 4.4.0',
+          patched_versions: null,
+          vulnerable_functions: []
+        }
+      ]
+    }
+  },
+  {
+    out: 'draft-ltp-salt-derivation.json',
+    from: 'draft-ltp-salt-derivation.md',
+    // Must not be PUBLISHED before 9.34.0 is on the registry: it names 9.34.0 as the patched
+    // version, and an advisory that tells a reader to upgrade to something that does not exist
+    // is worse than none. Creating it as a draft is private and safe at any time.
+    payload: {
+      summary: 'LTP selective disclosure derives its salts from the proof\u2019s own nonce, so an undisclosed field\u2019s value can be brute-forced from the proof',
+      cvss_vector_string: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N',
+      cwe_ids: ['CWE-330', 'CWE-200'],
+      vulnerabilities: [
+        {
+          package: { ecosystem: 'npm', name: '@smartledger/bsv' },
+          vulnerable_version_range: '>= 3.3.2, < 9.34.0',
+          patched_versions: '9.34.0',
           vulnerable_functions: []
         },
         {
@@ -80,11 +106,11 @@ var DRAFTS = [
 var AMEND = [
   ['the patches paragraph',
     '**7.5.3** is recommended: it rebuilds that guard to detect key material by value as well as by field name, closing cases where a WIF, `xprv`, or BIP39 mnemonic stored under an innocuous field name would still have been published.',
-    '**7.5.3** rebuilt that guard to detect key material by value as well as by field name, closing cases where a WIF, `xprv`, or BIP39 mnemonic stored under an innocuous field name would still have been published.\n\n**7.5.3 is no longer a safe upgrade target, and this advisory originally recommended it.** It fixes *this* defect, but 7.5.1 – 7.5.4 carry an unrelated critical defect of their own, and later versions through 9.31.0 another. Those are outside this advisory\'s scope and are not reflected in its affected range, so tooling will not flag them here. Upgrade to **`>= 9.33.2`**, which carries no known forgery or consensus defect.'],
+    '**7.5.3** rebuilt that guard to detect key material by value as well as by field name, closing cases where a WIF, `xprv`, or BIP39 mnemonic stored under an innocuous field name would still have been published.\n\n**7.5.3 is no longer a safe upgrade target, and this advisory originally recommended it.** It fixes *this* defect, but 7.5.1 – 7.5.4 carry an unrelated critical defect of their own, and later versions through 9.31.0 another. Those are outside this advisory\'s scope and are not reflected in its affected range, so tooling will not flag them here. Upgrade to **`9.34.0`**, the release in which the defects described here and in the companion advisories are fixed.'],
 
   ['the action required',
     'Upgrade to `>= 7.5.3`, then **treat every key ever passed to `anchorCredential` or `anchorBatch` as compromised and rotate it**, moving any funds to a new key. Reviewing OP_RETURN payloads of anchors you have broadcast will confirm whether a key was published.',
-    'On `@smartledger/bsv`, upgrade to `>= 9.33.2` (see the note in Patches on why not 7.5.3). On the unscoped `smartledger-bsv` there is nothing to upgrade to — migrate to `@smartledger/bsv@9.33.2` or later, reviewing migration requirements before switching.\n\nThen **treat every key ever passed to `anchorCredential` or `anchorBatch` as compromised and rotate it**, moving any funds to a new key, unless you can establish that no such transaction was ever broadcast. Reviewing the OP_RETURN payloads of anchors you have broadcast will confirm whether a key was published. Separately, any key whose `JSON.stringify` output reached a log, an error report or a request body should be treated as exposed to whoever can read that output.'],
+    'On `@smartledger/bsv`, upgrade to `9.34.0` (see the note in Patches on why not 7.5.3). On the unscoped `smartledger-bsv` there is nothing to upgrade to — migrate to `@smartledger/bsv@9.34.0`, reviewing migration requirements before switching.\n\nThen **treat every key ever passed to `anchorCredential` or `anchorBatch` as compromised and rotate it**, moving any funds to a new key, unless you can establish that no such transaction was ever broadcast. Reviewing the OP_RETURN payloads of anchors you have broadcast will confirm whether a key was published. Separately, any key whose `JSON.stringify` output reached a log, an error report or a request body should be treated as exposed to whoever can read that output.'],
 
   ['the workarounds heading',
     '### Workarounds',
@@ -161,6 +187,14 @@ function validate (name, p) {
   })
   if (p.severity && ['low', 'medium', 'high', 'critical'].indexOf(p.severity) < 0) {
     problems.push('severity ' + p.severity + ' is not one of low/medium/high/critical')
+  }
+  // A create with neither lets GitHub assign one. An amendment carries neither on purpose:
+  // it sends only the fields it changes, and the published advisory keeps its own severity.
+  if (p.summary && !p.severity && !p.cvss_vector_string) {
+    problems.push('a new advisory with neither severity nor cvss_vector_string')
+  }
+  if (p.severity && p.cvss_vector_string) {
+    problems.push('both severity and cvss_vector_string - send one, they are alternatives')
   }
   // Only advisory ids KNOWN TO BE PUBLIC may appear. An allowlist rather than a blocklist on
   // purpose: a blocklist of embargoed ids would have to name them, in a public repository,

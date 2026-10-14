@@ -1,0 +1,20 @@
+{
+ "summary": "PrivateKey.fromObject silently returns a different, publicly derivable private key when given a redacted JSON round-trip",
+ "cvss_vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+ "cwe_ids": [
+  "CWE-20",
+  "CWE-340"
+ ],
+ "vulnerabilities": [
+  {
+   "package": {
+    "ecosystem": "npm",
+    "name": "@smartledger/bsv"
+   },
+   "vulnerable_version_range": ">= 7.5.1, < 7.5.5",
+   "patched_versions": "7.5.5",
+   "vulnerable_functions": []
+  }
+ ],
+ "description": "### Impact\n\n7.5.1 added a redaction to `PrivateKey.prototype.toJSON`, so `JSON.stringify(key)` emits\n`bn: '[REDACTED]'` instead of the secret scalar. The matching guard on the way back in was\nmissing until 7.5.5.\n\n`bn.js@4` **skips** characters it cannot parse rather than failing, so parsing the marker\n`'[REDACTED]'` does not raise — it yields whatever the surviving characters encode. The most\nnatural persist-and-restore round trip\n\n```js\nPrivateKey.fromObject(JSON.parse(JSON.stringify(key)))\n```\n\ntherefore returns a **valid-looking private key of about 40 bits**, with no error, a different\nWIF and a different address. The substituted value does not depend on the original key: the\nscalar is `768491671261` for every caller, so every affected round trip in the world produces\nthe **same publicly known scalar**, and therefore the same address for a given network and\ncompression setting. Any funds sent to it are spendable by anyone.\n\nNo attacker-controlled input is required. A developer who persists a key as JSON and restores it\nfunds an address that a stranger can sweep.\n\n### Measurement\n\nEach version was installed from the registry and run\n(`scripts/published-version-probes/json-roundtrip.js`):\n\n**Severity.** Scored `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N` — 9.1, critical. The precondition is\nspecific and should be read with the score: the key must have been restored through\n`fromObject(JSON.parse(JSON.stringify(key)))` on one of these four versions, and the resulting\naddress must have been funded. There is no exploit step beyond watching a known address.\n\n| version | result |\n|---|---|\n| 7.5.0 | round-trips **correctly** — the redaction marker did not exist yet |\n| 7.5.1, 7.5.2, 7.5.3, 7.5.4 | silent wrong key, `bn = 768491671261`, 40 bits, same address every time |\n| 7.5.5 | throws, naming the marker and pointing at `toObject()` / `toWIF()` |\n\nSo the window is exactly those four versions, bounded by measurement at both ends.\n\nAs of 2026-10-13 the four derivable addresses — livenet and testnet, compressed and\nuncompressed — have **zero transactions and zero balance** on BSV mainnet and testnet\n(WhatsOnChain) and on BTC (Blockstream). That is an observation about two providers at one\nmoment, not a guarantee that any particular deployment is safe.\n\n### Patches\n\nFixed in **7.5.5**. `_transformObject` now validates before parsing: `bn` must be a non-empty\nhexadecimal string, must not be the redaction marker, and must fall inside the valid key range.\n`toObject()` round-trips exactly, as before.\n\n7.5.5 fixes this defect and nothing later. Separate defects were fixed in 9.32.0 and 9.34.0, so\nthe release to move to is **9.34.0**.\n\n### Workarounds\n\nUse `key.toObject()` or `key.toWIF()` for persistence, never `JSON.stringify(key)`, on an\naffected version. `toObject()` was always the deliberate export and round-trips exactly.\n\n### Action required\n\nUpgrade to `9.34.0`. Then, if any key in your system was ever restored through\n`fromObject(JSON.parse(JSON.stringify(key)))` on 7.5.1 – 7.5.4, the address you derived from it\nwas **not** derived from your key. Check whether you funded\n`1JGwrQuvMBkEt3SgYko5M2Vuncfi7JRyze` (livenet, compressed) or its testnet and uncompressed\nequivalents; treat anything sent there as spendable by anyone, and re-derive from the original\nkey material.\n"
+}
