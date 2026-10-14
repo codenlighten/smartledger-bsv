@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.35.0] - 2026-10-14
+
+### Fixed - three output scripts the node accepts and mines could not be parsed at all
+
+A script ending in `6a4c`, `6a4d01` or `6a4e0100` - a top-level `OP_RETURN` followed by a push
+whose **length field** is cut off - is a valid locking script. Post-Genesis the node stops at an
+executed top-level `OP_RETURN` and never reads the rest; its own comment says the remainder
+"does not affect the validity (even in presence of unbalanced IFs, invalid opcodes etc)". One
+such output is on livenet in
+`ebc9fa1196a59e192352d76c0f6e73167046b9d37b8302b6bb6968dfd279b767`.
+
+This parser threw `Script.InvalidBuffer` on those bytes, in **both** eras, so there was no
+Script to evaluate and no verdict to give. The node's `GetOp2` tests the length field before
+reading it:
+
+    else if (opcode == OP_PUSHDATA1) { if (end()-pc < 1) return false; nSize = *pc++; }
+
+so it fails the parse exactly as it does for a push whose **data** runs out - a case this
+library already handled and already agreed on. The asymmetry was ours, not the node's.
+
+The parser now keeps the bytes it did read in `lenPrefix`, with no `len` and no `buf` because
+there is no declared length to record, and `toBuffer` writes them back unchanged. The shared
+`isUndecodablePush` predicate answers true for that shape, so both of the node's `GetOp`
+callers give the answers they already gave for truncated data: not-push-only from
+`IsPushOnly`, `SCRIPT_ERR_BAD_OPCODE` from the instruction read.
+
+**The interpreter is untouched.** Of 22 rows judged on a compiled bitcoin-sv v1.2.3, **16
+already agreed**, and all 6 that did not were these three shapes in both eras, failing inside
+`Script.fromBuffer` without reaching the interpreter. The rows inside an `IF` already agreed,
+so confining leniency to a top-level `OP_RETURN` needed no new logic: it falls out of those
+scripts parsing and the interpreter deciding. That was written down as a prediction before the
+change and is now `test/script/optrue_return_truncated_tail.js`, where all 22 rows agree. Both
+flag words in it are rebuilt from the library's own named constants, not copied from the
+oracle's hex - an undefined flag ORed into a word yields NaN, which looks exactly like a defect.
+
+`STABILITY.md` settles the versioning: for a MALFORMED script the commitment is the node's
+answer, not the previous release's, so this is a bug fix rather than a relaxation. No
+well-formed script changes verdict, and the 452-case conformance corpus is unchanged.
+
+### Changed - `Script.fromBuffer` is now total
+
+Every byte string parses, and round-trips byte for byte. Fuzzed over 282,400 sequences - every
+one- and two-byte script, every three-byte script opening with a pushdata opcode, and 20,000
+random ones - with zero throws and zero round-trip mismatches.
+
+That is the node's own model: `CScript` is a byte vector, decoding happens on demand, and a
+decode failure surfaces where the bytes are used. Two consequences:
+
+* `Script.InvalidBuffer` is no longer raised by `fromBuffer`. Code catching it still compiles.
+* `Output#setScriptFromBuffer`'s null-script path is unreachable from bytes. The guards in
+  `Transaction#_hasDustOutputs` and `Output#getSize` that 9.33.2 added are **kept** - a guard
+  deleted because nothing currently reaches it is how the next parse failure becomes a crash -
+  and the test now constructs that state directly instead of through a parse failure.
+
+The text forms render a cut-off prefix as raw bytes, the way an unnamed opcode is rendered, so
+`6a4d` and `6a4d01` stay distinct: both would otherwise print as `OP_RETURN OP_PUSHDATA2`, two
+scripts sharing one text, which is the shape `_chunkToString` already fixed once for bare hex.
+Reading that text back throws rather than producing different bytes; `toBuffer` is the
+authoritative round trip.
+
+Found by the op-codes lab, which judged the vectors on the node and measured both gaps asked of
+it - the pre-Genesis error names, and the `IF` cases that decide whether a parse-level fix is
+admissible at all.
+
+
 ## [9.34.0] - 2026-10-14
 
 ### Fixed — an undisclosed field could be recovered from a selective-disclosure proof

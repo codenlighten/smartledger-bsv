@@ -1,8 +1,9 @@
 # Known divergences from the reference implementation
 
 Every entry here is a case where this library and a compiled `bitcoin-sv` node answer
-differently about the same script, and the divergence is still **open**. Fixed ones live in
-`CHANGELOG.md`; this file is for what is known and not yet resolved, so that a divergence
+differently about the same script. Open ones come first; a closed one keeps its entry when the
+measurements behind it are worth reading, with the resolution at the top. Fixed ones are also
+in `CHANGELOG.md`; this file is for what is known, so that a divergence
 cannot be quietly forgotten between releases.
 
 A divergence is recorded here only once it has been reproduced against node source or a
@@ -23,10 +24,46 @@ node-judged vector set, with the mechanism read rather than inferred.
 
 ## Open
 
+Nothing. The one entry below was closed in 9.35.0. The sections under it are kept because the
+measurements are what made the fix small, and because the reasoning that argued against fixing
+it is worth reading next to what the fix turned out to cost.
+
+## Closed
+
 ### A push whose LENGTH FIELD is truncated has no verdict — and after OP_RETURN the node ACCEPTS
 
 **Class:** no answer, and false reject where the node accepts. **Found:** 2026-10-13, by the
-op-codes lab. **Status:** open; the fix is a design decision, not a patch.
+op-codes lab. **Status:** CLOSED in 9.35.0.
+
+**How it was closed.** The parser keeps the bytes it did read in a `lenPrefix` field on the
+chunk, with no `len` and no `buf` because there is no declared length to record, and
+`toBuffer` writes them back unchanged. The shared `isUndecodablePush` predicate answers true
+for that shape, so both of the node's `GetOp` callers get the answer they already got for
+truncated data: not-push-only from `IsPushOnly`, `BAD_OPCODE` from the instruction read.
+
+**The interpreter was not touched**, and that was a prediction before it was a result. Of the
+22 rows the op-codes lab had judged on a compiled bitcoin-sv v1.2.3, **16 already agreed**; all
+6 that did not were the three top-level shapes, in both eras, and all 6 failed inside
+`Script.fromBuffer` without ever reaching the interpreter. The rows inside an `IF` already
+agreed, so "leniency only at a top-level OP_RETURN" needed no new logic — it is enforced by
+those scripts parsing and the interpreter deciding, which is also why the parser can be
+unconditionally permissive without granting leniency where the node gives none. All 22 rows
+now agree, pinned in `test/script/optrue_return_truncated_tail.js`.
+
+**What the fix cost, against the paragraph below that argued it would be expensive.** Four
+call sites: the parser, `toBuffer`, `serializesCleanly`, and the chunk renderer. The warning
+in "Why it is not fixed yet" was right that a loosened parser must then be rejected correctly
+everywhere downstream — but wrong that this needed its own release of design work, because the
+downstream rejection already existed and was already shared in one predicate. The 9.29.2 work
+that moved that predicate into `lib/script/push-decode.js` is what made this a four-line
+change instead of a design problem.
+
+**One consequence worth stating:** `Script.fromBuffer` is now **total** — every byte string
+parses and round-trips byte for byte, fuzzed over 282,400 sequences with zero throws and zero
+mismatches. That matches the node, where `CScript` is a byte vector and decoding is on demand,
+so a decode failure surfaces at use. It also means `Output#setScriptFromBuffer`'s null-script
+path is unreachable from bytes; the guards that depend on it are kept deliberately, and the
+state is now constructed directly in the test rather than through a parse failure.
 
 A script ending in `4c` (OP_PUSHDATA1 with no length byte), `4d01` (OP_PUSHDATA2 with one of
 two) or `4e0100` (OP_PUSHDATA4 with two of four) declares a push whose length the script does
@@ -60,8 +97,9 @@ classifiers, serialization. That is the shape of change that introduces a false 
 fixing a different-reason divergence, so it wants its own release and its own vectors, not a
 line in a patch.
 
-**What is pinned meanwhile:** that the failure is a typed, catchable `Script.InvalidBuffer`
+**What was pinned meanwhile:** that the failure is a typed, catchable `Script.InvalidBuffer`
 at the API boundary rather than an internal error, and exactly which operations still work.
+Superseded — `input.script` no longer throws, and that test now pins the agreement instead.
 
 #### What the representation should be, and what the real obstacle is
 
