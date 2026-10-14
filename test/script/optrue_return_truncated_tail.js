@@ -195,6 +195,55 @@ describe('a cut-off push length after OP_RETURN', function () {
         .should.equal(true, i.errstr)
     })
 
+    describe('a tail inside an IF after the OP_RETURN is signed but never read', function () {
+      // The sharpest case, and one a peer had reasoned was unobservable. A cut-off push inside
+      // an IF that comes BEFORE the OP_RETURN is BAD_OPCODE at the scan, so no signature is
+      // ever reached (rows B1-B3 above). But post-Genesis an executed TOP-LEVEL OP_RETURN
+      // stops evaluation entirely — the node's comment says the remainder "does not affect the
+      // validity (even in presence of unbalanced IFs, invalid opcodes etc)" — so an IF placed
+      // AFTER it holds bytes that are never read and still signed. That is precisely the gap
+      // where a verdict can agree while the signed bytes differ.
+      //
+      // OP_CHECKSIG, not CHECKSIGVERIFY: the stack needs a result when OP_RETURN stops, or
+      // both arms land on EVAL_FALSE_NO_RESULT and the signal is lost.
+      //
+      // The IF is deliberately unbalanced. A balanced `63 4c 68` puts a truncated-DATA push
+      // inside the IF instead, because the `68` is eaten as the length byte — so a cut-off
+      // PREFIX inside an IF can only sit at the very end of the script.
+      var TAILS = {
+        'a cut-off PUSHDATA1': '634c',
+        'a cut-off PUSHDATA2': '634d01',
+        'a short DATA push': '634c50' + 'cd'.repeat(10),
+        'a nested IF': '63634e0100'
+      }
+
+      function attempt (lockHex, signedOverHex) {
+        var tx = spendingTx()
+        var sig = Sighash.sign(tx, KEY, SIGHASH, 0, Script.fromHex(signedOverHex), new BN(SATS))
+        tx.inputs[0].setScript(Script.fromASM(sig.toTxFormat().toString('hex')))
+        var i = new Interpreter()
+        var ok = i.verify(tx.inputs[0].script, Script.fromHex(lockHex), tx, 0,
+          POST_GENESIS, new BN(SATS))
+        return ok ? 'accept' : i.errstr.replace(/^SCRIPT_ERR_/, '')
+      }
+
+      var BASE = '21' + KEY.toPublicKey().toHex() + 'ac' + '6a'
+
+      Object.keys(TAILS).forEach(function (label) {
+        it('signs ' + label + ', so only the full-lock signature verifies', function () {
+          var lock = BASE + TAILS[label]
+          attempt(lock, lock).should.equal('accept')
+          attempt(lock, BASE).should.equal('NULLFAIL')
+        })
+      })
+
+      it('gives no signal without a tail, which is what makes the rows above mean something', function () {
+        // Without this control, "accept / NULLFAIL" could come from any signature mismatch and
+        // would say nothing about the tail.
+        attempt(BASE, BASE).should.equal('accept')
+      })
+    })
+
     it('keeps the chunk through removeCodeseparators', function () {
       Script.fromHex('ab6a4c').removeCodeseparators().toHex().should.equal('6a4c')
     })
