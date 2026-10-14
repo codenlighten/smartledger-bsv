@@ -1,7 +1,10 @@
 # BRC-220: proposed amendment — the unsigned region of a certificate
 
-**Status:** draft, not submitted. Prepared against `apps/0220.md` at
-`bitcoin-sv/BRCs@master` (fetched 2026-10-10, 219 lines).
+**Status:** branch prepared, **not pushed and not filed**. Re-verified on 2026-10-14 against
+`apps/0220.md` at `bsv-blockchain/BRCs@master` (662d25e, 219 lines) — still byte-identical to the
+version this was drafted against apart from two editorial words ("This specification defines" →
+"This proposal defines", in the Abstract and Motivation). The branch
+`brc-220-unsigned-region` sits on upstream master, one commit, `apps/0220.md` only.
 
 ## What is missing from the spec
 
@@ -14,11 +17,26 @@ lp(payloadHash) || lp(publicKey) || lp(signature) ||
 u64be(createdAtUnix)
 ```
 
-Eight fields. **Nothing under `anchor` or `spv` appears in it.** So every one of
-`anchor.type`, `anchor.network`, `anchor.txid`, `anchor.vout`, `anchor.blockHeight`,
-`anchor.blockTime`, the whole `merkle` object and the whole `spv` envelope is **unsigned by
-construction**. A party who re-serialises a certificate with any of them changed produces a
-document with the same `proofHash` and the same valid signature.
+Eight components — but **two of them are constants, not fields**: `"NotaryHash/1.0"` is a domain
+separator and `u8(version=1)` is the format version, neither read from the document. So the bytes
+cover **six** of the certificate's twelve fields. Measured rather than counted by eye, by
+tampering each field and recomputing `proofHash`:
+
+| moves `proofHash` | does not |
+|---|---|
+| `algorithm`, `hashAlgorithm`, `payloadHash`, `publicKey`, `signature`, `createdAt` | `protocol`, `version`, `mode`, `encoding`, `proofHash`, `anchor`, `merkle`, `spv` |
+
+The first draft of this document said the unsigned region was `anchor`, `merkle` and `spv`. **It
+is larger than that**: `protocol` and `mode` are outside the signature too. Three of the
+right-hand fields are nonetheless bound by other means — `proofHash` is recomputed and compared
+in step 2 of §Verification; `version` by the constant plus the spec's existing *"A verifier MUST
+reject a certificate whose `version` it does not implement"*; and `encoding` because it governs
+how `publicKey` and `signature` are decoded, both of which are inside the bytes. What is left
+genuinely unsigned and not self-checking is `protocol`, `mode`, every member of `anchor`, and the
+additive `merkle` and `spv`.
+
+A party who re-serialises a certificate with any of those changed produces a document with the
+same `proofHash` and the same valid signature.
 
 The spec states this twice, locally, where it happened to matter:
 
@@ -83,6 +101,19 @@ Add to **§Security considerations**:
 No wire format, no canonical bytes, no on-chain record, no existing certificate. It is a
 constraint on what an implementation may report, and it makes explicit a property the format
 already has. Implementations that already check these members are already conformant.
+
+## The reference implementation already behaves this way
+
+Checked, because the withdrawn `encoding` amendment failed precisely by contradicting the
+reference. Against a real mainnet batch certificate, the reference refuses **all five**
+unsigned-region tampers — T27 `anchor.network`, T28 `spv.format`, T29 `anchor.type`, T30
+`merkle`-present-iff-batch, T31 `createdAt` — while reporting `signatureValid: true` in every
+one. So this codifies existing reference behaviour rather than asking any implementation to
+change, which is the opposite footing from the withdrawn proposal.
+
+§Certificate also already follows the reporting pattern once, for `mode`: *"In a batched
+certificate `mode` is not checked against the chain."* The amendment generalises a practice the
+spec has.
 
 ## Evidence available on request
 
