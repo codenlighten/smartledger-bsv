@@ -17,7 +17,7 @@
 //
 // Two invariants are enforced before a manifest is emitted, because both failures are silent:
 //
-//   * every published version is covered by exactly ONE tier, and `@smartledger/bsv@9.35.0` —
+//   * every published version is covered by exactly ONE tier, and `@smartledger/bsv@9.36.0` —
 //     the current release — by none;
 //   * every tier's range is an explicit `||` union of exact versions that selects exactly its
 //     own list and nothing else.  A comparator range such as `>=7.5.5 <9.32.0` would sweep up
@@ -28,9 +28,9 @@ var path = require('path')
 var https = require('https')
 
 var SNAPSHOT = path.join(__dirname, '..', 'docs', 'npm-deprecations', 'snapshot-2026-10-14.json')
-var CURRENT = { '@smartledger/bsv': '9.35.0' } // must never be deprecated
+var CURRENT = { '@smartledger/bsv': '9.36.0' } // must never be deprecated
 var GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc'
-var UPGRADE = 'upgrade to @smartledger/bsv@9.35.0 or later'
+var UPGRADE = 'upgrade to @smartledger/bsv@9.36.0 or later'
 // The one clause every version from 3.3.2 to 9.33.2 needs, since all of them have
 // lib/ltp/proof and all of them derive the salt from the published nonce.
 var SALT = 'An undisclosed field in an LTP selective-disclosure proof can also be ' +
@@ -122,7 +122,7 @@ function buildTiers (state) {
     'verifier can accept a disclosed value the issuer never committed to). Its browser ' +
     'bundle was also built from bn.js 4.12.3 while package.json pins 4.12.5, confirmed in ' +
     'the published bundle; the 7.6.2 release reports no behaviour difference between those ' +
-    'builds across 11,071 differential checks. Upgrade to @smartledger/bsv@9.35.0 or later.'
+    'builds across 11,071 differential checks. Upgrade to @smartledger/bsv@9.36.0 or later.'
 
   return [
     { id: 'S_crash',
@@ -156,6 +156,22 @@ function buildTiers (state) {
         'carrying one has no script verdict here. This is a false reject: no script is ' +
         'accepted that the node refuses. Fixed in 9.35.0.' },
 
+    { id: 'S_ageproof',
+      pkg: '@smartledger/bsv',
+      versions: ['9.35.0'],
+      why: 'generateAgeProof discarded its argument and committed to a hardcoded birth date, ' +
+        'so an age proof passed for a subject who does not meet the threshold. Fixed in 9.36.0',
+      msg: 'GDAF generateAgeProof ignores the credential it is given and commits to a ' +
+        'hardcoded birth date of 1995-06-15, so a proof that a subject meets an age threshold ' +
+        'can be obtained for a subject who does not - measured on this version, a credential ' +
+        'for a subject born 2015-03-01 verified true at every minimum age from 1 to 31. It was ' +
+        'a constant function of its first argument: ten input shapes, including undefined and ' +
+        'null, returned one commitment between them. A relying party that treats a true from ' +
+        'verifyAgeProof as evidence about the credential subject is affected; verification ' +
+        'needs the opening, which carries the birth date in plaintext. Fixed in 9.36.0, which ' +
+        'takes the birth date itself and refuses a credential. ' +
+        UPGRADE.charAt(0).toUpperCase() + UPGRADE.slice(1) + '.' },
+
     { id: 'U_anchor',
       pkg: 'smartledger-bsv',
       versions: UNSCOPED_ANCHOR,
@@ -165,7 +181,7 @@ function buildTiers (state) {
         'this version and recoverable to the same WIF, so broadcasting it exposes the key in ' +
         'chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently ' +
         'published smartledger-bsv version fixes either; migrate to ' +
-        '@smartledger/bsv@9.35.0 or later - review migration requirements before switching - ' +
+        '@smartledger/bsv@9.36.0 or later - review migration requirements before switching - ' +
         'and ROTATE any key passed to those methods. ' + GHSA },
 
     { id: 'U_stringify',
@@ -175,7 +191,7 @@ function buildTiers (state) {
       msg: 'Critical: JSON.stringify(privateKey) includes the secret scalar, measured in ' +
         'this version, so any log, error report or request body built from that output ' +
         'carries the key to whoever can read it. No currently published smartledger-bsv ' +
-        'version fixes this; migrate to @smartledger/bsv@9.35.0 or later - review migration ' +
+        'version fixes this; migrate to @smartledger/bsv@9.36.0 or later - review migration ' +
         'requirements before switching - and rotate any key that may have been stringified.' },
 
     { id: 'S_fundloss',
@@ -193,7 +209,7 @@ function buildTiers (state) {
         'of which 7.6.2 is carried by S_bundle instead',
       msg: 'Security: this version predates a verification-forgery fix in 9.32.0 (a verifier ' +
         'can accept a disclosed value the issuer never committed to); other fixes were made ' +
-        'earlier. Upgrade to @smartledger/bsv@9.35.0 or later.' },
+        'earlier. Upgrade to @smartledger/bsv@9.36.0 or later.' },
 
     { id: 'S_falseaccept',
       pkg: '@smartledger/bsv',
@@ -222,7 +238,7 @@ function buildTiers (state) {
       msg: 'SECURITY (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential/anchorBatch put the ' +
         "caller's private key into the OP_RETURN of the signed transaction they return, so " +
         'broadcasting it exposes the key in chain data, recoverable to the same WIF. ROTATE ' +
-        'any key passed to those methods. Upgrade to @smartledger/bsv@9.35.0 or later - the ' +
+        'any key passed to those methods. Upgrade to @smartledger/bsv@9.36.0 or later - the ' +
         'minimum previously recommended here, 7.5.3, has a separate private-key round-trip ' +
         'defect. ' + GHSA },
 

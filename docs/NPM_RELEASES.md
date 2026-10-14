@@ -28,7 +28,7 @@ already printed into someone's CI log is not.
 
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
-| `@smartledger/bsv` | 129 | 128 | 1 | 9.35.0 | 2025-10-18 | 2026-10-14 |
+| `@smartledger/bsv` | 130 | 129 | 1 | 9.36.0 | 2025-10-18 | 2026-10-14 |
 | `@smartledger/bsv-core` | 13 | 0 | 13 | 1.5.2 | 2026-09-30 | 2026-10-13 |
 | `@smartledger/keys` | 23 | 0 | 23 | 4.0.0 | 2025-11-28 | 2026-10-07 |
 | `@smartledger/notaryhash` | 16 | 0 | 16 | 2.4.2 | 2026-06-27 | 2026-10-10 |
@@ -73,6 +73,7 @@ below the fix:
 | 9.29.0 | consensus | scriptnum operand size — a false accept in the interpreter |
 | 9.30.0 | consensus | Chronicle era axis — 487 false accepts against the node |
 | 9.32.0 | forgery | LTP `proof.js` forgeable field commitment: a verified disclosure of a value the issuer never committed to |
+| 9.36.0 | false attestation | `generateAgeProof` ignored its argument and committed to a hardcoded birth date, so an age proof passed for a subject below the threshold. Affects every version from 5.4.0; before 8.2.0 the verifier was forgeable anyway, so 8.2.0–9.35.0 is the band where the verifier was sound and the prover was not |
 | 9.33.0 | consensus | `OP_RSHIFTNUM` shift count above INT32_MAX — a false accept |
 | 9.33.1 | divergence | `isPushOnly` treats a truncated push as a push. **Not a false accept** — measured: both this library and the node reject, the node as `SIG_PUSHONLY` above evaluation, this library as `BAD_OPCODE` from running the script |
 | 9.33.2 | robustness | null-script dereferences — an untyped TypeError on a transaction read from a valid block |
@@ -151,13 +152,13 @@ transaction but does not broadcast it, so the key reaches the chain when the cal
 message says so.
 
 ```
-Critical (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential and anchorBatch return a signed transaction whose OP_RETURN contains the caller's private key, measured in this version and recoverable to the same WIF, so broadcasting it exposes the key in chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently published smartledger-bsv version fixes either; migrate to @smartledger/bsv@9.35.0 or later - review migration requirements before switching - and ROTATE any key passed to those methods. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
+Critical (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential and anchorBatch return a signed transaction whose OP_RETURN contains the caller's private key, measured in this version and recoverable to the same WIF, so broadcasting it exposes the key in chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently published smartledger-bsv version fixes either; migrate to @smartledger/bsv@9.36.0 or later - review migration requirements before switching - and ROTATE any key passed to those methods. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
 ```
 
 and for the eight without the anchor module:
 
 ```
-Critical: JSON.stringify(privateKey) includes the secret scalar, measured in this version, so any log, error report or request body built from that output carries the key to whoever can read it. No currently published smartledger-bsv version fixes this; migrate to @smartledger/bsv@9.35.0 or later - review migration requirements before switching - and rotate any key that may have been stringified.
+Critical: JSON.stringify(privateKey) includes the secret scalar, measured in this version, so any log, error report or request body built from that output carries the key to whoever can read it. No currently published smartledger-bsv version fixes this; migrate to @smartledger/bsv@9.36.0 or later - review migration requirements before switching - and rotate any key that may have been stringified.
 ```
 
 Deliberately *not* said: that migrating is drop-in. "Migrate", not "upgrade", across a
@@ -213,7 +214,7 @@ is established and the severity is categorically different, a distinct message i
 where it is inferred from an incomplete table, it is not.
 
 ```
-Critical: PrivateKey.fromObject on a JSON round-trip can silently return a different private key that anyone can derive, so funds sent to its address can be taken. Fixed in 7.5.5, which does not address later security fixes; upgrade to @smartledger/bsv@9.35.0 or later.
+Critical: PrivateKey.fromObject on a JSON round-trip can silently return a different private key that anyone can derive, so funds sent to its address can be taken. Fixed in 7.5.5, which does not address later security fixes; upgrade to @smartledger/bsv@9.36.0 or later.
 ```
 
 "Can be taken", not "may be unrecoverable": the substituted key is deterministic and derivable
@@ -249,7 +250,7 @@ an incomplete enumeration is worse than deliberate imprecision**, because it is 
 A single message naming the current version is correct whether or not the table is complete:
 
 ```
-Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to); other fixes were made earlier. Upgrade to @smartledger/bsv@9.35.0 or later.
+Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to); other fixes were made earlier. Upgrade to @smartledger/bsv@9.36.0 or later.
 ```
 
 This names a defect without needing the table to be complete, because **one forgery is
@@ -273,31 +274,37 @@ these three is now measured rather than derived from the changelog.
 9.32.0:
 
 ```
-May accept scripts that network consensus rejects, and may throw an untyped error when reading some chain transactions. An undisclosed field in an LTP selective-disclosure proof can also be recovered from the proof alone, because each field salt is derived from the nonce the proof carries; fixed in 9.34.0. Upgrade to @smartledger/bsv@9.35.0 or later.
+May accept scripts that network consensus rejects, and may throw an untyped error when reading some chain transactions. An undisclosed field in an LTP selective-disclosure proof can also be recovered from the proof alone, because each field salt is derived from the nonce the proof carries; fixed in 9.34.0. Upgrade to @smartledger/bsv@9.36.0 or later.
 ```
 
 9.33.0:
 
 ```
-Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone; fixed in 9.34.0. Also reports a different script error than the reference node for some invalid scripts (both reject), and may throw an untyped error when reading some chain transactions. Upgrade to @smartledger/bsv@9.35.0 or later.
+Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone; fixed in 9.34.0. Also reports a different script error than the reference node for some invalid scripts (both reject), and may throw an untyped error when reading some chain transactions. Upgrade to @smartledger/bsv@9.36.0 or later.
 ```
 
 9.33.1:
 
 ```
-Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone, because each field salt is derived from the nonce the proof carries; fixed in 9.34.0. May also throw an untyped error when reading some chain transactions. Upgrade to @smartledger/bsv@9.35.0 or later.
+Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone, because each field salt is derived from the nonce the proof carries; fixed in 9.34.0. May also throw an untyped error when reading some chain transactions. Upgrade to @smartledger/bsv@9.36.0 or later.
 ```
 
 9.33.2:
 
 ```
-Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone, because each field salt is derived from the nonce the proof carries - measured on this version, a date of birth in under 100,000 hashes. Fixed in 9.34.0. Upgrade to @smartledger/bsv@9.35.0 or later.
+Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone, because each field salt is derived from the nonce the proof carries - measured on this version, a date of birth in under 100,000 hashes. Fixed in 9.34.0. Upgrade to @smartledger/bsv@9.36.0 or later.
 ```
 
 9.34.0:
 
 ```
 Cannot parse three output scripts the reference node accepts and mines (an OP_RETURN followed by a push whose length field is cut off), so a transaction carrying one has no script verdict here. This is a false reject: no script is accepted that the node refuses. Fixed in 9.35.0.
+```
+
+9.35.0:
+
+```
+GDAF generateAgeProof ignores the credential it is given and commits to a hardcoded birth date of 1995-06-15, so a proof that a subject meets an age threshold can be obtained for a subject who does not - measured on this version, a credential for a subject born 2015-03-01 verified true at every minimum age from 1 to 31. It was a constant function of its first argument: ten input shapes, including undefined and null, returned one commitment between them. A relying party that treats a true from verifyAgeProof as evidence about the credential subject is affected; verification needs the opening, which carries the birth date in plaintext. Fixed in 9.36.0, which takes the birth date itself and refuses a credential. Upgrade to @smartledger/bsv@9.36.0 or later.
 ```
 
 9.33.2 and 9.34.0 were added on the second run. 9.33.2 had been the one live version with no
@@ -331,7 +338,7 @@ All 54 share one byte-identical message, which was checked rather than assumed �
 sent, so any old text is recoverable.
 
 ```
-SECURITY (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential/anchorBatch put the caller's private key into the OP_RETURN of the signed transaction they return, so broadcasting it exposes the key in chain data, recoverable to the same WIF. ROTATE any key passed to those methods. Upgrade to @smartledger/bsv@9.35.0 or later - the minimum previously recommended here, 7.5.3, has a separate private-key round-trip defect. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
+SECURITY (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential/anchorBatch put the caller's private key into the OP_RETURN of the signed transaction they return, so broadcasting it exposes the key in chain data, recoverable to the same WIF. ROTATE any key passed to those methods. Upgrade to @smartledger/bsv@9.36.0 or later - the minimum previously recommended here, 7.5.3, has a separate private-key round-trip defect. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
 ```
 
 The advisory id, the link and the rotation instruction are all preserved; the upgrade target
@@ -345,7 +352,7 @@ deprecated. See "the bundle claim was inherited rather than checked" below: 7.6.
 same mismatch and was never flagged for it.
 
 ```
-Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to). Its browser bundle was also built from bn.js 4.12.3 while package.json pins 4.12.5, confirmed in the published bundle; the 7.6.2 release reports no behaviour difference between those builds across 11,071 differential checks. Upgrade to @smartledger/bsv@9.35.0 or later.
+Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to). Its browser bundle was also built from bn.js 4.12.3 while package.json pins 4.12.5, confirmed in the published bundle; the 7.6.2 release reports no behaviour difference between those builds across 11,071 differential checks. Upgrade to @smartledger/bsv@9.36.0 or later.
 ```
 
 "differential testing ... found none in behaviour" replaces the original's flat "No source,
@@ -673,13 +680,14 @@ items above; its own CHANGELOG maps them. Two caveats, neither a defect:
 > argument and committed to a hardcoded `new Date('1995-06-15')`, so a proof that a subject meets
 > an age threshold could be obtained for a subject who does not — measured on published 9.35.0, a
 > credential for a subject born 2015-03-01 verified `true` at every `minimumAge` from 1 to 31. It
-> is fixed in **9.36.0**. It is a minor and not a major because `generateAgeProof` was a constant
+> is fixed in **9.36.0**, published and confirmed (shasum `866aa1dd…1d59`, 285 files), with
+> 9.35.0 deprecated. It is a minor and not a major because `generateAgeProof` was a constant
 > function of its first argument — ten input shapes against published 9.35.0 returned one
 > commitment and zero proofs matching what was asked, `undefined` and `null` included — so there
 > is no working call for the fix to break, which is the same ground 9.23.0 stood on. The harm
 > requires a relying party that treats a `true` from this API as credential-backed evidence about
 > the credential's subject; that is what our own developer documentation showed it doing, and that
-> documentation is corrected. The table above gains its row once 9.36.0 is on the registry.
+> documentation is corrected.
 
 
 ### Outstanding forgery (67)
@@ -698,6 +706,9 @@ items above; its own CHANGELOG maps them. Two caveats, neither a defect:
 
 ### Outstanding crash only (1)
   9.33.1
+
+### Outstanding false age attestation only (1)
+  9.35.0 — every defect above is fixed in it; `generateAgeProof` is not. Fixed in 9.36.0.
 
 ## Release tags
 
@@ -804,7 +815,8 @@ reproduced against the working tree before the publish:
 | version | commit | shasum | files | registry |
 |---|---|---|---|---|
 | 9.34.0 | `6bf25b9` | `440c41ee98738fb95b75fe01437fc63ea9544aaf` | 283 | confirmed by direct read |
-| 9.35.0 | `5e57819` | `fbfa8dcca5e1d903337d8fb4ed7fb40d03d95a65` | 284 | confirmed, `latest` |
+| 9.35.0 | `5e57819` | `fbfa8dcca5e1d903337d8fb4ed7fb40d03d95a65` | 284 | confirmed, deprecated |
+| 9.36.0 | `3d5390e` | `866aa1ddbc01a26aee5136fb2f456601160d1d59` | 285 | confirmed, `latest` |
 
 `NPM_TOKEN3` is the credential that authenticates from this machine; the other two returned a
 **stable** 403 across three reads each, and stable means the credential rather than the
