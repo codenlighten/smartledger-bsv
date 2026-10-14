@@ -1,14 +1,44 @@
 # Prepared security advisories
 
-Four pieces of advisory work, **none of it sent**. Each is one API call, built by
+Four advisories, **all four now live on the repository**, built by
 `node scripts/build-advisories.js` into the `.json` payload beside each markdown file.
+`npm run check:advisories` holds the payloads to the markdown.
 
-| file | what it is | state |
+| file | advisory | state |
 |---|---|---|
-| `GHSA-gw63-amendment.json` | an amendment to the one published advisory, adding the unscoped package as a second affected product | **prepared, not sent** |
-| `draft-fromobject-key-substitution.md` | a new advisory for the 7.5.1 – 7.5.4 fund-loss defect | **drafted, not created** |
-| `draft-ltp-disclosure-commitment.md` | a new advisory for the selective-disclosure commitment defect | **drafted, not created** |
-| `draft-ltp-salt-derivation.md` | a new advisory for the salt derivation that exposes undisclosed fields | **drafted, not created; must not be published before 9.34.0 is on the registry** |
+| `GHSA-gw63-amendment.json` | [`GHSA-gw63-x79h-mhjc`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc) | **amended and live**, 2026-10-14 — gained the unscoped package |
+| `draft-fromobject-key-substitution.md` | [`GHSA-9r95-pq7h-p78g`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-9r95-pq7h-p78g) | **published**, critical (CVSS 9.1) |
+| `draft-ltp-disclosure-commitment.md` | [`GHSA-xc2p-cffw-qm3j`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-xc2p-cffw-qm3j) | **published**, high (CVSS 7.5) |
+| `draft-ltp-salt-derivation.md` | [`GHSA-5f36-cmq3-37xg`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-5f36-cmq3-37xg) | **published**, high (CVSS 7.5) |
+
+Each was created from the committed payload and then read back from the API: all four store a
+description **byte-identical** to what was sent, and affected products matching exactly. None
+has a CVE.
+
+## Publishing a repository advisory does NOT by itself reach `npm audit`
+
+Measured, and it corrects what this page said before. `GHSA-gw63-x79h-mhjc` has been published
+on this repository since **2026-08-07**, and as of 2026-10-14:
+
+* `GET https://api.github.com/advisories/GHSA-gw63-x79h-mhjc` returns **404** — it is not in the
+  global GitHub Advisory Database;
+* `GET /advisories?ecosystem=npm&affects=@smartledger/bsv` returns **zero** advisories;
+* `npm audit` on a fresh install of `@smartledger/bsv@9.31.0` — a version inside two of these
+  published ranges — reports **0 vulnerabilities**.
+
+`npm audit` has been powered by the GitHub Advisory Database since 2021, and GitHub's own
+documentation says Dependabot alerts come from **GitHub-reviewed** advisories and that it "does
+not create Dependabot alerts for unreviewed advisories". A repository advisory is a source for
+the database rather than an entry in it; something has to promote it into the reviewed set, and
+two months of this one sitting published shows that publishing is not that something.
+
+So the chain is longer than stated here before. **Requesting a CVE** through GitHub, which is a
+CNA, is the step that routes an advisory through their review — and on this evidence it is
+likely the only way these reach `npm audit` at all. That is a decision about permanent public
+identifiers and it has not been made; no CVE has been requested for any of the four.
+
+Until then the honest summary is: the advisories are public and linkable on the repository, and
+the install-time deprecation warnings are what actually reaches a consumer today.
 
 The amendment has no markdown of its own: it is a set of surgical edits to the live advisory's
 text, held in `scripts/build-advisories.js` and applied to whatever that advisory currently says.

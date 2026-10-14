@@ -28,7 +28,7 @@ already printed into someone's CI log is not.
 
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
-| `@smartledger/bsv` | 129 | 126 | 3 | 9.35.0 | 2025-10-18 | 2026-10-14 |
+| `@smartledger/bsv` | 129 | 128 | 1 | 9.35.0 | 2025-10-18 | 2026-10-14 |
 | `@smartledger/bsv-core` | 13 | 0 | 13 | 1.5.2 | 2026-09-30 | 2026-10-13 |
 | `@smartledger/keys` | 23 | 0 | 23 | 4.0.0 | 2025-11-28 | 2026-10-07 |
 | `@smartledger/notaryhash` | 16 | 0 | 16 | 2.4.2 | 2026-06-27 | 2026-10-10 |
@@ -149,13 +149,13 @@ transaction but does not broadcast it, so the key reaches the chain when the cal
 message says so.
 
 ```
-Critical (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential and anchorBatch return a signed transaction whose OP_RETURN contains the caller's private key, measured in this version and recoverable to the same WIF, so broadcasting it exposes the key in chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently published smartledger-bsv version fixes either; migrate to @smartledger/bsv@9.33.2 or later - review migration requirements before switching - and ROTATE any key passed to those methods. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
+Critical (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential and anchorBatch return a signed transaction whose OP_RETURN contains the caller's private key, measured in this version and recoverable to the same WIF, so broadcasting it exposes the key in chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently published smartledger-bsv version fixes either; migrate to @smartledger/bsv@9.35.0 or later - review migration requirements before switching - and ROTATE any key passed to those methods. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
 ```
 
 and for the eight without the anchor module:
 
 ```
-Critical: JSON.stringify(privateKey) includes the secret scalar, measured in this version, so any log, error report or request body built from that output carries the key to whoever can read it. No currently published smartledger-bsv version fixes this; migrate to @smartledger/bsv@9.33.2 or later - review migration requirements before switching - and rotate any key that may have been stringified.
+Critical: JSON.stringify(privateKey) includes the secret scalar, measured in this version, so any log, error report or request body built from that output carries the key to whoever can read it. No currently published smartledger-bsv version fixes this; migrate to @smartledger/bsv@9.35.0 or later - review migration requirements before switching - and rotate any key that may have been stringified.
 ```
 
 Deliberately *not* said: that migrating is drop-in. "Migrate", not "upgrade", across a
@@ -211,7 +211,7 @@ is established and the severity is categorically different, a distinct message i
 where it is inferred from an incomplete table, it is not.
 
 ```
-Critical: PrivateKey.fromObject on a JSON round-trip can silently return a different private key that anyone can derive, so funds sent to its address can be taken. Fixed in 7.5.5, which does not address later security fixes; upgrade to @smartledger/bsv@9.33.2 or later.
+Critical: PrivateKey.fromObject on a JSON round-trip can silently return a different private key that anyone can derive, so funds sent to its address can be taken. Fixed in 7.5.5, which does not address later security fixes; upgrade to @smartledger/bsv@9.35.0 or later.
 ```
 
 "Can be taken", not "may be unrecoverable": the substituted key is deterministic and derivable
@@ -247,7 +247,7 @@ an incomplete enumeration is worse than deliberate imprecision**, because it is 
 A single message naming the current version is correct whether or not the table is complete:
 
 ```
-Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to); other fixes were made earlier. Upgrade to @smartledger/bsv@9.33.2 or later.
+Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to); other fixes were made earlier. Upgrade to @smartledger/bsv@9.35.0 or later.
 ```
 
 This names a defect without needing the table to be complete, because **one forgery is
@@ -271,20 +271,38 @@ these three is now measured rather than derived from the changelog.
 9.32.0:
 
 ```
-May accept scripts that network consensus rejects, and may throw an untyped error when reading some chain transactions; upgrade to @smartledger/bsv@9.33.2 or later.
+May accept scripts that network consensus rejects, and may throw an untyped error when reading some chain transactions. An undisclosed field in an LTP selective-disclosure proof can also be recovered from the proof alone, because each field salt is derived from the nonce the proof carries; fixed in 9.34.0. Upgrade to @smartledger/bsv@9.35.0 or later.
 ```
 
 9.33.0:
 
 ```
-Reports a different script error than the reference node for some invalid scripts (both reject), and may throw an untyped error when reading some chain transactions; upgrade to @smartledger/bsv@9.33.2 or later.
+Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone; fixed in 9.34.0. Also reports a different script error than the reference node for some invalid scripts (both reject), and may throw an untyped error when reading some chain transactions. Upgrade to @smartledger/bsv@9.35.0 or later.
 ```
 
 9.33.1:
 
 ```
-May throw an untyped error when reading some chain transactions; upgrade to @smartledger/bsv@9.33.2 or later.
+Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone, because each field salt is derived from the nonce the proof carries; fixed in 9.34.0. May also throw an untyped error when reading some chain transactions. Upgrade to @smartledger/bsv@9.35.0 or later.
 ```
+
+9.33.2:
+
+```
+Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone, because each field salt is derived from the nonce the proof carries - measured on this version, a date of birth in under 100,000 hashes. Fixed in 9.34.0. Upgrade to @smartledger/bsv@9.35.0 or later.
+```
+
+9.34.0:
+
+```
+Cannot parse three output scripts the reference node accepts and mines (an OP_RETURN followed by a push whose length field is cut off), so a transaction carrying one has no script verdict here. This is a false reject: no script is accepted that the node refuses. Fixed in 9.35.0.
+```
+
+9.33.2 and 9.34.0 were added on the second run. 9.33.2 had been the one live version with no
+message at all, deliberately, because until 9.34.0 existed there was nowhere to send anyone.
+9.34.0's text leads with what it cannot do rather than with "Security", because a false reject
+is not a false accept and a reader who confuses the two will over-react: nothing it accepts is
+refused by the node.
 
 "Some chain transactions", not "valid transactions": the measured trigger is an output script
 this library cannot decode, and nothing establishes that nothing else reaches the same
@@ -311,7 +329,7 @@ All 54 share one byte-identical message, which was checked rather than assumed �
 sent, so any old text is recoverable.
 
 ```
-SECURITY (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential/anchorBatch put the caller's private key into the OP_RETURN of the signed transaction they return, so broadcasting it exposes the key in chain data, recoverable to the same WIF. ROTATE any key passed to those methods. Upgrade to @smartledger/bsv@9.33.2 or later - the minimum previously recommended here, 7.5.3, has a separate private-key round-trip defect. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
+SECURITY (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential/anchorBatch put the caller's private key into the OP_RETURN of the signed transaction they return, so broadcasting it exposes the key in chain data, recoverable to the same WIF. ROTATE any key passed to those methods. Upgrade to @smartledger/bsv@9.35.0 or later - the minimum previously recommended here, 7.5.3, has a separate private-key round-trip defect. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
 ```
 
 The advisory id, the link and the rotation instruction are all preserved; the upgrade target
@@ -325,7 +343,7 @@ deprecated. See "the bundle claim was inherited rather than checked" below: 7.6.
 same mismatch and was never flagged for it.
 
 ```
-Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to). Its browser bundle was also built from bn.js 4.12.3 while package.json pins 4.12.5, confirmed in the published bundle; the 7.6.2 release reports no behaviour difference between those builds across 11,071 differential checks. Upgrade to @smartledger/bsv@9.33.2 or later.
+Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to). Its browser bundle was also built from bn.js 4.12.3 while package.json pins 4.12.5, confirmed in the published bundle; the 7.6.2 release reports no behaviour difference between those builds across 11,071 differential checks. Upgrade to @smartledger/bsv@9.35.0 or later.
 ```
 
 "differential testing ... found none in behaviour" replaces the original's flat "No source,
@@ -412,7 +430,7 @@ network, so they are not in the test suite; the README there says how to re-run 
 ## The deprecation set, as it will be sent
 
 Generated from the registry snapshot by `scripts/npm-deprecations.js`, which refuses to emit a
-manifest unless every published version is covered exactly once and `@smartledger/bsv@9.33.2`
+manifest unless every published version is covered exactly once and `@smartledger/bsv@9.35.0`
 is covered by nothing. Each tier is one `npm deprecate` call whose range is an explicit `||`
 union of exact versions — never a comparator range, so an already-deprecated version cannot be
 swept up by accident. Each union was checked locally with npm's own `semver` and
@@ -420,13 +438,15 @@ swept up by accident. Each union was checked locally with npm's own `semver` and
 
 | tier | package | versions | message |
 |---|---|---|---|
-| `S_crash` | `@smartledger/bsv` | 1 | 9.33.1, the untyped crash |
+| `S_crash` | `@smartledger/bsv` | 1 | 9.33.1, the salt defect + the untyped crash |
+| `S_salt` | `@smartledger/bsv` | 1 | 9.33.2, the salt defect |
+| `S_parser` | `@smartledger/bsv` | 1 | 9.34.0, the parser false reject |
 | `U_anchor` | `smartledger-bsv` | 14 | key in the anchor OP_RETURN + stringify leak |
 | `U_stringify` | `smartledger-bsv` | 8 | stringify leak |
 | `S_fundloss` | `@smartledger/bsv` | 4 | 7.5.1-7.5.4, derivable key |
 | `S_forgery` | `@smartledger/bsv` | 62 | predates the 9.32.0 commitment fix |
-| `S_falseaccept` | `@smartledger/bsv` | 1 | 9.32.0, consensus false accept |
-| `S_errname` | `@smartledger/bsv` | 1 | 9.33.0, error-name divergence |
+| `S_falseaccept` | `@smartledger/bsv` | 1 | 9.32.0, consensus false accept + the salt defect |
+| `S_errname` | `@smartledger/bsv` | 1 | 9.33.0, the salt defect + error-name divergence |
 | `S_ghsa54` | `@smartledger/bsv` | 54 | existing advisory text, upgrade target corrected |
 | `S_bundle` | `@smartledger/bsv` | 3 | 7.6.2, 7.7.0, 7.8.0 — forgery + the bundle mismatch |
 
@@ -444,6 +464,34 @@ the snapshot is what makes restoring the previous one possible rather than just 
 
 The script does not write to the registry. `plan` emits the commands and an operator runs them
 with credentials, which deliberately do not live in this repository.
+
+
+### The second run, 2026-10-14: every message's upgrade target moved
+
+All 150 were re-sent. The reason is the one this set was built to correct: every message said
+*"upgrade to @smartledger/bsv@9.33.2 or later"*, and 9.33.2 turned out to carry a live
+confidentiality defect of its own. A recommendation naming a defective minimum is exactly what
+made the 54 GHSA messages wrong — they pointed at 7.5.3 from inside the fund-loss window — so
+leaving it would have been the same error knowingly. The target is now 9.35.0.
+
+Three tiers also gained the salt clause, because every scoped version from 3.3.2 has
+`lib/ltp/proof` and therefore has the defect: `S_falseaccept` (9.32.0), `S_errname` (9.33.0)
+and `S_crash` (9.33.1) each named only what they were first deprecated for. Two tiers are new:
+`S_salt` for 9.33.2 and `S_parser` for 9.34.0.
+
+**One invariant failure, and it was a real defect in the runner.** The first run derived
+`S_ghsa54` from *the text a version currently carried* (`/^SECURITY \(GHSA-gw63/`) and
+`S_forgery` from *having no message yet*. Both worked exactly once: before the first run those
+predicates partitioned the set, and after it they selected almost nothing, so the second run
+covered 29 versions and the manifest check refused to emit. A tier list has to be a function of
+measured facts about a version — here, version ranges — never of what its message says now.
+Both are range-derived, and the check that caught it is the one that refuses a manifest unless
+every published version is covered exactly once.
+
+Verified as before: `node scripts/npm-deprecations.js verify all` reads the registry back and
+compares byte for byte. **151 versions checked, 150 changed since the snapshot, 0 mismatches**,
+with 9.35.0 the one left clean. Confirmed consumer-side too: installing 9.33.2 or 9.34.0 prints
+the warning and installing 9.35.0 prints nothing.
 
 ## What the second review changed, and the one point I pushed back on
 
@@ -721,6 +769,28 @@ is a failure this project has already paid for.
 Verified from the installed artifact rather than the tree: `npm install @smartledger/bsv@9.35.0`
 parses `6a4c` and no longer derives a field salt from the proof nonce.
 
+### Correction: publishing a repository advisory does not by itself reach `npm audit`
+
+This page has said throughout that a deprecation warning never reaches `npm audit` and that an
+advisory is the mechanism that does. The first half is right. The second was measured on
+2026-10-14 and is **wrong as stated**.
+
+`GHSA-gw63-x79h-mhjc` has been published on this repository since 2026-08-07. Two months on:
+`GET api.github.com/advisories/GHSA-gw63-x79h-mhjc` returns **404**, a global query for
+`ecosystem=npm&affects=@smartledger/bsv` returns **zero**, and `npm audit` on a fresh install of
+9.31.0 — inside two published advisory ranges — reports **0 vulnerabilities**.
+
+GitHub's documentation says Dependabot alerts come from **GitHub-reviewed** advisories and that
+it does not alert on unreviewed ones; `npm audit` has been served by the same database since
+2021. A repository advisory is a *source* for that database, not an entry in it. Something has
+to promote it into the reviewed set, and two months of this one sitting published is evidence
+that publishing is not that something — most likely a **CVE request**, which routes it through
+GitHub's review as a CNA.
+
+So the four advisories are public and linkable, and today the thing that actually reaches a
+consumer is the install-time deprecation warning. No CVE has been requested; that is a decision
+about permanent public identifiers and it has not been made. See `docs/advisories/README.md`.
+
 ### The published advisory was amended the same day
 
 `GHSA-gw63-x79h-mhjc` now lists **two** affected products — it gained
@@ -732,8 +802,18 @@ The write was read back from the API and the description is **byte-identical** t
 sent, which is the only check worth trusting: an exit code is advisory in both directions here
 as it is for `npm deprecate`.
 
-That advisory is **published**, so `npm audit` now flags the unscoped package's 22 versions.
-The three new advisories in `docs/advisories/` are still **not created**.
+All three remaining advisories were created and published the same day, each read back from the
+API with a byte-identical description and matching affected products:
+
+| advisory | severity | affected |
+|---|---|---|
+| `GHSA-9r95-pq7h-p78g` | critical, CVSS 9.1 | `@smartledger/bsv >= 7.5.1, < 7.5.5` |
+| `GHSA-xc2p-cffw-qm3j` | high, CVSS 7.5 | scoped `>= 3.3.2, < 9.32.0`; unscoped `>= 3.3.1, <= 4.4.0` |
+| `GHSA-5f36-cmq3-37xg` | high, CVSS 7.5 | scoped `>= 3.3.2, < 9.34.0`; unscoped `>= 3.3.1, <= 4.4.0` |
+
+Each carries a CVSS vector rather than a bare label, so the severity follows from a stated model
+a reader can disagree with. None has a CVE. What that does and does not achieve is in the
+correction above.
 
 ### Pending — what is still not done
 

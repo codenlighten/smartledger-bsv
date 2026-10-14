@@ -17,7 +17,7 @@
 //
 // Two invariants are enforced before a manifest is emitted, because both failures are silent:
 //
-//   * every published version is covered by exactly ONE tier, and `@smartledger/bsv@9.33.2` —
+//   * every published version is covered by exactly ONE tier, and `@smartledger/bsv@9.35.0` —
 //     the current release — by none;
 //   * every tier's range is an explicit `||` union of exact versions that selects exactly its
 //     own list and nothing else.  A comparator range such as `>=7.5.5 <9.32.0` would sweep up
@@ -27,10 +27,15 @@ var fs = require('fs')
 var path = require('path')
 var https = require('https')
 
-var SNAPSHOT = path.join(__dirname, '..', 'docs', 'npm-deprecations', 'snapshot-2026-10-13.json')
-var CURRENT = { '@smartledger/bsv': '9.33.2' } // must never be deprecated
+var SNAPSHOT = path.join(__dirname, '..', 'docs', 'npm-deprecations', 'snapshot-2026-10-14.json')
+var CURRENT = { '@smartledger/bsv': '9.35.0' } // must never be deprecated
 var GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc'
-var UPGRADE = 'upgrade to @smartledger/bsv@9.33.2 or later'
+var UPGRADE = 'upgrade to @smartledger/bsv@9.35.0 or later'
+// The one clause every version from 3.3.2 to 9.33.2 needs, since all of them have
+// lib/ltp/proof and all of them derive the salt from the published nonce.
+var SALT = 'An undisclosed field in an LTP selective-disclosure proof can also be ' +
+  'recovered from the proof alone, because each field salt is derived from the nonce the ' +
+  'proof carries; fixed in 9.34.0. '
 
 // ---------------------------------------------------------------- registry
 
@@ -81,11 +86,18 @@ function buildTiers (state) {
   var bsv = state['@smartledger/bsv']
   var unscoped = state['smartledger-bsv']
 
-  // the 54 that already carry the GHSA-gw63 text, identified by that text rather than by a
-  // version range, so a message that is not that one cannot be overwritten by accident
+  // The 54 versions that carry the GHSA-gw63 anchor disclosure: everything below 7.5.1, where
+  // the fix landed. Enumerated from the VERSION RANGE and not from the current deprecation
+  // text, which was how this list was built on the first run.
+  //
+  // That dependency was wrong and the invariant check is what found it. On the first run every
+  // version was undeprecated, so "has the GHSA text" and "has no text" partitioned the set
+  // cleanly; after the run they do not, and the second run selected nothing at all. A tier
+  // list has to be a function of MEASURED FACTS about a version, never of what its message
+  // currently says - otherwise the set is correct exactly once.
   var ghsa = Object.keys(bsv).filter(function (v) {
-    return bsv[v] && /^SECURITY \(GHSA-gw63/.test(bsv[v])
-  })
+    return cmp(v, '7.5.1') < 0
+  }).sort(cmp)
 
   // The three versions whose PUBLISHED browser bundle was built from bn.js 4.12.3 while
   // package.json pins =4.12.5.  Read out of the bundles themselves: 4.12.5 rewrote divRound
@@ -99,7 +111,7 @@ function buildTiers (state) {
   // scripts/published-version-probes/ltp-forgery.js.  7.6.2 is held out because its message
   // also has to carry the bundle fact.
   var forgery = Object.keys(bsv).filter(function (v) {
-    return !bsv[v] && cmp(v, '7.5.5') >= 0 && cmp(v, '9.31.0') <= 0 &&
+    return cmp(v, '7.5.5') >= 0 && cmp(v, '9.31.0') <= 0 &&
       BUNDLE_MISMATCH.indexOf(v) < 0
   }).sort(cmp)
 
@@ -110,14 +122,39 @@ function buildTiers (state) {
     'verifier can accept a disclosed value the issuer never committed to). Its browser ' +
     'bundle was also built from bn.js 4.12.3 while package.json pins 4.12.5, confirmed in ' +
     'the published bundle; the 7.6.2 release reports no behaviour difference between those ' +
-    'builds across 11,071 differential checks. Upgrade to @smartledger/bsv@9.33.2 or later.'
+    'builds across 11,071 differential checks. Upgrade to @smartledger/bsv@9.35.0 or later.'
 
   return [
     { id: 'S_crash',
       pkg: '@smartledger/bsv',
       versions: ['9.33.1'],
-      why: 'the untyped crash on an undecodable output script, fixed in 9.33.2',
-      msg: 'May throw an untyped error when reading some chain transactions; ' + UPGRADE + '.' },
+      why: 'the untyped crash on an undecodable output script, fixed in 9.33.2, plus the ' +
+        'salt defect fixed in 9.34.0 - the message named only the first and understated the rest',
+      msg: 'Security: an undisclosed field in an LTP selective-disclosure proof can be ' +
+        'recovered from the proof alone, because each field salt is derived from the nonce ' +
+        'the proof carries; fixed in 9.34.0. May also throw an untyped error when reading ' +
+        'some chain transactions. ' + UPGRADE.charAt(0).toUpperCase() + UPGRADE.slice(1) + '.' },
+
+    { id: 'S_salt',
+      pkg: '@smartledger/bsv',
+      versions: ['9.33.2'],
+      why: 'the salt derivation, measured on this published artifact: an undisclosed date of ' +
+        'birth came back from the proof alone in under 100,000 hashes. It was the only live ' +
+        'version with no message at all until 9.34.0 existed to point at',
+      msg: 'Security: an undisclosed field in an LTP selective-disclosure proof can be ' +
+        'recovered from the proof alone, because each field salt is derived from the nonce ' +
+        'the proof carries - measured on this version, a date of birth in under 100,000 ' +
+        'hashes. Fixed in 9.34.0. ' + UPGRADE.charAt(0).toUpperCase() + UPGRADE.slice(1) + '.' },
+
+    { id: 'S_parser',
+      pkg: '@smartledger/bsv',
+      versions: ['9.34.0'],
+      why: 'the cut-off push length prefix: a FALSE REJECT, not a false accept - three output ' +
+        'scripts the node accepts and mines could not be parsed. Fixed in 9.35.0',
+      msg: 'Cannot parse three output scripts the reference node accepts and mines (an ' +
+        'OP_RETURN followed by a push whose length field is cut off), so a transaction ' +
+        'carrying one has no script verdict here. This is a false reject: no script is ' +
+        'accepted that the node refuses. Fixed in 9.35.0.' },
 
     { id: 'U_anchor',
       pkg: 'smartledger-bsv',
@@ -128,7 +165,7 @@ function buildTiers (state) {
         'this version and recoverable to the same WIF, so broadcasting it exposes the key in ' +
         'chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently ' +
         'published smartledger-bsv version fixes either; migrate to ' +
-        '@smartledger/bsv@9.33.2 or later - review migration requirements before switching - ' +
+        '@smartledger/bsv@9.35.0 or later - review migration requirements before switching - ' +
         'and ROTATE any key passed to those methods. ' + GHSA },
 
     { id: 'U_stringify',
@@ -138,7 +175,7 @@ function buildTiers (state) {
       msg: 'Critical: JSON.stringify(privateKey) includes the secret scalar, measured in ' +
         'this version, so any log, error report or request body built from that output ' +
         'carries the key to whoever can read it. No currently published smartledger-bsv ' +
-        'version fixes this; migrate to @smartledger/bsv@9.33.2 or later - review migration ' +
+        'version fixes this; migrate to @smartledger/bsv@9.35.0 or later - review migration ' +
         'requirements before switching - and rotate any key that may have been stringified.' },
 
     { id: 'S_fundloss',
@@ -156,22 +193,27 @@ function buildTiers (state) {
         'of which 7.6.2 is carried by S_bundle instead',
       msg: 'Security: this version predates a verification-forgery fix in 9.32.0 (a verifier ' +
         'can accept a disclosed value the issuer never committed to); other fixes were made ' +
-        'earlier. Upgrade to @smartledger/bsv@9.33.2 or later.' },
+        'earlier. Upgrade to @smartledger/bsv@9.35.0 or later.' },
 
     { id: 'S_falseaccept',
       pkg: '@smartledger/bsv',
       versions: ['9.32.0'],
-      why: 'the OP_RSHIFTNUM shift count, a false accept, fixed in 9.33.0',
+      why: 'the OP_RSHIFTNUM shift count, a false accept, fixed in 9.33.0, plus the salt ' +
+        'defect fixed in 9.34.0',
       msg: 'May accept scripts that network consensus rejects, and may throw an untyped ' +
-        'error when reading some chain transactions; ' + UPGRADE + '.' },
+        'error when reading some chain transactions. ' + SALT + UPGRADE.charAt(0).toUpperCase() +
+        UPGRADE.slice(1) + '.' },
 
     { id: 'S_errname',
       pkg: '@smartledger/bsv',
       versions: ['9.33.0'],
-      why: 'NOT a false accept: the truncated-push error name, where both sides reject',
-      msg: 'Reports a different script error than the reference node for some invalid ' +
-        'scripts (both reject), and may throw an untyped error when reading some chain ' +
-        'transactions; ' + UPGRADE + '.' },
+      why: 'NOT a false accept: the truncated-push error name, where both sides reject. ' +
+        'Plus the salt defect fixed in 9.34.0, which IS a security item and leads the message',
+      msg: 'Security: an undisclosed field in an LTP selective-disclosure proof can be ' +
+        'recovered from the proof alone; fixed in 9.34.0. Also reports a different script ' +
+        'error than the reference node for some invalid scripts (both reject), and may throw ' +
+        'an untyped error when reading some chain transactions. ' +
+        UPGRADE.charAt(0).toUpperCase() + UPGRADE.slice(1) + '.' },
 
     { id: 'S_ghsa54',
       pkg: '@smartledger/bsv',
@@ -180,7 +222,7 @@ function buildTiers (state) {
       msg: 'SECURITY (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential/anchorBatch put the ' +
         "caller's private key into the OP_RETURN of the signed transaction they return, so " +
         'broadcasting it exposes the key in chain data, recoverable to the same WIF. ROTATE ' +
-        'any key passed to those methods. Upgrade to @smartledger/bsv@9.33.2 or later - the ' +
+        'any key passed to those methods. Upgrade to @smartledger/bsv@9.35.0 or later - the ' +
         'minimum previously recommended here, 7.5.3, has a separate private-key round-trip ' +
         'defect. ' + GHSA },
 

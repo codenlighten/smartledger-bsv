@@ -150,7 +150,8 @@
     "check:npm-inventory": "node scripts/npm-inventory.js --check",
     "npm-inventory": "node scripts/npm-inventory.js",
     "npm-deprecations": "node scripts/npm-deprecations.js",
-    "check:advisories": "node scripts/build-advisories.js --check"
+    "check:advisories": "node scripts/build-advisories.js --check",
+    "check:deprecation-texts": "node scripts/check-deprecation-texts.js"
   },
   "unpkg": "bsv.min.js",
   "jsdelivr": "bsv.min.js",
