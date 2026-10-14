@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### The signed-bytes dimension of the 9.35.0 fix is now node-confirmed
+
+When 9.35.0 shipped, the claim about a never-read malformed tail being inside the FORKID
+`scriptCode` rested on two instruments that were not the node: our own
+`Sighash.sighashPreimage`, and the op-codes lab's independent BIP143-style digest computed from
+raw bytes with no parser involved. The changelog said so.
+
+A compiled `bitcoin-sv` v1.2.3 has now judged all 30 rows of that set and agrees on every
+verdict. A malformed tail that evaluation never reads **is** part of the scriptCode: a signature
+over the whole locking script verifies, one over the script with the tail stripped fails
+`SIG_NULLFAIL`, and that holds post-Genesis including behind an unbalanced `OP_IF` placed after
+the top-level `OP_RETURN`. Pre-Genesis the two arms separate as `OP_RETURN` versus the
+`OP_CHECKSIGVERIFY` failure instead.
+
+The after-`OP_RETURN` unbalanced-`IF` construction came from this side, after that lab had
+reasoned the case was unobservable — its reasoning held for an `IF` placed *before* the
+`OP_RETURN`, where the scan fails at `BAD_OPCODE` and no signature is ever reached. 9.35.0
+passes all 30; `@smartledger/bsv-core` 1.5.1 fails 6 of them, all as unparseable.
+
+Nothing changed in the library for this entry. It records that a claim which was honestly
+labelled unconfirmed is now confirmed, against an implementation neither of us wrote.
+
+
 ## [9.35.0] - 2026-10-14
 
 ### Fixed - three output scripts the node accepts and mines could not be parsed at all

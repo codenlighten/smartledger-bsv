@@ -1,9 +1,8 @@
 # DRAFT advisory — an undisclosed field can be recovered from an LTP selective-disclosure proof
 
-**Not created, and must not be published before 9.34.0 is on the registry.** The patched version
-it names has to exist before this says to upgrade to it. Creating it as a *draft* on GitHub is
-private to maintainers; publishing is what puts it in the GitHub Advisory Database and therefore
-into `npm audit`.
+**Not created.** 9.34.0, the patched version this names, reached the registry on 2026-10-14, so
+the prerequisite is met. Creating it as a *draft* on GitHub is private to maintainers;
+publishing is what puts it in the GitHub Advisory Database and therefore into `npm audit`.
 
     gh api --method POST repos/codenlighten/smartledger-bsv/security-advisories \
       --input docs/advisories/draft-ltp-salt-derivation.json
@@ -22,7 +21,7 @@ Information to an Unauthorized Actor)
 | ecosystem | package | vulnerable | patched |
 |---|---|---|---|
 | npm | `@smartledger/bsv` | `>= 3.3.2, < 9.34.0` | `9.34.0` |
-| npm | `smartledger-bsv` | `>= 3.3.1, <= 4.4.0` | none — migrate to `@smartledger/bsv@9.34.0` |
+| npm | `smartledger-bsv` | `>= 3.3.1, <= 4.4.0` | none — migrate to `@smartledger/bsv@9.35.0` |
 
 **Severity** `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N` — 7.5, high. The only thing an attacker needs
 is a proof they were legitimately given, and a field whose value comes from a small set. Nothing
@@ -116,8 +115,8 @@ confidentiality on an affected version, and a high-entropy value is the only kin
 
 ### Action required
 
-Upgrade to `9.34.0`. On the unscoped `smartledger-bsv` there is nothing to upgrade to — migrate
-to `@smartledger/bsv@9.34.0`, reviewing migration requirements before switching.
+Upgrade to `9.35.0` or later. On the unscoped `smartledger-bsv` there is nothing to upgrade to
+— migrate to `@smartledger/bsv@9.35.0` or later, reviewing migration requirements first.
 
 Then treat any undisclosed field with a guessable value, in a proof already handed out, as
 **potentially exposed** to whoever holds that proof — most directly where its leaf is the

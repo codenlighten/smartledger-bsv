@@ -207,6 +207,11 @@ describe('a cut-off push length after OP_RETURN', function () {
       // OP_CHECKSIG, not CHECKSIGVERIFY: the stack needs a result when OP_RETURN stops, or
       // both arms land on EVAL_FALSE_NO_RESULT and the signal is lost.
       //
+      // NODE-CONFIRMED 2026-10-14. A compiled bitcoin-sv v1.2.3 judged all 30 rows of the
+      // op-codes lab's sighash-tail set, this construction among them, and agrees on every
+      // verdict. Until then these were our verdicts computed from our own preimage, which is
+      // the weaker claim and was labelled as such.
+      //
       // The IF is deliberately unbalanced. A balanced `63 4c 68` puts a truncated-DATA push
       // inside the IF instead, because the `68` is eaten as the length byte — so a cut-off
       // PREFIX inside an IF can only sit at the very end of the script.

@@ -28,7 +28,7 @@ already printed into someone's CI log is not.
 
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
-| `@smartledger/bsv` | 127 | 126 | 1 | 9.33.2 | 2025-10-18 | 2026-10-13 |
+| `@smartledger/bsv` | 129 | 126 | 3 | 9.35.0 | 2025-10-18 | 2026-10-14 |
 | `@smartledger/bsv-core` | 13 | 0 | 13 | 1.5.2 | 2026-09-30 | 2026-10-13 |
 | `@smartledger/keys` | 23 | 0 | 23 | 4.0.0 | 2025-11-28 | 2026-10-07 |
 | `@smartledger/notaryhash` | 16 | 0 | 16 | 2.4.2 | 2026-06-27 | 2026-10-10 |
@@ -53,7 +53,7 @@ changelog independently (9.12.0, 9.25.0, 9.26.1, 9.27.0, and four `Fixed (securi
 in 7.5.1-7.5.5). A keyword enumeration afterwards finds 28 security-relevant section headings
 across 26 versions — and still misses 9.25.0, 9.27.0 and 9.29.0, whose headings use other
 words. **The changelog's heading vocabulary is not an index of its security content**, so a
-complete table would mean reading all 127 version entries, which has not been done.
+complete table would mean reading all 129 version entries, which has not been done.
 
 Known defects and the version that fixed each. A live version is affected when its number is
 below the fix:
@@ -603,7 +603,7 @@ items above; its own CHANGELOG maps them. Two caveats, neither a defect:
 Every published version present in this repository's history now carries a `v*` tag whose
 commit is the **published tree**, verified by reproducing the registry shasum from a worktree
 at that commit rather than by assuming the version-bump commit — 3 of 18 backfilled tags were
-not the bump commit. `bsv` is 117/127 tagged; the 10 gaps (`1.5.6-fix1`, `3.0.2`-`3.3.5`) were
+not the bump commit. `bsv` is 119/129 tagged; the 10 gaps (`1.5.6-fix1`, `3.0.2`-`3.3.5`) were
 published before this repository's first commit, whose `package.json` history begins at 5.4.0,
 so there is no commit to tag. `bsv-core` is 13/13.
 
@@ -690,45 +690,66 @@ just clearing it, needs `docs/npm-deprecations/snapshot-2026-10-13.json` — the
 all 149 versions, committed before anything was sent. It is the only record of the 56 messages
 this run overwrote.
 
-### 9.34.0 is built, reproduced and NOT published — the blocker is local, not npm
+### 9.34.0 and 9.35.0 published 2026-10-14, and what the earlier block was
 
-Established 2026-10-14, in this order, before anything was sent:
+Both were refused earlier the same day by this session's **permission classifier**, not by npm —
+a failure that is not on the 404/403/401 ladder at all, because the registry was never reached.
+Recorded because the distinction cost a diagnosis: a classifier refusal names itself in the tool
+error and nothing leaves the machine; the ladder is about the registry's own answer.
 
-* public egress IP `172.56.32.181` (T-Mobile cellular), anonymous registry read 200;
-* of the three tokens, `NPM_TOKEN` and `NPM_TOKEN2` returned `E403` on three reads each and
-  `NPM_TOKEN3` returned `smartledger` on three reads each — stable, so a credential property
-  and not the transport;
-* a fresh `--depth 1` clone of `6bf25b9` from GitHub, `npm ci`, `npm run build-all`, `npm pack`
-  reproduced the tarball **byte for byte** against the working tree: shasum
-  `440c41ee98738fb95b75fe01437fc63ea9544aaf`, 283 files, and `git status` empty in the clone
-  after the build, so the committed bundles reproduce too;
-* the release's own claim was exercised against that tarball with published 9.33.2 as the
-  control — 9.33.2 yields the undisclosed date of birth, 9.34.0 does not, a proof minted by
-  published 9.33.2 still verifies under 9.34.0, and a substituted `NaN` is still refused.
+Published once authorized, each from a fresh `--depth 1` clone of the pushed commit with
+`npm ci` and `npm run build-all`, `git status` empty in the clone afterwards, and the tarball
+reproduced against the working tree before the publish:
 
-`npm publish` was then **refused locally by the permission classifier** as public-surface
-creation. That is a different failure from every previous one recorded here: npm was never
-reached. A registry read afterwards confirms `latest` is still 9.33.2 and 9.34.0 is absent, so
-it failed closed with nothing partially published. The tarball is proved reproducible, so the
-publish needs no rebuild — it is one command once authorized.
+| version | commit | shasum | files | registry |
+|---|---|---|---|---|
+| 9.34.0 | `6bf25b9` | `440c41ee98738fb95b75fe01437fc63ea9544aaf` | 283 | confirmed by direct read |
+| 9.35.0 | `5e57819` | `fbfa8dcca5e1d903337d8fb4ed7fb40d03d95a65` | 284 | confirmed, `latest` |
 
-The commit is tagged `v9.34.0`, and the tag message says plainly that the commit reproduces the
-tarball rather than that it is the published tree, because it is not.
+`NPM_TOKEN3` is the credential that authenticates from this machine; the other two returned a
+**stable** 403 across three reads each, and stable means the credential rather than the
+transport. Egress was a cellular address (`172.56.32.181`) and an anonymous registry read
+returned 200 before anything was attempted.
 
-### Pending, and blocked on publishing 9.34.0
+**The `v9.35.0` tag was moved before publishing**, from `d26b74b` to `5e57819`. `d26b74b`
+carried a CHANGELOG claim that two implementations' flag words had been checked against each
+other; they are not comparable, and the correction is in the later commit. `lib/`, the bundles
+and `bsv.d.ts` are byte-identical between the two, so no published code changed — but the
+CHANGELOG ships inside the tarball, and a tag pointing at a tree that is not the published one
+is a failure this project has already paid for.
 
-In this order, because each step is wrong before the one above it:
+Verified from the installed artifact rather than the tree: `npm install @smartledger/bsv@9.35.0`
+parses `6a4c` and no longer derives a field salt from the proof nonce.
 
-1. **Publish `@smartledger/bsv@9.34.0`.** Until it is on the registry there is nowhere to send
-   anyone, and an advisory naming it as the patched version would point at something that does
-   not exist.
-2. **Deprecate 9.33.2**, which is currently the only live version with no deprecation message
-   at all, for the salt defect. Doing it before step 1 would warn every installer and offer no
-   version to move to.
-3. **Extend the deprecation text on 9.32.0, 9.33.0 and 9.33.1**, whose messages name only the
+### The published advisory was amended the same day
+
+`GHSA-gw63-x79h-mhjc` now lists **two** affected products — it gained
+`npm smartledger-bsv <= 4.4.0` with `patched_versions: null`, since no release on that name
+fixes it and the fix is changing package. It also stops recommending `>= 7.5.3`, which is inside
+the 7.5.1 – 7.5.4 fund-loss window.
+
+The write was read back from the API and the description is **byte-identical** to what was
+sent, which is the only check worth trusting: an exit code is advisory in both directions here
+as it is for `npm deprecate`.
+
+That advisory is **published**, so `npm audit` now flags the unscoped package's 22 versions.
+The three new advisories in `docs/advisories/` are still **not created**.
+
+### Pending — what is still not done
+
+Steps 1 and the amendment are done. What remains, in order:
+
+1. **Deprecate 9.33.2 and 9.34.0.** 9.33.2 carries the salt defect and 9.34.0 the parser false
+   reject; three versions are now live and two of them should not be. This was the step that had
+   to wait for a published successor, and it no longer does.
+2. **Extend the deprecation text on 9.32.0, 9.33.0 and 9.33.1**, whose messages name only the
    defect each was deprecated for and now understate what is outstanding in them.
-4. **Create and then publish the advisories** in `docs/advisories/`. Creating is private;
-   publishing is what reaches `npm audit`.
+3. **Create and then publish the three new advisories** in `docs/advisories/`. Creating is
+   private to maintainers; publishing is what reaches `npm audit`. Their payloads are built and
+   `npm run check:advisories` holds them to the markdown.
+
+None of the three is authorized yet. Deprecating is explicitly outside the standing publish
+authority, because it changes what existing installs resolve.
 
 ### Still not done, and deliberately
 

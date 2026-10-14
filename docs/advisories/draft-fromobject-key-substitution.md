@@ -80,8 +80,8 @@ Fixed in **7.5.5**. `_transformObject` now validates before parsing: `bn` must b
 hexadecimal string, must not be the redaction marker, and must fall inside the valid key range.
 `toObject()` round-trips exactly, as before.
 
-7.5.5 fixes this defect and nothing later. Separate defects were fixed in 9.32.0 and 9.34.0, so
-the release to move to is **9.34.0**.
+7.5.5 fixes this defect and nothing later. Separate defects were fixed in 9.32.0, 9.34.0 and
+9.35.0, so the release to move to is **9.35.0** or later.
 
 ### Workarounds
 
@@ -90,7 +90,7 @@ affected version. `toObject()` was always the deliberate export and round-trips 
 
 ### Action required
 
-Upgrade to `9.34.0`. Then, if any key in your system was ever restored through
+Upgrade to `9.35.0` or later. Then, if any key in your system was ever restored through
 `fromObject(JSON.parse(JSON.stringify(key)))` on 7.5.1 – 7.5.4, the address you derived from it
 was **not** derived from your key. Check whether you funded
 `1JGwrQuvMBkEt3SgYko5M2Vuncfi7JRyze` (livenet, compressed) or its testnet and uncompressed

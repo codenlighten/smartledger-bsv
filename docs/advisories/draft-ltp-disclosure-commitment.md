@@ -20,7 +20,7 @@ Advisory Database and therefore into `npm audit`.
 | ecosystem | package | vulnerable | patched |
 |---|---|---|---|
 | npm | `@smartledger/bsv` | `>= 3.3.2, < 9.32.0` | `9.32.0` |
-| npm | `smartledger-bsv` | `>= 3.3.1, <= 4.4.0` | none — migrate to `@smartledger/bsv@9.34.0` |
+| npm | `smartledger-bsv` | `>= 3.3.1, <= 4.4.0` | none — migrate to `@smartledger/bsv@9.35.0` |
 
 Each bound is the first or last published version measured to behave that way, not the edge of
 a sweep; the Measurement section below gives the readings.
@@ -96,7 +96,7 @@ non-power-of-two field count. That is an availability defect rather than a sound
 not part of this advisory.
 
 A third, unrelated defect in the same module was fixed in **9.34.0** and has its own advisory.
-9.34.0 is the release to move to.
+The release to move to is **9.35.0** or later, which carries all of them.
 
 ### Upgrading the verifier does not repair a commitment already minted
 
@@ -127,8 +127,8 @@ can be `NaN` or `Infinity`.
 
 ### Action required
 
-Upgrade to `9.34.0`. On the unscoped `smartledger-bsv` there is nothing to upgrade to —
-migrate to `@smartledger/bsv@9.34.0`, reviewing migration requirements before switching.
+Upgrade to `9.35.0` or later. On the unscoped `smartledger-bsv` there is nothing to upgrade
+to — migrate to `@smartledger/bsv@9.35.0` or later, reviewing migration requirements first.
 
 A proof issued by an affected version **whose committed values were all inside the permitted
 domain** — a string, a finite number, a boolean or `null` — does not need reissuing. Its
