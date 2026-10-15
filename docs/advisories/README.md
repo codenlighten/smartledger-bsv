@@ -16,7 +16,7 @@ Each was created from the committed payload and then read back from the API: all
 description **byte-identical** to what was sent, and affected products matching exactly. None
 has a CVE.
 
-## Measured: `npm audit` does not flag these versions, and the cause is not established
+## Measured: `npm audit` does not flag these versions, and the cause is now established
 
 Two separate findings, kept separate because the first is solid and the second is not.
 
@@ -56,36 +56,80 @@ version of the test above made. The evidence that matters remains the **two-mont
 `GHSA-gw63-x79h-mhjc`. Re-run this one after a few days; until then it is consistent with the
 gap and proves nothing by itself.
 
-**The cause is not established, and an earlier draft of this page guessed at it.** It said a CVE
-request is "likely the only way these reach `npm audit`". That was a leap: a CVE identifier and
-GitHub's decision to review a package advisory are different processes, GitHub's own
-documentation presents the CVE request as optional and never as a promotion mechanism, and
-nothing here tests the claim. What the evidence supports is narrower — these advisories have not
-produced a global database entry that can be found, and some step is outstanding.
+**The cause, established 2026-10-15.** None of the five advisories exists in the GitHub
+Advisory Database at all — not as an unreviewed entry, not under another id:
 
-What is documented: GitHub lists "security advisories reported on GitHub" as a *source* for the
-Advisory Database; it reviews advisories for validity and maps **reviewed** ones to supported
-ecosystems; Dependabot "doesn't create Dependabot alerts for unreviewed advisories"; and
-`npm audit` has been served by that database since 2021.
+```
+# the database cannot resolve the id, including the two-month-old one
+gh api graphql -f query='{ securityAdvisory(ghsaId: "GHSA-gw63-x79h-mhjc") { ghsaId } }'
+#   NOT_FOUND: Could not resolve to a Security Advisory with ID 'GHSA-gw63-x79h-mhjc'
 
-So the next step is to **ask GitHub how to get these reviewed for database inclusion**, and to
-retest after. A CVE is a separate decision, worth taking on its own merits — a durable
-cross-system identifier for vulnerabilities that deserve one — and not as a presumed fix for
-this gap.
+# and the package has no vulnerabilities as far as the database is concerned
+gh api graphql -f query='{ securityVulnerabilities(ecosystem: NPM,
+    package: "@smartledger/bsv", first: 20) { totalCount } }'
+#   totalCount: 0        (control: minimist -> 5)
+```
 
-**What reaches a consumer today** is the install-time deprecation warning, on 150 of the 151
-published versions across both package names. Users should not assume `npm audit` or Dependabot
-currently warns about the affected versions.
+All five read `state: published`, `cve_id: null`, **`submission: null`**.
+
+Stated precisely, because the distinction matters: these advisories are published at
+**repository** level and are **not present in the global and npm vulnerability results GitHub's
+API returns**, and `npm audit` does not flag a version inside their ranges. A repository
+advisory and a global advisory are different objects, and publishing the first does not create
+the second. (`NOT_FOUND` could in principle reflect query visibility rather than literal
+absence; together with the zero package result and the working control, absence from the
+queried global feed is the well-supported reading. What is *not* established here is npm
+audit's exact data path, or GitHub's internal review status for each advisory.)
+
+GitHub's own documentation gives the mechanism: *"Every repository advisory is reviewed by the
+GitHub Security Lab curation team for consideration as a global advisory."* Three things
+follow:
+
+1. **No additional submission step was identified.** Publishing already enqueued all five for
+   review, and there is no maintainer-side submit action to perform. That is not the same as
+   "nothing could be done" — see below.
+2. **Inclusion is not guaranteed** — the word is "consideration" — and no timeline is
+   published. The one documented criterion is that the ecosystem is supported by the dependency
+   graph, which npm is.
+3. **The queue is visibly backlogged.** Other maintainers are reporting the same thing now:
+   `github/advisory-database` issue **#9152** (four repository advisories, published 10–13 days
+   earlier, still absent) and community discussion **#209436** (published 2026-08-28, CVE
+   request accepted but never assigned, never reached the database). `GHSA-gw63-x79h-mhjc` is
+   older than either.
+
+**The earlier guess is still worth recording as a guess.** A previous draft of this page said a
+CVE request is "likely the only way these reach `npm audit`". That was a leap, and it was wrong
+in the way that matters: the CVE request is optional and is not the promotion mechanism — review
+is, and it happens whether or not a CVE is requested. A CVE remains worth having on its own
+merits, as a durable cross-system identifier, and not as a fix for this gap.
+
+**What is left, and it is the user's call** — both are outward-facing requests to a third
+party and neither is done:
+
+* **Worth doing, not merely a courtesy:** ask GitHub to check `GHSA-gw63-x79h-mhjc`'s review
+  status **and its npm package mapping**. Automatic consideration does not rule out a mapping
+  or eligibility problem on a scoped package name, and `submission: null` does not settle that
+  either; at two months this one is well past the delays others are filing issues about.
+  `security-advisories@github.com` is the address other maintainers report using.
+* **On its own merits:** whether to request CVEs. Optional, and not the promotion mechanism.
+
+**The only consumer-facing signal we have verified** is the install-time deprecation warning,
+on 150 of the 151 published versions across both package names. The measurements above cover
+`npm audit` and the GitHub advisory APIs, not every scanner or channel, so that is a statement
+about what was tested. Users should not assume `npm audit` or Dependabot currently warns about
+the affected versions.
 
 ## Why these exist at all
 
 148 of the 149 published versions across both npm package names were deprecated on 2026-10-13
 (see `../NPM_RELEASES.md`). **A deprecation warning prints at install time and never reaches
-`npm audit`.** A security advisory is the only mechanism here that does — it is what puts an
-entry in the GitHub Advisory Database, which is what `npm audit`, Dependabot and every scanner
-downstream of it read.
+`npm audit`.** A security advisory is the only mechanism here that *can* reach it — but only
+once GitHub's curation team promotes it to a global advisory, which is what `npm audit`,
+Dependabot and every scanner downstream of it actually read. As measured above, none of these
+five has been promoted yet.
 
-So the deprecations tell a human who is watching their install output. These tell the tooling.
+So the deprecations tell a human who is watching their install output. These are *addressed* to
+the tooling, and will reach it if and when they are reviewed.
 
 ## The structural point, which cost a draft to learn
 

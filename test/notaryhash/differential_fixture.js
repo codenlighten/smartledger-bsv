@@ -48,6 +48,12 @@ var BY_DESIGN = {
 function pathKey (p) { return Array.isArray(p) ? p.join('.') : String(p) }
 
 describe('differential fixture (block-penn-station)', function () {
+  // Three of these tests verify all 436 certificates each, so a single `it` is a few seconds of
+  // real work and the global 8s default in .mocharc.json does not fit it. Two of them failed on
+  // `Timeout of 8000ms exceeded` while another session's eight-way compute job held the load
+  // average near 20, and passed in isolation on the same tree — a flaky security corpus is
+  // worse than a slow one, because the next real failure here reads as noise.
+  this.timeout(60000)
   var rows
 
   before(function () {

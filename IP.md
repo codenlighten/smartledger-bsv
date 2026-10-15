@@ -51,3 +51,31 @@ check does not depend on iptrust being reachable.
 Anchoring completes after the record is accepted — BSV in about an hour, Bitcoin in a few
 hours — so `iptrust2 status <recordHash>` may show `certified` / `stamp-pending` for a while
 before both chains read `anchored`.
+
+### Verification log, 2026-10-15
+
+All three 2026-10-14 records re-verified at their tags, each in its own worktree:
+
+| tag | record | verdict | content |
+|---|---|---|---|
+| `ip-2026-10-14` | `ca49d2e2…3905` | `valid` | `matched`, no reasons |
+| `ip-2026-10-14-2` | `f232c9cc…2a92` | `valid` | `matched`, no reasons |
+| `ip-2026-10-14-3` | `b7911dd1…2b9e` | `valid` | `matched`, two reasons below |
+
+Two observations on the third record, neither about its content:
+
+1. `iptrust2 status` reports `needsAttention: true` with **no `lastError` on either chain**.
+   `bitcoin` reads `anchored` at height 971477; `bsv` is still `included` at 971100 and the
+   verifier says *"bsv: 5 confirmations; 6 required"*, unchanged over an interval in which the
+   chain advanced well past that block. That looks like the BSV side not progressing rather than
+   anything about the registered tree, which verifies `matched`.
+2. The verifier also notes *"bitcoin: operator key is not authorized by a pinned root; the anchor
+   still dates the record, but the operator's receipt claim is unattributed"*. By construction
+   (`reference/verify-core.mjs:272`) that check runs only for a chain already `anchored`, which
+   is why it appears here and not on the two older records, whose reasons are empty. It is a
+   statement about attribution of the operator's receipt, not about the timestamp or the content.
+
+Both are iptrust-side conditions, raised for that project rather than acted on here.
+`--fetch-headers` could not be used in this round: `blockstream.info/api` returns **429** to this
+egress (mempool.space returns 200), which per the procedure is not a verdict — content matching
+is local and needs no headers.
