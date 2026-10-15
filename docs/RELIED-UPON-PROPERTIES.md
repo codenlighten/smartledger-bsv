@@ -45,13 +45,28 @@ any hash of it, as:
   identity.
 
 **What to key on instead:** an identifier the *signature covers* — a signed statement id, nonce or
-sequence number — whose uniqueness scope you have written down, and whose acceptance you record
-atomically wherever the request can arrive. Age and skew bounds are an additional check, not the
+sequence number — never the signature bytes. Age and skew bounds are an additional check and not a
 dedupe: a signed timestamp with an open window still admits a replay inside the window, and a
-timestamp the receiver assigns does not distinguish a replay at all. One project keys acceptances on
-`(paymail, xpub, ts)` with max-age and max-skew bounds, which is the right shape and is unaffected
-by anything on this page — it is sufficient as a replay defence only if that acceptance is also
-recorded, which is their property to state and not one measured here.
+timestamp the receiver assigns does not distinguish a replay at all.
+
+Then there are **two ways to be safe against a replay**, and the second is stronger than the first:
+
+1. **Record acceptance** of that identifier, atomically, everywhere the request can arrive. This
+   makes a replay an error you have to catch — and therefore a store you have to keep correct.
+2. **Make the keyed tuple fully determine the effect**, so a replay re-asserts the same fact and is
+   a no-op. A consumer keying acceptances on `(paymail, xpub, ts)` pins both the handle and its
+   destination, so re-presenting the same request inside the window re-asserts the same transfer to
+   the same `xpub`; nothing is recorded, and nothing needs to be. Signature non-uniqueness cannot
+   matter there, because the signature contributes nothing to the outcome. That reasoning is the
+   consumer session's, and it is better than the advice this page gave first: a determining tuple
+   beats a replay store, because it removes the failure instead of detecting it.
+
+The condition on (2) is worth naming, because it is where it stops holding: the **effect** must be
+a state assertion rather than an event. If something downstream treats each acceptance as an
+event — a log line, a notification, a counter, a state machine that cannot be re-entered — then two
+submissions are two events even though they assert one fact, and you are back to needing (1). So
+the question to ask of your own system is not "should I deduplicate signatures" (never key on
+those) but **"is this an assertion of state, or an event?"**
 
 **`{ lowS: true }` removes one twin. It does not give you one byte string per statement.**
 Since 9.38.0:
@@ -85,12 +100,19 @@ re-encode, and demand the input back byte for byte.
 `{ lowS: true }` is a parameter **from 9.38.0 onward**. On every earlier version the call still
 succeeds, the argument is ignored, and the twin verifies anyway. Measured on installed tarballs:
 
-| version | instance `verify` arity | static arity | twin, plain | twin with `{ lowS: true }` |
+| package and version | instance `verify` arity | static arity | twin, plain | twin with `{ lowS: true }` |
 |---|---|---|---|---|
-| 9.16.1 | 2 | 3 | `true` | **`true`** |
-| 9.37.0 | 2 | 3 | `true` | **`true`** |
-| 9.38.0 | 3 | 4 | `true` | `false` |
-| 9.39.0 | 3 | 4 | `true` | `false` |
+| `bsv` 9.16.1 | 2 | 3 | `true` | **`true`** |
+| `bsv` 9.37.0 | 2 | 3 | `true` | **`true`** |
+| `bsv` 9.38.0 | 3 | 4 | `true` | `false` |
+| `bsv` 9.39.0 | 3 | 4 | `true` | `false` |
+| `bsv-core` 1.7.0 | 2 | 3 | `true` | **`true`** |
+| `bsv-core` 1.8.0 | 3 | 4 | `true` | `false` |
+
+**`@smartledger/bsv-core` only gained the option in 1.8.0**, which means it was a no-op in the
+*newest* release of that package until this page's advice was checked against it rather than
+assumed. If you use both packages, the boundary is 9.38.0 and 1.8.0 — and `bsv-core`'s major is
+2.0.0, so that is where its default flips, not 10.0.0.
 
 JavaScript does not complain about an extra argument, so there is no error, no warning and no
 protection. **A strictness option that silently does nothing is worse than no option at all**,
