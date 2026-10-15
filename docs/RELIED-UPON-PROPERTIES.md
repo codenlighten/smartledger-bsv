@@ -38,12 +38,20 @@ any hash of it, as:
 - a primary key, audit-log identity, or cache key;
 - a Merkle leaf. Refusing non-canonical encodings **on the received bytes before hashing** stops a
   *third party* adding the twin as a second leaf, but it does not stop the **signer** producing
-  another valid signature over the same statement (see below), so a one-leaf-per-statement rule has
-  to be keyed on the statement.
+  another valid signature over the same statement (see below). A one-leaf-per-statement rule
+  therefore has to derive the leaf from a canonically serialised, domain-separated statement
+  identity — signer plus the signed id or sequence number — and enforce uniqueness at admission.
+  Keep the signature bytes in the leaf as evidence if you like; just do not let them be the
+  identity.
 
-**What to key on instead:** the tuple of fields the signature *covers* — signer, message, and your
-own timestamp or sequence number — with a freshness window. One project keys acceptances on
-`(paymail, xpub, timestamp)` with max-age and max-skew bounds, which is correct and unaffected.
+**What to key on instead:** an identifier the *signature covers* — a signed statement id, nonce or
+sequence number — whose uniqueness scope you have written down, and whose acceptance you record
+atomically wherever the request can arrive. Age and skew bounds are an additional check, not the
+dedupe: a signed timestamp with an open window still admits a replay inside the window, and a
+timestamp the receiver assigns does not distinguish a replay at all. One project keys acceptances on
+`(paymail, xpub, ts)` with max-age and max-skew bounds, which is the right shape and is unaffected
+by anything on this page — it is sufficient as a replay defence only if that acceptance is also
+recorded, which is their property to state and not one measured here.
 
 **`{ lowS: true }` removes one twin. It does not give you one byte string per statement.**
 Since 9.38.0:
@@ -72,6 +80,46 @@ does a verify that already passes `{ lowS: true }`. Silence it with
 If you would rather do it at your own boundary, the check is: decode, require `2s <= n - 1`,
 re-encode, and demand the input back byte for byte.
 
+### Before 9.38.0 the option is a silent no-op — probe for it, don't assume it
+
+`{ lowS: true }` is a parameter **from 9.38.0 onward**. On every earlier version the call still
+succeeds, the argument is ignored, and the twin verifies anyway. Measured on installed tarballs:
+
+| version | instance `verify` arity | static arity | twin, plain | twin with `{ lowS: true }` |
+|---|---|---|---|---|
+| 9.16.1 | 2 | 3 | `true` | **`true`** |
+| 9.37.0 | 2 | 3 | `true` | **`true`** |
+| 9.38.0 | 3 | 4 | `true` | `false` |
+| 9.39.0 | 3 | 4 | `true` | `false` |
+
+JavaScript does not complain about an extra argument, so there is no error, no warning and no
+protection. **A strictness option that silently does nothing is worse than no option at all**,
+because it is now written in your code as evidence that you handled the hazard. If you adopt the
+option, probe for it in behaviour rather than trusting your lockfile — an arity check would pass on
+a build that wired the parameter without using it:
+
+```js
+function lowSOptionWorks (bsv) {
+  var priv = bsv.PrivateKey.fromRandom()
+  var address = priv.toAddress().toString()
+  var sig = bsv.Message('probe').sign(priv)
+  var raw = Buffer.from(sig, 'base64')
+  var n = bsv.crypto.Point.getN()
+  var s = bsv.crypto.BN.fromBuffer(raw.slice(33, 65))
+  var twin = Buffer.concat([
+    Buffer.from([31 + (((raw[0] - 31) & 3) ^ 1)]),
+    raw.slice(1, 33),
+    n.sub(s).toBuffer({ size: 32 })
+  ]).toString('base64')
+  // the twin must verify WITHOUT the option and be refused WITH it
+  return bsv.Message('probe').verify(address, twin) === true &&
+    bsv.Message('probe').verify(address, twin, { lowS: true }) === false
+}
+```
+
+Run it once at startup and fail loudly. The same caution applies to any option this library grows:
+an unrecognised key in an options object is ignored, not rejected.
+
 ### Low-s does not make a signature unique, and no encoding rule can
 
 This is the misreading the option invites, so it is stated as a measurement. **Measured on
@@ -89,26 +137,43 @@ randomK #1      IEenDVjlYbIsETSovGj4CNSG…   r 47a70d58e561
 randomK #2      IDjA2O56G5DOMOgX+tYpBvCM…   r 38c0d8ee7a1b
 ```
 
-They are not alternative *encodings* of one signature — they are **different signatures**, each
-with its own `r`, because ECDSA picks a nonce and `ECDSA#randomK()` and a preset `k` are both part
-of the public surface. The twin that `{ lowS: true }` refuses is one particular second encoding of
-one particular signature; the set of valid low-s signatures over a message is as large as the nonce
-space. So:
+These are **different signatures**, each with its own `r`, not alternative encodings of one: ECDSA
+picks a nonce, and both `ECDSA#randomK()` and a preset `k` are on the public surface. Be precise
+about what `{ lowS: true }` refuses, because the distinction is the whole point: the twin is a
+**different `(r, s)` pair** — the same `r`, with `s` replaced by `n − s` — carried in a second
+compact byte string. Two separate things therefore exist, and neither is the other:
 
-- a **malleability** rule (low-s, canonical base64, strict DER) defeats a *third party* who
-  reshapes a signature they intercepted, and that is worth having;
-- it cannot make a signature *name* a statement, because the holder of the key can always produce
-  another one.
+- **malleability**: given one signature you already accept, can an outsider turn it into different
+  bytes you also accept? Low-s says no for the demonstrated twin, and canonical base64 says no for
+  a re-encoding of it (`Message` signatures are 65-byte compact, so DER strictness is not what is
+  doing the work here — that applies to `crypto.ECDSA`'s DER form). Worth having, and it assumes
+  the attacker has no signing capability and no other valid signature of their own.
+- **uniqueness**: is there one signature per statement? No rule can deliver that, because the
+  holder of the key can always produce another, and the set of valid low-s signatures over a
+  message is as large as the nonce space.
 
-**`Message#sign` is deterministic** — five calls over the same bytes with the same key return one
-identical signature (RFC 6979, measured, and reproduced byte for byte by an independent
-implementation in another language). That is a property of **this signer**, not of a verifier's
-input, which arrives from whoever sent it. Writing a test that asserts "exactly one record" and
-relying on signer determinism to keep it true is the shape of mistake to avoid: that property has
-to come from your deduplication key.
+**`Message#sign` is deterministic, and that is an implementation property, not an inference from
+samples.** `lib/crypto/ecdsa.js` derives the nonce with `deterministicK`, the RFC 6979 §3.2
+HMAC-SHA256 ladder keyed on the private key and the message hash alone, with the `badrs` retry the
+RFC specifies; `_findSignature` then applies `ECDSA.toLowS(s)` unconditionally on every path, which
+is why `sign()` cannot emit a high-s signature for any input. Measured alongside that: five calls
+over the same bytes with one key return one identical signature, and an independent implementation
+in another language reproduced our reference vector byte for byte.
 
-**The rule, in one line: a signature names an act of signing, never the claim. Key identity and
-deduplication on the claim's own fields.**
+**But determinism is a property of this signer, never of a verifier's input**, which arrives from
+whoever sent it. Writing a test that asserts "exactly one record" and relying on signer determinism
+to keep it true is the shape of mistake to avoid: that property has to come from your deduplication
+key.
+
+**The rule, in one line: a signature is evidence that the key authorised a statement — its bytes
+identify neither the statement nor a signing event.** Key identity and deduplication on the
+statement's own fields.
+
+That is a sharpened version of a consumer session's formulation, "a signature names an act of
+signing, never the claim". The first half of theirs does not survive the same scrutiny as the
+second: a deterministic signer re-signing the same statement produces the *same* bytes, so the
+bytes do not name one act of signing either, and a twin reshaped in transit was produced by no
+signing act at all. The half that matters is unchanged — never the claim.
 
 ### A note on testing your side of this
 

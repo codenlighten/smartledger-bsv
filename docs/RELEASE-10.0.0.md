@@ -113,6 +113,20 @@ makes this list the only record — treat it accordingly.
 
 ## Candidates — not decided, recorded so the decision is deliberate
 
+### Refuse unrecognised keys in an options object
+
+An unknown key in an options object is **ignored**, not rejected, which turned a strictness option
+into a silent no-op for every consumer pinned below the version that introduced it: measured at
+9.16.1 and 9.37.0, `verify(address, sig, { lowS: true })` returns `true` for the malleable twin —
+no error, no warning, and the call sitting in the caller's code as evidence the hazard was handled.
+Nothing can be done for versions already published, and the next such option will have the same
+shape unless the library starts refusing keys it does not know. Against it: a caller who passes a
+forward-looking option to an older build then gets a throw instead of a silent downgrade, which is
+louder but is itself a compatibility break, so it belongs in a major. `docs/RELIED-UPON-PROPERTIES.md`
+§1 carries the behavioural probe consumers can use in the meantime.
+
+
+
 - **Make the verification functions share a return convention.** Today `verifyAgeProof` returns a
   boolean while `verifyCredential` returns a Promise of `{valid, errors}` and `validateCredential`
   and `verifyLegalToken` return that object directly — so `if (result)` is correct for one and a

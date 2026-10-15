@@ -52,6 +52,34 @@ describe('relied-upon properties', function () {
       documented('Message signatures are malleable')
     })
 
+    it('the documented behavioural probe for the option passes on this build, and is not an arity check', function () {
+      // A consumer measured that {lowS:true} is accepted and IGNORED before 9.38.0 — the twin
+      // verifies true, with no error. The page therefore tells integrators to probe behaviour, and
+      // the probe it prints has to work. Transcribed from the document rather than written afresh.
+      function lowSOptionWorks (bsv) {
+        var p2 = bsv.PrivateKey.fromRandom()
+        var addr = p2.toAddress().toString()
+        var sig = bsv.Message('probe').sign(p2)
+        var raw = Buffer.from(sig, 'base64')
+        var n = bsv.crypto.Point.getN()
+        var s2 = BN.fromBuffer(raw.slice(33, 65))
+        var twin = Buffer.concat([
+          Buffer.from([31 + (((raw[0] - 31) & 3) ^ 1)]),
+          raw.slice(1, 33),
+          n.sub(s2).toBuffer({ size: 32 })
+        ]).toString('base64')
+        return bsv.Message('probe').verify(addr, twin) === true &&
+          bsv.Message('probe').verify(addr, twin, { lowS: true }) === false
+      }
+      lowSOptionWorks(bsv).should.equal(true)
+      // the arities the document's table states for a build that has the option
+      bsv.Message.prototype.verify.length.should.equal(3)
+      bsv.Message.verify.length.should.equal(4)
+      documented('Before 9.38.0 the option is a silent no-op')
+      documented('worse than no option at all')
+      documented('an unrecognised key in an options object is ignored, not rejected')
+    })
+
     it('low-s does not make a signature unique: distinct low-s signatures verify for one message', function () {
       // A consumer session measured this against its own build and sent it as a correction to
       // advice this page had given: {lowS:true} removes ONE twin, it does not bound the number of
@@ -89,14 +117,15 @@ describe('relied-upon properties', function () {
         'each nonce must give a different signature, or this test proves nothing')
       Object.keys(distinct).length.should.be.above(5)
       documented('Low-s does not make a signature unique, and no encoding rule can')
-      documented('a signature names an act of signing, never the claim')
+      documented('its bytes\nidentify neither the statement nor a signing event')
     })
 
     it('sign() is deterministic, which is a property of the signer and not of the input', function () {
       var seen = {}
       for (var i = 0; i < 5; i++) seen[bsv.Message(message).sign(priv)] = true
       Object.keys(seen).length.should.equal(1)
-      documented('a property of **this signer**')
+      documented('determinism is a property of this signer')
+      documented('`_findSignature` then applies `ECDSA.toLowS(s)` unconditionally')
     })
 
     it('the documented { lowS: true } option refuses the twin and accepts what we sign', function () {
