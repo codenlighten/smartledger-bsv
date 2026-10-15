@@ -1,0 +1,68 @@
+{
+  "v": "iptrust/1",
+  "type": "Work",
+  "payload": {
+    "title": "@smartledger/bsv 9.38.0 — opt-in refusal of the malleable Message signature twin, and the enforced 10.0.0 plan",
+    "workType": "software",
+    "commitment": {
+      "scheme": "iptrust-commit/1",
+      "kind": "manifest",
+      "c256": "8e41694b632538e5d12ba3ad4d16ca772ac36bd29b0570d93bc151e419be428c",
+      "c3": "517da87644cc338464c1db765b314c36f126fe8acbd5e3a44a5a5cd9889649ca"
+    },
+    "creators": [
+      {
+        "name": "Bryan W. Daugherty",
+        "role": "co-author"
+      },
+      {
+        "name": "Gregory J. Ward",
+        "role": "author",
+        "signerKey": {
+          "suite": "secp256k1-prehash",
+          "publicKey": "03a2f39f201f556c3bdadeb2baa4bbb21c13afe04f2fc10c4e2f9e6b4fdafc34a8"
+        }
+      },
+      {
+        "name": "Shawn M. Ryan",
+        "role": "co-author"
+      }
+    ],
+    "claimant": {
+      "name": "Gregory J. Ward, Bryan W. Daugherty, Shawn M. Ryan",
+      "basis": "creator"
+    },
+    "status": "published",
+    "aiUse": {
+      "used": true,
+      "description": "Human-led and human-directed: conceived, specified, directed and reviewed by the named authors. Implementation drafted with AI coding assistance under the authors' direction and accepted by them."
+    },
+    "firstPublished": {
+      "date": "2026-10-15",
+      "where": "npm as @smartledger/bsv@9.38.0"
+    },
+    "statements": [
+      {
+        "role": "author",
+        "lang": "en",
+        "text": "I, Gregory J. Ward, state that I am an author of the work titled \"@smartledger/bsv 9.38.0 — opt-in refusal of the malleable Message signature twin, and the enforced 10.0.0 plan\", whose content is committed to by 8e41694b632538e5d12ba3ad4d16ca772ac36bd29b0570d93bc151e419be428c, and that the information in this record is true to the best of my knowledge. I understand this record is evidence and does not itself create or register any right."
+      }
+    ]
+  },
+  "references": [],
+  "retrieval": {
+    "profile": "held"
+  },
+  "signatures": [
+    {
+      "protected": {
+        "role": "author",
+        "suite": "secp256k1-prehash",
+        "publicKey": "03a2f39f201f556c3bdadeb2baa4bbb21c13afe04f2fc10c4e2f9e6b4fdafc34a8",
+        "statementDigest": "e4063c2666c126af775cc7259e7fa437e81a5127348ea1f2ae3d62ba25071318",
+        "claimedSignedAt": "2026-10-15T17:38:14Z"
+      },
+      "sig": "e5d95a98ee12c44d0e3853466fcc59251359aa1b298686430d5a1a03586949831e159af91ea04e7a76bd78cb3c10a3b872ef63a9ac8f40631d386fb10b9c2ace"
+    }
+  ]
+}
