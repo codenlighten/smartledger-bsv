@@ -93,6 +93,38 @@ var DRAFTS = [
     }
   },
   {
+    out: 'draft-sighash-scriptcode-tail.json',
+    from: 'draft-sighash-scriptcode-tail.md',
+    // Every range opens at the first published version on its name, which was measured rather
+    // than assumed: the earliest release of each of the three packages gives the wrong digest
+    // for the short-data shape while answering correctly on the control.
+    payload: {
+      summary: 'The original transaction digest algorithm serializes the whole scriptCode where the node stops at an undecodable push, so signatures over such a script disagree with the network on validity',
+      cvss_vector_string: 'CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N',
+      cwe_ids: ['CWE-436', 'CWE-347'],
+      vulnerabilities: [
+        {
+          package: { ecosystem: 'npm', name: '@smartledger/bsv' },
+          vulnerable_version_range: '< 9.37.0',
+          patched_versions: '9.37.0',
+          vulnerable_functions: []
+        },
+        {
+          package: { ecosystem: 'npm', name: '@smartledger/bsv-core' },
+          vulnerable_version_range: '< 1.6.0',
+          patched_versions: '1.6.0',
+          vulnerable_functions: []
+        },
+        {
+          package: { ecosystem: 'npm', name: 'smartledger-bsv' },
+          vulnerable_version_range: '<= 4.4.0',
+          patched_versions: null,
+          vulnerable_functions: []
+        }
+      ]
+    }
+  },
+  {
     out: 'draft-ltp-salt-derivation.json',
     from: 'draft-ltp-salt-derivation.md',
     // 9.34.0 reached the registry on 2026-10-14, so the patched version this names now exists.

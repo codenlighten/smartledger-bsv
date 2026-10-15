@@ -1,8 +1,8 @@
 # Prepared security advisories
 
-Five advisories, **all five now live on the repository**, built by
-`node scripts/build-advisories.js` into the `.json` payload beside each markdown file.
-`npm run check:advisories` holds the payloads to the markdown.
+Six advisories: **five live on the repository, and one a private draft awaiting a decision to
+publish.** Each is built by `node scripts/build-advisories.js` into the `.json` payload beside its
+markdown file, and `npm run check:advisories` holds the payloads to the markdown.
 
 | file | advisory | state |
 |---|---|---|
@@ -11,10 +11,19 @@ Five advisories, **all five now live on the repository**, built by
 | `draft-ltp-disclosure-commitment.md` | [`GHSA-xc2p-cffw-qm3j`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-xc2p-cffw-qm3j) | **published**, high (CVSS 7.5) |
 | `draft-ltp-salt-derivation.md` | [`GHSA-5f36-cmq3-37xg`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-5f36-cmq3-37xg) | **published**, high (CVSS 7.5) |
 | `draft-ageproof-hardcoded-birthdate.md` | [`GHSA-2j2f-5v2f-pvpq`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-2j2f-5v2f-pvpq) | **published**, high (CVSS 7.5) — 2026-10-14 |
+| `draft-sighash-scriptcode-tail.md` | [`GHSA-j884-5pmj-6wqp`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-j884-5pmj-6wqp) | **DRAFT — not published**, medium (CVSS 5.9) — 2026-10-15 |
 
-Each was created from the committed payload and then read back from the API: all five store a
+Each was created from the committed payload and then read back from the API: all six store a
 description **byte-identical** to what was sent, and affected products matching exactly. None
 has a CVE.
+
+**`GHSA-j884-5pmj-6wqp` is a draft, which is private to maintainers, and publishing it is a
+separate deliberate step** — it is the only one that names `@smartledger/bsv-core`, and the only
+one whose range covers *every version ever published* on all three package names. GitHub computed
+5.9 medium from the vector sent, which matches the score derived by hand before sending. The
+deliberate `AC:H` is the shape of the defect: it needs a prevout script ending in a push the node
+cannot decode **and** a hash type that selects the original digest algorithm, so `0x41` — what
+current BSV wallets sign with — is unaffected.
 
 ## Measured: `npm audit` does not flag these versions, and the cause is now established
 
@@ -176,6 +185,20 @@ module-presence boundary, because every version that has the module has the defe
 Module presence was established twice over, independently: from the CDN that serves the npm
 tarballs, for `lib/ltp/proof.js` in each of the 149 published versions, and by installing the
 versions at each boundary and loading it. The two agree.
+
+**The scriptCode tail.** `< 9.37.0` scoped, `< 1.6.0` on `@smartledger/bsv-core`, `<= 4.4.0`
+unscoped — every range open at the bottom, because **the first published version on each name is
+affected and that was measured, not assumed**: `@smartledger/bsv@1.5.6-fix1`,
+`smartledger-bsv@3.0.0` and `@smartledger/bsv-core@1.0.0` each give the wrong digest for a
+short-data push while answering correctly on the control. 25 published artifacts were installed
+and executed in all, and the control `6a0401020304` matched the reference node in every one of
+them, so the failures are the defect and not a harness that moved.
+
+Two shapes with different histories sit inside that one range, which is why the prose spells them
+out: a push whose *data* is short always parsed, so its digest was always wrong, while a push
+whose *length prefix* is cut off used to make the parser throw — no digest at all — until 9.35.0
+and core 1.6.0 made those scripts parseable. The range is the same either way, since neither
+shape was ever handled correctly before the fix.
 
 That lower bound was drawn wrong twice in two days, both times around whatever versions happened
 to be in the sweep. The fix both times was to measure outside it.
