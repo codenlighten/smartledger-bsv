@@ -374,9 +374,11 @@ node's `chainwork`, and they are 4.3e9 apart.
 
 **A difficulty floor taken from the docstring's illustrative figure refuses real blocks.** The
 docstrings say a real BSV header is "about 2.6e10" to fix the order of magnitude. Block 954784 is
-difficulty 2.5570e10, so `minDifficulty: '2.6e10'` rejects a genuine mainnet certificate. Sampled
-eleven heights from 954784 to 970075: 2.5251e10 to 3.4539e10, a 1.37× spread inside three weeks,
-and BSV's cw-144 schedule moves much further than that over longer spans. A floor is a
+difficulty 2.5570e10, so `minDifficulty: '2.6e10'` rejects a genuine mainnet certificate. Measured
+across **1,415 consecutive mainnet headers** (969801–971215, taken from a third party's live header
+feed and each one's proof of work checked here): **2.3431e10 to 4.1440e10**, a 1.77× spread inside
+ten days — so a 2.6e10 floor refuses headers that are in the chain right now, not just one old
+block, and BSV's cw-144 schedule moves further still over longer spans. A floor is a
 free-forgery cut-off, not a measure of chain quality; if you set one, derive it from the lowest
 difficulty in the height range you accept and test it there. Supplying `blockHashAtHeight` alone
 satisfies the 9.13.0 deprecation and is the check that actually addresses orphans.

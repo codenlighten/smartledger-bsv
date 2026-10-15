@@ -1062,8 +1062,8 @@ declare module '@smartledger/bsv' {
              * BSV header is about 2.6e10, i.e. about 1.1e20 hashes. Exactly one of the two —
              * passing both throws, because they are 4.3e9 apart and silence would hide which
              * one applied. 2.6e10 is an order of magnitude, not a floor to copy: mainnet
-             * difficulty ranged 2.53e10 to 3.45e10 over eleven heights sampled between 954784
-             * and 970075, so that value refuses real blocks.
+             * difficulty ranged 2.3431e10 to 4.1440e10 across the 1,415 consecutive headers
+             * 969801-971215, so that value refuses blocks currently in the chain.
              */
             minDifficulty?: number | string;
         }
