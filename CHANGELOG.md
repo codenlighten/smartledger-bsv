@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `docs/RELIED-UPON-PROPERTIES.md`, and a test that keeps it true
+
+Four separate projects built on this library against a property it does not have: that
+`Message` signatures are unique per statement, that a NotaryHash 2.0 certificate would verify,
+that `@smartledger/bsv/jcs` was private, and that the feature bundles carry their own copy of
+`bsv`. None of those was documented either way, so each was a reasonable guess that happened to
+be wrong. The new page states the answers, with the hazard before the remedy, and every claim in
+it was measured against the **published** 9.37.0 artifact rather than read off the source.
+
+The two findings worth calling out, because neither was written down anywhere before:
+
+- **Message signatures are malleable.** `Message.verify` accepts the high-s twin of any signature
+  it produced — two distinct base64 strings verify for one key and one message, at every version
+  back to 1.5.6-fix1. So a signature is not a unique name for a statement and must never be a
+  deduplication key, nonce, replay marker, audit identity or Merkle leaf. Nothing is changed in
+  this release: enforcing low-s would be a **compatibility break**, not a bug fix, since `sign()`
+  has only ever emitted low-s but other implementations may legitimately emit high-s. The page
+  says how to enforce it yourself at your own boundary.
+- **The verification functions do not share a return convention.** `verifyAgeProof` returns a
+  boolean, while `verifyCredential` returns a **Promise** of `{valid, errors}` and
+  `validateCredential` and `verifyLegalToken` return that object directly. So `if (result)` is
+  correct for the first and silently accepts invalid input for the other three — and awaiting is
+  not the fix, because the resolved object is truthy when `valid` is `false`. `verifyCredential`
+  is also a plain `Function`, not an `AsyncFunction`, so a guard looking for async entry points
+  by constructor name does not find it.
+
+Also recorded, each measured: JCS canonicalises `-0` to `0` and so is not injective over JS
+numbers, sorts integer-like keys by UTF-16, and loses precision above 2^53; `toASM` is
+deliberately lossy for a short DATA push; post-Genesis `OP_CHECKLOCKTIMEVERIFY` is the same
+opcode as `OP_NOP2`, so CLTV alone locks nothing; the Shamir integrity checksum is
+`sha256(secret)` truncated and therefore an offline oracle on the secret, which is why it is off
+by default and `splitId` exists; and a Shamir share is **odd-length hex**, so
+`Buffer.from(share, 'hex')` silently drops the last nibble.
+
+`test/properties/relied_upon.js` (25 tests) re-measures every claim **and** asserts the document
+still states it, so the prose and the behaviour cannot drift apart — a reference of this kind is
+worthless once stale. Both directions were sabotage-tested: removing a phrase from the prose fails
+the suite naming the missing phrase, and injecting a low-s refusal into `Message.verify` fails it
+with a message saying that is a compatibility change rather than a fix.
+
+
 ### Checked — nothing other than an undecodable output script reaches the null-script path
 
 `docs/NPM_RELEASES.md` has carried this as a **stated-unchecked claim** since the deprecation

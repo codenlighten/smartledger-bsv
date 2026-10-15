@@ -218,6 +218,7 @@ within 9.x.
 
 | | |
 |---|---|
+| [docs/RELIED-UPON-PROPERTIES.md](docs/RELIED-UPON-PROPERTIES.md) | **read this first if you are building on the library** — what is canonical, what is malleable, what we refuse, and the return conventions that differ between verification functions |
 | [STABILITY.md](STABILITY.md) | release policy, deprecation process, what's covered |
 | [docs/advanced/ADVANCED_COVENANT_DEVELOPMENT.md](docs/advanced/ADVANCED_COVENANT_DEVELOPMENT.md) | covenant patterns beyond the basics |
 | [docs/advanced/CUSTOM_SCRIPT_DEVELOPMENT.md](docs/advanced/CUSTOM_SCRIPT_DEVELOPMENT.md) | signing arbitrary locking scripts |
