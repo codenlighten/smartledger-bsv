@@ -1061,7 +1061,9 @@ declare module '@smartledger/bsv' {
              * The same floor in DIFFICULTY, which is the unit difficulty is quoted in: a real
              * BSV header is about 2.6e10, i.e. about 1.1e20 hashes. Exactly one of the two —
              * passing both throws, because they are 4.3e9 apart and silence would hide which
-             * one applied.
+             * one applied. 2.6e10 is an order of magnitude, not a floor to copy: mainnet
+             * difficulty ranged 2.53e10 to 3.45e10 over eleven heights sampled between 954784
+             * and 970075, so that value refuses real blocks.
              */
             minDifficulty?: number | string;
         }
@@ -1818,8 +1820,10 @@ declare module '@smartledger/bsv' {
              */
             minWork?: number | string;
             /**
-             * The same floor in DIFFICULTY (a real BSV header is about 2.6e10). Exactly one
-             * of this and `minWork`; passing both throws.
+             * The same floor in DIFFICULTY (a real BSV header is about 2.6e10, an order of
+             * magnitude rather than a floor to copy: that value refuses the real block
+             * 954784, which is 2.557e10). Exactly one of this and `minWork`; passing both
+             * throws. Prefer `blockHashAtHeight`, which answers the orphan question.
              */
             minDifficulty?: number | string;
             /** Pass false only for test fixtures. Defaults to true. */

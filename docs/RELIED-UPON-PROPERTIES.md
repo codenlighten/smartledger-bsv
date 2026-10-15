@@ -295,7 +295,88 @@ does not copy. If you accept untrusted scripts or build large transactions, boun
 
 ---
 
-## 9. Reading this file safely
+## 9. SPV and anchor verification
+
+**Measured on 9.38.0**, with real mainnet headers serialised outside this library (`version |
+prevHash | merkleRoot | time | bits | nonce` → 80 bytes, double SHA-256, hash confirmed before the
+library saw the bytes) and with the vendored mainnet certificate for block 954784 in
+`test/data/notaryhash-mainnet-certificate.json`.
+
+**A header is 80 bytes, never a set of fields.** `SPV.verifyTxInclusion`,
+`SPV.verifyHeaderChain` and `NotaryHash.verifyAnchorSPV` all read one 80-byte snapshot. A plain
+object stating a `merkleRoot` is refused outright. An object carrying a `toBuffer()` is trusted
+blindly: the bytes it returns are what gets checked, and the object's own stated fields are never
+consulted. So your header provider's field names cannot mislead this library — as long as you hand
+it bytes.
+
+**`BlockHeader.fromObject` has two silent-corruption paths**, both of which then fail the
+proof-of-work check for a reason that does not name the cause:
+
+- `bits` as the hex *string* a provider's JSON carries (`'182afffe'`) builds a header with a
+  different id and does not throw.
+- `prevHash` and `merkleRoot` are byte-reversed when they are hex *strings* and left alone when
+  they are Buffers. An internal-order hex string therefore yields a wrong id, silently.
+
+Build the 80 bytes yourself and pass a Buffer, and neither path exists.
+
+**There is no notion of confirmations or depth anywhere.** `verifyAnchorSPV` reads no
+confirmations option and `verifyHeaderChain` has no concept of height. Burial depth is entirely
+the caller's policy, applied out of band.
+
+**A header does not carry its height.** `verifyAnchorSPV` compares `opts.height` with
+`spv.blockHeight` only when you supply it; omit it and the envelope's claimed height is never
+checked. The height binding then rests entirely on your provider's height → header mapping, where
+an off-by-one is invisible to this library. Always pass `height`.
+
+**`blockHashAtHeight` is the only orphan check, and it is easy to make circular.** Passing the
+header's own hash, or `certificate.spv.blockHash`, returns `valid: true` having checked nothing;
+passing a different hash gives *"the header is not the block the caller's chain has at that height:
+it may be orphaned"*. The value is worth only as much as the chain view behind it: it must come
+from a source that has independently **selected a branch**, not from the header being checked, not
+from the certificate, and not from a height index served by whoever supplied the header.
+
+**`verifyHeaderChain`'s `trustedHash` is satisfied by either end** — the oldest header (anchor) or
+the newest (tip) — and the result does not say which matched. A single header equal to it returns
+`valid: true, count: 1`: a chain that proves nothing. The result hands you `anchorHash` and
+`tipHash`, so compare those against your own base and expected tip, and assert `count`. Headers
+supplied in the wrong order *are* caught, by linkage.
+
+**Two fields called `work`, in two different units.** `verifyTxInclusion` returns work in
+**hashes**, as a decimal string (block 954784: `109822554288093618317`). `verifyHeaderChain`
+returns a float sum of per-header **difficulty** (`95895846216.96` for 970073–970075). Neither is a
+node's `chainwork`, and they are 4.3e9 apart.
+
+**A difficulty floor taken from the docstring's illustrative figure refuses real blocks.** The
+docstrings say a real BSV header is "about 2.6e10" to fix the order of magnitude. Block 954784 is
+difficulty 2.5570e10, so `minDifficulty: '2.6e10'` rejects a genuine mainnet certificate. Sampled
+eleven heights from 954784 to 970075: 2.5251e10 to 3.4539e10, a 1.37× spread inside three weeks,
+and BSV's cw-144 schedule moves much further than that over longer spans. A floor is a
+free-forgery cut-off, not a measure of chain quality; if you set one, derive it from the lowest
+difficulty in the height range you accept and test it there. Supplying `blockHashAtHeight` alone
+satisfies the 9.13.0 deprecation and is the check that actually addresses orphans.
+
+**What an inclusion proof does not establish**, however much work the header carries: the block's
+or the transaction's consensus validity, the output's UTXO status, the absence of a conflicting
+spend on another branch, or that this branch is the network's most-work chain.
+
+### The direction you verify in changes what you need
+
+**A trusted block hash commits to exactly one ancestry.** Hash the 80 bytes to confirm they are
+that block, and its `prevHash` fixes its parent; that parent's bytes fix the grandparent, and so
+on. Forging an ancestor needs a hash preimage, not hashpower, so a downward walk needs no
+proof-of-work check and no difficulty schedule. That commitment is *all* it gives: the ancestors'
+consensus validity and their place on the network's chain are inherited from the decision to trust
+that one hash, not proved by the walk — and a reorganisation deep enough to displace the trusted
+block displaces everything under it.
+
+Extending **forward** from a trusted hash is the opposite case. Several valid chains can exist, so
+the choice between them needs work compared across the branches the verifier can see, and no
+verifier can see a branch nobody served it. Source independence is the whole of the mitigation
+there, and two sources that share an upstream are one source.
+
+---
+
+## 10. Reading this file safely
 
 Everything above is a measurement of a **named published version**. Two habits make the difference
 between using it and being misled by it:

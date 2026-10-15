@@ -304,4 +304,205 @@ describe('relied-upon properties', function () {
       })
     })
   })
+
+  describe('9. SPV and anchor verification', function () {
+    var deprecate = require('../../lib/util/deprecate')
+    var chain = require('../data/spv-mainnet-headers.json')
+    var fixture = require('../data/notaryhash-mainnet-certificate.json')
+    var cert = fixture.certificate
+    var bufs = chain.headers.map(function (h) { return Buffer.from(h.hex, 'hex') })
+
+    // The certificate's block header, serialised here from the block's own fields rather than
+    // taken from the library, so no test below asks the library to confirm its own construction.
+    function headerFromFields (b) {
+      var buf = Buffer.alloc(80)
+      buf.writeUInt32LE(b.version, 0)
+      Buffer.from(b.previousblockhash, 'hex').reverse().copy(buf, 4)
+      Buffer.from(b.merkleroot, 'hex').reverse().copy(buf, 36)
+      buf.writeUInt32LE(b.time, 68)
+      buf.writeUInt32LE(parseInt(b.bits, 16), 72)
+      buf.writeUInt32LE(b.nonce, 76)
+      return buf
+    }
+    function idOf (buf) {
+      return Buffer.from(Hash.sha256sha256(buf)).reverse().toString('hex')
+    }
+    var certHeader = headerFromFields(fixture.block)
+
+    // Several checks below would print the 9.13.0 notice. It is asserted on its own in
+    // test/deprecated_apis.js; here it is noise, and leaving it enabled teaches a reader to
+    // ignore it.
+    var wasEnabled
+    before(function () { wasEnabled = deprecate.isEnabled(); deprecate.setEnabled(false) })
+    after(function () { deprecate.setEnabled(wasEnabled) })
+
+    it('the vendored headers are the blocks they claim to be', function () {
+      idOf(certHeader).should.equal(fixture.block.hash)
+      bufs.forEach(function (buf, i) {
+        buf.length.should.equal(80)
+        idOf(buf).should.equal(chain.headers[i].hash, 'header ' + chain.headers[i].height)
+      })
+    })
+
+    it('a plain object stating a merkleRoot is refused; a toBuffer() is trusted blindly', function () {
+      ;(function () {
+        bsv.SPV.verifyTxInclusion({
+          header: {
+            merkleRoot: fixture.block.merkleroot,
+            bits: parseInt(fixture.block.bits, 16)
+          },
+          txid: 'ab'.repeat(32),
+          index: 0,
+          nodes: []
+        })
+      }).should.throw(/must be 80 bytes/)
+
+      // The object says one block and its toBuffer() returns another. The bytes win.
+      var liar = { merkleRoot: fixture.block.merkleroot, toBuffer: function () { return bufs[2] } }
+      var out = bsv.SPV.verifyTxInclusion({
+        header: liar,
+        txid: 'ab'.repeat(32),
+        index: 0,
+        nodes: []
+      })
+      out.blockHash.should.equal(chain.headers[2].hash)
+      documented('is trusted\nblindly')
+    })
+
+    it('fromObject corrupts silently for bits as a hex string and for internal-order hashes', function () {
+      var b = fixture.block
+      var right = bsv.BlockHeader.fromObject({
+        version: b.version,
+        prevHash: b.previousblockhash,
+        merkleRoot: b.merkleroot,
+        time: b.time,
+        bits: parseInt(b.bits, 16),
+        nonce: b.nonce
+      })
+      right.id.should.equal(b.hash)
+
+      var bitsAsString = bsv.BlockHeader.fromObject({
+        version: b.version,
+        prevHash: b.previousblockhash,
+        merkleRoot: b.merkleroot,
+        time: b.time,
+        bits: b.bits,
+        nonce: b.nonce
+      })
+      bitsAsString.id.should.not.equal(b.hash)
+
+      var internal = Buffer.from(b.previousblockhash, 'hex').reverse().toString('hex')
+      var flipped = bsv.BlockHeader.fromObject({
+        version: b.version,
+        prevHash: internal,
+        merkleRoot: b.merkleroot,
+        time: b.time,
+        bits: parseInt(b.bits, 16),
+        nonce: b.nonce
+      })
+      flipped.id.should.not.equal(b.hash)
+      documented('silent-corruption paths')
+    })
+
+    it('neither check has any notion of confirmations or depth', function () {
+      /confirmations/.test(bsv.NotaryHash.verifyAnchorSPV.toString()).should.equal(false)
+      ;/confirmations|depth/.test(bsv.SPV.verifyHeaderChain.toString()).should.equal(false)
+      Object.keys(bsv.NotaryHash).filter(function (k) {
+        return /confirm|depth|maturit/i.test(k)
+      }).length.should.equal(0)
+      documented('no notion of confirmations or depth anywhere')
+    })
+
+    it('the envelope height is checked only when the caller supplies one', function () {
+      var omitted = bsv.NotaryHash.verifyAnchorSPV(cert, { header: certHeader })
+      omitted.valid.should.equal(true)
+      var right = bsv.NotaryHash.verifyAnchorSPV(cert, { header: certHeader, height: cert.spv.blockHeight })
+      right.valid.should.equal(true)
+      var wrong = bsv.NotaryHash.verifyAnchorSPV(cert, { header: certHeader, height: cert.spv.blockHeight + 1 })
+      wrong.valid.should.equal(false)
+      wrong.errors.join(' ').should.match(/not at the height the SPV envelope names/)
+      documented('A header does not carry its height')
+    })
+
+    it('blockHashAtHeight checks nothing when it comes from the header or the certificate', function () {
+      bsv.NotaryHash.verifyAnchorSPV(cert, {
+        header: certHeader, blockHashAtHeight: idOf(certHeader)
+      }).valid.should.equal(true)
+      bsv.NotaryHash.verifyAnchorSPV(cert, {
+        header: certHeader, blockHashAtHeight: cert.spv.blockHash
+      }).valid.should.equal(true)
+      var elsewhere = bsv.NotaryHash.verifyAnchorSPV(cert, {
+        header: certHeader, blockHashAtHeight: '00'.repeat(32)
+      })
+      elsewhere.valid.should.equal(false)
+      elsewhere.errors.join(' ').should.match(/may be orphaned/)
+      documented('easy to make circular')
+    })
+
+    it('trustedHash is satisfied by either end, and one header is a valid chain', function () {
+      var all = bsv.SPV.verifyHeaderChain(bufs)
+      all.valid.should.equal(true)
+      all.count.should.equal(3)
+      bsv.SPV.verifyHeaderChain(bufs, { trustedHash: chain.headers[0].hash }).valid.should.equal(true)
+      bsv.SPV.verifyHeaderChain(bufs, { trustedHash: chain.headers[2].hash }).valid.should.equal(true)
+      bsv.SPV.verifyHeaderChain(bufs, { trustedHash: chain.headers[1].hash }).valid.should.equal(false)
+      Object.keys(all).should.not.include('trustedEnd')
+
+      var alone = bsv.SPV.verifyHeaderChain([bufs[0]], { trustedHash: chain.headers[0].hash })
+      alone.valid.should.equal(true)
+      alone.count.should.equal(1)
+
+      // out of order is caught, by linkage
+      var reversed = bsv.SPV.verifyHeaderChain([bufs[2], bufs[1], bufs[0]],
+        { trustedHash: chain.headers[0].hash })
+      reversed.valid.should.equal(false)
+      reversed.reason.should.match(/broken link/)
+      documented('a chain that proves nothing')
+    })
+
+    it('the two fields called work are in different units', function () {
+      var inclusion = bsv.SPV.verifyTxInclusion({
+        header: certHeader,
+        txid: bsv.NotaryHash.txidFromRawTx(cert.spv.rawTx),
+        index: cert.spv.merkleProof.index,
+        nodes: cert.spv.merkleProof.nodes
+      })
+      inclusion.rootMatches.should.equal(true)
+      inclusion.work.should.equal('109822554288093618317')
+
+      var chainWork = bsv.SPV.verifyHeaderChain(bufs).work
+      ;(typeof chainWork).should.equal('number')
+      // a sum of difficulties, which is the hash count divided by difficulty 1's 4.295e9
+      var sum = chain.headers.reduce(function (a, h) { return a + h.difficulty }, 0)
+      Math.abs(chainWork - sum).should.be.below(1)
+      documented('Two fields called `work`, in two different units')
+    })
+
+    it("the docstring's illustrative difficulty, used as a floor, rejects a real block", function () {
+      var tooHigh = bsv.NotaryHash.verifyAnchorSPV(cert, { header: certHeader, minDifficulty: '2.6e10' })
+      tooHigh.valid.should.equal(false)
+      tooHigh.errors.join(' ').should.match(/carries less work than required/)
+      bsv.NotaryHash.verifyAnchorSPV(cert, { header: certHeader, minDifficulty: '1e10' })
+        .valid.should.equal(true)
+      // 109822554288093618317 hashes / 4,295,032,833 = 2.5570e10
+      var difficulty = 109822554288093618317 / 4295032833
+      difficulty.should.be.below(2.6e10)
+      difficulty.should.be.above(2.55e10)
+      documented('2.5570e10')
+    })
+
+    it('a trusted hash commits to one ancestry: the walk down needs no proof-of-work', function () {
+      // Each header's own bytes fix its parent's hash, so a downward walk from a hash you
+      // already trust holds with the work checks switched off entirely.
+      var down = bsv.SPV.verifyHeaderChain(bufs, {
+        trustedHash: chain.headers[2].hash, requirePow: false
+      })
+      down.valid.should.equal(true)
+      down.anchorHash.should.equal(chain.headers[0].hash)
+      down.tipHash.should.equal(chain.headers[2].hash)
+      // and the link is what carries it: the parent's hash is in the child's bytes
+      Buffer.from(bufs[2].slice(4, 36)).reverse().toString('hex').should.equal(chain.headers[1].hash)
+      documented('commits to exactly one ancestry')
+    })
+  })
 })

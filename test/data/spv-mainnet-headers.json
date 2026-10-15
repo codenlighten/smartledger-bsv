@@ -1,0 +1,29 @@
+{
+  "note": "Three consecutive BSV mainnet block headers, 970073-970075, as 160 hex characters each, with the hash and difficulty the chain reports for them. Public chain data, fetched from WhatsOnChain and re-serialised here from the block fields; each hash was confirmed by double-SHA256 of these bytes before the file was written. Used by test/properties/relied_upon.js to exercise header-chain linkage and proof-of-work on a real chain rather than a hand-made one.",
+  "headers": [
+    {
+      "height": 970073,
+      "hash": "0000000000000000174564c5c85aeef63c0882d4e6dd64fb4ad7bb3b5c9ef7c7",
+      "hex": "0000ed2e65c547d9271955e219c160531beff1c9ffbc3edbe3e0f80d000000000000000009c2e9e00519263b34a9e099b2b521975521b3dc31beaa70fa31e78eb90d101bc79cc66ac1682218804c01f7",
+      "bits": "182268c1",
+      "difficulty": 31953518595.13869,
+      "time": 1791401159
+    },
+    {
+      "height": 970074,
+      "hash": "00000000000000000dec5c8595a8d9e6c4ad3d49c882c766de2cf9ebd1873cfc",
+      "hex": "0000d822c7f79e5c3bbbd74afb64dde6d482083cf6ee5ac8c564451700000000000000008bf47a3dcf19c83d2f7e08a1cbdfe9b6ea046718dbc73c6d6457d6d18944caeceaa1c66a3b82221848c74dc7",
+      "bits": "1822823b",
+      "difficulty": 31861369560.03444,
+      "time": 1791402474
+    },
+    {
+      "height": 970075,
+      "hash": "0000000000000000140aa051854592124a1da794b39237d05091403b2ed92cde",
+      "hex": "00000024fc3c87d1ebf92cde66c782c8493dadc4e6d9a895855cec0d00000000000000008b0672075851a029b8b715cc29714412950fe1d94fedf15cc614761f6f61854516a3c66ac3452218096f3b9f",
+      "bits": "182245c3",
+      "difficulty": 32080958061.79031,
+      "time": 1791402774
+    }
+  ]
+}
