@@ -305,6 +305,23 @@ describe('relied-upon properties', function () {
     })
   })
 
+  describe('5. mutating a script in place does not change the transaction', function () {
+    it('is stated, and both halves still measure as the document says', function () {
+      documented('Mutating a script in place does not change the transaction')
+      documented('output.setScript(output.script)` after mutating')
+      var tx = new bsv.Transaction()
+      tx.to(bsv.PrivateKey.fromRandom().toAddress(), 1000)
+      var before = tx.toString()
+      var out = tx.outputs[0]
+      var serialized = out.toBufferWriter().toBuffer().length
+      out.script.add(bsv.Opcode.OP_NOP)
+      tx.toString().should.equal(before, 'the mutation must not reach the bytes')
+      out.getSize().should.equal(serialized + 1, 'but getSize() must measure the object')
+      out.setScript(out.script)
+      tx.toString().should.not.equal(before, 'and the documented remedy must resolve it')
+    })
+  })
+
   describe('9. SPV and anchor verification', function () {
     var deprecate = require('../../lib/util/deprecate')
     var chain = require('../data/spv-mainnet-headers.json')

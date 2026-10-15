@@ -33,6 +33,7 @@ breaking change wearing a warning's name.
 | 9.32.0 | a **credential** field name containing `.` | field names without `.` |
 | 9.32.0 | an **LTP token** field name containing `.`, `[` or `]` | field names without path syntax |
 | 9.38.0 | `Message#verify()` **accepting a non-canonical (high-s) signature** | `verify(address, sig, { lowS: true })` |
+| 9.39.0 | **mutating a parsed output script in place** and expecting it to serialize | `output.setScript(output.script)` after mutating, or build the script before setting it |
 
 ### Why the last one is here rather than fixed
 
@@ -46,6 +47,36 @@ Refusing the twin is nonetheless a **compatibility change, not a bug fix**: the 
 refused are valid ECDSA, and while `sign()` has only ever emitted low-s (measured over 40 fresh
 keys), other implementations may legitimately emit high-s. So 9.38.0 ships the refusal as
 `{ lowS: true }`, warns on the accept, and 10.0.0 makes it the default.
+
+### Why the output-mutation item is a notice and not a fix
+
+`Output#toBufferWriter` writes `_scriptBuffer`, the bytes the output was set from, while the
+`script` getter hands out the live `Script` object. Mutating that object therefore changes what
+`getSize()` measures and nothing about what serializes — the mutation is dropped and the fee is
+computed for a transaction that will not be sent.
+
+Serialising the object instead would make the two agree, and it is not a fix to make inside 9.x:
+it would change the bytes of every output whose script was mutated — including, silently, outputs a
+caller mutated by accident — and an output's bytes are its identity.
+
+**A measurement corrected the argument here.** The first version of this section said the object
+could not be authoritative because a script parsed from non-canonical bytes does not re-encode to
+those bytes. That is false in this library: `Script.fromBuffer(b).toBuffer()` equals `b` over every
+script of three bytes or fewer (16,843,009, exhaustive) plus 400,000 push-biased random ones, with
+0 divergences. So **txid churn does not rule the flip out**, and the real objection is narrower:
+serialization would then depend on the parser's fidelity, which is a measured property rather than
+an enforced one. `test/transaction/output_inplace_mutation.js` now enforces it, which is what makes
+the flip decidable rather than merely attractive.
+
+The 10.0.0 choice is therefore between three shapes: re-sync on mutation (the object wins), refuse
+to hand out a mutable script from a parsed output, or add an explicit pre-broadcast check that pays
+one serialization and reports every input and output whose object and bytes disagree. The third is
+the only one that closes the input side too, and it is additive rather than breaking.
+
+Until then the coverage is honest and partial: the comparison sits in `getSize()`, where both byte
+strings have just been computed, so a caller who mutates and serializes without asking for a size
+is not warned. `Input` has the same drop with no free place to see it, and
+[RELIED-UPON-PROPERTIES.md](RELIED-UPON-PROPERTIES.md) §5 says so.
 
 ### Why the three dotted-key items are here rather than fixed
 

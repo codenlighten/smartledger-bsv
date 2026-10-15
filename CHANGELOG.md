@@ -5,6 +5,50 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.39.0] - 2026-10-15
+
+### Added — a notice when a mutated output script will not be the one that serializes
+
+`output.script` hands out the live `Script` object, but `Output#toBufferWriter` writes
+`_scriptBuffer`: the bytes the output was *set from*. So this changes the object and nothing about
+the transaction —
+
+```js
+tx.outputs[0].script.add(bsv.Opcode.OP_NOP)   // dropped from the broadcast bytes
+tx.outputs[0].getSize()                        // but measured here: the two disagree
+tx.outputs[0].setScript(tx.outputs[0].script)  // the remedy, one line
+```
+
+— while `getSize()` measures the mutated object, so the fee is computed for a transaction that
+will not be sent. `getSize()` now compares the two byte strings it has just computed and emits a
+one-time deprecation notice when they differ. Its coverage is deliberately partial and stated as
+such: that call is the only place the comparison is free, so a mutation followed by serialization
+with no size enquiry is still silent, and `Input` has the same drop with nowhere free to see it.
+
+Re-setting changes the output, so the txid changes and any signature already made over it must be
+remade; building the script before setting it avoids the question.
+
+**The behaviour is unchanged and intended**, and the notice has no false positives: parsing a
+script and re-encoding it is byte-faithful here, measured over every script of three bytes or fewer
+(16,843,009, exhaustive) plus 400,000 push-biased random ones, 0 divergences — now pinned by a
+test, because that fidelity is also what makes the 10.0.0 options decidable. Per STABILITY.md the
+divergence is marked in a minor; the choice recorded for 10.0.0 in `docs/RELEASE-10.0.0.md` is
+between re-syncing on mutation, refusing to hand out a mutable parsed script, and an additive
+pre-broadcast check that covers inputs as well.
+
+### Documentation
+
+- `docs/RELIED-UPON-PROPERTIES.md` §5 states the hazard and the remedy, and §9 is new: what the SPV
+  and anchor checks do and do not establish about a header, measured against real mainnet headers.
+  Among them, `blockHashAtHeight` returns `valid` having checked nothing when it is taken from the
+  header or the certificate; `trustedHash` is satisfied by either end of a chain, so one header
+  equal to it is a valid chain of one; two returned fields are called `work` in units 4.3e9 apart;
+  and the illustrative "about 2.6e10" difficulty in the `minDifficulty` docstrings refuses real
+  mainnet blocks when copied as a floor (block 954784 is 2.5570e10). The docstrings and the
+  typings now say so.
+- Three consecutive real mainnet headers (970073–970075) are vendored as
+  `test/data/spv-mainnet-headers.json`, each hash confirmed outside the library.
+
 ## [9.38.0] - 2026-10-15
 
 ### Added — `Message#verify(address, sig, { lowS: true })` refuses the malleable twin

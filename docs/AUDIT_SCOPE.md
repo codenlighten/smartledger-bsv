@@ -34,7 +34,7 @@ module sounds. That is a deliberate revision: an earlier version of this documen
 scoped Tier 1 as "the cryptographic core" and would have excluded four of the six real
 defects this codebase has produced. See §2.1.
 
-### Tier 1 — 13,258 lines
+### Tier 1 — 13,285 lines
 
 | Module | Lines | Why it matters |
 | --- | ---: | --- |
@@ -150,17 +150,17 @@ this repository.
 | `lib/address.js`, `lib/networks.js`, `lib/opcode.js`, `lib/hdprivatekey.js`, `lib/hdpublickey.js` (2,391 lines) | Cut to pay for §2.1 | Formatting, network constants and BIP-32 derivation. No defect has originated here, and `networks.js` in particular defines addressing constants — pubkey hashes, xpub prefixes, ports, DNS seeds — and contains **no consensus-flag logic at all**. |
 | The rest of the application layer — `lib/gdaf/`, `lib/ltp/`, `lib/ordinals/`, `lib/block/`, `lib/didweb/`, `lib/vcjwt/`, `lib/statuslist/`, most of `lib/smart_contract/`, plus assorted top-level files | Excluded | ~26,000 lines. Worth a separate engagement; including it here would blur the question in §1. Note the parts of it with a demonstrated defect history have been pulled *into* Tier 1 rather than left here — see §2.1. |
 
-Totals reconcile against `lib/`, which is 42,079 lines across 133 files:
+Totals reconcile against `lib/`, which is 42,106 lines across 133 files:
 
 ```
-tier 1      13,258
+tier 1      13,285
 tier 2       1,623
 excluded    27,198
             ------
-total       42,079
+total       42,106
 ```
 
-Measured 2026-10-15 at 9.38.0 (docstrings only since the tag). These figures drift as the library changes — an
+Measured 2026-10-15 at 9.39.0. These figures drift as the library changes — an
 earlier set was 445 lines light by the time it was read, most of it in
 `lib/script/interpreter.js`, which is priced against. `test/docs/audit_scope_figures.js` now recomputes all five figures and fails if this
 document disagrees with `lib/` or with itself — the enquiry text in §6 had drifted to a
@@ -232,7 +232,7 @@ seeking a quote for an independent security review.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 13,258 lines. Sighash construction and signing; ECDSA, nonce
+  Tier 1 — 13,285 lines. Sighash construction and signing; ECDSA, nonce
   derivation and signature encoding; the consensus-flag and era-derivation
   surface of the script interpreter; BRC-220 signing and verification;
   key construction and serialisation; the covenant verification harness and

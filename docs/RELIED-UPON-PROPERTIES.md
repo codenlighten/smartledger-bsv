@@ -245,6 +245,27 @@ Three traps, all measured:
   needs three things together: a non-final sequence number, the HEIGHT-vs-TIMESTAMP unit guard
   (the check almost everyone omits), and 2038 sign-padding. `bsv`'s `lockUntil` DSL has all three;
   `@smartledger/bsv-core` has no DSL at all as of 1.6.0.
+- **Mutating a script in place does not change the transaction.** `output.script` and
+  `input.script` hand out the live `Script` object, but both serializers write the bytes the
+  output or input was *set from*. So `tx.outputs[0].script.add(...)` changes the object, changes
+  what `getSize()` measures, and **changes nothing about what is broadcast** — the mutation is
+  silently dropped and the fee is computed for a transaction that will not be sent. The remedy is
+  one line: `output.setScript(output.script)` after mutating, or build the script before setting
+  it. Since 9.39.0 the output case emits a deprecation notice *when you ask for a size*, which is
+  the only place the two byte strings have both already been computed; a mutation followed by
+  serialization with no size enquiry is still silent, and the input case has no such notice at
+  all. **Re-setting changes the output**, so the txid changes and any signature already made over
+  it must be remade — which is why building the script before setting it is the better habit. The
+  flip is scheduled in [RELEASE-10.0.0.md](RELEASE-10.0.0.md).
+- **Parsing a script and re-encoding it is byte-faithful.** `Script.fromBuffer(b).toBuffer()`
+  equals `b` — measured over **every script of three bytes or fewer** (16,843,009, exhaustive) plus
+  400,000 push-biased random scripts of 4 to 43 bytes: **0 divergences**, including non-minimal
+  pushes (`4c01ff`, `4d0100ff`, `4e01000000ff`) and cut-off length prefixes (`6a4c`, `6a4d01`,
+  bare `4c`). Two consequences: the mutation notice above has no false positives, since nothing
+  but a mutation can make an output's two byte strings differ; and *the text forms are the lossy
+  ones* (see `toASM` above), not the buffer form. Do not read this as a promise that
+  re-serialising a parsed script is always safe — it is a measurement of this parser, and
+  `test/transaction/output_inplace_mutation.js` keeps it honest.
 - **`valueCovenant` pins the whole output set, not one output.** If you want a single output
   pinned, use `valueCovenantSingle` (9.28.0+). Note that 32 zero bytes is the legitimate
   `hashOutputs` for an out-of-range index — a zero pin pins *nothing*.
