@@ -194,6 +194,16 @@ short-data push while answering correctly on the control. 25 published artifacts
 and executed in all, and the control `6a0401020304` matched the reference node in every one of
 them, so the failures are the defect and not a harness that moved.
 
+**And then every version was read, which is what makes the range categorical rather than
+representative.** `lib/transaction/sighash.js` (`dist/transaction/sighash.js` for the core
+package) was fetched for **all 167 published versions** of the three names and checked for the
+function that writes only the bytes the node's walk reached. It is present in **exactly two**:
+`@smartledger/bsv@9.37.0` and `@smartledger/bsv-core@1.6.0`. Every request returned HTTP 200
+with the module present, so no version went unanswered; the listing is
+`../npm-deprecations/sighash-walk-by-version.txt`. This is the same standard the salt range was
+held to, and the reason to apply it here was a review pointing out that 25 executed versions
+support a range over 167 only by inference.
+
 Two shapes with different histories sit inside that one range, which is why the prose spells them
 out: a push whose *data* is short always parsed, so its digest was always wrong, while a push
 whose *length prefix* is cut off used to make the parser throw — no digest at all — until 9.35.0

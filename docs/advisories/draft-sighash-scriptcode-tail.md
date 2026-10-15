@@ -54,16 +54,32 @@ them is dropped, and the length prefix still counts it. The node hashes a field 
 bytes than it contains.
 
 These libraries serialized the scriptCode in full, and so computed a different digest. Both
-directions follow:
+directions follow, stated as what was measured — **script verification under the tested consensus
+rules**, which is not the same as relay, mempool policy or confirmation:
 
-* a signature the network accepts is **rejected** here — a relying party refuses a valid payment;
-* a signature this library produces or accepts is **rejected by the network** — a service that
-  treats its own `verify` as authoritative accepts a transaction that can never confirm.
+* a signature that **passes** the node's script verification **fails** here, so a relying party
+  refuses a spend the network would validate;
+* a signature this library produces or accepts **fails** the node's script verification, so a
+  service that treats its own `verify` as authoritative can accept a transaction that will not
+  validate on the network.
 
-**This is reachable at a hash type in use today.** `SignatureHash` takes the original algorithm
-unless `enabledSighashForkid && sigHashType.hasForkId() && !sigHashType.hasChronicle()`, so
-`0x61` — `SIGHASH_ALL | FORKID | CHRONICLE`, post-Chronicle — uses it, as does any non-FORKID
-type. **BIP-143 is not affected at all**: its scriptCode goes through the plain `CScript`
+The second is the one that could cost something, and only under a specific arrangement: a service
+that accepts an attacker-supplied transaction spending such a prevout, verifies it with this
+library, and acts on that verdict — releasing goods, credit or a second transaction — **before**
+seeing the spend confirmed on chain. That is the scenario `I:H` in the vector below is scored
+against, and `PR:N` assumes the attacker can present such a transaction to that service without
+an account or other privilege, which is the usual case for a public payment endpoint. A service
+that waits for confirmation loses nothing here, because the chain is the authority and this
+library's verdict never becomes one.
+
+**This is reachable at a hash type in use today, and that hash type was the one tested.**
+`SignatureHash` takes the original algorithm unless
+`enabledSighashForkid && sigHashType.hasForkId() && !sigHashType.hasChronicle()`, so `0x61` —
+`SIGHASH_ALL | FORKID | CHRONICLE`, post-Chronicle — uses it, as does any non-FORKID type. The
+spend verification described under Measurement was run at exactly two hash types: **`0x61` under
+mainnet-era flags and `0x01` under non-FORKID-era flags**. Taking the original-algorithm branch is
+what makes the digest differ; it does not by itself make a signature at some other non-FORKID
+type network-valid, and no claim is made about hash types that were not run. **BIP-143 is not affected at all**: its scriptCode goes through the plain `CScript`
 serializer with no walk, so `0x41`, which is what essentially every BSV wallet signs with, is
 unaffected. That, and the unusual prevout script, are why the severity above is medium and not
 high.
@@ -84,9 +100,13 @@ byte-identically, by a second node implementation. It is vendored at
 `test/data/sighash-scriptcode-tail.json` and asserted by
 `test/transaction/sighash_scriptcode_tail.js`.
 
-* **The defect, and the fix.** `@smartledger/bsv@9.36.0` matched the compiled node on **45 of 55**
-  rows; `9.37.0`, installed from the registry, matches on **55 of 55**, preimage and digest, as
-  does `@smartledger/bsv-core@1.6.0`.
+* **The defect, and the fix.** `@smartledger/bsv@9.36.0` matched the compiled node on **45 of the
+  55** rows a parse can produce; `9.37.0`, installed from the registry, matches on **55 of 55**,
+  preimage and digest, as does `@smartledger/bsv-core@1.6.0`. The other **15** rows cover three
+  scripts whose chunk lists a parse never returns, so no released version could be tested against
+  them before the fix; both patched packages, read from the registry, match **15 of 15** against
+  the compiled node and against the second implementation independently. **70 of 70 after the
+  fix.**
 * **Two shapes, with different histories.** A push whose *data* is short (`6a4c050102`,
   `6a4d030001ff`, `6a050102`) always parsed, so its digest has always been wrong. A push whose
   *length prefix* is cut off (`6a4d01`, `6a4e0100`) made the parser **throw** before
@@ -104,15 +124,27 @@ byte-identically, by a second node implementation. It is vendored at
 * **The control.** Every one of those runs also computed the digest for `6a0401020304`, a
   well-formed `OP_RETURN` push, and **every version matched the node on it**. So the failures are
   this defect and not a broken harness, a wrong fixture or an API that moved.
+* **Every published version was read, not just the 25 that were executed.** A range that says
+  "every version" has to answer for the versions nobody ran, so
+  `lib/transaction/sighash.js` — `dist/transaction/sighash.js` for `@smartledger/bsv-core` — was
+  fetched for **all 167 published versions** of the three packages from the CDN that serves the
+  npm tarballs, and checked for the function that writes only the bytes the node's walk reached.
+  It is present in **exactly two of the 167**: `@smartledger/bsv@9.37.0` and
+  `@smartledger/bsv-core@1.6.0`. Every other version — 130 scoped, 22 unscoped, 13 core — lacks
+  it, every request returned HTTP 200 with the module present, so there is no version where the
+  question went unanswered. The per-version listing is in
+  `docs/npm-deprecations/sighash-walk-by-version.txt`.
 * **The ranges above are semver intervals and the registry is not continuous.** Read each as *the
-  published versions it contains*; 25 of the 167 published versions across the three names were
-  executed, spread across each range and anchored at both ends of each.
-* **It is an accept/reject difference, not only a byte difference.** This was established by a
-  separate harness rather than here, and is reported as theirs: 35 spends of the shape
+  published versions it contains*: 25 executed, all 167 read.
+* **It is a verification difference, not only a byte difference.** Established by a separate
+  harness rather than here, and reported as theirs: 35 spends of the shape
   `<pubkey> CHECKSIG OP_RETURN <tail>` were judged by **two** independent engines — a compiled
   v1.2.3 `verify_script` and an independent node implementation — which agree on 35/35 that for
-  these tails the network **accepts** a signature over the node-serializer digest and **rejects**
-  one over the whole-script digest with `SIG_NULLFAIL`.
+  these tails script verification **passes** for a signature over the node-serializer digest and
+  **fails** with `SIG_NULLFAIL` for one over the whole-script digest, at `0x61` under mainnet-era
+  flags and at `0x01` under non-FORKID-era flags. That is a consensus script-verification result.
+  Whether such a transaction would be relayed, accepted into a mempool or mined depends on policy
+  rules that were not tested, and nothing here claims otherwise.
 
 ### Patches
 
@@ -140,10 +172,17 @@ so code that signs the way current BSV wallets sign is not exposed. Code that se
 `SIGHASH_CHRONICLE`, or signs without `SIGHASH_FORKID`, and handles scripts it did not construct
 itself, is.
 
-A scriptCode can be tested before use: parse it and ask whether its final chunk is an undecodable
-push — `Script.fromBuffer(bytes)` and, on `@smartledger/bsv` 9.35.0+ or `@smartledger/bsv-core`
-1.6.0+, the exported `isUndecodablePush`. On earlier versions a cut-off length prefix throws
-instead, which is itself a reliable signal.
+If you must screen rather than upgrade, screen the **bytes**, and screen the scriptCode that is
+actually hashed — which is not always the whole prevout locking script, since `OP_CODESEPARATOR`
+trims it and a P2SH redeem script is a different string. Walk it as the node does: read an
+opcode; for `0x01`–`0x4b` the opcode is the length, for `0x4c`/`0x4d`/`0x4e` read a 1-, 2- or
+4-byte little-endian length after it; if fewer bytes remain than the length field needs, or fewer
+than the declared length, that script is affected. A parsed-chunk test is **not** a general
+substitute: a chunk list can be assembled by hand with an undecodable push anywhere in it, and on
+versions before the fix one of the two shapes throws during parsing instead of returning a chunk
+at all.
+
+Upgrading is the real answer; the screen is for code that cannot upgrade yet.
 
 ### Action required
 
@@ -153,8 +192,10 @@ reviewing migration requirements first.
 
 Then, if you signed or verified anything of the shape described above on an affected version:
 
-* a transaction you signed and broadcast that was never mined may have failed for this reason, and
-  will be accepted once re-signed on a patched version;
+* a transaction you signed and broadcast that was never mined may have failed script verification
+  for this reason, and may pass once re-signed on a patched version — relay and confirmation
+  depend on other rules and on policy, so re-signing removes this cause and does not guarantee
+  the outcome;
 * a signature you **rejected** may have been valid, so any decision taken on a rejection is worth
   revisiting;
 * a signature you **accepted** over the whole-script digest is not valid to the network, and
