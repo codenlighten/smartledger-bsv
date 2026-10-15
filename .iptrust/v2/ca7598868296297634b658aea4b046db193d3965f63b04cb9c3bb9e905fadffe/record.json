@@ -1,0 +1,68 @@
+{
+  "v": "iptrust/1",
+  "type": "Work",
+  "payload": {
+    "title": "@smartledger/bsv 9.37.0 — the original-algorithm signature digest, and the text forms of an undecodable push",
+    "workType": "software",
+    "commitment": {
+      "scheme": "iptrust-commit/1",
+      "kind": "manifest",
+      "c256": "0500b34272780058e9ed44ca5f581296b69dbe131b3ebcadd047bf1ebfc93341",
+      "c3": "35323e4b7918c4fd598c25c0dfc376a9237557b150d122ff905cdc4373c9d2e9"
+    },
+    "creators": [
+      {
+        "name": "Bryan W. Daugherty",
+        "role": "co-author"
+      },
+      {
+        "name": "Gregory J. Ward",
+        "role": "author",
+        "signerKey": {
+          "suite": "secp256k1-prehash",
+          "publicKey": "03a2f39f201f556c3bdadeb2baa4bbb21c13afe04f2fc10c4e2f9e6b4fdafc34a8"
+        }
+      },
+      {
+        "name": "Shawn M. Ryan",
+        "role": "co-author"
+      }
+    ],
+    "claimant": {
+      "name": "Gregory J. Ward, Bryan W. Daugherty, Shawn M. Ryan",
+      "basis": "creator"
+    },
+    "status": "published",
+    "aiUse": {
+      "used": true,
+      "description": "Human-led and human-directed: conceived, specified, directed and reviewed by the named authors. Implementation drafted with AI coding assistance under the authors' direction and accepted by them."
+    },
+    "firstPublished": {
+      "date": "2026-10-15",
+      "where": "npm, @smartledger/bsv@9.37.0"
+    },
+    "statements": [
+      {
+        "role": "author",
+        "lang": "en",
+        "text": "I, Gregory J. Ward, state that I am an author of the work titled \"@smartledger/bsv 9.37.0 — the original-algorithm signature digest, and the text forms of an undecodable push\", whose content is committed to by 0500b34272780058e9ed44ca5f581296b69dbe131b3ebcadd047bf1ebfc93341, and that the information in this record is true to the best of my knowledge. I understand this record is evidence and does not itself create or register any right."
+      }
+    ]
+  },
+  "references": [],
+  "retrieval": {
+    "profile": "held"
+  },
+  "signatures": [
+    {
+      "protected": {
+        "role": "author",
+        "suite": "secp256k1-prehash",
+        "publicKey": "03a2f39f201f556c3bdadeb2baa4bbb21c13afe04f2fc10c4e2f9e6b4fdafc34a8",
+        "statementDigest": "9033b363e8cd8b01e7b88bc375a4600fa50979db70ea180dbe6f2d9c11261857",
+        "claimedSignedAt": "2026-10-15T13:06:46Z"
+      },
+      "sig": "9b0e6ac5a2f5baf29c229dca39d539c03b7b1a9558b9915fc18fff6d549cb17a6d783ba8dbb6a8fb8ba6a7d6692a88f1b5e8258960a9af82abf65f35d9ef1bd9"
+    }
+  ]
+}
