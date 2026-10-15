@@ -43,11 +43,49 @@ any hash of it, as:
 own timestamp or sequence number — with a freshness window. One project keys acceptances on
 `(paymail, xpub, timestamp)` with max-age and max-skew bounds, which is correct and unaffected.
 
-**If you must have one byte string per statement**, enforce low-s yourself on receipt: decode,
-require `2s <= n - 1`, re-encode, and demand the input back byte for byte. `sign()` has only ever
-emitted low-s, so this rejects nothing this library produces — but it may reject signatures from
-other implementations that legitimately emit high-s, which is why the library does not enforce it
-for you.
+**If you must have one byte string per statement, the library will now refuse the twin for you.**
+Since 9.38.0:
+
+```js
+bsv.Message(text).verify(address, sig, { lowS: true })   // false for the malleable twin
+bsv.Message.verify(text, address, sig, { lowS: true })   // the static form takes it too
+```
+
+With the option, `message.error` reads *"The signature is not canonical: s is above half the
+curve order"*, so you can tell a malleability refusal from a wrong-key failure.
+
+**Adopting it rejects nothing this library produces.** `sign()` has only ever emitted low-s —
+measured over 40 fresh keys in `test/message/low_s_option.js`, not assumed. It may still reject
+signatures from *other* implementations that legitimately emit high-s, which is why it is opt-in
+rather than the default.
+
+**The default will change.** Accepting a high-s signature now emits a one-time deprecation notice
+naming 10.0.0, which is when refusing becomes the default. Per
+[STABILITY.md](../STABILITY.md) a breaking fix is marked in a minor and flipped in the major, and
+this is a compatibility change rather than a bug fix: the signatures being refused are valid
+ECDSA. The notice fires only on the accept — a canonical signature raises nothing, and neither
+does a verify that already passes `{ lowS: true }`. Silence it with
+`BSV_NO_DEPRECATION_WARNINGS=1` if you have decided to stay on the old behaviour until 10.0.0.
+
+If you would rather do it at your own boundary, the check is: decode, require `2s <= n - 1`,
+re-encode, and demand the input back byte for byte.
+
+### A note on testing your side of this
+
+You are probably about to write a test. The natural one — assert that `verify()` returns `true`
+for a malleated signature — observes **this library**, which is not where your risk is. The harm
+lands in your own dedupe table, nonce store or audit log, and no assertion about `verify()` can
+see it.
+
+The general form of that mistake, which cost this estate four separate near-misses in one day:
+
+> **A test can miss a mutation because it observes the wrong layer.** A truthy object for what a
+> guard decides. `textContent` for what the eye can compare. A thrown exception for what a
+> verification result reports. A parsed field for what a signature actually covers.
+
+When a mutant survives, the question that works is not *"is this guard tested?"* but **"does my
+assertion observe the layer the guard acts on?"** For malleability, that layer is your store: feed
+it both twins and assert it holds one row.
 
 Two further facts in the same area:
 

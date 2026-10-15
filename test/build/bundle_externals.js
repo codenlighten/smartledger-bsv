@@ -112,7 +112,23 @@ describe('feature bundles externalise the shared primitives', function () {
     // set. Only these are accepted, and each is a deliberate call rather than an
     // accident: lib/util/_.js is a tiny lodash subset, and lib/smart_contract/covenant.js
     // is genuinely the feature of both covenant-flavoured bundles.
-    var ACCEPTED_DUPLICATES = ['lib/util/_.js', 'lib/smart_contract/covenant.js']
+    //
+    // lib/util/deprecate.js joined the list in 9.38.0, when Message#verify began warning on a
+    // non-canonical signature. The call was made rather than inherited:
+    //
+    //   * it is browser-safe duplicated — the module guards its one `process.env` read, and
+    //     bsv-message.min.js was loaded in a context with no `process` defined to confirm it;
+    //   * the only consequence is that "warn once per process" becomes "warn once per copy",
+    //     so a user loading the main bundle and a feature bundle may see the same notice twice.
+    //     The failure direction is MORE notices, never fewer, and no verification result moves;
+    //   * the alternative was to warn from the main bundle only, which would leave browser
+    //     users of the feature bundle with no notice at all before 10.0.0 flips the default.
+    //     That is strictly worse: the notice exists to give them the year's warning.
+    var ACCEPTED_DUPLICATES = [
+      'lib/util/_.js',
+      'lib/smart_contract/covenant.js',
+      'lib/util/deprecate.js'
+    ]
     var seen = {}
     Object.keys(inputsByBundle).forEach(function (file) {
       inputsByBundle[file].forEach(function (input) {

@@ -324,20 +324,32 @@ declare module '@smartledger/bsv' {
      * examples use, and was previously untyped.
      */
     export function Message(message: string | Buffer): Message;
+    /**
+     * Options for Message verification.
+     *
+     * A Message signature has a second encoding that verifies identically for the same key and
+     * message, so the bytes are not a unique name for a statement. `lowS` refuses that twin.
+     * See docs/RELIED-UPON-PROPERTIES.md. The default becomes `true` in 10.0.0.
+     */
+    export interface MessageVerifyOptions {
+        /** Refuse a non-canonical (high-s) signature. Default false through 9.x. */
+        lowS?: boolean;
+    }
+
     export class Message {
         constructor(message: string | Buffer);
 
         readonly messageBuffer: Buffer;
 
         sign(privateKey: PrivateKey): string;
-        verify(address: string | Address, signature: string): boolean;
+        verify(address: string | Address, signature: string, options?: MessageVerifyOptions): boolean;
         toObject(): object;
         toJSON(): string;
         toString(): string;
         inspect(): string;
 
         static sign(message: string | Buffer, privateKey: PrivateKey): string;
-        static verify(message: string | Buffer, address: string | Address, signature: string): boolean;
+        static verify(message: string | Buffer, address: string | Address, signature: string, options?: MessageVerifyOptions): boolean;
         static MAGIC_BYTES: Buffer;
         static magicHash(): string;
         static fromString(str: string): Message;

@@ -5,6 +5,58 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.38.0] - 2026-10-15
+
+### Added — `Message#verify(address, sig, { lowS: true })` refuses the malleable twin
+
+A Message signature has a second encoding that verifies identically for the same key and message:
+flip the recovery id in the header and replace `s` with `n − s`. So the bytes are **not a unique
+name for a statement**, and anything keyed on them — a deduplication key, a nonce, a replay
+marker, an audit identity, a Merkle leaf — has a forgeable twin. Measured at every published
+version back to 1.5.6-fix1. Two projects in this estate had assumed otherwise.
+
+```js
+bsv.Message(text).verify(address, sig, { lowS: true })   // false for the twin
+bsv.Message.verify(text, address, sig, { lowS: true })   // the static form takes it too
+```
+
+`message.error` then reads "The signature is not canonical: s is above half the curve order", so a
+malleability refusal is distinguishable from a wrong-key failure.
+
+**Adopting it rejects nothing this library produces** — `sign()` has only ever emitted low-s,
+measured over 40 fresh keys rather than assumed. It is opt-in rather than default because the
+signatures it refuses are **valid ECDSA**, and other implementations may legitimately emit high-s:
+refusing by default is a compatibility change, not a bug fix. Per STABILITY.md the behaviour is
+marked in a minor and flipped in the major, so accepting a high-s signature now emits a one-time
+notice naming 10.0.0.
+
+The notice fires **only on the accept**. A canonical signature raises nothing, and neither does a
+verify that already passes `{ lowS: true }` — a warning naming a condition the caller does not
+have is noise, and noise gets silenced.
+
+Three sabotage checks, because an option that silently does nothing is worse than no option:
+making `{ lowS: true }` a no-op fails four tests, inverting the low-s comparison fails eight, and
+**dropping the option in the static forwarder fails exactly one** — the test written for that
+failure mode, which is where a signature change goes to die when a delegating wrapper quietly
+drops an argument.
+
+### Added — `docs/RELEASE-10.0.0.md`, the planned major, enforced against the source
+
+The breaking changes this library has promised were scattered across nine source files and three
+docs, which is how a major gets assembled instead of planned. They are now in one place: what
+breaks, what to write instead, and how long the notice has been in consumers' logs. Nine
+registered deprecations dating from 9.1.0, five decisions that have no call site to attach a
+notice to, and two candidates — including making the verification functions share a return
+convention, which is the single change most likely to stop a consumer shipping a silent accept.
+
+`test/properties/release_10_plan.js` asserts that **every `removeIn: '10.0.0'` in `lib/` appears
+in the plan**, and that every source path the plan cites exists. Sabotage-tested both ways:
+registering a new 10.0.0 deprecation without adding it to the plan fails the suite naming the file
+and line, and renaming a cited path fails it naming the path. A hand-maintained release plan drifts
+from the code; this one cannot.
+
+Still no 10.0.0 before 2027-09-01, unchanged.
+
 ## [Unreleased]
 
 ### Added — `docs/RELIED-UPON-PROPERTIES.md`, and a test that keeps it true

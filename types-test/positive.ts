@@ -179,3 +179,17 @@ export {
   legacyMode, legacyVersion, referenceVersion, isOld, legacyEncoding
 }
 
+
+// Message#verify's low-s option, as docs/RELIED-UPON-PROPERTIES.md documents it. These four
+// calls are the whole public contract: both layers, with and without the option. The typings
+// carried neither overload when the feature shipped in 9.38.0 — check:dts passed because it
+// checks that members EXIST, not what they accept — so the documented call did not compile for
+// a TypeScript consumer at all.
+const lowSPriv = new bsv.PrivateKey()
+const lowSAddr: string = lowSPriv.toAddress().toString()
+const lowSSig: string = bsv.Message('authority: release funds').sign(lowSPriv)
+const lowSStrict: boolean = bsv.Message('authority: release funds').verify(lowSAddr, lowSSig, { lowS: true })
+const lowSLoose: boolean = bsv.Message('authority: release funds').verify(lowSAddr, lowSSig)
+const lowSStaticStrict: boolean = bsv.Message.verify('authority: release funds', lowSAddr, lowSSig, { lowS: true })
+const lowSStaticLoose: boolean = bsv.Message.verify('authority: release funds', lowSAddr, lowSSig)
+void lowSStrict; void lowSLoose; void lowSStaticStrict; void lowSStaticLoose

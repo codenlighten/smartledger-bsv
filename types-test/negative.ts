@@ -71,3 +71,6 @@ bsv.NotaryHash.Merkle.rootFromPath(Buffer.alloc(32), [{ hash: Buffer.alloc(32), 
 
 // @expect-error the header height is a number
 bsv.NotaryHash.verify({}, { header: Buffer.alloc(80), height: '900000' })
+
+// @expect-error the low-s option takes a boolean, not a string
+bsv.Message('m').verify(new bsv.PrivateKey().toAddress().toString(), 'sig', { lowS: 'yes' })

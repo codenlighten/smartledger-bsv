@@ -52,6 +52,26 @@ describe('relied-upon properties', function () {
       documented('Message signatures are malleable')
     })
 
+    it('the documented { lowS: true } option refuses the twin and accepts what we sign', function () {
+      var sigA = bsv.Message(message).sign(priv)
+      var raw = Buffer.from(sigA, 'base64')
+      var recid = (raw[0] - 31) & 3
+      var n = bsv.crypto.Point.getN()
+      var s = BN.fromBuffer(raw.slice(33, 65))
+      var twin = Buffer.concat([Buffer.from([31 + (recid ^ 1)]), raw.slice(1, 33),
+        n.sub(s).toBuffer({ size: 32 })]).toString('base64')
+      bsv.Message(message).verify(address, twin, { lowS: true }).should.equal(false)
+      bsv.Message(message).verify(address, sigA, { lowS: true }).should.equal(true)
+      bsv.Message.verify(message, address, twin, { lowS: true }).should.equal(false)
+      documented('{ lowS: true }')
+      documented('The default will change')
+    })
+
+    it('the document names the wrong-layer lesson where a reader will write a test', function () {
+      documented('observes the wrong layer')
+      documented('observe the layer the guard acts on')
+    })
+
     it('sign() itself only ever emits low-s, which is why enforcing it rejects nothing we produce', function () {
       var n = bsv.crypto.Point.getN()
       var halfOrder = n.sub(new BN(1)).div(new BN(2))
