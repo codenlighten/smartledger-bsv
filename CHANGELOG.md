@@ -5,6 +5,143 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.37.0] - 2026-10-15
+
+### Fixed — the original-algorithm signature digest signed bytes the node does not sign
+
+**A consensus divergence, and the one the 9.35.0 parser change opened the door to.** When a
+scriptCode ends in a push the node cannot decode, the node does **not** serialize all of it into
+the original-algorithm digest. `CTransactionSignatureSerializer::SerializeScriptCode` writes
+
+    ::WriteCompactSize(s, scriptCode.size() - nCodeSeparators);
+
+and then the bytes up to the iterator left by the **last, failed** `GetOp` — and `GetOp2`
+advances `pc` past the opcode, and past a complete length field, *before* testing whether the
+rest is present:
+
+    unsigned int opcode = *pc++;
+    ...
+    } else if (opcode == OP_PUSHDATA2) { if (end() - pc < 2) return false; nSize = ReadLE16(&pc[0]); pc += 2; }
+    if (end() - pc < 0 || (unsigned int)(end() - pc) < nSize) return false;
+
+So the opcode and whatever length field it read are written, the partial operand after them is
+dropped, **and the length prefix still counts it**. The node hashes a field that declares more
+bytes than it contains. This library wrote the scriptCode in full, and so computed a different
+digest: a signature valid on the network did not verify here, and one made here would not verify
+there.
+
+Measured against a compiled **bitcoin-sv v1.2.3**, over a 55-row reference corpus now vendored
+as `test/data/sighash-scriptcode-tail.json`: **45 of 55 rows agreed before this release, and all
+55 agree after it** — preimage and digest both. The ten that differed are
+`6a4d01`, `6a4e0100`, `6a4c050102`, `6a4d030001ff` and `6a050102`, each at both
+original-algorithm hash types.
+
+**`6a4c` is not one of them**, and that row is why this is a model rather than a guess: its
+cut-off prefix is **empty**, so the node writes the whole script and nothing is dropped. A fix
+that dropped "the undecodable chunk" instead of "the bytes past where the walk stopped" would
+pass the five scripts above and break this one. The rule is exactly:
+
+    dropped = chunk.lenPrefix !== undefined ? chunk.lenPrefix.length : chunk.buf.length
+
+on the final chunk, when that chunk is an undecodable push — and an undecodable push is always
+the final chunk.
+
+**Reachable today.** `SignatureHash` takes the original algorithm whenever
+`enabledSighashForkid && sigHashType.hasForkId() && !sigHashType.hasChronicle()` is false — so
+for any non-FORKID hash type, and for **`0x61`, FORKID|CHRONICLE**, which is post-Chronicle and
+current. **BIP-143 is untouched**: its scriptCode goes through the plain `CScript` serializer
+with no walk, and all 33 BIP-143 rows of the corpus matched before and after. The 1,000-row
+sighash vector report still passes 1000/1000, the script vectors 1483/1483 with zero false
+accepts and zero false rejects, the tx vectors 161/161 and the conformance corpus 452/452.
+
+`Input` gained a private `_scriptCodeLength`, the length its script field *declares* when that
+differs from the bytes present. Only this digest sets it, on its own throwaway copy of the
+transaction. A real transaction serialized that way would not parse, which is why the field is
+documented as off limits everywhere else.
+
+**What this corrects on our side as well.** A claim carried in these notes since 9.35.0 — that
+the library's signed bytes had been confirmed byte-exact against the reference on a 55-row
+corpus — rested on a comparison that turned out to be vacuous, and the session that produced it
+withdrew it. The honest version is the one above: 45 of 55 before, 55 of 55 after. The lesson is
+the one this changelog has recorded before in other words: **a confirmation is only as good as
+the column it was compared against, and "it matched" is worth nothing until something is known
+to be capable of failing.**
+
+### Fixed — a script with a cut-off push length could be written to text but not read back
+
+9.35.0 made `Script.fromBuffer` total, so the three locking scripts `6a4c`, `6a4d01` and
+`6a4e0100` — valid outputs the node accepts and mines, one of them on livenet — finally parsed.
+The chunk it produces carries the partial bytes in `lenPrefix`, and `_chunkToString` writes them
+as raw bytes, `OP_RETURN 0x4c`, the same escape this grammar already used for an opcode with no
+name.
+
+**Nothing could read that text back.** `rawOpcodeToken` deliberately refuses a push byte, so
+`0x4c` fell through to the data branch and `Script.fromString(script.toString())` threw
+`Invalid script`, as did `Script.fromASM(script.toASM())`. A public pair of functions where one
+emits what the other refuses is a round trip that does not exist, and this release closes it:
+`lenPrefixToken` reads the token, and the chunk it returns is the chunk `fromBuffer` gives for
+the same bytes.
+
+Measured over every 1- and 2-byte script plus every 3-byte script opening with a pushdata opcode
+— 590,080 scripts parsed, of which **382,540 carry an undecodable push**:
+
+| | before | after |
+|---|---|---|
+| `fromString(toString())` threw | 69,448 | **0** |
+| `fromString(toString())` returned different bytes | 0 | **0** |
+| `fromString(toString())` changed the `isPushOnly` answer | 0 | **0** |
+
+So `toString`/`fromString` is now exact — bytes, chunks and predicates — for every script in
+that set, and `fromASM(toASM())` is exact for every cut-off-prefix script.
+
+**What this release does not fix, stated because the same sweep measures it.** A push whose
+length prefix is *complete* and whose *data* is short still has no ASM form: ASM writes a push as
+its bare hex, and that hex reads back as a push of exactly that many bytes, so `4c05` followed by
+two bytes returns as a two-byte push. In the sweep, 313,095 scripts come back from `fromASM` with
+different bytes and 256,693 change their `isPushOnly` answer from `false` to `true`. Published
+9.36.0 gives the same two figures (313,092 and 256,693; the three are empty `PUSHDATA1` pushes,
+`4c004c`, whose non-minimal encoding ASM cannot write either — they only moved out of the
+throwing column into this one). This is older than the cut-off-prefix work and independent of it.
+**For a malformed script, `toBuffer`/`fromBuffer` is the authoritative round trip and
+`toString`/`fromString` is now exact; ASM is a display format and cannot carry one.**
+
+That last point is a decision, not a limit of the mechanism, and it was taken with the
+alternative built and measured. Writing such a chunk as raw bytes in ASM too — the same escape —
+makes `fromASM(toASM())` exact for **all 721,152** scripts in the sweep, with **zero** change to
+the ASM text of any script whose ASM already round-tripped. It also rewrites the ASM of 378,633
+scripts whose text was lossy, and **13 existing tests assert that old text**, including three
+that pin `4c00` printing as the minimal `0` and one that documents ASM as deliberately minimal.
+So it overturns a documented position about what ASM is for, on a published package, and that is
+not a port's decision to make. The patch is small and the numbers above are what it costs and
+buys.
+
+`PUSH_LEN_FIELD_SIZE` now holds the 1/2/4 length-field sizes in one table that both the byte
+parser and the text reader read, so the two cannot come to disagree about where a prefix is
+incomplete.
+
+### Why 9.37.0 is a minor
+
+`STABILITY.md`'s rule for a consensus bug is that it "is fixed in a patch when it only refuses
+what the network refuses, and in a minor when it changes what is accepted". The digest correction
+changes which signatures verify in **both** directions for the scripts it covers, which is the
+clearest case that rule has; and the text reader accepts input it refused before. No API name is
+added, removed or re-typed, and no signature over a scriptCode whose pushes all decode — every
+well-formed script — changes at all.
+
+Also corrected: a comment in `_chunkToString` claimed the text read back as "bare opcode chunks"
+with identical bytes and an opposite `isPushOnly`. It did not — it threw. The test beside it
+asserted the throw, which was true, under a name that called throwing "the safe direction"; the
+safe direction was to be able to read it.
+
+Consensus is untouched: the interpreter never sees a text form, `vectors:sv` is 1483/1483 with 0
+false accepts and 0 false rejects, `vectors:sv-tx` 161/161, `vectors:sv-sighash` 1000/1000 and
+the conformance corpus 452/452. A direct differential against `@smartledger/bsv-core` over
+655,616 byte strings — chunks, `toBuffer`, both text forms, both text readers, `isPushOnly` and
+`classify` — reports zero differences.
+
+Found by an outside review of the same fix being ported to `@smartledger/bsv-core`, which asked
+whether any path could drop `lenPrefix`. The text path did not drop it; it refused to carry it.
+
 ## [9.36.0] - 2026-10-14
 
 ### Fixed — `generateAgeProof` ignored its argument and attested a hardcoded birth date
