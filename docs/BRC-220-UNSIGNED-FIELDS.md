@@ -1,7 +1,11 @@
 # BRC-220: proposed amendment — the unsigned region of a certificate
 
-**Status:** branch prepared and revised, **not pushed and not filed**. The push to the fork was
-blocked locally, so filing is the one step outstanding.
+**Status: FILED 2026-10-15 as [bsv-blockchain/BRCs#322](https://github.com/bsv-blockchain/BRCs/pull/322)**,
+open and mergeable. One commit, `693575b`, `apps/0220.md` only, +7 −0. The file GitHub serves at
+the PR head is byte-identical to the audited branch — sha256
+`4d7cfae5c34d0ba7e0c50008d3ebfff086f69b234fec859cf955eaa2e62f1cfd` — so the audit below holds of
+the artifact the maintainers read, not just of a local copy. The repo runs no checks on markdown
+branches. PR body: `docs/BRC-220-UNSIGNED-FIELDS.pr.md`, served byte-for-byte as written.
 
 Re-verified 2026-10-14 against `apps/0220.md` at `bsv-blockchain/BRCs@master` (662d25e, 219
 lines). The two editorial words that differ from the version this was drafted against
