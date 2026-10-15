@@ -228,12 +228,12 @@ describe('the states that can make a script unreadable', function () {
     // setScriptFromBuffer's argument, which is now checked with Buffer.isBuffer before this
     // line runs; `args.script` is inside an `if (Buffer.isBuffer(args.script))`.
     var BUFFER_SOURCES = [
-      /\.toBuffer\(\)$/,                 // a Script's own serialization
-      /^buffer\.Buffer\.from\(/,         // an explicit Buffer.from
+      /\.toBuffer\(\)$/, // a Script's own serialization
+      /^buffer\.Buffer\.from\(/, // an explicit Buffer.from
       /^Buffer\.from\(/,
-      /^br\.readVarLengthBuffer\(\)$/,   // BufferReader, deserializing a transaction
-      /^buffer$/,                         // setScriptFromBuffer's checked argument
-      /^args\.script$/                    // guarded by Buffer.isBuffer(args.script)
+      /^br\.readVarLengthBuffer\(\)$/, // BufferReader, deserializing a transaction
+      /^buffer$/, // setScriptFromBuffer's checked argument
+      /^args\.script$/ // guarded by Buffer.isBuffer(args.script)
     ]
     hits.forEach(function (h) {
       var ok = BUFFER_SOURCES.some(function (re) { return re.test(h.rhs) })
