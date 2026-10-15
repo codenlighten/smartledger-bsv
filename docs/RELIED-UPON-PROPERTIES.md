@@ -64,12 +64,17 @@ Two further facts in the same area:
 **Measured on published 9.37.0.** This is the trap most likely to cause a silent accept, because
 the correct spelling for one function is wrong for the next.
 
-| function | returns | `if (result)` is |
-|---|---|---|
-| `verifyAgeProof` | `boolean` | **correct** |
-| `verifyCredential` | **a Promise** of `{ valid, errors }` | **always true** |
-| `validateCredential` | `{ valid, errors }` | **always true** |
-| `verifyLegalToken` | `{ valid, errors }` | **always true** |
+| function | returns | `if (result)` is | error field |
+|---|---|---|---|
+| `verifyAgeProof` | `boolean` | **correct** | — |
+| `verifyCredential` | **a Promise** of `{ valid, errors }` | **always true** | `errors` (array) |
+| `validateCredential` | `{ valid, errors }` | **always true** | `errors` (array) |
+| `verifyLegalToken` | `{ valid, error }` **or** `{ valid, errors }` | **always true** | **not stable — see below** |
+
+**This is not new and it is not a regression.** Measured at eight published versions: the four
+functions are absent in 1.5.6-fix1 and 3.0.2, and from **4.0.0 through 9.37.0** the shapes above
+are identical at every version checked (4.0.0, 5.0.0, 6.0.0, 7.0.0, 9.0.0, 9.16.1, 9.30.0,
+9.37.0). So the trap applies to whatever version you are on, and upgrading does not address it.
 
 There are **two** separate mistakes available, and the second is the dangerous one because
 fixing the first feels like it fixed the problem:
@@ -91,11 +96,54 @@ Measured directly: `await bsv.verifyCredential({ bogus: true })` resolves to
 `{"valid":false,"errors":["Missing @context", ...]}`, for which `!!r` is `true` and `!!r.valid`
 is `false`.
 
+### `verifyLegalToken` names its error field two different ways
+
+Within that one function, some paths return `error` as a **string** and others return `errors` as
+an **array** — measured on 9.37.0 across seven inputs, four taking the `error` path and three the
+`errors` path:
+
+```
+verifyLegalToken({})                                 -> {valid:false, error:  "No proof found in token"}
+verifyLegalToken(null)                               -> {valid:false, error:  "..."}
+verifyLegalToken('nope')                             -> {valid:false, error:  "..."}
+verifyLegalToken([])                                 -> {valid:false, error:  "..."}
+verifyLegalToken({proof:{type:'x',signature:'zz'}})  -> {valid:false, errors: ["Missing signature proof"]}
+verifyLegalToken({proof:{}})                         -> {valid:false, errors: [...]}
+verifyLegalToken({proof:{type:'x'}})                 -> {valid:false, errors: [...]}
+```
+
+So the obvious way to show a user *why* verification failed is a crash waiting on the commonest
+input. Measured: `bsv.verifyLegalToken({}).errors.join(', ')` throws
+`TypeError: Cannot read properties of undefined (reading 'join')`.
+
+**Read both, and do not assume an array:**
+
+```js
+const r = bsv.verifyLegalToken(token)
+if (!r.valid) {
+  const why = r.errors ? r.errors.join(', ') : (r.error || 'verification failed')
+}
+```
+
+`validateCredential` is uniform (`errors`, an array, on all seven inputs). `verifyCredential`
+resolves to the same uniform shape. **Only `verifyLegalToken` mixes the two.**
+
 Note also that `verifyCredential` is a plain `Function`, not an `AsyncFunction` — so a guard that
 tests `fn.constructor.name === 'AsyncFunction'` to find the async entry points **will not find
 this one**. It returns a Promise regardless.
 
-**Rule: read the documented field. Never treat a verification result's truthiness as its verdict.**
+**Rule: read the documented field. Never treat a verification result's truthiness as its verdict,
+and do not assume the error field's name or type is the same across two functions — or across two
+code paths of one function.**
+
+A note on how to test your own side of this. Asserting the shape here catches a change in the
+library, but it cannot catch *your* caller reading the result wrongly — that is a property of your
+code, not of ours, and a test in this repository will never see it. The check that works is one
+that reads your own call site: locate the variable the result is assigned into, and require the
+guard that follows to test a property of it rather than the value itself. One project in this
+estate does exactly that and sabotage-tested it both ways. An assertion that merely confirms "a
+refusal object is truthy" describes the hazard instead of catching it, and cannot fail when a
+caller changes its condition.
 
 ---
 

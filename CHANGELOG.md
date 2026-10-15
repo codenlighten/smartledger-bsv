@@ -41,11 +41,35 @@ opcode as `OP_NOP2`, so CLTV alone locks nothing; the Shamir integrity checksum 
 by default and `splitId` exists; and a Shamir share is **odd-length hex**, so
 `Buffer.from(share, 'hex')` silently drops the last nibble.
 
-`test/properties/relied_upon.js` (25 tests) re-measures every claim **and** asserts the document
+Two corrections came back from a consumer project reading the page against its own code, both
+confirmed here before being applied:
+
+- **`verifyLegalToken` names its error field two different ways within the one function.** Four
+  input shapes return `error` as a string and three return `errors` as an array (measured on
+  9.37.0). So the obvious way to show a user why verification failed is a crash waiting on the
+  commonest input: `bsv.verifyLegalToken({}).errors.join(', ')` throws a `TypeError`. The page now
+  gives the form that works and records that `validateCredential` and `verifyCredential` are
+  uniform by contrast — only `verifyLegalToken` mixes the two.
+- **The return-convention trap is not new, and upgrading does not address it.** Measured at eight
+  published versions: the four functions are absent in 1.5.6-fix1 and 3.0.2, and the shapes are
+  identical from **4.0.0 through 9.37.0**. The first draft named only the version it was measured
+  on, which would have let a reader on an older release assume it did not apply to them.
+
+The same project also made the sharper methodological point, now recorded in the page: asserting
+a shape here catches a change in this library, but it cannot catch a *caller* reading the result
+wrongly, because that is a property of the consumer's code and no test in this repository will
+ever see it. The check that works reads the call site — find the variable the result is assigned
+into and require the following guard to test a property of it. An assertion that merely confirms
+"a refusal object is truthy" describes the hazard instead of catching it.
+
+`test/properties/relied_upon.js` (29 tests) re-measures every claim **and** asserts the document
 still states it, so the prose and the behaviour cannot drift apart — a reference of this kind is
 worthless once stale. Both directions were sabotage-tested: removing a phrase from the prose fails
 the suite naming the missing phrase, and injecting a low-s refusal into `Message.verify` fails it
-with a message saying that is a compatibility change rather than a fix.
+with a message saying that is a compatibility change rather than a fix. The error-shape assertions were
+sabotage-tested the same way: making `verifyLegalToken` uniform fails two of them, which is the
+intended signal — that change would break anyone reading `.error`, and the page would have to
+change with it.
 
 
 ### Checked — nothing other than an undecodable output script reaches the null-script path

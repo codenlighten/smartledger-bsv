@@ -93,6 +93,60 @@ describe('relied-upon properties', function () {
       documented('not an `AsyncFunction`')
     })
 
+    it('verifyLegalToken names its error field two ways WITHIN ONE FUNCTION', function () {
+      if (typeof bsv.verifyLegalToken !== 'function') this.skip()
+      // Four inputs take the `error` (string) path, three take `errors` (array). Found by the
+      // app3 session reading the page's recommended remedy and noticing it crashes.
+      var stringPath = [{}, null, 'nope', []]
+      var arrayPath = [{ proof: { type: 'x', signature: 'zz' } }, { proof: {} }, { proof: { type: 'x' } }]
+      stringPath.forEach(function (input, i) {
+        var r = bsv.verifyLegalToken(input)
+        r.valid.should.equal(false)
+        r.should.have.property('error')
+        r.error.should.be.a('string', 'string-path input ' + i)
+        should.equal(r.errors, undefined, 'string-path input ' + i + ' also carried errors')
+      })
+      arrayPath.forEach(function (input, i) {
+        var r = bsv.verifyLegalToken(input)
+        r.valid.should.equal(false)
+        r.should.have.property('errors')
+        r.errors.should.be.an('array', 'array-path input ' + i)
+      })
+      documented('names its error field two different ways')
+    })
+
+    it('so the obvious remedy crashes on the commonest input', function () {
+      if (typeof bsv.verifyLegalToken !== 'function') this.skip()
+      var r = bsv.verifyLegalToken({})
+      ;(function () { return r.errors.join(', ') }).should.throw(TypeError)
+      // and the form the document recommends does not
+      var why = r.errors ? r.errors.join(', ') : (r.error || 'verification failed')
+      why.should.be.a('string')
+      why.length.should.be.above(0)
+      documented("r.errors ? r.errors.join(', ') : (r.error")
+    })
+
+    it('validateCredential, by contrast, is uniform across the same inputs', function () {
+      if (typeof bsv.validateCredential !== 'function') this.skip()
+      ;[{}, null, 'nope', [], { proof: {} }].forEach(function (input, i) {
+        var r
+        try { r = bsv.validateCredential(input) } catch (e) { return }
+        if (!r || typeof r.then === 'function') return
+        r.should.have.property('errors')
+        r.errors.should.be.an('array', 'input ' + i)
+      })
+      documented('`validateCredential` is uniform')
+    })
+
+    it('the document states the measured version range, not just the version I ran', function () {
+      // A page that names only the version it was measured on invites a reader on an older
+      // release to assume it does not apply to them. Measured at eight versions: absent in
+      // 1.5.6-fix1 and 3.0.2, identical from 4.0.0 through 9.37.0.
+      documented('**4.0.0 through 9.37.0**')
+      documented('absent in 1.5.6-fix1 and 3.0.2')
+      documented('upgrading does not address it')
+    })
+
     var objectShaped = ['validateCredential', 'verifyLegalToken']
     objectShaped.forEach(function (name) {
       it(name + ' returns a {valid} object, truthy even when invalid', function () {
