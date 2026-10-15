@@ -36,14 +36,16 @@ any hash of it, as:
 - a deduplication or idempotency key;
 - a nonce, replay-protection token, or "have I seen this request" marker;
 - a primary key, audit-log identity, or cache key;
-- a Merkle leaf, unless you refuse non-canonical encodings **on the received bytes before
-  hashing** — otherwise the twin is a second valid leaf for the same statement.
+- a Merkle leaf. Refusing non-canonical encodings **on the received bytes before hashing** stops a
+  *third party* adding the twin as a second leaf, but it does not stop the **signer** producing
+  another valid signature over the same statement (see below), so a one-leaf-per-statement rule has
+  to be keyed on the statement.
 
 **What to key on instead:** the tuple of fields the signature *covers* — signer, message, and your
 own timestamp or sequence number — with a freshness window. One project keys acceptances on
 `(paymail, xpub, timestamp)` with max-age and max-skew bounds, which is correct and unaffected.
 
-**If you must have one byte string per statement, the library will now refuse the twin for you.**
+**`{ lowS: true }` removes one twin. It does not give you one byte string per statement.**
 Since 9.38.0:
 
 ```js
@@ -69,6 +71,44 @@ does a verify that already passes `{ lowS: true }`. Silence it with
 
 If you would rather do it at your own boundary, the check is: decode, require `2s <= n - 1`,
 re-encode, and demand the input back byte for byte.
+
+### Low-s does not make a signature unique, and no encoding rule can
+
+This is the misreading the option invites, so it is stated as a measurement. **Measured on
+published 9.39.0**, with the key and message above: seven **distinct** signatures over one
+`(key, message)`, every one of them low-s, every one verifying, and every one passing
+`verify(address, sig, { lowS: true })`.
+
+```
+deterministic   H5yoMJLTxFCcOxRdE+QKNFbB…   r 9ca83092d3c4
+preset k #1     Hy0g4nM46wBgNfBHue9ycMz+…   r 2d20e27338eb
+preset k #2     H1qtx4cK1id56+3VXZV5sNwk…   r 5aadc7870ad6
+preset k #3     HxIvnoepQBuACvkSQuiUuQuq…   r 122f9e87a940
+preset k #4     HwF1tXam5mXhlv8EKGfCBRE2…   r 175b576a6e66
+randomK #1      IEenDVjlYbIsETSovGj4CNSG…   r 47a70d58e561
+randomK #2      IDjA2O56G5DOMOgX+tYpBvCM…   r 38c0d8ee7a1b
+```
+
+They are not alternative *encodings* of one signature — they are **different signatures**, each
+with its own `r`, because ECDSA picks a nonce and `ECDSA#randomK()` and a preset `k` are both part
+of the public surface. The twin that `{ lowS: true }` refuses is one particular second encoding of
+one particular signature; the set of valid low-s signatures over a message is as large as the nonce
+space. So:
+
+- a **malleability** rule (low-s, canonical base64, strict DER) defeats a *third party* who
+  reshapes a signature they intercepted, and that is worth having;
+- it cannot make a signature *name* a statement, because the holder of the key can always produce
+  another one.
+
+**`Message#sign` is deterministic** — five calls over the same bytes with the same key return one
+identical signature (RFC 6979, measured, and reproduced byte for byte by an independent
+implementation in another language). That is a property of **this signer**, not of a verifier's
+input, which arrives from whoever sent it. Writing a test that asserts "exactly one record" and
+relying on signer determinism to keep it true is the shape of mistake to avoid: that property has
+to come from your deduplication key.
+
+**The rule, in one line: a signature names an act of signing, never the claim. Key identity and
+deduplication on the claim's own fields.**
 
 ### A note on testing your side of this
 

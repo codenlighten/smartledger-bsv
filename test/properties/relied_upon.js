@@ -52,6 +52,53 @@ describe('relied-upon properties', function () {
       documented('Message signatures are malleable')
     })
 
+    it('low-s does not make a signature unique: distinct low-s signatures verify for one message', function () {
+      // A consumer session measured this against its own build and sent it as a correction to
+      // advice this page had given: {lowS:true} removes ONE twin, it does not bound the number of
+      // valid signatures over a message. Reproduced here, because the page now states it.
+      var magic = bsv.Message(message).magicHash()
+      var sigs = []
+      function signWith (prepare) {
+        var e = new bsv.crypto.ECDSA()
+        e.hashbuf = magic
+        e.privkey = priv
+        e.pubkey = priv.toPublicKey()
+        if (prepare) prepare(e)
+        e.sign()
+        e.calci()
+        return e.sig
+      }
+      sigs.push(signWith(null))
+      ;[1, 2, 3, 4].forEach(function (i) {
+        var k = BN.fromBuffer(Hash.sha256(Buffer.from('nonce' + i, 'utf8')))
+        sigs.push(signWith(function (e) { e.set({ k: k }) }))
+      })
+      sigs.push(signWith(function (e) { e.randomK() }))
+
+      var distinct = {}
+      sigs.forEach(function (sig) {
+        var b64 = sig.toCompact().toString('base64')
+        distinct[b64] = true
+        sig.hasLowS().should.equal(true, 'every signature here must be low-s for the point to hold')
+        bsv.Message(message).verify(address, b64).should.equal(true)
+        // and the strict option accepts them all: it is not a uniqueness rule
+        bsv.Message(message).verify(address, b64, { lowS: true }).should.equal(true,
+          '{ lowS: true } must not be read as making a signature unique')
+      })
+      Object.keys(distinct).length.should.equal(sigs.length,
+        'each nonce must give a different signature, or this test proves nothing')
+      Object.keys(distinct).length.should.be.above(5)
+      documented('Low-s does not make a signature unique, and no encoding rule can')
+      documented('a signature names an act of signing, never the claim')
+    })
+
+    it('sign() is deterministic, which is a property of the signer and not of the input', function () {
+      var seen = {}
+      for (var i = 0; i < 5; i++) seen[bsv.Message(message).sign(priv)] = true
+      Object.keys(seen).length.should.equal(1)
+      documented('a property of **this signer**')
+    })
+
     it('the documented { lowS: true } option refuses the twin and accepts what we sign', function () {
       var sigA = bsv.Message(message).sign(priv)
       var raw = Buffer.from(sigA, 'base64')
