@@ -255,7 +255,9 @@ Three traps, all measured:
   it. Since 9.39.0 the output case emits a deprecation notice *when you ask for a size*, which is
   the only place the two byte strings have both already been computed; a mutation followed by
   serialization with no size enquiry is still silent, and the input case has no such notice at
-  all. **Re-setting changes the output**, so the txid changes and any signature already made over
+  all. **If you size transactions by serialising them** — `tx.uncheckedSerialize().length / 2`, as
+  at least one wallet in this estate does — you are immune to the divergence by construction, and
+  the notice will never reach you either, because `getSize()` is never called. **Re-setting changes the output**, so the txid changes and any signature already made over
   it must be remade — which is why building the script before setting it is the better habit. The
   flip is scheduled in [RELEASE-10.0.0.md](RELEASE-10.0.0.md).
 - **Parsing a script and re-encoding it is byte-faithful** (published 9.39.0).

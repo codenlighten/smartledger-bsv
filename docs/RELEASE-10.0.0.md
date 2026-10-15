@@ -78,6 +78,14 @@ strings have just been computed, so a caller who mutates and serializes without 
 is not warned. `Input` has the same drop with no free place to see it, and
 [RELIED-UPON-PROPERTIES.md](RELIED-UPON-PROPERTIES.md) §5 says so.
 
+**A measured consumer makes the case for the third shape.** A wallet in this estate sizes its
+transactions as `probe.uncheckedSerialize().length / 2 + 2` and contains **no `getSize()` call at
+all**. That pattern is immune to the divergence by construction — it prices exactly the bytes it
+broadcasts — but it also means the 9.39.0 notice has no observation point on that caller's path and
+would never fire for them whatever they did to a script. So the notice reaches the callers who ask
+for a size, which is not the same set as the callers at risk. A pre-broadcast check is the only one
+of the three shapes that does not depend on which sizing idiom a consumer happens to use.
+
 ### Why the three dotted-key items are here rather than fixed
 
 `.` is the path separator in credential and LTP field names, so a field actually named `a.b`
