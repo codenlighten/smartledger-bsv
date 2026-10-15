@@ -16,6 +16,12 @@
 // disagreement between the two is informative instead of inherited — which is the lesson of the
 // independent Python verifier that found two soundness defects here on the same day.
 
+// 2026-10-15: for most of this file's life it LOADED bsv-message.min.js and bsv-ecies.min.js
+// and then never touched them — they set their own globals (`bsvMessage`, `bsvEcies`) while
+// loadBundles() returned only `bsv`, which the full bundle sets and which already carries both.
+// So a broken standalone bundle passed everything here. The wallet session noticed; two tests
+// below close it.
+//
 // WHAT THIS ACTUALLY CATCHES, measured by sabotaging the built bundle and re-running rather
 // than assumed from the fact that it passes:
 //
@@ -68,6 +74,29 @@ function loadBundles () {
     vm.runInContext(src, ctx, { filename: f })
   })
   return sandbox.bsv || sandbox.window.bsv
+}
+
+// The standalone bundles set their OWN globals — `bsvMessage`, `bsvEcies` — beside `bsv`, and
+// returning only `bsv` meant this file loaded them and then never touched them. See the test
+// 'the standalone bundles are the ones under test when they are loaded' below for why that
+// mattered.
+function loadSandbox () {
+  var sandbox = { console: { log: function () {}, warn: function () {}, error: function () {} } }
+  sandbox.window = sandbox
+  sandbox.self = sandbox
+  sandbox.globalThis = sandbox
+  sandbox.global = sandbox
+  sandbox.crypto = crypto.webcrypto
+  sandbox.Buffer = Buffer
+  sandbox.process = { env: {}, version: process.version, nextTick: process.nextTick }
+  sandbox.setTimeout = setTimeout
+  sandbox.TextEncoder = TextEncoder
+  sandbox.TextDecoder = TextDecoder
+  var ctx = vm.createContext(sandbox)
+  BUNDLES.forEach(function (f) {
+    vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f })
+  })
+  return sandbox
 }
 
 describe('browser bundles match the Node build', function () {
@@ -140,6 +169,71 @@ describe('browser bundles match the Node build', function () {
     var enc = new browser.ECIES().privateKey(a).publicKey(b.toPublicKey()).encrypt('hello')
     new browser.ECIES().privateKey(b).publicKey(a.toPublicKey())
       .decrypt(enc).toString().should.equal('hello')
+  })
+
+  it('exercises the standalone bundles, which were loaded and then ignored', function () {
+    // Found by the wallet session, 2026-10-15, and it is a hole in THIS file rather than in the
+    // bundles: `bsv-message.min.js` and `bsv-ecies.min.js` each set their own global —
+    // `bsvMessage`, `bsvEcies` — while `loadBundles()` returned only `bsv`, which the FULL
+    // bundle sets and which already carries Message and ECIES. So both standalone bundles were
+    // loaded for show: a broken one passed every assertion above.
+    //
+    // Measured by sabotage after writing it, which corrected two guesses of mine:
+    //
+    //   truncate bsv-message.min.js to 95%     caught, but by the LOAD (the before-all hook
+    //                                          throws) and by test/build/bundle_smoke.js
+    //   alter its "Bitcoin Signed Message"     caught by THIS test and by nothing else in the
+    //   magic string, keeping the length       whole suite
+    //
+    // So what this test uniquely catches is a standalone bundle that loads cleanly and computes
+    // something DIFFERENT. A bundle that fails to load was already covered; one that lies was
+    // not.
+    var sandbox = loadSandbox()
+    ;(typeof sandbox.bsvMessage).should.equal('function', 'bsv-message.min.js set no bsvMessage global')
+    ;(typeof sandbox.bsvEcies).should.equal('function', 'bsv-ecies.min.js set no bsvEcies global')
+
+    // the standalone Message must agree with Node AND with the copy inside the full bundle
+    var seed = sandbox.bsv.Mnemonic.fromString(MNEMONIC).toSeed()
+    var key = sandbox.bsv.HDPrivateKey.fromSeed(seed).deriveChild(PATH).privateKey
+    var wif = key.toWIF()
+    var standalone = sandbox.bsvMessage(MESSAGE).sign(sandbox.bsv.PrivateKey.fromWIF(wif))
+    var full = sandbox.bsv.Message(MESSAGE).sign(key)
+    var nodeSig = node.Message(MESSAGE).sign(node.PrivateKey.fromWIF(wif))
+    standalone.should.equal(nodeSig, 'bsv-message.min.js disagrees with the Node build')
+    standalone.should.equal(full, 'bsv-message.min.js disagrees with bsv.bundle.js')
+    // and it verifies what the others signed
+    sandbox.bsvMessage(MESSAGE).verify(EXPECTED_ADDRESS, nodeSig).should.equal(true)
+    node.Message(MESSAGE).verify(EXPECTED_ADDRESS, standalone).should.equal(true)
+  })
+
+  it('needs no standalone bundle in Node, where loading one after the full bundle is worse than useless', function () {
+    // Also from the wallet session: `bsv.Message` is already on bsv.bundle.js alone, so a Node
+    // consumer gains nothing by loading bsv-message.min.js as well.
+    //
+    // The mechanism, measured, because the first explanation of it was too simple: the feature
+    // bundles EXTERNALISE bsv (see test/build/bundle_externals.js — this one carries only
+    // lib/message/), so they need a `bsv` to exist. In Node that means `global.bsv` must be set
+    // before the require, and `require('./bsv-message.min.js')` without it throws
+    // "Cannot read properties of undefined (reading 'crypto')" — which is what bundle_smoke.js
+    // sets up deliberately, and what a consumer following its nose does not. In a browser the
+    // page has already loaded bsv.bundle.js, so the global is there.
+    //
+    // Hence the advice this test keeps true: in Node take the full bundle alone; load the
+    // standalone files only the way a browser does, as loadSandbox() above does.
+    var alone = { console: { log: function () {}, warn: function () {}, error: function () {} } }
+    alone.window = alone; alone.self = alone; alone.globalThis = alone; alone.global = alone
+    alone.crypto = crypto.webcrypto
+    alone.Buffer = Buffer
+    alone.process = { env: {}, version: process.version, nextTick: process.nextTick }
+    alone.setTimeout = setTimeout
+    alone.TextEncoder = TextEncoder
+    alone.TextDecoder = TextDecoder
+    vm.runInContext(fs.readFileSync(path.join(ROOT, 'bsv.bundle.js'), 'utf8'), vm.createContext(alone), { filename: 'bsv.bundle.js' })
+    ;(typeof alone.bsv.Message).should.equal('function', 'the full bundle must carry Message on its own')
+    ;(typeof alone.bsv.ECIES).should.equal('function', 'the full bundle must carry ECIES on its own')
+    // a Buffer from this realm is not the bundle's Buffer: pass strings across that boundary
+    ;(function () { alone.bsv.HDPrivateKey.fromSeed(Buffer.alloc(32, 7)) }).should.throw()
+    ;(typeof alone.bsv.HDPrivateKey.fromSeed('07'.repeat(32)).toString()).should.equal('string')
   })
 
   it('signs twenty messages and decrypts four times in silence', function () {
