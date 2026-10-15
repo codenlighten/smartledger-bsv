@@ -748,8 +748,21 @@ Still unchecked, and deliberately stated rather than glossed:
 * the defect table's **completeness** — see the note above its rows. This is why the 63-version
   message names one forgery verified present in all 63 rather than enumerating defects;
 * whether any version entry outside the sections already read contains a further defect;
-* whether anything **other** than an undecodable output script reaches the same null dereference
-  — hence "some chain transactions" in the three newest messages;
+* ~~whether anything **other** than an undecodable output script reaches the same null
+  dereference~~ — **answered 2026-10-15, and the answer is no.** The two accessors that can
+  yield a non-Script each have exactly one cause: `Output#script` is null only from the
+  `Script.InvalidBuffer` catch in `setScriptFromBuffer`, which the total parser made unreachable
+  from bytes, and `Input#script` is null only for the coinbase. Measured over 12 states built
+  from bytes against 11 consumers — `getSize`, `toObject`, `inspect`, `toBufferWriter`,
+  `isDataOut`, `classify`, `serialize`, `getSerializationError`, `_estimateSize`, `toObject` at
+  the transaction level and `sign` — with no failure in any state a caller can reach from bytes.
+  The audit also found one thing worth fixing: `setScriptFromBuffer` assigned `_scriptBuffer`
+  *before* validating it, so a non-Buffer argument poisoned the output and the error surfaced
+  later from a different method; it now checks first, which makes "every `_scriptBuffer` is a
+  Buffer" — the invariant the null-script guards rest on — true by construction. All of it is
+  self-enforcing in `test/transaction/null_script_deref_registry.js`, which already ratcheted the
+  dereference *sites* and now also pins the *states*. The phrase "some chain transactions" in the
+  deprecation messages stands as written: it was accurate then and is accurate now;
 * the other five `@smartledger/*` packages were not probed this way. They have no deprecated
   versions and no known forgery or consensus defect, but that rests on their changelogs, which
   is exactly the standard this round found insufficient for `bsv`.

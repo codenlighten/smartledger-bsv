@@ -65,6 +65,14 @@ so a decode failure surfaces at use. It also means `Output#setScriptFromBuffer`'
 path is unreachable from bytes; the guards that depend on it are kept deliberately, and the
 state is now constructed directly in the test rather than through a parse failure.
 
+**That unreachability was then checked rather than asserted**, because "unreachable" is the kind
+of claim that rots: 12 states a caller can build from bytes, including every shape that used to
+throw, were run against 11 consumers, and none produced a null script or an untyped throw. The
+only way left to make an output's script unreadable is to call `setScriptFromBuffer` with a
+non-Buffer, which now fails at that call instead of poisoning the object and failing later
+somewhere else. `Input#script` is null only for the coinbase, by design. The enumeration lives in
+`test/transaction/null_script_deref_registry.js`, beside the ratchet over the dereference sites.
+
 A script ending in `4c` (OP_PUSHDATA1 with no length byte), `4d01` (OP_PUSHDATA2 with one of
 two) or `4e0100` (OP_PUSHDATA4 with two of four) declares a push whose length the script does
 not carry. The node's parser fails at the length read —
