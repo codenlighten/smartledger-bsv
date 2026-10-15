@@ -78,6 +78,18 @@ Two observations on the third record, neither about its content:
    statement about attribution of the operator's receipt, not about the timestamp or the content.
 
 Both are iptrust-side conditions, raised for that project rather than acted on here.
-`--fetch-headers` could not be used in this round: `blockstream.info/api` returns **429** to this
-egress (mempool.space returns 200), which per the procedure is not a verdict — content matching
+`--fetch-headers` could not be used in that round: `blockstream.info/api` returned **429** to this
+egress (mempool.space returned 200), which per the procedure is not a verdict — content matching
 is local and needs no headers.
+
+**Re-verified 2026-10-15 once both chains had anchored.** Each record was checked in its own
+worktree at its own tag, with `.iptrust/` copied in:
+
+- `abf72fe3…5374` at `ip-2026-10-15-2` — **`verdict: valid`, `content: matched`, 141 of 141
+  files**, with `--fetch-headers` succeeding this time (BSV block 971196, 13 confirmations;
+  Bitcoin block 971607). The earlier `unconfirmed` verdict was the absence of anchors, not a
+  fault, and it is now `valid`.
+- `ca759886…dffe` at `ip-2026-10-15` — **`verdict: valid`, `content: matched`, 141 of 141**.
+  Its `--fetch-headers` run failed on `GET https://blockstream.info/api/blocks/968581`, so that
+  flag is still outstanding for this one record; per the procedure a header-fetch failure is not
+  a verdict, and the verdict above was reached without it because both chains are anchored.
