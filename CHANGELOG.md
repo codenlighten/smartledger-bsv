@@ -103,6 +103,52 @@ Still no 10.0.0 before 2027-09-01, unchanged.
 
 ## [Unreleased]
 
+### Added — what a signature commits to when `OP_CODESEPARATOR` is in the script
+
+No behaviour change. The separator rule was correct and is now measured against work done
+outside this library, and the two halves of it that had no test at all now have one.
+
+An outside session supplied 20 rows — prevScript, transaction, hash type, the byte offset just
+past the last executed separator, and the expected preimage and digest — computed by their own
+reference implementation and a Rust node. Published 9.39.0 reproduces **all 20 preimages and all
+20 digests**, and routes every row to the algorithm the row labels on the hash type alone. The
+rows are vendored at `test/data/sighash-codesep-executed.json` with their provenance, including
+the fact that the two column files published with them are byte-identical to each other, so they
+are **one external witness recorded twice, not two independent engines**.
+
+What had no coverage before:
+
+- **The BIP-143 path.** Every pre-existing separator assertion in this suite passes sighash type
+  `0x01`, which routes to the original algorithm. So the rule that BIP-143 *keeps* the separators
+  in the signed suffix — rather than excising them, as the original algorithm does — was never
+  tested in either direction.
+- **Where the separator is, as opposed to what is done with the suffix.** The node's
+  `pbegincodehash` is a byte pointer; ours is a chunk index. Eighteen cases now hook signature
+  verification and compare the scriptCode it is handed against the byte suffix a node would
+  take, across every push encoding and nested conditionals. Two sabotages confirm the cases
+  discriminate: an off-by-one that includes the separator byte fails exactly the five
+  separator-bearing cases, and making unexecuted separators advance the pointer fails exactly
+  the two untaken-branch cases.
+
+Two facts worth stating outright, both now in `docs/RELIED-UPON-PROPERTIES.md` §5:
+
+- **A `0xab` byte is a separator only where the script's own parse puts an opcode.** Inside a
+  push operand it is data; as a `PUSHDATA` length byte it is neither counted nor excised. A
+  byte search for `0xab` gets both wrong.
+- **A hand-built `chunks` list whose `len` disagrees with its `buf` is not something any parse
+  produces, and its serialisation re-parses as something else.** `[PUSHDATA1 declaring 5
+  carrying 2, OP_CODESEPARATOR, OP_1, OP_CHECKSIG]` serialises to `4c05aabbab51ac`, which is one
+  5-byte push — the separator and the `OP_CHECKSIG` swallowed as payload, and the output
+  spendable with an empty scriptSig. This library fails closed on the hand-built object
+  (`SCRIPT_ERR_BAD_OPCODE`) and agrees with a node on the bytes, so the dangerous direction does
+  not occur; but a local verify will not tell you the output is unprotected either.
+
+The equivalence of a chunk index and a byte pointer is stated as what it is: evidence for two
+premises — each chunk serialises to its own byte span, and serialisation concatenates them —
+measured over scripts **parsed from bytes** (17,443,009 scripts, 56,502,963 chunk-slice
+comparisons, 0 divergences), not a proof for every `Script` the API accepts. An outside review
+corrected an earlier draft that claimed the stronger thing.
+
 ### Added — `docs/RELIED-UPON-PROPERTIES.md`, and a test that keeps it true
 
 Four separate projects built on this library against a property it does not have: that

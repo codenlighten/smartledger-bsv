@@ -401,6 +401,38 @@ Three traps, all measured:
   pinned, use `valueCovenantSingle` (9.28.0+). Note that 32 zero bytes is the legitimate
   `hashOutputs` for an out-of-range index — a zero pin pins *nothing*.
 
+### What a signature commits to when `OP_CODESEPARATOR` is in the script
+
+**Measured on published 9.39.0 and `@smartledger/bsv-core@1.8.0`, against 20 rows computed
+outside this library** (`test/data/sighash-codesep-executed.json`; all 20 preimages and digests
+reproduce). The separator moves the *start* of the signed script, so these are properties of
+what your signature actually covers.
+
+- **A signature commits to the script from just past the last *executed* separator, not to the
+  whole locking script.** Two scripts that differ only before that point produce the same
+  digest. If you are deriving an identity from "the script that was signed", derive it from that
+  suffix, not from the output's script.
+- **The two digest algorithms disagree about the separators that remain in that suffix.** The
+  original algorithm excises them and shortens the declared length with them; BIP-143 keeps them
+  verbatim. The same suffix therefore yields two different scriptCode fields depending only on
+  the hash type, and a hash type with `SIGHASH_CHRONICLE` set routes to the original algorithm
+  even when `SIGHASH_FORKID` is also set.
+- **Only executed separators count.** One inside an untaken `OP_IF` or `OP_ELSE` body does not
+  move the start, at any nesting depth, and an executed separator is not undone by a later
+  unexecuted one.
+- **A `0xab` byte is only a separator where the script's own parse puts an opcode.** Inside a
+  push operand it is data, and as a `PUSHDATA` *length* byte it is neither counted nor excised.
+  Do not search a script's bytes for `0xab` to decide what was signed — walk it.
+- **Build scripts from bytes or with `.add()`, never by hand-setting `chunks` with a `len` that
+  disagrees with its `buf`.** Such a list is not something any parse produces, and its
+  serialisation re-parses as something else: `[PUSHDATA1 declaring 5 carrying 2,
+  OP_CODESEPARATOR, OP_1, OP_CHECKSIG]` serialises to `4c05aabbab51ac`, which is **one 5-byte
+  push** — the separator and the `OP_CHECKSIG` are swallowed as payload, and the output is
+  spendable with an empty scriptSig. This library fails closed on the hand-built object
+  (`SCRIPT_ERR_BAD_OPCODE`) and agrees with a node on the serialised bytes, so a local verify
+  will not tell you the output is signature-protected. But nothing warns you at the point you
+  put such a script into an output.
+
 ---
 
 ## 6. Secret sharing

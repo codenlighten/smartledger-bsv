@@ -598,4 +598,75 @@ describe('relied-upon properties', function () {
       documented('commits to exactly one ancestry')
     })
   })
+
+  describe('5. what a signature commits to under OP_CODESEPARATOR', function () {
+    var Script = bsv.Script
+    var Sighash = bsv.Transaction.Sighash
+    var Interpreter = Script.Interpreter
+    var FORKID = Interpreter.SCRIPT_ENABLE_SIGHASH_FORKID
+    var CORPUS = require('../data/sighash-codesep-executed.json')
+    var sats = new BN(100000)
+    function tx () { return new bsv.Transaction(CORPUS.rows[0].txHex) }
+
+    it('commits to the suffix past the last executed separator, not the whole script', function () {
+      // two scripts differing only BEFORE the separator sign the same bytes
+      var a = Script.fromHex('51ab52ab6a0401020304')
+      var b = Script.fromHex('52ab52ab6a0401020304')
+      a.toHex().should.not.equal(b.toHex())
+      var sufA = Buffer.from(a.toHex(), 'hex').slice(4)
+      var sufB = Buffer.from(b.toHex(), 'hex').slice(4)
+      sufA.toString('hex').should.equal(sufB.toString('hex'))
+      Sighash.sighashPreimage(tx(), 0x41, 0, Script.fromBuffer(sufA), sats, FORKID).toString('hex')
+        .should.equal(Sighash.sighashPreimage(tx(), 0x41, 0, Script.fromBuffer(sufB), sats, FORKID).toString('hex'))
+      documented('whole locking script.** Two scripts that differ only before that point')
+    })
+
+    it('BIP-143 keeps the remaining separators and the original algorithm excises them', function () {
+      var suffix = Script.fromHex('52ab6a0401020304')
+      Sighash.sighashPreimage(tx(), 0x41, 0, suffix, sats, FORKID).toString('hex')
+        .should.contain('0852ab6a0401020304')
+      Sighash.sighashPreimage(tx(), 0x01, 0, suffix, sats, FORKID).toString('hex')
+        .should.contain('07526a0401020304')
+      documented('shortens the declared length with them; BIP-143 keeps them')
+    })
+
+    it('routes a CHRONICLE hash type to the original algorithm even with FORKID set', function () {
+      var suffix = Script.fromHex('52ab6a0401020304')
+      // 0x61 = FORKID | CHRONICLE | ALL: the separator is excised, so it took the original path
+      Sighash.sighashPreimage(tx(), 0x61, 0, suffix, sats, FORKID).toString('hex')
+        .should.contain('07526a0401020304')
+      documented('routes to the original algorithm')
+    })
+
+    it('treats a 0xab inside a push operand, and as a length byte, as data', function () {
+      Sighash.sighashPreimage(tx(), 0x01, 0, Script.fromHex('5102ab516a'), sats, FORKID)
+        .toString('hex').should.contain('055102ab516a')
+      Sighash.sighashPreimage(tx(), 0x01, 0, Script.fromHex('4d01ab'), sats, FORKID)
+        .toString('hex').should.contain('034d01ab')
+      documented('walk it')
+    })
+
+    it('fails closed on a hand-built chunk list whose bytes re-parse as one push', function () {
+      var hand = new Script().set({
+        chunks: [
+          { opcodenum: 0x4c, len: 5, buf: Buffer.from('aabb', 'hex') },
+          { opcodenum: 0xab }, { opcodenum: 0x51 }, { opcodenum: 0xac }
+        ]
+      })
+      var bytes = hand.toBuffer()
+      bytes.toString('hex').should.equal('4c05aabbab51ac')
+      Script.fromBuffer(bytes).chunks.length.should.equal(1)
+      var t = new bsv.Transaction()
+      t.from({ txId: 'ab'.repeat(32), outputIndex: 0, script: bytes.toString('hex'), satoshis: 100000 })
+      t.to(bsv.PrivateKey.fromBuffer(Buffer.from('6d'.repeat(32), 'hex')).toAddress(), 50000)
+      var flags = FORKID | Interpreter.SCRIPT_VERIFY_STRICTENC
+      var i = new Interpreter()
+      i.verify(new Script(), hand, t, 0, flags, new BN(100000)).should.equal(false)
+      i.errstr.should.equal('SCRIPT_ERR_BAD_OPCODE')
+      // and the bytes themselves are spendable by anyone
+      new Interpreter().verify(new Script(), Script.fromBuffer(bytes), t, 0, flags, new BN(100000))
+        .should.equal(true)
+      documented('spendable with an empty scriptSig')
+    })
+  })
 })
