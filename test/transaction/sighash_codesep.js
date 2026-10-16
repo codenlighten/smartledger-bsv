@@ -524,4 +524,80 @@ describe('Sighash with an executed OP_CODESEPARATOR', function () {
       row.expect.scriptCodeHex.should.equal('')
     })
   })
+  describe('the property two outside consumers got wrong, now pinned', function () {
+    // On 2026-10-16 two independent sessions built runners against these vectors and both passed
+    // the WHOLE prevScript as the subscript instead of the slice at the executed separator. Each
+    // mismatched every row and each first read it as a library defect. The author of the vectors
+    // made the same mistake the same day. Three for three means the vectors were missing a
+    // statement, not that three readers were careless -- so the files now carry `consumerNote`
+    // and this block keeps it true.
+    var FILES = [
+      ['sighash-codesep-undecodable.json', require('../data/sighash-codesep-undecodable.json'), 'scriptCodeSlicedHex'],
+      ['sighash-codesep-count-path.json', require('../data/sighash-codesep-count-path.json'), 'scriptCodeSlicedHex'],
+      ['sighash-codesep-executed.json', require('../data/sighash-codesep-executed.json'), 'scriptCodeHex']
+    ]
+
+    function preimageFrom (row, subscriptHex) {
+      return Sighash.sighashPreimage(
+        new Transaction(row.txHex), row.hashType, row.nIn,
+        new Script(subscriptHex), new BN(row.amount)
+      ).toString('hex')
+    }
+
+    FILES.forEach(function (entry) {
+      var name = entry[0]; var corpus = entry[1]; var field = entry[2]
+
+      it(name + ': every row reaches its expected preimage from the RAW SLICE', function () {
+        // This is the route a consumer takes who has only prevScriptHex and codeSepEnd, which is
+        // what the vectors give them. It must work, or the files are unusable as published.
+        corpus.rows.forEach(function (r) {
+          var slice = r.prevScriptHex.slice(r.codeSepEnd * 2)
+          preimageFrom(r, slice).should.equal(r.expect.preimageHex,
+            r.id + ': raw slice prevScriptHex[codeSepEnd:] did not reproduce the preimage')
+        })
+      })
+
+      it(name + ': every row reaches it from the recorded scriptCode field too', function () {
+        // The other route. Both must land on the same bytes, because separator removal is
+        // idempotent -- which is WHY the executed file's post-removal field is still usable.
+        corpus.rows.forEach(function (r) {
+          preimageFrom(r, r.expect[field]).should.equal(r.expect.preimageHex,
+            r.id + ': expect.' + field + ' did not reproduce the preimage')
+        })
+      })
+
+      it(name + ': states the slicing rule for consumers', function () {
+        corpus.should.have.property('consumerNote')
+        corpus.consumerNote.should.match(/codeSepEnd/)
+        corpus.consumerNote.should.match(/do NOT|not execute the script/)
+        corpus.should.have.property('scriptCodeField', field)
+      })
+    })
+
+    it('the executed file is the one where the field is NOT the raw slice, on exactly 2 rows',
+      function () {
+        // Recorded as a number so that if the corpus changes, this says so rather than quietly
+        // widening. The two are the original-algorithm pair of two-seps-then-push:cs2, the only
+        // body with a separator surviving the slice; their field is post-removal (526a...) while
+        // the slice is 52ab6a.... Both reproduce the preimage, asserted above.
+        var corpus = require('../data/sighash-codesep-executed.json')
+        var differing = corpus.rows.filter(function (r) {
+          return r.prevScriptHex.slice(r.codeSepEnd * 2) !== r.expect.scriptCodeHex
+        })
+        differing.length.should.equal(2)
+        differing.forEach(function (r) {
+          r.algorithm.should.equal('original')
+          r.id.should.match(/^two-seps-then-push:cs2/)
+        })
+      })
+
+    it('the other two files have no such row', function () {
+      ;[require('../data/sighash-codesep-undecodable.json'),
+        require('../data/sighash-codesep-count-path.json')].forEach(function (corpus) {
+        corpus.rows.filter(function (r) {
+          return r.prevScriptHex.slice(r.codeSepEnd * 2) !== r.expect.scriptCodeSlicedHex
+        }).length.should.equal(0)
+      })
+    })
+  })
 })
