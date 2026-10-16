@@ -312,6 +312,79 @@ caller changes its condition.
 
 ---
 
+### The inconsistency is estate-wide, and one sibling's verdict is a truthy string
+
+**Measured 2026-10-16** against the published siblings, installed in an isolated tree with each
+version asserted before measuring: `@smartledger/notaryhash` 2.4.2, `@smartledger/crypto` 3.3.0,
+`@smartledger/keys` 4.1.0, `@smartledger/envelope` 3.0.1. Every function below was called with
+invalid input and, where it returned a thenable, awaited — because a function that **rejects** on
+bad input is safe for `if (await f())`, and only one that **resolves to a truthy failure** is not.
+
+| package | function | success key | its value when invalid | error key |
+|---|---|---|---|---|
+| notaryhash | `verifyCertificateOffline` | `ok` | `false` | `reason` |
+| notaryhash | `verifySealedLink` | `ok` | `false` | `reasons` |
+| notaryhash | `checkAnchorBySpv` | `status` | **`"invalid"`** — a string | `reason` |
+| crypto | `verifySignedEnvelope` | `valid` | `false` | `details` |
+| envelope | `verifyJson` | `valid` | `false` | `error` |
+| envelope | `verifySignedEnvelope` | `valid` | `false` | `error` |
+
+Taken with this library's own four functions above, that is **three different success keys**
+(`ok`, `valid`, `status`) and **five different error keys** (`error`, `errors`, `reason`,
+`reasons`, `details`) across five packages that are routinely used together. Two more functions,
+`notaryhash.verifyDocument` and `crypto.verifyUsingSuite`, **reject** rather than resolving a
+result object, so no single idiom covers the set.
+
+**The one that is actively dangerous is `checkAnchorBySpv`.** Its `status` is the union
+`'valid' | 'invalid' | 'indeterminate'`, and **all three are non-empty strings, so all three are
+truthy**. `if (check.status)` accepts an anchor the library just refused. The same shape appears on
+`verifySealedLink`'s `link` field (`'linked' | 'invalid' | 'indeterminate'`), though that result
+also carries a boolean `ok`, which is the safe thing to read. The rule for a string-valued verdict
+is to compare it: `check.status === 'valid'`, never `if (check.status)`.
+
+**Follow-up, same day: the sharpest instance is being fixed upstream.** Reported to the package's
+own maintainers, who added a boolean `ok` beside `status` — true exactly when `status` is
+`'valid'` — so the lazy read becomes the safe one, as `verifySealedLink` already had it. Their
+docstring now says "`if (check.status)` is true for every verdict, `'invalid'` included: read `ok`,
+or compare `status`". That is upstream at their commit `331409d` and expected in
+`@smartledger/notaryhash` **2.5.0**; at the time of writing the latest published version is still
+**2.4.2**, which is what the table above measures, so the hazard remains live for anyone on a
+published release. They are deliberately **not** renaming keys across their surface, which would be
+breaking — `ok` is being added to every verdict object instead. Re-measure once 2.5.0 is published.
+
+**What this section can and cannot promise about the siblings.** This library does not depend on
+any of them — their behaviour is not pinned by our test suite and cannot be, so the table is a
+**dated measurement of those four versions**, not an enforced property. Re-measure before relying
+on it. One thing checked and found NOT to be a defect, recorded so nobody re-reports it:
+`isKeyUsable({})` returns `true`, which looks like a false accept but is the documented tolerance
+for key records written before `status` existed — the code matches its docstring, and an
+unparseable `expiresAt` is treated as expired rather than as "no expiry", which is the safe
+direction.
+
+### `NotaryHash.verify`'s per-check fields are not independent of each other
+
+`valid` is sound: it is false whenever anything is unproven, including an unchecked seal. The
+fields beside it are a breakdown, and two of them do not read as their names suggest when a seal
+is present.
+
+Measured, on the shipped mainnet certificate with an `anchor.seal` member added and nothing else
+changed:
+
+- **`anchor` is `false` although the anchor verified.** The seal is refused both by
+  `verifyAnchorSPV`, which is public and must refuse on its own, and again by `verify`. The
+  anchor's own result carries the seal's refusal with it, so a caller asking "is the anchor bad,
+  or only the seal?" is told the anchor is bad. `sealUnchecked: true` is the field that answers
+  the question correctly.
+- **the seal error appears twice in `errors`**, once from each of those two checks.
+
+Neither weakens a verdict — both make the result *more* refusing, not less — so neither is
+being changed in a 9.x release: removing the duplicate refusal would turn `anchor` from false to
+true for every sealed certificate, and a caller who gates on `anchor` alone would begin accepting
+records it rejects today. Under `STABILITY.md` a loosening like that waits for 10.0.0. Until
+then: **gate on `valid`, or on `isValid()`; read `anchor` and `errors` for triage only.**
+
+---
+
 ## 3. What this library refuses
 
 Refusals are deliberate and are not bugs, but they are invisible until something fails in
@@ -323,6 +396,16 @@ production, so they are listed here.
   with notaryhash 2.4.0+ in the 2.0 format, this library will not read it.
 - **A non-TSC `spv.format` is refused** (since 9.24.0). An SPV envelope must declare the TSC
   format; anything else is rejected rather than guessed at.
+- **A certificate carrying `anchor.seal` is refused, by itself.** Sealed records are what the
+  NotaryHash service now issues, so this is the refusal most likely to be met in production.
+  `verify` does not implement seals, and a seal is a chain-of-custody claim, so presenting one
+  as verified would be wrong. Measured on the real mainnet certificate this repository ships as
+  `test/data/notaryhash-mainnet-certificate.json`: with its own header it is `valid: true`;
+  adding an `anchor.seal` member and changing nothing else makes it `valid: false` while
+  `signature`, `proofIntegrity` and `batchInclusion` all stay true; adding
+  `allowUncheckedSeal: true` makes it `valid: true` again. That option means *I will check the
+  seal myself* — with `@smartledger/notaryhash`'s `verifySealedLink`, not `sealedLink`, for the
+  reason in §9 — and it does **not** wave through a seal that is not an object.
 - **There is no bech32, SegWit or Taproot support, anywhere** (measured: no such member on the
   public surface). This is a BSV library. One adapter cannot serve BSV, BTC and LTC.
 
@@ -563,6 +646,43 @@ Extending **forward** from a trusted hash is the opposite case. Several valid ch
 the choice between them needs work compared across the branches the verifier can see, and no
 verifier can see a branch nobody served it. Source independence is the whole of the mitigation
 there, and two sources that share an upstream are one source.
+
+---
+
+### A sealed chain's exclusivity is in the anchor layer, not in the link check
+
+This library refuses sealed certificates (§3), so this is about the tool it points you at.
+`@smartledger/notaryhash` exposes two things that sound alike:
+
+- `sealedLink(previous, successor)` is the **structural** primitive. Its own contract says both
+  certificates must already have verified their signature, proof hash and anchor, and that it
+  checks only what joins them.
+- `verifySealedLink(previous, successor, headerProvider, policy)` is the **entry point**. It
+  verifies each certificate standalone, including the anchor, and degrades to `indeterminate`
+  when either is unproven.
+
+Measured with a synthetic pair carrying real signatures against notaryhash 2.4.2:
+`sealedLink(A, B)` and `sealedLink(A, C)` **both return `{status: 'linked'}`** for two different,
+validly signed successors whose transactions spend the *same* seal outpoint. That pair is a
+double spend, and only the chain decides which of them happened. So the uniqueness a seal is
+supposed to buy — at most one successor — is established by each certificate's block
+inclusion, and not by the link. **Call `verifySealedLink`; reaching past it to `sealedLink`
+accepts both halves of a double spend.** Negative controls in the same run behave: a successor
+whose transaction does not spend the named outpoint is refused, as is one whose link signature is
+over the wrong digest, as is the pair in reverse order.
+
+Two further properties of that library, measured on a live mainnet sealed record, because both
+are easy to misread:
+
+- **a genesis record's own seal signature authorises no successor.** It is a signature over
+  `sealDigest(null, ownId)` and asserts only that this record starts a chain. A link is
+  authorised by the *successor's* signature over `sealDigest(predecessorId, successorId)`.
+- **`verifyCertificateStandalone`'s `confirmations` is the depth it proved, capped at the policy
+  — not the depth of the block.** The walk stops once `confirmations >= minConfirmations`. On a
+  record seven blocks deep: policy 1 returns 1, policy 6 returns 6, policy 7 returns 7, and
+  policy 8 returns `ok: false` with `confirmations: null`. Comparing the returned number against
+  your own threshold is therefore circular, because whenever the check passed it *equals* that
+  threshold. Pass the depth you require and read `ok`.
 
 ---
 

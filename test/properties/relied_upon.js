@@ -257,6 +257,50 @@ describe('relied-upon properties', function () {
         documented('`' + name + '`')
       })
     })
+
+    describe('the estate-wide table is a DATED measurement, not an enforced property', function () {
+      // This library depends on none of the siblings, so their behaviour cannot be pinned here.
+      // What CAN be pinned is that the document says so, names the versions it measured, and
+      // states the one rule that makes a string-valued verdict safe to read. Without this, the
+      // table reads like a property of the estate rather than a reading taken on one day.
+      it('names each sibling version the table was measured against', function () {
+        documented('@smartledger/notaryhash` 2.4.2')
+        documented('@smartledger/crypto` 3.3.0')
+        documented('@smartledger/keys` 4.1.0')
+        documented('@smartledger/envelope` 3.0.1')
+      })
+
+      it('says plainly that the siblings are not pinned by this suite', function () {
+        documented('their behaviour is not pinned by our test suite and cannot be')
+        documented('dated measurement')
+        documented('Re-measure before relying')
+      })
+
+      it('states the counts, so a key added to any sibling makes the prose wrong', function () {
+        documented('three different success keys')
+        documented('five different error keys')
+      })
+
+      it('gives the rule for a string-valued verdict, which is the dangerous shape', function () {
+        // 'valid' | 'invalid' | 'indeterminate' are ALL truthy, so `if (status)` accepts a
+        // refusal. The document must carry the comparison form, not just the warning.
+        documented("`check.status === 'valid'`")
+        documented('all three are non-empty strings, so all three are\ntruthy')
+      })
+
+      it('records the isKeyUsable finding as NOT a defect, so it is not re-reported', function () {
+        documented('isKeyUsable({})` returns `true`')
+        documented('documented tolerance')
+        documented('treated as expired rather than as "no expiry"')
+      })
+
+      it('distinguishes rejecting from resolving-a-falsy-result', function () {
+        // The distinction my first probe got wrong: an async function that REJECTS is safe for
+        // `if (await f())`; only one that RESOLVES to a truthy failure is not.
+        documented('rejects** on\nbad input is safe')
+        documented('reject** rather than resolving a\nresult object')
+      })
+    })
   })
 
   describe('3. what the library refuses', function () {
@@ -265,6 +309,82 @@ describe('relied-upon properties', function () {
       should.exist(C)
       C.REFERENCE_VERSION.should.equal('1.0')
       documented("`Certificate.REFERENCE_VERSION` is `'1.0'`")
+    })
+
+    // A seal is a chain-of-custody claim this library does not check, so a certificate that
+    // carries one is refused however good the rest of it is. Measured on the real mainnet
+    // certificate the repository ships, because a constructed one proves only that the branch
+    // runs: this one VERIFIES, and then stops verifying for the single reason under test.
+    describe('a certificate carrying anchor.seal is refused by itself', function () {
+      var fixture = require('../data/notaryhash-mainnet-certificate.json')
+      // The header is rebuilt from the fixture's own block fields, so the test needs no network.
+      function header () {
+        var b = fixture.block
+        var u32 = function (n) { var x = Buffer.alloc(4); x.writeUInt32LE(n); return x }
+        var rev = function (h) { return Buffer.from(h, 'hex').reverse() }
+        return Buffer.concat([
+          u32(b.version), rev(b.previousblockhash), rev(b.merkleroot),
+          u32(b.time), rev(b.bits), u32(b.nonce)
+        ]).toString('hex')
+      }
+      var opts = {
+        header: header(),
+        height: fixture.block.height,
+        blockHashAtHeight: fixture.block.hash
+      }
+      function sealed () {
+        var c = JSON.parse(JSON.stringify(fixture.certificate))
+        c.anchor.seal = { vout: 1, previous: null, previousId: null, signature: 'ab'.repeat(64) }
+        return c
+      }
+
+      it('the fixture verifies as shipped, so the refusal below is about the seal alone', function () {
+        var r = bsv.NotaryHash.verify(fixture.certificate, opts)
+        r.valid.should.equal(true, 'the shipped fixture no longer verifies: ' + JSON.stringify(r.errors))
+      })
+
+      it('adding a seal and nothing else makes it invalid, with the other checks still true', function () {
+        var r = bsv.NotaryHash.verify(sealed(), opts)
+        r.valid.should.equal(false)
+        r.sealUnchecked.should.equal(true)
+        r.signature.should.equal(true)
+        r.proofIntegrity.should.equal(true)
+        r.batchInclusion.should.equal(true)
+        bsv.NotaryHash.isValid(sealed(), opts).should.equal(false)
+        documented('A certificate carrying `anchor.seal` is refused, by itself.')
+      })
+
+      it('allowUncheckedSeal makes the same certificate verify again', function () {
+        var o = Object.assign({ allowUncheckedSeal: true }, opts)
+        bsv.NotaryHash.verify(sealed(), o).valid.should.equal(true)
+        bsv.NotaryHash.isValid(sealed(), o).should.equal(true)
+        documented('`allowUncheckedSeal: true` makes it `valid: true` again')
+      })
+
+      it('allowUncheckedSeal does NOT wave through a seal that is not an object', function () {
+        var o = Object.assign({ allowUncheckedSeal: true }, opts)
+        ;[null, 'seal', 42, []].forEach(function (bad) {
+          var c = JSON.parse(JSON.stringify(fixture.certificate))
+          c.anchor.seal = bad
+          var r = bsv.NotaryHash.verify(c, o)
+          r.valid.should.equal(false, 'a seal of ' + JSON.stringify(bad) + ' was accepted')
+        })
+        documented('does **not** wave through a seal that is not an object')
+      })
+
+      // Section 2's claim, which is the reason the refusal is not being tidied up before 10.0.0:
+      // the per-check fields misattribute, and removing the duplicate would LOOSEN `anchor`.
+      it('reports anchor false although the anchor verified, and the error twice', function () {
+        var r = bsv.NotaryHash.verify(sealed(), opts)
+        r.anchor.should.equal(false, 'anchor is no longer dragged down by the seal')
+        var seal = r.errors.filter(function (e) { return e.indexOf('anchor.seal is present') === 0 })
+        seal.length.should.equal(2, 'the seal error is no longer duplicated: ' + JSON.stringify(r.errors))
+        // and the anchor really is fine, which is what makes `anchor: false` a misattribution
+        bsv.NotaryHash.verifyAnchorSPV(fixture.certificate, opts).valid.should.equal(true)
+        documented('`anchor` is `false` although the anchor verified.')
+        documented('the seal error appears twice in `errors`')
+        documented('gate on `valid`, or on `isValid()`; read `anchor` and `errors` for triage only.')
+      })
     })
 
     it('has no bech32, SegWit, Taproot or witness member on the public surface', function () {
