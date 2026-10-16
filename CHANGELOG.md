@@ -127,15 +127,32 @@ carries wherever the walk stopped early. `4d01ab` and `ab4dab00` are now directl
 a `0xab` serving as a `PUSHDATA` length byte is neither counted nor excised.
 
 **A sabotage then showed those 48 rows cannot see half of what they appear to pin.** Replacing
-the walk's separator count with a naive count of every `0xab` byte left all 48 green. The
-declared length only consults that count when the walk stops early, and in all twelve judged
-bodies a `0xab` inside a length field never coincides with an early stop — so the rows pin the
-*excision* and not the *count*. Six bodies where the two counts do diverge (`6a4dab`,
-`ab6a4dab`, `4dab`, `ab4dab`, `6a4eab0000`, `ab6a4eababab`; the walk declares 3/3/2/2/5/5 where
-a naive count declares 2/2/1/1/4/2) are now in the suite and fail under that sabotage. They are
-**this library's own values, not node-judged**, and are labelled so; they have been sent for
-judgement. The reusable point is that a corpus which passes a sabotage is not covering the thing
-the sabotage broke, however relevant its subject looks.
+the walk's separator count with a naive count of every `0xab` byte left all 48 green. The reason
+is that the declared length here has **two derivations**: when the walk stops early it is set
+explicitly as `len(suffix) - walk.separators`, and when the walk reaches the end it comes from
+the stripped script's own length via the chunk-level `removeCodeseparators`. They always agree,
+but a sabotage of one is invisible to rows served by the other, and no body in those 48 has a
+`0xab` in a length field *and* an early stop — so for that question every one of them takes the
+stripped-length route.
+
+Twenty-four further rows were authored for the bodies where the two counts diverge (`6a4dab`,
+`ab6a4dab`, `4dab`, `ab4dab`, `6a4eab0000`, `ab6a4eababab`: the walk declares 3/3/2/2/5/5 where a
+naive count declares 2/2/1/1/4/2) and came back judged by the same two emitters, joined at 48
+comparisons with 0 differences. Vendored at `test/data/sighash-codesep-count-path.json`.
+`ab6a4eababab` declaring 5 is the headline: a `0xab` the walk has already consumed as part of a
+length field is not a separator and is not counted.
+
+The two fixtures guard the two routes, and the cross-sabotage matrix is recorded in the test
+because neither fixture covers the other's route:
+
+| sabotage | the 48 undecodable rows | the 24 count-path rows |
+|---|---|---|
+| naive `0xab` byte count for the walk | 0 fail — blind | 12 of 12 fail |
+| byte-level excision instead of chunk-level | 4 fail (`4d01ab`, `ab4dab00`) | 0 fail — blind |
+
+The reusable point is that a corpus which passes a sabotage is not covering the thing the
+sabotage broke, however relevant its subject looks — and that when one mechanism feeds a value by
+two code paths, a corpus can pin it on one path and say nothing about the other.
 
 ### Added — what a signature commits to when `OP_CODESEPARATOR` is in the script
 

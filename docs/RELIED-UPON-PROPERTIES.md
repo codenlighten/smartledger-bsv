@@ -422,7 +422,9 @@ what your signature actually covers.
   unexecuted one.
 - **A `0xab` byte is only a separator where the script's own parse puts an opcode.** Inside a
   push operand it is data, and as a `PUSHDATA` *length* byte it is neither counted nor excised.
-  Do not search a script's bytes for `0xab` to decide what was signed — walk it.
+  Do not search a script's bytes for `0xab` to decide what was signed — walk it. Both halves are
+  node-judged: `ab4dab00` declares 3 and carries `4dab00` (one separator counted, the length-field
+  `0xab` not), and `ab6a4eababab` declares 5 rather than the 2 a byte scan would give.
 - **Build scripts from bytes or with `.add()`, never by hand-setting `chunks` with a `len` that
   disagrees with its `buf`.** Such a list is not something any parse produces, and its
   serialisation re-parses as something else: `[PUSHDATA1 declaring 5 carrying 2,
