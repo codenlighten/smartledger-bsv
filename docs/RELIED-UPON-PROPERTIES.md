@@ -350,7 +350,16 @@ or compare `status`". That is upstream at their commit `331409d` and expected in
 `@smartledger/notaryhash` **2.5.0**; at the time of writing the latest published version is still
 **2.4.2**, which is what the table above measures, so the hazard remains live for anyone on a
 published release. They are deliberately **not** renaming keys across their surface, which would be
-breaking — `ok` is being added to every verdict object instead. Re-measure once 2.5.0 is published.
+breaking — `ok` is being added to every verdict object instead.
+
+Their first report that `ok` was already on every verdict was **corrected by them the same hour**:
+`sealedLink` still returned only a status string and had the identical trap, fixed in `5b7802b`.
+Worth noting as a pattern rather than a lapse — a fix applied to the instance that was reported
+leaves its siblings behind unless somebody enumerates them, which is the same lesson this library
+learned when 9.23.0 fixed a class at the wrapper layer and left the top-level forwarders untouched.
+`verifyDocument` remains the one function that rejects rather than resolving, and only on a
+`TypeError` for missing document bytes, which is a programming error rather than a verdict.
+Re-measure once 2.5.0 is published.
 
 **What this section can and cannot promise about the siblings.** This library does not depend on
 any of them — their behaviour is not pinned by our test suite and cannot be, so the table is a
@@ -670,6 +679,18 @@ inclusion, and not by the link. **Call `verifySealedLink`; reaching past it to `
 accepts both halves of a double spend.** Negative controls in the same run behave: a successor
 whose transaction does not spend the named outpoint is refused, as is one whose link signature is
 over the wrong digest, as is the pair in reverse order.
+
+**An upstream change is coming, and it does NOT resolve the above.** In 2.4.2 `sealedLink`
+returned only a status string, so `if (sealedLink(a, b).status)` was true for `'invalid'` as well
+as `'linked'` — the same truthiness trap as `checkAnchorBySpv` in §2. The maintainers have added a
+boolean `ok` to it (their commit `5b7802b`), true exactly for `'linked'`, and say every verdict
+their SDK returns now carries one. Expect it in **2.5.0**; **2.4.2 is still the latest published
+version**, which is what everything here measures.
+
+Read that fix for what it is: it removes a footgun in how you *read* the result. It does not
+change the result. `sealedLink` still reports a link for **both** halves of a double spend — now
+with `ok: true` on both — because the ambiguity is in the chain, not in the field names.
+Exclusivity still lives in the anchor layer, and `verifySealedLink` is still the function to call.
 
 Two further properties of that library, measured on a live mainnet sealed record, because both
 are easy to misread:
