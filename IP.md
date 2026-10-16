@@ -94,3 +94,18 @@ worktree at its own tag, with `.iptrust/` copied in:
   Its `--fetch-headers` run failed on `GET https://blockstream.info/api/blocks/968581`, so that
   flag is still outstanding for this one record; per the procedure a header-fetch failure is not
   a verdict, and the verdict above was reached without it because both chains are anchored.
+
+**Re-verified 2026-10-16.** Both records below were re-checked in their own worktrees at their own
+tags, `.iptrust/` copied in, worktree removed afterwards:
+
+- `ca759886…dffe` at `ip-2026-10-15` — **`verdict: valid`, `content: matched`, 141 of 141**. Both
+  chains anchored (BSV 971167, Bitcoin 971577, 159 confirmations), `needsAttention: false`.
+- `642b8281…b728` at `ip-2026-10-15-3` — **`verdict: valid`, `content: matched`, 141 of 141**.
+  Its Bitcoin anchor has now completed, so this record is anchored on both chains (BSV 971216,
+  Bitcoin 971631, 105 confirmations), `needsAttention: false`.
+
+`--fetch-headers` still fails for both, now on `GET https://blockstream.info/api/blocks/tip/height`
+and `GET https://blockstream.info/api/blocks/969127` — blockstream.info has been unreachable from
+here across several days. That is a property of the service and not of these records: content
+matching is local and needs no headers, and the operator's own per-chain key status reads `valid`
+for both chains in each verification above. The flag stays outstanding for both.

@@ -81,6 +81,29 @@ gh api graphql -f query='{ securityVulnerabilities(ecosystem: NPM,
 
 All five read `state: published`, `cve_id: null`, **`submission: null`**.
 
+**Re-measured 2026-10-16, with the dated caveat now discharged.** The newest advisory,
+[`GHSA-2j2f-5v2f-pvpq`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-2j2f-5v2f-pvpq)
+(published 2026-10-14), was first checked minutes after publication, which proved nothing: an
+advisory that has not had time to propagate and one that never will look identical. Checked again
+two days later in a fresh isolated tree holding `@smartledger/bsv@9.35.0` — inside its range
+`>= 3.3.2, < 9.36.0` — with `minimist@1.2.0` installed alongside as the control:
+
+```
+bsv      = 9.35.0          (version asserted before measuring, not assumed from the manifest)
+minimist = 1.2.0
+npm audit --json ->
+  minimist   severity=critical   via=[GHSA-vh95-rmgr-6w4m, GHSA-xvch-5gv4-984h]
+  @smartledger/bsv            NOT REPORTED
+```
+
+The control is flagged in the same tree by the same command, so the lookup path works and the
+absence is about the advisory, not the measurement. Two days is still not a propagation bound —
+it cannot be, since the mechanism is a human curation review with no published timeline — but it
+does rule out "checked too early", which was the only reading the first measurement left open.
+Also re-confirmed the same day: `GET /advisories/<id>` returns **404** for both
+`GHSA-j884-5pmj-6wqp` and `GHSA-gw63-x79h-mhjc`, so the global database still does not resolve our
+ids.
+
 Stated precisely, because the distinction matters: these advisories are published at
 **repository** level and are **not present in the global and npm vulnerability results GitHub's
 API returns**, and `npm audit` does not flag a version inside their ranges. A repository
