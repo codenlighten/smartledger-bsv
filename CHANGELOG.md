@@ -223,10 +223,12 @@ answered (it held notaryhash **2.4.1** against the 2.4.2 under test). Versions m
 notaryhash 2.4.2, crypto 3.3.0, keys 4.1.0, envelope 3.0.1.
 
 Across those four and this library there are **three success keys** (`ok`, `valid`, `status`) and
-**five error keys** (`error`, `errors`, `reason`, `reasons`, `details`). Two sibling functions,
-`notaryhash.verifyDocument` and `crypto.verifyUsingSuite`, **reject** rather than resolving a
-result object — a distinction that matters, because a function that rejects is safe for
-`if (await f())` and only one that resolves to a truthy failure is not.
+**five error keys** (`error`, `errors`, `reason`, `reasons`, `details`). One sibling function,
+`crypto.verifyUsingSuite`, **rejects** rather than resolving a result object — a distinction that
+matters, because a function that rejects is safe for `if (await f())` and only one that resolves to
+a truthy failure is not. `notaryhash.verifyDocument` rejects in the probe too, but its maintainers
+pointed out that it does so only with a `TypeError` for missing document bytes, which is misuse
+rather than a verdict, so the count is corrected in the document rather than left as measured.
 
 **The dangerous instance is `notaryhash.checkAnchorBySpv`**, whose `status` is the union
 `'valid' | 'invalid' | 'indeterminate'`. All three are non-empty strings and therefore truthy, so

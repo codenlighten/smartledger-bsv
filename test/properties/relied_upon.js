@@ -298,7 +298,11 @@ describe('relied-upon properties', function () {
         // The distinction my first probe got wrong: an async function that REJECTS is safe for
         // `if (await f())`; only one that RESOLVES to a truthy failure is not.
         documented('rejects** on\nbad input is safe')
-        documented('reject** rather than resolving a\nresult object')
+        documented('**rejects** rather than resolving a result object')
+        // The count was corrected from two to one after the maintainers pointed out that
+        // verifyDocument rejects only on a TypeError for missing bytes, which is misuse and not
+        // a verdict. The doc must carry that distinction, not just the narrower number.
+        documented('a programming error rather than a\nverdict')
       })
     })
   })

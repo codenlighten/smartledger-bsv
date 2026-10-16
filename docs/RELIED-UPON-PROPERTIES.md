@@ -331,9 +331,15 @@ bad input is safe for `if (await f())`, and only one that **resolves to a truthy
 
 Taken with this library's own four functions above, that is **three different success keys**
 (`ok`, `valid`, `status`) and **five different error keys** (`error`, `errors`, `reason`,
-`reasons`, `details`) across five packages that are routinely used together. Two more functions,
-`notaryhash.verifyDocument` and `crypto.verifyUsingSuite`, **reject** rather than resolving a
-result object, so no single idiom covers the set.
+`reasons`, `details`) across five packages that are routinely used together. And one more
+function, `crypto.verifyUsingSuite`, **rejects** rather than resolving a result object, so no
+single idiom covers the set.
+
+`notaryhash.verifyDocument` also rejects in the probe above, but its maintainers point out that it
+does so only with a `TypeError` for missing document bytes — a programming error rather than a
+verdict — and that every other outcome resolves to a result object. Corrected here rather than
+left as measured, because "it rejects" and "it rejects when you call it wrongly" are different
+claims and only the second is true of it.
 
 **The one that is actively dangerous is `checkAnchorBySpv`.** Its `status` is the union
 `'valid' | 'invalid' | 'indeterminate'`, and **all three are non-empty strings, so all three are
