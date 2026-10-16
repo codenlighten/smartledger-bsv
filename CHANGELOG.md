@@ -5,102 +5,6 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [9.39.0] - 2026-10-15
-
-### Added — a notice when a mutated output script will not be the one that serializes
-
-`output.script` hands out the live `Script` object, but `Output#toBufferWriter` writes
-`_scriptBuffer`: the bytes the output was *set from*. So this changes the object and nothing about
-the transaction —
-
-```js
-tx.outputs[0].script.add(bsv.Opcode.OP_NOP)   // dropped from the broadcast bytes
-tx.outputs[0].getSize()                        // but measured here: the two disagree
-tx.outputs[0].setScript(tx.outputs[0].script)  // the remedy, one line
-```
-
-— while `getSize()` measures the mutated object, so the fee is computed for a transaction that
-will not be sent. `getSize()` now compares the two byte strings it has just computed and emits a
-one-time deprecation notice when they differ. Its coverage is deliberately partial and stated as
-such: that call is the only place the comparison is free, so a mutation followed by serialization
-with no size enquiry is still silent, and `Input` has the same drop with nowhere free to see it.
-
-Re-setting changes the output, so the txid changes and any signature already made over it must be
-remade; building the script before setting it avoids the question.
-
-**The behaviour is unchanged and intended**, and the notice has no false positives: parsing a
-script and re-encoding it is byte-faithful here, measured over every script of three bytes or fewer
-(16,843,009, exhaustive) plus 400,000 push-biased random ones, 0 divergences — now pinned by a
-test, because that fidelity is also what makes the 10.0.0 options decidable. Per STABILITY.md the
-divergence is marked in a minor; the choice recorded for 10.0.0 in `docs/RELEASE-10.0.0.md` is
-between re-syncing on mutation, refusing to hand out a mutable parsed script, and an additive
-pre-broadcast check that covers inputs as well.
-
-### Documentation
-
-- `docs/RELIED-UPON-PROPERTIES.md` §5 states the hazard and the remedy, and §9 is new: what the SPV
-  and anchor checks do and do not establish about a header, measured against real mainnet headers.
-  Among them, `blockHashAtHeight` returns `valid` having checked nothing when it is taken from the
-  header or the certificate; `trustedHash` is satisfied by either end of a chain, so one header
-  equal to it is a valid chain of one; two returned fields are called `work` in units 4.3e9 apart;
-  and the illustrative "about 2.6e10" difficulty in the `minDifficulty` docstrings refuses real
-  mainnet blocks when copied as a floor (block 954784 is 2.5570e10). The docstrings and the
-  typings now say so.
-- Three consecutive real mainnet headers (970073–970075) are vendored as
-  `test/data/spv-mainnet-headers.json`, each hash confirmed outside the library.
-
-## [9.38.0] - 2026-10-15
-
-### Added — `Message#verify(address, sig, { lowS: true })` refuses the malleable twin
-
-A Message signature has a second encoding that verifies identically for the same key and message:
-flip the recovery id in the header and replace `s` with `n − s`. So the bytes are **not a unique
-name for a statement**, and anything keyed on them — a deduplication key, a nonce, a replay
-marker, an audit identity, a Merkle leaf — has a forgeable twin. Measured at every published
-version back to 1.5.6-fix1. Two projects in this estate had assumed otherwise.
-
-```js
-bsv.Message(text).verify(address, sig, { lowS: true })   // false for the twin
-bsv.Message.verify(text, address, sig, { lowS: true })   // the static form takes it too
-```
-
-`message.error` then reads "The signature is not canonical: s is above half the curve order", so a
-malleability refusal is distinguishable from a wrong-key failure.
-
-**Adopting it rejects nothing this library produces** — `sign()` has only ever emitted low-s,
-measured over 40 fresh keys rather than assumed. It is opt-in rather than default because the
-signatures it refuses are **valid ECDSA**, and other implementations may legitimately emit high-s:
-refusing by default is a compatibility change, not a bug fix. Per STABILITY.md the behaviour is
-marked in a minor and flipped in the major, so accepting a high-s signature now emits a one-time
-notice naming 10.0.0.
-
-The notice fires **only on the accept**. A canonical signature raises nothing, and neither does a
-verify that already passes `{ lowS: true }` — a warning naming a condition the caller does not
-have is noise, and noise gets silenced.
-
-Three sabotage checks, because an option that silently does nothing is worse than no option:
-making `{ lowS: true }` a no-op fails four tests, inverting the low-s comparison fails eight, and
-**dropping the option in the static forwarder fails exactly one** — the test written for that
-failure mode, which is where a signature change goes to die when a delegating wrapper quietly
-drops an argument.
-
-### Added — `docs/RELEASE-10.0.0.md`, the planned major, enforced against the source
-
-The breaking changes this library has promised were scattered across nine source files and three
-docs, which is how a major gets assembled instead of planned. They are now in one place: what
-breaks, what to write instead, and how long the notice has been in consumers' logs. Nine
-registered deprecations dating from 9.1.0, five decisions that have no call site to attach a
-notice to, and two candidates — including making the verification functions share a return
-convention, which is the single change most likely to stop a consumer shipping a silent accept.
-
-`test/properties/release_10_plan.js` asserts that **every `removeIn: '10.0.0'` in `lib/` appears
-in the plan**, and that every source path the plan cites exists. Sabotage-tested both ways:
-registering a new 10.0.0 deprecation without adding it to the plan fails the suite naming the file
-and line, and renaming a cited path fails it naming the path. A hand-maintained release plan drifts
-from the code; this one cannot.
-
-Still no 10.0.0 before 2027-09-01, unchanged.
-
 ## [Unreleased]
 
 ### Added — the first separator-bearing scriptCode a node has judged for this library
@@ -306,6 +210,264 @@ being written, which is the behaviour wanted from it.
 This is API-misuse hardening and a closed open question, not a reachable defect: no version
 behaves differently on any input a caller can supply as bytes. It is therefore **not a release on
 its own** and will ride with the next one.
+
+### Documented — the return-convention inconsistency is estate-wide, and one sibling's verdict is a truthy string
+
+No code change. `docs/RELIED-UPON-PROPERTIES.md` §2 already recorded that this library's four
+verification functions do not share a return convention. The open question it left — whether the
+other published `@smartledger` packages share the hazard — is now measured and answered: they do.
+
+Probed 2026-10-16 in an isolated tree with every version asserted before measuring, because an
+ancestor `node_modules` on the build machine holds different versions and would otherwise have
+answered (it held notaryhash **2.4.1** against the 2.4.2 under test). Versions measured:
+notaryhash 2.4.2, crypto 3.3.0, keys 4.1.0, envelope 3.0.1.
+
+Across those four and this library there are **three success keys** (`ok`, `valid`, `status`) and
+**five error keys** (`error`, `errors`, `reason`, `reasons`, `details`). Two sibling functions,
+`notaryhash.verifyDocument` and `crypto.verifyUsingSuite`, **reject** rather than resolving a
+result object — a distinction that matters, because a function that rejects is safe for
+`if (await f())` and only one that resolves to a truthy failure is not.
+
+**The dangerous instance is `notaryhash.checkAnchorBySpv`**, whose `status` is the union
+`'valid' | 'invalid' | 'indeterminate'`. All three are non-empty strings and therefore truthy, so
+`if (check.status)` accepts an anchor that library just refused; the correct form is
+`check.status === 'valid'`. The same string-union shape appears on `verifySealedLink`'s `link`
+field, but that result also carries a boolean `ok`, so a caller reading `ok` cannot go wrong by
+accident. Reported to the package's own session as a standing suggestion, not changed here.
+
+The table is marked in the document as a **dated measurement and not an enforced property**: this
+library depends on none of those packages, so nothing in our suite can pin their behaviour, and
+saying otherwise would be the same overclaim the section exists to warn about. Six new assertions
+in `test/properties/relied_upon.js` pin what *can* be enforced — that the document names the
+versions it measured, states the counts, carries the comparison form for a string-valued verdict,
+and says plainly that re-measurement is required.
+
+Recorded as **not** a defect, so it is not re-reported: `crypto.isKeyUsable({})` returns `true`.
+That is the documented tolerance for key records written before `status` existed; the code matches
+its docstring, and an unparseable `expiresAt` is treated as expired rather than as "no expiry",
+which is the safe direction.
+
+### Checked — a chunk index is the node's byte pointer, measured where an eager parser would diverge
+
+No behaviour change. The node holds the scriptCode start as a **byte pointer** into the raw script
+(`CScript scriptCode(pbegincodehash, pend)`); both packages hold it as a **chunk index** and slice
+`script.chunks` (`lib/script/interpreter.js:2812` and `:2923`, and the same two sites in core at
+`src/script/interpreter.ts:2631` and `:2730`). Those agree only while the chunks before the slice
+point re-serialize to exactly the bytes they were parsed from, and nothing asserted it.
+
+Measured over 17 bodies carrying separators, truncated pushes, and `0xab` in operand and
+length-byte positions — 60 chunk-index slices in all: **every slice equals the raw byte suffix at
+the preceding chunks' serialized length, and every body re-serializes to its own bytes**. The
+bodies are chosen for the only shape where an eager parser can disagree with the node's `GetOp`
+walk, a push whose declared length exceeds the bytes available; if such a chunk re-serialized to
+anything else, every byte offset after it would shift and the signed scriptCode would differ from
+the network's — the same class as the digest divergence fixed in 9.37.0.
+
+Pinned in `test/script/chunk_index_is_byte_pointer.js` in both packages, including a guard that the
+body list still contains truncated pushes, so the file cannot keep passing while testing nothing of
+interest. Sabotage: making `OP_PUSHDATA1` re-serialize without its length byte fails 3 of the 18.
+
+Prompted by a review of go-sdk, which reached the same conclusion for that library by a structural
+argument — its `scriptCodeStart` indexes a parser byte-faithful to the node's walk, so index and
+byte pointer stay in lockstep by construction. That argument holds here only as far as
+byte-faithfulness does, and byte-faithfulness is what these bodies stress, so it is measured rather
+than argued.
+
+### Checked — a large script-number operand cannot crash either package, and the vectors now say how to be used
+
+No behaviour change in `lib/`. Two additions, both prompted by outside work.
+
+**An upstream library was found to panic on a large `OP_SPLIT` index** — a slice-bounds crash from
+comparing a bignum against a buffer length after narrowing it. Checked here across 91 operand-edge
+cases (7 opcodes × 13 operands: 0, 1, the buffer-length boundary len-1/len/len+1, -1, 2^31-1, 2^31,
+2^53+1, 2^63, 2^151, -2^63, and a 600-byte zero). **Nothing crashes and nothing is answered with a
+flattened `SCRIPT_ERR_UNKNOWN_ERROR`**, and `@smartledger/bsv-core` 1.8.0 gives an identical answer
+on all 91. Pinned by `test/script/oversized_scriptnum_operands.js`, whose table is **generated from
+the measurement rather than transcribed**.
+
+Why it holds, since the absence of a crash here is not the same property as the upstream fix:
+`BN.toNumber()` in this package does **not** throw above 2^53 the way `bn.js`'s does — it returns a
+lossy float, with 2^151 coming back as `2.85e+45`. So a bound tested on the narrowed value is a
+bound on an approximation, and it is safe for these opcodes only because every bound involved (a
+small buffer length, `INT32_MAX`) sits far below 2^53 where doubles are exact. That is a property of
+these bounds and not of the pattern, which is why `OP_NUM2BIN` compares its size as a BN **before**
+narrowing. Separately, `evaluate()` catches whatever `step()` throws, so an exception cannot reach
+the caller — but it would arrive under the wrong name, which is the divergence family closed in
+9.31.0, so the table asserts the names too.
+
+The boundary operands are load-bearing: a sabotage turning `position > buf1.length` into `>=` left
+an earlier 70-case version of the table **entirely green**, because no operand equalled the buffer
+length. The opcodes also disagree at that boundary — `OP_LEFT` accepts `n == len` where `OP_SUBSTR`
+refuses `beg == len` — so it is pinned per opcode rather than assumed uniform. Sabotages that now
+fail: the split bound off by one (1), `SCRIPTNUM_OVERFLOW` renamed (11), `INVALID_SPLIT_RANGE`
+flattened to `UNKNOWN_ERROR` (8). One that does not, recorded deliberately: moving `OP_NUM2BIN`'s
+bound onto the narrowed value changes no verdict for any operand reachable here, which is the
+measured reason that ordering is a robustness choice and not a bug fix.
+
+**The `OP_CODESEPARATOR` sighash vectors did not say how to be used.** Three independent
+consumers — two outside sessions and the author of the files — each passed the whole `prevScriptHex`
+as the subscript instead of the slice at the executed separator, each mismatched every row, and each
+first read it as a library defect. Three for three is a missing statement, not three careless
+readers. `test/data/sighash-codesep-{undecodable,count-path,executed}.json` now carry
+`consumerNote` and `scriptCodeField`: the caller must pass `prevScriptHex[codeSepEnd*2:]`, because a
+library that takes a subscript does the separator removal and the undecodable-push truncation but
+does **not** execute the script and so cannot derive the separator *position*.
+
+The note also records why a bare byte count is not comparable between implementations while a digest
+is: for `prevScript 51abab6a4eababab` the slice declares 5 and writes `6a4e`, while the whole script
+declares 6 and writes `516a4e` — both correct answers to different questions. And one real
+irregularity found while writing it: in the **executed** file `scriptCodeHex` is the scriptCode
+*after* separator removal, so on 2 of its 20 rows it is not byte-equal to the raw slice
+(`526a0401020304` against `52ab6a0401020304`). Either string reproduces `expect.preimageHex` because
+removal is idempotent — measured on all 20 rows by both routes — so it is a display difference with
+no digest consequence. `test/transaction/sighash_codesep.js` now asserts both routes for all 92 rows
+across the three files, and pins that count of 2 so a change says so rather than quietly widening.
+
+### Fixed — the 10.0.0 release-plan guard did not enforce the pairing it claimed to
+
+No behaviour change for any caller: the ten registered deprecations each gain a `plan:` id, which
+`lib/util/deprecate.js` ignores and never prints (verified by firing a notice and comparing the
+consumer-facing text).
+
+`docs/RELEASE-10.0.0.md` lists every breaking change promised for the major, and
+`test/properties/release_10_plan.js` existed to keep the list and the code paired. Its header
+claimed both directions: *"a new `removeIn: '10.0.0'` that nobody adds to the plan fails here, and
+the plan cannot claim a commitment the code does not register."* It enforced neither reliably. The
+reverse direction was not implemented at all, and the forward direction matched only on whether a
+registration's `since` **version text occurred anywhere in the plan** — so any new commitment
+whose `since` an existing row already mentioned was accepted silently.
+
+Measured by sabotage, each case reverted (baseline 8 passing):
+
+| sabotage | old guard |
+|---|---|
+| new commitment, `since: '9.40.0'` (a version the plan never names) | 1 failing — caught |
+| new commitment, `since: '9.32.0'` (a version an existing row names) | **8 passing — blind** |
+| new commitment, `since: '9.1.0'` (ditto) | **8 passing — blind** |
+| new commitment, `since: '9.39.0'`, i.e. added in the version being shipped | **8 passing — blind** |
+| the low-s registration moved to `removeIn: '11.0.0'`, its plan row left in place | **8 passing — blind** |
+
+The fourth row is the ordinary workflow — a deprecation is normally registered in the version
+currently being prepared — so the guard was blind in the common case and caught only the unusual
+one. The fifth passed including the test *named* for that commitment, because that test greps the
+plan's prose and never reads the code.
+
+The pairing is now keyed on the `plan:` id, carried in the table's first column. Neither
+alternative works: `since` is not an identity because versions repeat, and the registering file is
+not one either, because two APIs in one file may legitimately be deprecated in the same release
+and a file move is not a change of promise. `since` and the registering file are therefore checked
+as **fields of the matched row**, which catches a commitment whose version or location moved
+without the plan being updated. Also added: every `since` must name a version with a `CHANGELOG`
+entry, since "the notice has been in your logs since X" is only true if X shipped.
+
+Eleven sabotages now fail, including the five above, a missing or duplicated id, an invented plan
+row, a `since` changed in one place only, and a count that disagrees with the table. The
+legitimate case the file-keyed design would have wrongly rejected — two deprecations in one file
+in one release, each with its own id and row — passes. 14 assertions, up from 8.
+
+Two counts in the plan were wrong and nothing checked them: the prose said "Nine" over a table of
+ten rows, and "nine source files" where there are ten. The count is now asserted against both the
+table and the registrations. The `### Why the last one is here rather than fixed` heading had also
+stopped pointing at the last row once a row was appended after it, and now names its subject.
+`docs/RELEASE-10.0.0.md` additionally gains the `NotaryHash.verify` per-check misattribution as a
+candidate, and the two counts, so the major is assembled from a list that is checked rather than
+remembered.
+
+## [9.39.0] - 2026-10-15
+
+### Added — a notice when a mutated output script will not be the one that serializes
+
+`output.script` hands out the live `Script` object, but `Output#toBufferWriter` writes
+`_scriptBuffer`: the bytes the output was *set from*. So this changes the object and nothing about
+the transaction —
+
+```js
+tx.outputs[0].script.add(bsv.Opcode.OP_NOP)   // dropped from the broadcast bytes
+tx.outputs[0].getSize()                        // but measured here: the two disagree
+tx.outputs[0].setScript(tx.outputs[0].script)  // the remedy, one line
+```
+
+— while `getSize()` measures the mutated object, so the fee is computed for a transaction that
+will not be sent. `getSize()` now compares the two byte strings it has just computed and emits a
+one-time deprecation notice when they differ. Its coverage is deliberately partial and stated as
+such: that call is the only place the comparison is free, so a mutation followed by serialization
+with no size enquiry is still silent, and `Input` has the same drop with nowhere free to see it.
+
+Re-setting changes the output, so the txid changes and any signature already made over it must be
+remade; building the script before setting it avoids the question.
+
+**The behaviour is unchanged and intended**, and the notice has no false positives: parsing a
+script and re-encoding it is byte-faithful here, measured over every script of three bytes or fewer
+(16,843,009, exhaustive) plus 400,000 push-biased random ones, 0 divergences — now pinned by a
+test, because that fidelity is also what makes the 10.0.0 options decidable. Per STABILITY.md the
+divergence is marked in a minor; the choice recorded for 10.0.0 in `docs/RELEASE-10.0.0.md` is
+between re-syncing on mutation, refusing to hand out a mutable parsed script, and an additive
+pre-broadcast check that covers inputs as well.
+
+### Documentation
+
+- `docs/RELIED-UPON-PROPERTIES.md` §5 states the hazard and the remedy, and §9 is new: what the SPV
+  and anchor checks do and do not establish about a header, measured against real mainnet headers.
+  Among them, `blockHashAtHeight` returns `valid` having checked nothing when it is taken from the
+  header or the certificate; `trustedHash` is satisfied by either end of a chain, so one header
+  equal to it is a valid chain of one; two returned fields are called `work` in units 4.3e9 apart;
+  and the illustrative "about 2.6e10" difficulty in the `minDifficulty` docstrings refuses real
+  mainnet blocks when copied as a floor (block 954784 is 2.5570e10). The docstrings and the
+  typings now say so.
+- Three consecutive real mainnet headers (970073–970075) are vendored as
+  `test/data/spv-mainnet-headers.json`, each hash confirmed outside the library.
+
+## [9.38.0] - 2026-10-15
+
+### Added — `Message#verify(address, sig, { lowS: true })` refuses the malleable twin
+
+A Message signature has a second encoding that verifies identically for the same key and message:
+flip the recovery id in the header and replace `s` with `n − s`. So the bytes are **not a unique
+name for a statement**, and anything keyed on them — a deduplication key, a nonce, a replay
+marker, an audit identity, a Merkle leaf — has a forgeable twin. Measured at every published
+version back to 1.5.6-fix1. Two projects in this estate had assumed otherwise.
+
+```js
+bsv.Message(text).verify(address, sig, { lowS: true })   // false for the twin
+bsv.Message.verify(text, address, sig, { lowS: true })   // the static form takes it too
+```
+
+`message.error` then reads "The signature is not canonical: s is above half the curve order", so a
+malleability refusal is distinguishable from a wrong-key failure.
+
+**Adopting it rejects nothing this library produces** — `sign()` has only ever emitted low-s,
+measured over 40 fresh keys rather than assumed. It is opt-in rather than default because the
+signatures it refuses are **valid ECDSA**, and other implementations may legitimately emit high-s:
+refusing by default is a compatibility change, not a bug fix. Per STABILITY.md the behaviour is
+marked in a minor and flipped in the major, so accepting a high-s signature now emits a one-time
+notice naming 10.0.0.
+
+The notice fires **only on the accept**. A canonical signature raises nothing, and neither does a
+verify that already passes `{ lowS: true }` — a warning naming a condition the caller does not
+have is noise, and noise gets silenced.
+
+Three sabotage checks, because an option that silently does nothing is worse than no option:
+making `{ lowS: true }` a no-op fails four tests, inverting the low-s comparison fails eight, and
+**dropping the option in the static forwarder fails exactly one** — the test written for that
+failure mode, which is where a signature change goes to die when a delegating wrapper quietly
+drops an argument.
+
+### Added — `docs/RELEASE-10.0.0.md`, the planned major, enforced against the source
+
+The breaking changes this library has promised were scattered across nine source files and three
+docs, which is how a major gets assembled instead of planned. They are now in one place: what
+breaks, what to write instead, and how long the notice has been in consumers' logs. Nine
+registered deprecations dating from 9.1.0, five decisions that have no call site to attach a
+notice to, and two candidates — including making the verification functions share a return
+convention, which is the single change most likely to stop a consumer shipping a silent accept.
+
+`test/properties/release_10_plan.js` asserts that **every `removeIn: '10.0.0'` in `lib/` appears
+in the plan**, and that every source path the plan cites exists. Sabotage-tested both ways:
+registering a new 10.0.0 deprecation without adding it to the plan fails the suite naming the file
+and line, and renaming a cited path fails it naming the path. A hand-maintained release plan drifts
+from the code; this one cannot.
+
+Still no 10.0.0 before 2027-09-01, unchanged.
 
 ## [9.37.0] - 2026-10-15
 
