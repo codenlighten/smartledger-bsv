@@ -103,6 +103,40 @@ Still no 10.0.0 before 2027-09-01, unchanged.
 
 ## [Unreleased]
 
+### Added — the first separator-bearing scriptCode a node has judged for this library
+
+No behaviour change. `test/data/sighash-scriptcode-tail.json`, the node-measured sighash corpus,
+contains **zero rows whose script holds a `0xab` byte**, so until now no separator-bearing
+scriptCode had ever been judged by a node here; coverage rested on an equivalence argument
+(`ab6a4c050102`'s field equals `6a4c050102`'s, and that one was judged) plus our own model.
+
+Forty-eight rows were authored here, with no expected values, to exercise the one combination
+neither corpus reached: an executed separator **together with** a trailing undecodable push,
+where the separator rule meets `SerializeScriptCode`'s `size() - nCodeSeparators` and its
+write-up-to-the-failed-`GetOp`. They came back judged by a compiled bitcoin-sv v1.2.3 and an
+independent Rust node. Joined here against a **fresh** run of this library rather than a stored
+column: 96 comparisons, **0 preimage differences, 0 digest differences**, every row's digest
+confirmed as `sha256d` of its own preimage. Vendored at
+`test/data/sighash-codesep-undecodable.json`, including the caveat that the two emitters' output
+files are byte-identical, so the two-witness claim rests on their distinct binary hashes and
+provenance rather than on the column bytes — both run by one operator, one machine, one
+timestamp.
+
+Every declared length is `len(suffix) - separators_reached`, and the field declares more than it
+carries wherever the walk stopped early. `4d01ab` and `ab4dab00` are now directly node-judged:
+a `0xab` serving as a `PUSHDATA` length byte is neither counted nor excised.
+
+**A sabotage then showed those 48 rows cannot see half of what they appear to pin.** Replacing
+the walk's separator count with a naive count of every `0xab` byte left all 48 green. The
+declared length only consults that count when the walk stops early, and in all twelve judged
+bodies a `0xab` inside a length field never coincides with an early stop — so the rows pin the
+*excision* and not the *count*. Six bodies where the two counts do diverge (`6a4dab`,
+`ab6a4dab`, `4dab`, `ab4dab`, `6a4eab0000`, `ab6a4eababab`; the walk declares 3/3/2/2/5/5 where
+a naive count declares 2/2/1/1/4/2) are now in the suite and fail under that sabotage. They are
+**this library's own values, not node-judged**, and are labelled so; they have been sent for
+judgement. The reusable point is that a corpus which passes a sabotage is not covering the thing
+the sabotage broke, however relevant its subject looks.
+
 ### Added — what a signature commits to when `OP_CODESEPARATOR` is in the script
 
 No behaviour change. The separator rule was correct and is now measured against work done
