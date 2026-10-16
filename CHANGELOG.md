@@ -219,8 +219,9 @@ other published `@smartledger` packages share the hazard — is now measured and
 
 Probed 2026-10-16 in an isolated tree with every version asserted before measuring, because an
 ancestor `node_modules` on the build machine holds different versions and would otherwise have
-answered (it held notaryhash **2.4.1** against the 2.4.2 under test). Versions measured:
-notaryhash 2.4.2, crypto 3.3.0, keys 4.1.0, envelope 3.0.1.
+answered (it held notaryhash **2.4.1** against the version under test). Versions measured, after
+re-measuring against the newly published notaryhash: notaryhash **2.5.0**, crypto 3.3.0,
+keys 4.1.0, envelope 3.0.1.
 
 Across those four and this library there are **three success keys** (`ok`, `valid`, `status`) and
 **five error keys** (`error`, `errors`, `reason`, `reasons`, `details`). One sibling function,
@@ -230,12 +231,20 @@ a truthy failure is not. `notaryhash.verifyDocument` rejects in the probe too, b
 pointed out that it does so only with a `TypeError` for missing document bytes, which is misuse
 rather than a verdict, so the count is corrected in the document rather than left as measured.
 
-**The dangerous instance is `notaryhash.checkAnchorBySpv`**, whose `status` is the union
-`'valid' | 'invalid' | 'indeterminate'`. All three are non-empty strings and therefore truthy, so
-`if (check.status)` accepts an anchor that library just refused; the correct form is
-`check.status === 'valid'`. The same string-union shape appears on `verifySealedLink`'s `link`
-field, but that result also carries a boolean `ok`, so a caller reading `ok` cannot go wrong by
-accident. Reported to the package's own session as a standing suggestion, not changed here.
+**The dangerous instance was `notaryhash.checkAnchorBySpv`, and it is now fixed upstream.** Its
+`status` is the union `'valid' | 'invalid' | 'indeterminate'`, all three non-empty strings and
+therefore truthy, so on 2.4.2 and earlier `if (check.status)` accepts an anchor the library had
+just refused — `status` being its only verdict. `sealedLink` had the identical shape. Reported to
+the maintainers, who added a boolean `ok` to both, true exactly when the status says valid, as
+discriminated unions so `{ ok: true, status: 'invalid' }` is unrepresentable. Published as
+**`@smartledger/notaryhash@2.5.0` on 2026-10-16** and verified here on the published artifact.
+
+So `status` is no longer a sole verdict anywhere in the estate. The subsection stays for two
+reasons: **anyone pinned below 2.5.0 still has the live trap**, and the naming is still not
+uniform — success is `ok` in notaryhash and `valid` in crypto and envelope, failure is `reason`,
+`reasons`, `details` or `error` depending on the function. That is inconsistency rather than
+hazard, since every current verdict has a boolean to read, but the correct spelling for one
+function is still wrong for the next.
 
 The table is marked in the document as a **dated measurement and not an enforced property**: this
 library depends on none of those packages, so nothing in our suite can pin their behaviour, and

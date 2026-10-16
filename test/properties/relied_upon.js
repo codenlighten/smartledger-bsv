@@ -264,7 +264,7 @@ describe('relied-upon properties', function () {
       // states the one rule that makes a string-valued verdict safe to read. Without this, the
       // table reads like a property of the estate rather than a reading taken on one day.
       it('names each sibling version the table was measured against', function () {
-        documented('@smartledger/notaryhash` 2.4.2')
+        documented('@smartledger/notaryhash` **2.5.0**')
         documented('@smartledger/crypto` 3.3.0')
         documented('@smartledger/keys` 4.1.0')
         documented('@smartledger/envelope` 3.0.1')
@@ -281,11 +281,18 @@ describe('relied-upon properties', function () {
         documented('five different error keys')
       })
 
-      it('gives the rule for a string-valued verdict, which is the dangerous shape', function () {
-        // 'valid' | 'invalid' | 'indeterminate' are ALL truthy, so `if (status)` accepts a
-        // refusal. The document must carry the comparison form, not just the warning.
+      it('gives the rule for a string-valued verdict, which was the dangerous shape', function () {
+        // Fixed in notaryhash 2.5.0 by adding a boolean `ok`, but live in every earlier version,
+        // so the document must still carry the comparison form AND say who is still exposed.
         documented("`check.status === 'valid'`")
-        documented('all three are non-empty strings, so all three are\ntruthy')
+        documented('all three non-empty strings and therefore all truthy')
+        documented('If you are pinned below notaryhash 2.5.0 the trap is live')
+      })
+
+      it('records that the fix changed the READING, not the double-spend result', function () {
+        // The inference a reader could otherwise draw from "they added ok".
+        documented('It does not change\nthe result')
+        documented('still reports a link for BOTH halves of a double spend')
       })
 
       it('records the isKeyUsable finding as NOT a defect, so it is not re-reported', function () {
