@@ -137,7 +137,7 @@ that every comparison differed for its own reason and `SINGLE` looked safe. The 
 test file exist because of that: an unmutated verify must pass, and the same mutation under `ALL`
 must fail, or the file proves nothing.
 
-## [Unreleased]
+## [9.42.0] - 2026-10-17
 
 ### Added — a covenant with no era dependency at all: 135 bytes, no Genesis, no Chronicle
 
