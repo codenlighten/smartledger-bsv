@@ -28,6 +28,11 @@
 // checked. The construction therefore cannot EMIT a high-S signature, which is a stronger property
 // than "the interpreter would reject one".
 //
+// Independently reproduced on a compiled bitcoin-sv v1.2.3 oracle, classifying 1,000 of its OWN
+// preimages: usable 2.30% (here ~2.1%), minimal-encoding-failed 50.2%, high-S dying at
+// OP_NUM2BIN 47.5%, and the LOW_S-would-guard window 0 of 1,000. Two implementations, same
+// distribution within sampling error, and the window empty on both.
+//
 // The window where `SCRIPT_VERIFY_LOW_S` would be the thing that rejects — n/2 < s < 2^255 — is
 // about 2^127 wide out of 2^256. Nothing landed in it and nothing will: that branch is
 // unreachable by sampling (~2^-129), so its existence is REASONED here and deliberately not

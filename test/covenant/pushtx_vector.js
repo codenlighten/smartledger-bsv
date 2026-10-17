@@ -10,6 +10,14 @@
 // a construction; this file is an artifact: a locking script, a transaction, the grind nonce
 // that made the s-value canonical, and the preimage, all of which must agree.
 //
+// Independently reproduced 2026-10-17 against a compiled bitcoin-sv v1.2.3 VerifyScript
+// (flags 0xd400e: STRICTENC|DERSIG|LOW_S|NULLFAIL|FORKID|GENESIS|UTXO_AFTER_GENESIS) by another
+// session: both vectors accept the genuine preimage and reject a one-byte mutation, a preimage
+// whose trailing nHashType is forced to 0x42 is rejected, and -- the strongest form of this --
+// their own independent grind reached the SAME published nonce, 103, rather than merely some
+// working nonce. That last result is what confirms the s = (e + Gx) mod n arithmetic and the
+// three grind conditions, not just the outcome.
+//
 // The test is written so the JSON cannot drift from the code. Every field is RECOMPUTED from
 // the others rather than compared to itself: the script is rebuilt from its hex and must equal
 // what PushTx.authenticator() emits today, the preimage is recomputed from the serialized

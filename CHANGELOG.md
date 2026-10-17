@@ -171,6 +171,14 @@ zero and labels that branch **reasoned, not measured** — and the old comment i
 replaced by a pointer to the file that actually tests it. A sabotage removing the low-S check from
 `grind` fails the test.
 
+**Independently reproduced** on a compiled `bitcoin-sv` v1.2.3 oracle, over 1,000 of its own
+preimages: usable **2.30%** (here ~2.1%), minimal-encoding-failed 50.2%, high-S dying at
+`OP_NUM2BIN` 47.5%, and the `LOW_S`-would-guard window **0 of 1,000**. Same distribution within
+sampling error, window empty on both. And the strongest form of the vectors' reproducibility:
+that session's own grind reached **the same published nonce, 103**, rather than merely some
+working nonce — which confirms the `s = (e + Gx) mod n` arithmetic and the three conditions, not
+just the outcome.
+
 ### Added — two published OP_PUSH_TX vectors, so an external implementation can diff instead of re-derive
 
 No behaviour change. A session building a covenant to a frozen spec refused to transcribe the
