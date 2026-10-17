@@ -139,6 +139,43 @@ must fail, or the file proves nothing.
 
 ## [Unreleased]
 
+### Added — the 9.40.0 affected range, measured on published tarballs, and a prepared advisory
+
+No behaviour change. 9.40.0 said the public API "could never produce the vulnerable shape" on the
+strength of reading **one** version's unlock path. A version range has to be measured outside the
+sweep that found the defect, so `signInput` call sites were parsed out of the whole shipped `lib/`
+of 4.1.0, 5.4.1, 5.4.2, 5.5.0, 7.5.1, 9.0.0, 9.20.0, 9.36.0 and 9.39.1, fetched from the registry
+rather than read from this repository.
+
+**No call site anywhere in any of them hands the signing helper an explicit sighash type**, except
+two in `lib/ordinals/ordlock.js` — the `cancelOrdLock` pass-through deprecated in 9.41.0, and one
+that is explicitly `SIGHASH_ALL_FORKID` — and the helper's default is `SIGHASH_ALL | SIGHASH_FORKID`
+at every version. So the claim holds across the whole affected range, not just at its end.
+
+**The range has a real lower bound: 5.5.0**, the release that introduced signature-based
+`Authorizers`. 5.4.1 and 5.4.2 ship a *hash-lock* Token — owner id `SHA256(ownerSecret)`, secret
+revealed in the unlock — so there is no authorization signature and this class cannot apply there.
+4.1.0 ships no Token at all. Two siblings that would normally be listed are **not affected**, read
+from their tarballs rather than assumed: `@smartledger/bsv-core` has no Token covenant at any
+version, and the unscoped `smartledger-bsv` (last release 4.4.0) ships the hash-lock design.
+
+The current-code half of the bounding claim is now asserted —
+`test/smart_contract/token_sighash_pin.js` checks that `unlockArgs` and `unlockTransfer` both emit
+a signature whose flag byte is `0x41` — so adding an override later fails a test rather than
+quietly widening the exposure.
+
+`docs/advisories/draft-token-sighash-authorization.md` is prepared to the same standard as the
+other five drafts and **not filed**: `patched_versions` is deliberately `null` rather than
+`9.40.0`, because 9.40.0's pin is opt-in and telling a scanner the default is safe there would be
+false. Whether to file it is a decision about a defect whose prerequisite this library's API
+cannot produce, and the measurement above is there so that decision can rest on evidence.
+
+**One harness bug worth recording.** The first version of the range scan reported zero
+sixth-argument call sites at every version, including one where the answer was known to be two:
+its regular expression excluded method-style calls (`H.signInput(...)`). It was caught because a
+known answer was checked first. A sweep whose result is "nothing anywhere" should be run against a
+case that must produce a hit before it is believed.
+
 ### Added — which guard actually catches a high-S value, and the control that was missing
 
 No behaviour change. `covenants.js` asserted that a grind-accepted preimage verifies **with**

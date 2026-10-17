@@ -125,6 +125,32 @@ var DRAFTS = [
     }
   },
   {
+    out: 'draft-token-sighash-authorization.json',
+    from: 'draft-token-sighash-authorization.md',
+    // The lower bound is 5.5.0, the release that introduced signature-based Authorizers, read
+    // from published tarballs: 5.4.1 and 5.4.2 ship the hash-lock Token (no authorization
+    // signature, so this class cannot apply) and 4.1.0 ships no Token at all. There is no
+    // patched version: 9.40.0 adds an OPT-IN pin and 10.0.0 makes it the default, so
+    // patched_versions is null rather than 9.40.0 — claiming 9.40.0 would tell a scanner the
+    // default is safe there, which it is not. `smartledger-bsv` and `@smartledger/bsv-core`
+    // are deliberately absent: neither ships a signature-authorized Token (checked in their
+    // published tarballs), and listing an unaffected package is a false positive someone else
+    // has to triage.
+    payload: {
+      summary: 'The Token covenant accepts an authorization signed SIGHASH_NONE, which commits to no outputs, so anyone holding that signature before broadcast can reuse it to redirect the token',
+      cvss_vector_string: 'CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:H/A:N',
+      cwe_ids: ['CWE-347', 'CWE-345'],
+      vulnerabilities: [
+        {
+          package: { ecosystem: 'npm', name: '@smartledger/bsv' },
+          vulnerable_version_range: '>= 5.5.0, < 9.40.0',
+          patched_versions: null,
+          vulnerable_functions: []
+        }
+      ]
+    }
+  },
+  {
     out: 'draft-ltp-salt-derivation.json',
     from: 'draft-ltp-salt-derivation.md',
     // 9.34.0 reached the registry on 2026-10-14, so the patched version this names now exists.

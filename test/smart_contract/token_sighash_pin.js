@@ -115,6 +115,30 @@ describe('Token authorization is only sound when its signature is SIGHASH_ALL', 
     })
   })
 
+  // The claim that bounds the severity of all of the above: the library's own unlock path
+  // cannot produce a non-SIGHASH_ALL authorization, because unlockArgs passes no override. That
+  // was measured across every published version carrying signature-based Token authorization
+  // (5.5.0 through 9.39.1, on registry artifacts: no call site in the whole shipped lib/ ever
+  // hands signInput a 6th argument except ordinals/ordlock.js, and the default is 0x41). This
+  // asserts the current-code half, so adding an override later fires here rather than quietly
+  // widening the exposure.
+  describe('the library\'s own unlock path cannot produce the vulnerable shape', function () {
+    it('signs the authorization with SIGHASH_ALL | FORKID and offers no override', function () {
+      var w = world(A.singleKey())
+      var spend = w.spendTo(w.bobHash)
+      P.grind(spend, 0, w.lock, SATS)
+      var args = A.singleKey().unlockArgs(spend, 0, w.lock, SATS, w.alice)
+      // args[0] is the DER signature with its flag byte appended
+      var sig = args[0]
+      sig[sig.length - 1].should.equal(ALL, 'unlockArgs must sign 0x41')
+      // and the same through the public helper, which is what a consumer actually calls
+      var viaApi = Token.unlockTransfer(w.alice, w.bobHash, spend, SATS, w.lock)
+      var chunks = viaApi.chunks.filter(function (c) { return c.buf })
+      var der = chunks[1].buf // <newOwnerHash> <sig> <pubkey> <preimage>
+      der[der.length - 1].should.equal(ALL, 'unlockTransfer must sign 0x41')
+    })
+  })
+
   describe('{ pinSighash: true }', function () {
     var pinned = A.singleKey({ pinSighash: true })
 

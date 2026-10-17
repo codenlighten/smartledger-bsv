@@ -6,9 +6,9 @@ re-read from the registry on **2026-10-17**; the reasoning that follows it was w
 the 2026-10-13 state (see the note below). Re-run `npm run check:npm-inventory` before acting on
 any of it, and the suite fails if the package table below drifts from the registry.
 
-**The live set today, read from the registry on 2026-10-17:** `@smartledger/bsv` has six
-undeprecated versions — **9.36.0, 9.37.0, 9.38.0, 9.39.0, 9.39.1 and 9.40.0** — and everything up
-to and including 9.35.0 is deprecated. All five are at or above every fix in the defect table
+**The live set today, read from the registry on 2026-10-17:** `@smartledger/bsv` has seven
+undeprecated versions — **9.36.0, 9.37.0, 9.38.0, 9.39.0, 9.39.1, 9.40.0 and 9.41.0** — and
+everything up to and including 9.35.0 is deprecated. All five are at or above every fix in the defect table
 below. Three fixes landed after that table was written and are therefore NOT in it: the
 original-algorithm sighash digest over a truncated `OP_RETURN` push (9.37.0, public advisory
 GHSA-j884-5pmj-6wqp), `Message#verify({ lowS: true })` refusing the malleable twin (9.38.0,
@@ -40,7 +40,7 @@ already printed into someone's CI log is not.
 
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
-| `@smartledger/bsv` | 135 | 129 | 6 | 9.40.0 | 2025-10-18 | 2026-10-17 |
+| `@smartledger/bsv` | 136 | 129 | 7 | 9.41.0 | 2025-10-18 | 2026-10-17 |
 | `@smartledger/bsv-core` | 17 | 0 | 17 | 1.8.1 | 2026-09-30 | 2026-10-17 |
 | `@smartledger/keys` | 24 | 0 | 24 | 4.1.0 | 2025-11-28 | 2026-10-15 |
 | `@smartledger/notaryhash` | 17 | 0 | 17 | 2.5.0 | 2026-06-27 | 2026-10-16 |
@@ -89,6 +89,20 @@ below the fix:
 | 9.33.0 | consensus | `OP_RSHIFTNUM` shift count above INT32_MAX — a false accept |
 | 9.33.1 | divergence | `isPushOnly` treats a truncated push as a push. **Not a false accept** — measured: both this library and the node reject, the node as `SIG_PUSHONLY` above evaluation, this library as `BAD_OPCODE` from running the script |
 | 9.33.2 | robustness | null-script dereferences — an untyped TypeError on a transaction read from a valid block |
+| 9.40.0 | **token theft, conditional** | the `SmartContract.Token` covenant **accepted a `SIGHASH_NONE` authorization** although its security argument depends on `SIGHASH_ALL`. Anyone holding the authorization signature before broadcast can redirect the token by grinding their own destination keys (4, 67 and 35 candidate keys across three independent runs). **Affected range measured on registry artifacts: 5.5.0 — 9.39.1**, the versions carrying signature-based `Authorizers`. 5.4.1–5.4.2's Token authorized by hash-lock, so this class cannot apply there (that era has its own front-running defect, which is why the design changed); before 5.4.1 there was no Token. Mitigated, **not fixed by default**: `Authorizers.singleKey({ pinSighash: true })` in 9.40.0, becoming the default in 10.0.0, and **an already-issued lineage can never be migrated** because the covenant forces its own code forward |
+| 9.41.0 | ordinal routing | `cancelOrdLock({ sighashType })` accepted any mode. For a satoshi-tracked asset `SIGHASH_SINGLE` is also unsafe — it leaves **earlier** output values free, so an earlier output can be enlarged to swallow the ordinal satoshi while the owner's output stays signed-for. Deprecated for any non-`ALL` mode; the branch is a plain P2PKH gate, so this is API protection rather than an on-chain invariant |
+
+**The two 9.40.0/9.41.0 rows are bounded differently from the rest of this table, and the
+difference matters for any deprecation decision.** Neither is reachable through this library's
+public API. Measured across every published version carrying signature-based Token authorization
+(5.5.0 through 9.39.1, read from registry tarballs rather than from this repository): **no call
+site anywhere in the shipped `lib/` ever hands `signInput` an explicit sighash type**, except two
+in `lib/ordinals/ordlock.js` — the `cancelOrdLock` pass-through now deprecated, and one that is
+explicitly `SIGHASH_ALL_FORKID` — and the default is `0x41` at every version. So producing the
+vulnerable shape requires a **hand-built unlocking script**, which is public documented usage but
+is not what `Token.unlockTransfer` or `Authorizers.*.unlockArgs` do. The current-code half of that
+claim is asserted in `test/smart_contract/token_sighash_pin.js`, so adding an override later fails
+a test rather than quietly widening the exposure.
 
 **Every live version contains the affected code.** Checked rather than assumed: all four
 affected verifiers and both proof modules appear in the repository's first commit (5.4.0,
