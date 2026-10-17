@@ -6,7 +6,7 @@
   "construction": "SmartContract.PushTx.authenticatorCompact() === pushTxCoreCompact(new Script())",
   "note": "k = 1 and a = 2^248 * Gx^-1 mod n, so Gx*a = 2^248 and s = e + 2^248, which in a 32-byte big-endian string is incrementing byte[0]. No reversal, no 256-bit arithmetic.",
   "aScalar": "d475289d7db690543c1ecbd9ed0d6c9a2e5920ecebf361bdcca0d61f77af4839",
-  "aDerivation": "a = 2^248 * modInverse(Gx, n) mod n — public and deterministic; verify COMPACT_PUBKEY === a*G",
+  "aDerivation": "a = 2^248 * modInverse(Gx, n) mod n \u2014 public and deterministic; verify COMPACT_PUBKEY === a*G",
   "compactPubKey": "02b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0",
   "sighashType": "0x41",
   "lockingScriptHex": "aa517f7c818b51807c7e263044022079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179802207c7e01417e2102b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0ac",
@@ -30,11 +30,13 @@
   "hash256OfPreimage": "5242b0d896d63f775fd9df516bafecf3b21ae6dde60bac6af9e195f55f222d96",
   "mustVerify": true,
   "negativeControl": {
-    "description": "preimage byte 0 XORed by 0x01 — MUST be refused",
+    "description": "preimage byte 0 XORed by 0x01 \u2014 MUST be refused. Only the REJECTION is guaranteed; the error string below is incidental, see errorIsIncidental.",
     "preimageHex": "00000000bc65b6338d8d51740d51021009c1a2386cff551edc5b29469150c350ae2fbc1c3bb13029ce7b1f559ef5e747fcac439f1455a2ec7c5f09b72290795e70665044675ea7b2cfaa669ee9718f18e34b699f8d42ad1a3cf318d08564d2279bea10780000000059aa517f7c818b51807c7e263044022079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179802207c7e01417e2102b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0ac50c3000000000000ffffffff1f5d333b6bf1fe7eea2eee3902b0faa981cd364d7e4daa3768d0ebbe75bd25960000000041000000",
     "spendTxHex": "0100000001675ea7b2cfaa669ee9718f18e34b699f8d42ad1a3cf318d08564d2279bea107800000000f84cf600000000bc65b6338d8d51740d51021009c1a2386cff551edc5b29469150c350ae2fbc1c3bb13029ce7b1f559ef5e747fcac439f1455a2ec7c5f09b72290795e70665044675ea7b2cfaa669ee9718f18e34b699f8d42ad1a3cf318d08564d2279bea10780000000059aa517f7c818b51807c7e263044022079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179802207c7e01417e2102b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0ac50c3000000000000ffffffff1f5d333b6bf1fe7eea2eee3902b0faa981cd364d7e4daa3768d0ebbe75bd25960000000041000000ffffffff015cc10000000000001976a914fc7250a211deddc70ee5a2738de5f07817351cef88ac00000000",
     "mustVerify": false,
-    "observedError": "SCRIPT_ERR_SIG_DER_INVALID_FORMAT"
+    "observedError": "SCRIPT_ERR_SIG_DER_INVALID_FORMAT",
+    "observedErrorIsIncidental": true,
+    "errorIsIncidental": "Which error appears depends on the MUTATED preimage's top hash byte, so do not assert on it. z[0] <= 0x7e: the script builds a well-formed DER carrying the wrong s for the real sighash, so the signature check fails with a non-empty signature -> SCRIPT_ERR_NULLFAIL. z[0] >= 0x7f: the increment yields a top byte >= 0x80, making the DER INTEGER negative, i.e. non-canonical -> SCRIPT_ERR_SIG_DER_INVALID_FORMAT (a compiled bitcoin-sv v1.2.3 reports the same class as \"Non-canonical DER signature\"). Measured over single-byte mutations at 7 positions: 7 of 7 rejected, 0 accepted, via exactly those 2 paths. Assert rejection, not the string."
   },
   "preGenesisDemonstration": {
     "description": "this gate verifies pre-Genesis, unlike the 377-byte form, because its 246-byte preimage fits the 520-byte element cap and it uses no 32-byte arithmetic",
@@ -53,12 +55,12 @@
   },
   "eraRequirements": {
     "monolith": "REQUIRED (OP_SPLIT/OP_CAT/OP_BIN2NUM/OP_NUM2BIN), and not switchable in this library, so it cannot attest to any earlier rule set",
-    "genesis": "NOT required for this gate — see preGenesisDemonstration. A larger per-path covenant can re-cross the 520-byte cap; test the complete script.",
+    "genesis": "NOT required for this gate \u2014 see preGenesisDemonstration. A larger per-path covenant can re-cross the 520-byte cap; test the complete script.",
     "chronicle": "NOT required: no Chronicle-gated opcode"
   },
   "failClosedPaths": {
-    "z[0] == 0x7f": "ABORTS, SCRIPT_ERR_IMPOSSIBLE_ENCODING — OP_NUM2BIN cannot fit 128 in one signed byte",
-    "z[0] >= 0x80": "COMPLETES with a wrong s that OP_CHECKSIG rejects — OP_BIN2NUM reads 0x80 as negative zero and 0xff as -127"
+    "z[0] == 0x7f": "ABORTS, SCRIPT_ERR_IMPOSSIBLE_ENCODING \u2014 OP_NUM2BIN cannot fit 128 in one signed byte",
+    "z[0] >= 0x80": "COMPLETES with a wrong s that OP_CHECKSIG rejects \u2014 OP_BIN2NUM reads 0x80 as negative zero and 0xff as -127"
   },
   "securityPrecondition": "a is public, which is safe ONLY because the sole OP_CHECKSIG consumes a signature the LOCKING script assembles. Do not add a spend path that checks a spender signature against compactPubKey.",
   "limitsInForceWhenGenerated": {

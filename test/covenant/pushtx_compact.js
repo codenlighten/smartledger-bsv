@@ -219,6 +219,37 @@ describe('the compact OP_PUSH_TX gate', function () {
       } finally { I.setLimits(savedL) }
     })
 
+    // A single mutation with a single expected error string is a weak control, and it is also
+    // not stable: WHICH error appears depends on the MUTATED preimage's top hash byte. Two
+    // implementations reported different strings for the same mutation and both were right. So
+    // sweep positions and assert what is actually guaranteed — rejection — while pinning the
+    // two-path rule that explains the strings.
+    it('rejects a single-byte mutation at every position, by one of exactly two paths', function () {
+      var savedL = I.getLimits()
+      I.useGenesisLimits()
+      try {
+        var lock = bsv.Script.fromHex(PIN.lockingScriptHex)
+        var pre = Buffer.from(PIN.preimageHex, 'hex')
+        var seen = {}
+        ;[0, 1, 5, 40, 100, 200, pre.length - 1].forEach(function (pos) {
+          var m = Buffer.from(pre)
+          m[pos] ^= 0x01
+          var tx = new bsv.Transaction(PIN.spendTxHex)
+          tx.inputs[0].setScript(new Script().add(m))
+          var r = H.verify(tx.inputs[0].script, lock, { tx: tx, satoshis: PIN.inputSatoshis })
+          r.ok.should.equal(false, 'mutation at byte ' + pos + ' must be refused')
+          seen[r.err] = true
+          // and the rule the artifact states, checked rather than asserted in prose
+          var z0 = Hash.sha256sha256(m)[0]
+          if (z0 <= 0x7e) r.err.should.equal('SCRIPT_ERR_NULLFAIL')
+          else r.err.should.equal('SCRIPT_ERR_SIG_DER_INVALID_FORMAT')
+        })
+        Object.keys(seen).length.should.be.within(1, 2, 'exactly the documented paths')
+        PIN.negativeControl.observedErrorIsIncidental.should.equal(true)
+        PIN.negativeControl.errorIsIncidental.should.match(/Assert rejection, not the string/)
+      } finally { I.setLimits(savedL) }
+    })
+
     it('states the pre-Genesis result and ships the control that makes it sound', function () {
       PIN.preGenesisDemonstration.genuineSpendVerifies.should.equal(true)
       PIN.preGenesisDemonstration.control.mustFailWith.should.equal('SCRIPT_ERR_PUSH_SIZE')

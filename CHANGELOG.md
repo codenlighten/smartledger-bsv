@@ -185,7 +185,19 @@ turning the covenant into a known-key signature check.
 classic gate's pin, carrying the pre-Genesis demonstration **with its own control inside it**: a
 536-byte element push that must fail under the same flags and limits, so a consumer can confirm
 the 520-byte cap was active rather than silently disabled. `test/covenant/pushtx_compact.js`
-(13 tests) covers all of it. The classic gate is untouched:
+(14 tests) covers all of it.
+
+**One correction to the artifact, from a third implementation disagreeing with it harmlessly.**
+Its negative control originally published `observedError` as if it were an expectation. It is
+not: **which** error a mutated preimage produces depends on the **mutated** preimage's top hash
+byte. If `z[0] <= 0x7e` the script builds well-formed DER carrying the wrong `s`, so the check
+fails with a non-empty signature — `SCRIPT_ERR_NULLFAIL`. If `z[0] >= 0x7f` the increment pushes
+the top byte to `0x80` or beyond, making the DER INTEGER negative and therefore non-canonical —
+`SCRIPT_ERR_SIG_DER_INVALID_FORMAT`, which a compiled `bitcoin-sv` v1.2.3 reports as
+"Non-canonical DER signature". Two implementations gave different strings for the same mutation
+and both were right. The field is now labelled incidental with the rule beside it, and the test
+sweeps **seven** mutation positions asserting what is actually guaranteed — rejection — while
+checking the two-path rule per case: 7 of 7 refused, 0 accepted. The classic gate is untouched:
 `authenticator()` is still 377 bytes, `test/data/pushtx-gate-pin.json` still matches it, and it
 keeps its three independent witnesses. The compact form now has three as well — its origin, this
 library, and a compiled `bitcoin-sv` v1.2.3 `VerifyScript`, which accepted the genuine spend under
