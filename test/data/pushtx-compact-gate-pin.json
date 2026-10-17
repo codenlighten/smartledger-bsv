@@ -62,11 +62,12 @@
     "z[0] == 0x7f": "ABORTS, SCRIPT_ERR_IMPOSSIBLE_ENCODING \u2014 OP_NUM2BIN cannot fit 128 in one signed byte",
     "z[0] >= 0x80": "COMPLETES with a wrong s that OP_CHECKSIG rejects \u2014 OP_BIN2NUM reads 0x80 as negative zero and 0xff as -127"
   },
-  "securityPrecondition": "a is public, which is safe ONLY because the sole OP_CHECKSIG consumes a signature the LOCKING script assembles. Do not add a spend path that checks a spender signature against compactPubKey.",
+  "securityPrecondition": "a is public, which is safe because the only OP_CHECKSIG consumes a signature the LOCKING script assembles from constants plus the computed s, never a spender-supplied one. Three hazards, worst first: (1) NEVER use compactPubKey as an authorization key anywhere \u2014 its private half is published, so a path checking a spender signature against it is a free pass; (2) one CHECKSIG is necessary but NOT sufficient \u2014 the real guard is that the emitted script equals lockingScriptSha256, and the opcode count is defence in depth; (3) fields read from the preimage are only as trustworthy as the gate that authenticated it, so field reads must come AFTER the gate.",
   "limitsInForceWhenGenerated": {
     "maxScriptElementSize": 2147483647,
     "maximumElementSize": 4,
     "maxOpsPerScript": 2147483647,
     "maxScriptSize": 2147483647
-  }
+  },
+  "whatAPassingCheckEstablishes": "Equality of HASH256(preimage) with the interpreter's sighash is the intended and only readily attainable way to pass, so in practice a pass means the preimage is this spend. It is NOT a proof of equality: ECDSA accepts s and n-s for one digest, so with a fixed r a preimage satisfying the sign-ambiguity relation would also verify. That looks like generic ~2^128 two-list work with no known practical attack \u2014 a security assumption of the technique, shared by every OP_PUSH_TX covenant, named here rather than implied."
 }

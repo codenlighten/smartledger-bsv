@@ -12,10 +12,12 @@
 // the most significant byte — one byte, where little- and big-endian coincide — so both 124-byte
 // reversals disappear along with the 256-bit arithmetic.
 //
-// The security precondition is asserted below rather than left in prose: the only CHECKSIG-family
-// opcode consumes a signature the LOCKING script assembles. `a` is public, which is safe only
-// while that stays true, so a future edit adding a spender-signature path has to come past this
-// file.
+// `a` is public, which is safe because the only CHECKSIG-family opcode consumes a signature the
+// LOCKING script assembles, never a spender's. Two tests guard that: the emitted script must
+// equal the published bytes (the real guard), and the opcode count must stay at one (defence in
+// depth). Note what a passing OP_CHECKSIG does and does not establish: equality of the pushed
+// digest with the interpreter's is the intended and only readily attainable way to pass, but
+// ECDSA accepts s and n-s, so it is a ~2^128 assumption rather than an identity.
 
 var should = require('chai').should()
 var bsv = require('../..')
@@ -91,7 +93,11 @@ describe('the compact OP_PUSH_TX gate', function () {
       .should.be.above(-1)
   })
 
-  it('contains exactly ONE CHECKSIG-family opcode, which is what makes a public a safe', function () {
+  // Defence in depth, NOT the security proof. Keeping one signature check while letting
+  // spender-controlled bytes reach it, checking a different digest, or gating it conditionally
+  // would all break the gate without changing this count. The real guard is the test above:
+  // the emitted script must equal the published bytes. This one catches the crudest edit.
+  it('contains exactly ONE CHECKSIG-family opcode (defence in depth, not the proof)', function () {
     var buf = P.authenticatorCompact().toBuffer()
     var sigChecks = 0
     var i = 0
@@ -258,7 +264,12 @@ describe('the compact OP_PUSH_TX gate', function () {
       PIN.eraRequirements.monolith.should.match(/REQUIRED/)
       PIN.preimageBytes.should.be.below(520)
       Object.keys(PIN.failClosedPaths).should.have.length(2)
-      PIN.securityPrecondition.should.match(/Do not add a spend path/)
+      // assert the substance, not a phrase: the artifact must warn against reusing the key as
+      // an authorization key, and must say what a passing check does NOT establish
+      PIN.securityPrecondition.should.match(/NEVER use compactPubKey as an authorization key/)
+      PIN.securityPrecondition.should.match(/necessary but NOT sufficient/)
+      PIN.whatAPassingCheckEstablishes.should.match(/NOT a proof of equality/)
+      PIN.whatAPassingCheckEstablishes.should.match(/2\^128/)
     })
   })
 

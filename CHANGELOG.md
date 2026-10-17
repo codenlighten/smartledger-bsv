@@ -204,12 +204,31 @@ asserted: at `z[0] == 0x7f` the script **aborts**, because `OP_NUM2BIN` cannot f
 `0xff` as −127. So half the out-of-range space is a wrong answer caught by the signature check
 rather than an error — grind past it, do not rely on an abort.
 
-The security precondition is **asserted rather than documented**: `a` is public, which is safe
-only because the sole `OP_CHECKSIG` consumes a signature the *locking* script assembles from
-constants plus the computed `s`, never a spender's. A test therefore pins that the script
-contains **exactly one** CHECKSIG-family opcode, so a future edit adding a spender-signature path
-against `COMPACT_PUBKEY` — whose private half is published — fails the suite instead of silently
-turning the covenant into a known-key signature check.
+**The security contract, stated precisely after an outside review corrected two overstatements.**
+`a` is public and that is safe, because the sole `OP_CHECKSIG` consumes a signature the *locking*
+script assembles from constants plus the computed `s`, never a spender's — so the spender's only
+freedom is the preimage.
+
+What a passing check establishes is narrower than the obvious phrasing suggests, and this applies
+to the **classic** gate equally: equality of `HASH256(preimage)` with the interpreter's sighash is
+the intended and only readily attainable way to pass, but it is **not proved**, because ECDSA
+accepts both `s` and `n - s` for one digest and `r` is fixed here. A preimage satisfying the
+sign-ambiguity relation would also verify; finding one looks like generic ~2^128 two-list work with
+no known practical attack. So it is a security **assumption** of the OP_PUSH_TX technique — one
+every covenant of this shape rests on — now named in both gates' headers rather than implied.
+
+Two tests guard the key: the emitted script must equal the published bytes (**the real guard**,
+pinned by SHA-256 in the artifact) and the CHECKSIG-family opcode count must stay at one
+(**defence in depth**, relabelled as such). The second is necessary but not sufficient: keeping a
+single check while letting spender-controlled bytes reach it, checking a different digest, or
+gating it conditionally would all break the gate without changing the count. Three composition
+hazards are listed in the source, worst first, the worst being **never use `COMPACT_PUBKEY` as an
+authorization key anywhere**.
+
+Also corrected: low-S is **not** decorative. `n/2` sits slightly *below* 2^255, so a negligibly
+small tail of the `z[0] <= 0x7e` range still yields a high-S signature the first-byte condition
+alone would admit — the check earns its place. And the 7-of-7 mutation sweep is **coverage, not a
+theorem**: rejection rests on the same ~2^128 assumption.
 
 `test/data/pushtx-compact-gate-pin.json` is the vendorable artifact, in the same schema as the
 classic gate's pin, carrying the pre-Genesis demonstration **with its own control inside it**: a
