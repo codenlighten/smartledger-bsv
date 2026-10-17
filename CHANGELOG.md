@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — what each sighash mode commits to, pinned against the node's own rule
+
+No behaviour change. BIP-143's three digests are not always digests: `uint256`
+default-constructs to zero in the node, so a branch that never assigns one leaves **32 zero
+bytes** in the preimage. `test/transaction/sighash_commitment_table.js` (10 tests) pins which
+ones, transcribed from the conditions in bitcoin-sv v1.2.3 `src/script/interpreter.cpp`
+(`SignatureHash`) rather than from our own output:
+
+| mode | hashPrevouts | hashSequence | hashOutputs |
+|---|---|---|---|
+| `ALL` | set | set | all outputs |
+| `SINGLE` | set | **zero** | `dsha256(vout[nIn])` |
+| `NONE` | set | **zero** | **zero** |
+| `* \| ANYONECANPAY` | **zero** | **zero** | as above |
+| `SINGLE`, `nIn >= vout.size()` | set | **zero** | **zero** |
+
+The last row is the one that costs money, and the hazard runs in the **construction**
+direction: a covenant generator that computes its expected `hashOutputs` from an out-of-range
+index bakes in 32 zeros, and the script then matches anything while looking exactly like a
+correct pin — the mode was pinned, the pin was vacuous. `PushTx.valueCovenantSingle` has
+refused an all-zero pin since 9.28.0; this pins the layer underneath it, so our sighash cannot
+quietly move what a covenant rests on.
+
+Also pinned: `hashOutputs` under `ALL` is the digest of **all** output serializations while
+under `SINGLE` it is the digest of `vout[nIn]` **alone**, and the two must differ (or both
+assertions could hold vacuously); the preimage carries only the signed input's **own** amount,
+falsifiable because the fixture's two inputs hold 11,111 and 77,777 satoshis; and the whole
+preimage is consumed by the ten documented fields with nothing trailing the sighash type.
+
+Two sabotages confirm it is live: dropping the `SINGLE` condition from the `hashSequence`
+branch, and honouring an out-of-range `SINGLE` index instead of leaving zeros — each fails
+exactly the row that describes it. Cross-checked three ways on 2026-10-17: these assertions,
+the node source, and an independent session's compiled v1.2.3 oracle run on the same shape.
+
 ### Added — the cost asymmetry between building outputs and consuming inputs, measured
 
 No behaviour change. §7 of `docs/RELIED-UPON-PROPERTIES.md` said signing is superlinear in input
