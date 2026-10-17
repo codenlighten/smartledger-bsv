@@ -36,10 +36,24 @@ assertions could hold vacuously); the preimage carries only the signed input's *
 falsifiable because the fixture's two inputs hold 11,111 and 77,777 satoshis; and the whole
 preimage is consumed by the ten documented fields with nothing trailing the sighash type.
 
-Two sabotages confirm it is live: dropping the `SINGLE` condition from the `hashSequence`
-branch, and honouring an out-of-range `SINGLE` index instead of leaving zeros — each fails
-exactly the row that describes it. Cross-checked three ways on 2026-10-17: these assertions,
-the node source, and an independent session's compiled v1.2.3 oracle run on the same shape.
+Three sabotages confirm it is live: dropping the `SINGLE` condition from the `hashSequence`
+branch, honouring an out-of-range `SINGLE` index instead of leaving zeros, and hashing the
+legacy sentinel instead of passing it through — each fails exactly the assertion that
+describes it. Cross-checked three ways on 2026-10-17: these assertions, the node source, and
+an independent session's compiled v1.2.3 oracle run on the same shape.
+
+**The original (pre-fork) algorithm reaches "no commitment" by a different route**, which is
+pinned in the same file because a reader who generalises from the BIP-143 case gets it wrong
+twice. `SignatureHashOriginal` **returns** `uint256(1)` for `SINGLE` with
+`nIn >= vout.size()` — the chosen sentinel of the 2013 SIGHASH_SINGLE bug — rather than
+leaving a default-constructed zero inside a preimage. The consequence for this library's API:
+at that point **`sighashPreimage` returns the 32-byte sentinel, which is not a preimage**, and
+`sighash` passes it through unhashed so the digest matches the node. Anything building
+covenants on `sighashPreimage` must not assume its return is always a preimage — on the
+FORKID path at the same point it is a real 182-byte preimage with zeros in the `hashOutputs`
+slot. Kept rather than changed: `sighash`'s correctness depends on that short-circuit, the
+path is pre-fork only, and throwing would break callers for a case the network no longer
+produces.
 
 ### Added — the cost asymmetry between building outputs and consuming inputs, measured
 

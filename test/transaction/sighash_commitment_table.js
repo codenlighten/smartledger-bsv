@@ -116,6 +116,51 @@ describe('sighash commitment table', function () {
     read(1).should.equal(77777)
   })
 
+  // The ORIGINAL (pre-fork) algorithm reaches "no commitment" by a different route, and a
+  // reader who generalises from the BIP-143 case gets it wrong twice over. The node's
+  // SignatureHashOriginal RETURNS uint256(1) for SINGLE with nIn >= vout.size() -- a CHOSEN
+  // sentinel, the 2013 SIGHASH_SINGLE bug -- rather than leaving a default-constructed zero
+  // inside a preimage. Consequence for this library's API: `sighashPreimage` returns the
+  // 32-byte sentinel there, which is NOT a preimage, and `sighash` passes it through
+  // unhashed so the digest matches the node. Anything building covenants off
+  // `sighashPreimage` must not assume its return is always a preimage.
+  //
+  // Kept rather than changed: `sighash`'s correctness depends on this short-circuit, the
+  // path is pre-fork only (BSV signs with FORKID), and a throw here would break callers for
+  // a case the network no longer produces. Pinned so it cannot move silently.
+  describe('the original algorithm uses a chosen sentinel, not default-constructed zeros',
+    function () {
+      var ORIGINAL_FLAGS = 0 // no SCRIPT_ENABLE_SIGHASH_FORKID
+      var SENTINEL = '00'.repeat(31) + '01'
+
+      function oneOutput () {
+        var f = fixture()
+        f.tx.outputs.length = 1 // 2 inputs, 1 output
+        return f
+      }
+
+      it('returns the sentinel as the DIGEST for SINGLE past the last output', function () {
+        var f = oneOutput()
+        Sighash.sighash(f.tx, S.SIGHASH_SINGLE, 1, f.spk, new BN(77777), ORIGINAL_FLAGS)
+          .toString('hex').should.equal(SENTINEL)
+        // in range at the same mode is a real digest, so this is about the index
+        Sighash.sighash(f.tx, S.SIGHASH_SINGLE, 0, f.spk, new BN(11111), ORIGINAL_FLAGS)
+          .toString('hex').should.not.equal(SENTINEL)
+      })
+
+      it('makes sighashPreimage return 32 bytes that are not a preimage', function () {
+        var f = oneOutput()
+        var legacy = Sighash.sighashPreimage(f.tx, S.SIGHASH_SINGLE, 1, f.spk, new BN(77777),
+          ORIGINAL_FLAGS)
+        legacy.length.should.equal(32)
+        legacy.toString('hex').should.equal(SENTINEL)
+        // the FORKID path at the same point IS a real preimage, with zeros in the slot
+        var forkid = preimage(f, 1, S.SIGHASH_SINGLE)
+        forkid.length.should.be.above(100)
+        at(forkid, HASH_OUTPUTS_AT).should.equal(ZERO)
+      })
+    })
+
   it('consumes the whole preimage: 10 fields and nothing after the sighash type', function () {
     var f = fixture()
     var p = preimage(f, 0, S.SIGHASH_ALL)
