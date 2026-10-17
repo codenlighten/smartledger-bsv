@@ -1,17 +1,13 @@
 # DRAFT advisory — the Token covenant accepts an authorization that commits to no outputs
 
-**Not created.** Nothing here has been filed. 9.40.0, the version that adds the mitigation this
-names, reached the registry on 2026-10-17, so the prerequisite is met. Creating it as a *draft*
-on GitHub is private to maintainers; publishing submits it to the GitHub Advisory Database —
-which, measured on 2026-10-14 and still true, does **not** by itself make `npm audit` flag a
-version in its range (see `README.md`).
+**FILED AND PUBLISHED as [GHSA-jpm2-r6jf-2h78](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-jpm2-r6jf-2h78)** on 2026-10-17.
 
-    gh api --method POST repos/codenlighten/smartledger-bsv/security-advisories \
-      --input docs/advisories/draft-token-sighash-authorization.json
-
-Whether to file this at all is a judgement about a defect whose prerequisite the library's own
-API cannot produce; the measurement that bounds it is under **Measurement** below, so the
-decision can be made from the evidence rather than from the summary.
+This file is the source the payload was built from; the advisory itself is the one at
+that link, and `scripts/build-advisories.js --check` keeps the two in step. Publishing it
+enqueued it for GitHub's curation review — it did **not** place it in the global advisory
+database, measured by requesting `api.github.com/advisories/GHSA-jpm2-r6jf-2h78` and getting **404**,
+so `npm audit` does not flag a version in its range. That is the same result every one of
+these has had; it is a property of repository advisories, not of this one.
 
 ---
 
@@ -78,6 +74,24 @@ signature exists before the transaction is assembled or broadcast — an owner s
 the signature to a service, a partially-signed hand-off, an escrow or marketplace facilitator, a
 retried broadcast. There whoever holds the signature chooses the destination and the covenant
 does not object.
+
+### Affected surface
+
+Only the stateful Token covenant is affected. If your code never builds one, this advisory does
+not concern you, and the four entry points are named here because GitHub does not store a
+`vulnerable_functions` list for npm advisories:
+
+| entry point | role |
+|---|---|
+| `SmartContract.Token.ownershipToken` | builds the affected locking script (single-output form) |
+| `SmartContract.Token.ownershipTokenMulti` | builds it in the multi-output form |
+| `SmartContract.Authorizers.singleKey` | the authorization block; takes the `pinSighash` option |
+| `SmartContract.Authorizers.multisig` | the same, for m-of-n ownership |
+
+Nothing else in the package is in scope. In particular `PushTx.valueCovenant`,
+`PushTx.valueCovenantSingle`, the OrdLock listing covenant and the BIP-143 digest path are **not**
+affected by this defect: the OrdLock purchase branch already pins its flag with
+`assertSighashType`, which is the guard the Token covenant was missing.
 
 ### Measurement
 

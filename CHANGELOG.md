@@ -164,11 +164,24 @@ The current-code half of the bounding claim is now asserted —
 a signature whose flag byte is `0x41` — so adding an override later fails a test rather than
 quietly widening the exposure.
 
-`docs/advisories/draft-token-sighash-authorization.md` is prepared to the same standard as the
-other five drafts and **not filed**: `patched_versions` is deliberately `null` rather than
-`9.40.0`, because 9.40.0's pin is opt-in and telling a scanner the default is safe there would be
-false. Whether to file it is a decision about a defect whose prerequisite this library's API
-cannot produce, and the measurement above is there so that decision can rest on evidence.
+**Filed and published as
+[GHSA-jpm2-r6jf-2h78](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-jpm2-r6jf-2h78)**
+(medium, CVSS 5.3). `patched_versions` is deliberately `null` rather than `9.40.0`, because
+9.40.0's pin is opt-in and telling a scanner the default is safe there would be false. The body
+names the four affected entry points, so a dependent that never builds a Token covenant can
+dismiss it — `vulnerable_functions` could not carry them: GitHub returned 200 on both a POST and a
+PATCH and stored `[]` both times, so the field is accepted-and-discarded for npm, which is now
+recorded in `scripts/build-advisories.js` so nobody re-adds it expecting it to work.
+
+As with all six advisories on this repository, publishing enqueued it for GitHub's curation review
+and did **not** place it in the global database — measured, `api.github.com/advisories/GHSA-jpm2-r6jf-2h78`
+returns 404 — so `npm audit` does not flag a version in its range.
+
+**And a correction to this repository's own records.** Five advisory source files still said
+"**Not created.**" although every one of them had been filed and published on 2026-10-14 and
+2026-10-15. That stale line is why an earlier note in this session claimed none had been filed.
+All six headers now carry the real GHSA id, state and date, read from the API rather than from
+memory, so the next reader does not re-file a duplicate.
 
 **One harness bug worth recording.** The first version of the range scan reported zero
 sixth-argument call sites at every version, including one where the answer was known to be two:

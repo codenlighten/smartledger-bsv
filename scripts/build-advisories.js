@@ -145,6 +145,12 @@ var DRAFTS = [
           package: { ecosystem: 'npm', name: '@smartledger/bsv' },
           vulnerable_version_range: '>= 5.5.0, < 9.40.0',
           patched_versions: null,
+          // Empty on purpose, and not for want of trying. The four affected entry points were
+          // sent on both POST and PATCH for GHSA-jpm2-r6jf-2h78; GitHub returned 200 each time
+          // and stored `[]` both times. `vulnerable_functions` is accepted-and-discarded for
+          // the npm ecosystem, so the affected surface is named in the BODY instead, which is
+          // where it persists and where a human triaging actually reads it. Do not re-add this
+          // expecting it to work; a 200 here does not mean the field was kept.
           vulnerable_functions: []
         }
       ]

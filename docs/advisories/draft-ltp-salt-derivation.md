@@ -1,12 +1,13 @@
 # DRAFT advisory — an undisclosed field can be recovered from an LTP selective-disclosure proof
 
-**Not created.** 9.34.0, the patched version this names, reached the registry on 2026-10-14, so
-the prerequisite is met. Creating it as a *draft* on GitHub is private to maintainers;
-publishing submits it to the GitHub Advisory Database — which, measured on
-2026-10-14, does **not** by itself make `npm audit` flag a version in its range.
+**FILED AND PUBLISHED as [GHSA-5f36-cmq3-37xg](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-5f36-cmq3-37xg)** on 2026-10-14.
 
-    gh api --method POST repos/codenlighten/smartledger-bsv/security-advisories \
-      --input docs/advisories/draft-ltp-salt-derivation.json
+This file is the source the payload was built from; the advisory itself is the one at
+that link, and `scripts/build-advisories.js --check` keeps the two in step. Publishing it
+enqueued it for GitHub's curation review — it did **not** place it in the global advisory
+database, measured by requesting `api.github.com/advisories/GHSA-5f36-cmq3-37xg` and getting **404**,
+so `npm audit` does not flag a version in its range. That is the same result every one of
+these has had; it is a property of repository advisories, not of this one.
 
 ---
 

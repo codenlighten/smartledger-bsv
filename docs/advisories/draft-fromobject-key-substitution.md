@@ -1,12 +1,13 @@
 # DRAFT advisory — `PrivateKey.fromObject` returns a derivable key from a JSON round-trip
 
-**Not created.** This is the text for a new repository security advisory. Creating it as a
-*draft* on GitHub is private to maintainers; publishing it is what puts it in the GitHub
-Advisory Database — which, measured on 2026-10-14, does **not** by itself make
-`npm audit` flag a version in its range.
+**FILED AND PUBLISHED as [GHSA-9r95-pq7h-p78g](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-9r95-pq7h-p78g)** on 2026-10-14.
 
-    gh api --method POST repos/codenlighten/smartledger-bsv/security-advisories \
-      --input docs/advisories/draft-fromobject-key-substitution.json
+This file is the source the payload was built from; the advisory itself is the one at
+that link, and `scripts/build-advisories.js --check` keeps the two in step. Publishing it
+enqueued it for GitHub's curation review — it did **not** place it in the global advisory
+database, measured by requesting `api.github.com/advisories/GHSA-9r95-pq7h-p78g` and getting **404**,
+so `npm audit` does not flag a version in its range. That is the same result every one of
+these has had; it is a property of repository advisories, not of this one.
 
 ---
 
