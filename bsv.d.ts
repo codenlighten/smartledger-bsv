@@ -147,6 +147,14 @@ declare module '@smartledger/bsv' {
             static fromString(data: string): Signature;
             SIGHASH_ALL: number;
             toString(): string;
+            /**
+             * bitcoind's `IsLowDERSignature`: `s` within `[1, floor(n/2)]`. False for the
+             * malleable high-s twin. This is the check a consumer writes before accepting a
+             * signature, and it existed on every published version while being declared on
+             * none, so `if (!sig.hasLowS())` did not compile. Low-s does NOT make a signature
+             * unique: several distinct low-s signatures verify for one key and message.
+             */
+            hasLowS(): boolean;
         }
     }
 

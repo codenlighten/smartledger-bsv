@@ -1,6 +1,6 @@
 {
   "note": "Names in api-surface.json with no declaration in bsv.d.ts. This list may only shrink; see scripts/check-dts-coverage.js.",
-  "generated": "2026-09-11",
+  "generated": "2026-10-17",
   "undeclared": [
     "bsv.Address#isPayToPublicKeyHash",
     "bsv.Address#isPayToScriptHash",
@@ -475,7 +475,6 @@
     "bsv.Script.types.UNKNOWN",
     "bsv.Signature#applySecurityPatches",
     "bsv.Signature#hasDefinedHashtype",
-    "bsv.Signature#hasLowS",
     "bsv.Signature#toCanonical",
     "bsv.Signature#toCompact",
     "bsv.Signature#toTxFormat",
@@ -805,7 +804,6 @@
     "bsv.crypto.Random.getRandomBufferNode",
     "bsv.crypto.Signature#applySecurityPatches",
     "bsv.crypto.Signature#hasDefinedHashtype",
-    "bsv.crypto.Signature#hasLowS",
     "bsv.crypto.Signature#toCanonical",
     "bsv.crypto.Signature#toCompact",
     "bsv.crypto.Signature#toTxFormat",

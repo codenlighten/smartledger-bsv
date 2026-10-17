@@ -24,6 +24,23 @@ verbatim in `docs/NPM_RELEASES.md`, and the upgrade target they name is untouche
 deprecate 9.36.0–9.39.0 remains a decision for Greg: a deprecation changes what existing
 installs are told, so moving a version into a tier is never bookkeeping.
 
+### Fixed — `crypto.Signature#hasLowS()` existed on every version and was declared on none
+
+`hasLowS()` is bitcoind's `IsLowDERSignature` — `s` within `[1, floor(n/2)]`, false for the
+malleable high-s twin — and it is the guard a consumer writes before accepting a signature. The
+interpreter has called it since the beginning (`lib/script/interpreter.js`, under
+`enforceNonMalleability`), but the shipped `crypto.Signature` declaration carried only
+`fromDER`, `fromString`, `SIGHASH_ALL` and `toString`, so `if (!sig.hasLowS()) return false` did
+not compile at all. That is the safe direction — a compile error, not a run-time surprise — but
+it pushes a TypeScript consumer towards `as any`, which gives up the very check it was reaching
+for. Found by a consumer project adopting exactly that line.
+
+The declaration now carries it, with the caveat beside it: **low-s does not make a signature
+unique**, so `hasLowS()` is a canonicality check and never an identity one. `types-test/positive.ts`
+exercises the call, and removing the declaration was confirmed to fail `check:types` with TS2339
+before it was kept. Same family as the `{ lowS: true }` overloads added in 9.38.0: `check:dts`
+checks that a member EXISTS, not what it accepts or whether the obvious call compiles.
+
 ### Fixed — `docs/NPM_RELEASES.md` did not state the registry's current counts
 
 `check:npm-inventory` had been failing for six packages at once: the package table still read

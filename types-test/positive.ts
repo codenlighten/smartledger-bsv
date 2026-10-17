@@ -193,3 +193,13 @@ const lowSLoose: boolean = bsv.Message('authority: release funds').verify(lowSAd
 const lowSStaticStrict: boolean = bsv.Message.verify('authority: release funds', lowSAddr, lowSSig, { lowS: true })
 const lowSStaticLoose: boolean = bsv.Message.verify('authority: release funds', lowSAddr, lowSSig)
 void lowSStrict; void lowSLoose; void lowSStaticStrict; void lowSStaticLoose
+
+// Signature.hasLowS() is the same hazard one layer down: it is bitcoind's IsLowDERSignature,
+// it has existed on every published version, and it was declared on none -- so the obvious
+// guard `if (!sig.hasLowS()) return false` did not compile. That is the safe direction, a
+// compile error rather than a run-time surprise, but it pushes a consumer towards `as any`,
+// which gives up the very check it was reaching for.
+const derLowS = Buffer.from('3006020101020102', 'hex')
+const sigLowS = bsv.crypto.Signature.fromDER(derLowS)
+const sigIsCanonical: boolean = sigLowS.hasLowS()
+void sigIsCanonical
