@@ -157,9 +157,19 @@ What was missing was a test for the consequence.
 | `PushTx.valueCovenant` / `valueCovenantSingle` | `OP_LEFT`, `OP_RIGHT` | fails `EVAL_FALSE_IN_STACK` |
 | `Token.ownershipToken` | `OP_LEFT`, `OP_RIGHT`, `OP_SUBSTR` | fails `EQUALVERIFY` |
 
-So the **OP_PUSH_TX gate is portable** — it needs only `HASH256`, the Genesis splice and
-concatenation opcodes, `ADD`/`MOD`/`NUM2BIN` and `CHECKSIG` — while everything that *reads* the
-authenticated preimage by slicing is not. The security-relevant half is that the latter **fail
+So the gate is **Chronicle-independent** — it needs no restored splice opcode — while everything
+that *reads* the authenticated preimage by slicing is not.
+
+**But the gate is not portable below Genesis, and that correction came from a peer.** Its floor is
+`SCRIPT_UTXO_AFTER_GENESIS`, for a reason that has nothing to do with which opcodes exist:
+`PushTx.authenticator()` fails `SCRIPT_ERR_PUSH_SIZE` pre-Genesis because the preimage it must
+push is **536 bytes** against a 520-byte element limit. Both limits were isolated: a 536-byte
+element push and an `OP_CAT` *producing* 528 bytes each give `SCRIPT_ERR_PUSH_SIZE` pre-Genesis,
+and `OP_ADD` on two 32-byte numbers gives `SCRIPT_ERR_SCRIPTNUM_OVERFLOW` — that last being the
+in-script `s = (e + Gx) mod n`. The peer reached the same floor from the other end: their regtest
+spend failed "Push value size limit exceeded" until `genesisactivationheight=1`. So the ladder is
+**Monolith for the opcodes, Genesis for the gate, Chronicle for the slicing** — and an earlier
+summary of this work that called the gate portable to "any post-Monolith chain" was wrong. The security-relevant half is that the latter **fail
 closed**: a covenant cannot be spent with its output pin or its owner check unevaluated. That is
 measured rather than reasoned, because the alternative would be catastrophic.
 

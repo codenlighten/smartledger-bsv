@@ -509,6 +509,23 @@ Three traps, all measured:
   "32 zero bytes" and "no commitment" are the same state. Both are pinned in
   `test/transaction/sighash_commitment_table.js`, and the construction-side hazard they create
   is the vacuous pin described above under covenants.
+- **A covenant built with this library needs Genesis, and the reason is the size limits, not the
+  opcodes.** Three eras matter and they are not interchangeable:
+
+  | era | what it gives | what needs it |
+  |---|---|---|
+  | Monolith (2018) | `OP_SPLIT`, `OP_CAT`, `OP_BIN2NUM`, `OP_NUM2BIN`, … | everything; and it cannot be switched off here, so this library says nothing about earlier |
+  | **Genesis** (2020) | unbounded element size and script numbers | **the OP_PUSH_TX gate itself** |
+  | Chronicle | `OP_SUBSTR`, `OP_LEFT`, `OP_RIGHT` restored | any covenant that reads the preimage by slicing |
+
+  Measured: `PushTx.authenticator()` passes on mainnet and fails `SCRIPT_ERR_PUSH_SIZE` without
+  `SCRIPT_UTXO_AFTER_GENESIS`, because the preimage it must push is **536 bytes** against a
+  pre-Genesis element limit of 520. Both limits it depends on were isolated separately: a 536-byte
+  element push and an `OP_CAT` *producing* 528 bytes each give `SCRIPT_ERR_PUSH_SIZE` pre-Genesis
+  and pass on mainnet, and `OP_ADD` on two 32-byte numbers gives `SCRIPT_ERR_SCRIPTNUM_OVERFLOW`
+  pre-Genesis — which is the in-script `s = (e + Gx) mod n` arithmetic. So the gate is not
+  "portable to any chain with the splice opcodes"; **its floor is Genesis**, and Chronicle sits on
+  top of that for anything that slices.
 - **This library cannot model the pre-2018 era, so it is not evidence about one.** The Monolith
   and Magnetic opcodes — `OP_SPLIT`, `OP_CAT`, `OP_AND`/`OR`/`XOR`, `OP_DIV`, `OP_MOD`, `OP_MUL`,
   `OP_LSHIFT`/`RSHIFT`, `OP_INVERT`, `OP_BIN2NUM`, `OP_NUM2BIN` — are **always enabled and cannot

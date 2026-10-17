@@ -15,11 +15,22 @@
 // having done nothing. Measured here: it cannot. The value covenants fail
 // SCRIPT_ERR_EVAL_FALSE_IN_STACK and the Token fails SCRIPT_ERR_EQUALVERIFY.
 //
-// The OP_PUSH_TX gate itself is a different case and the good one: `PushTx.authenticator()`
-// contains **no** Chronicle-gated opcode (it needs only HASH256, the Genesis splice/cat ops,
-// ADD/MOD/NUM2BIN and CHECKSIG), so it authenticates a preimage pre-Chronicle too. That matters
-// for a chain that has not activated Chronicle — SmartSats is pre-Genesis today — where the
-// authentication primitive is portable and anything that READS the authenticated preimage is not.
+// The OP_PUSH_TX gate is a different case: `PushTx.authenticator()` contains **no**
+// Chronicle-gated opcode, so it authenticates a preimage pre-Chronicle. But it does NOT travel
+// below Genesis, and the reason is not opcode availability at all — it is the size limits:
+//
+//   Monolith (2018)  OP_SPLIT / OP_CAT and the rest of that group become available. They cannot
+//                    be disabled in this library, so it can say nothing about any earlier era.
+//   Genesis (2020)   element size and script numbers become unbounded. REQUIRED BY THE GATE: the
+//                    preimage is 536 bytes against a 520-byte pre-Genesis element limit, and the
+//                    in-script s-value arithmetic is 32 bytes against a 4-byte CScriptNum cap.
+//   Chronicle        OP_SUBSTR / OP_LEFT / OP_RIGHT return. Required by every covenant that READS
+//                    the authenticated preimage by slicing; before it they are silent no-ops.
+//
+// So the floor for a covenant built with this library is GENESIS, and Chronicle on top of it for
+// anything that slices. A peer reached the same floor from the other direction — their regtest
+// spend failed "Push value size limit exceeded" until genesisactivationheight=1 — after we had
+// both briefly attributed it to OP_SPLIT, which is Monolith-era and unconditional.
 //
 // This file exists because of a near-miss: the first run of it looked like the authenticator was
 // "passing without its slices", which would have been a serious finding. It has no slices. The
@@ -39,6 +50,8 @@ var SATS = 100000
 var FEE = 500
 var MAIN = H.flags()
 var PRE = MAIN & ~I.SCRIPT_UTXO_AFTER_CHRONICLE
+var PRE_GENESIS = MAIN & ~(I.SCRIPT_UTXO_AFTER_GENESIS | I.SCRIPT_GENESIS |
+  I.SCRIPT_UTXO_AFTER_CHRONICLE | I.SCRIPT_ENABLE_CHRONICLE)
 // the splice opcodes Chronicle restores, which are no-ops before it
 var GATED = [0xb3, 0xb4, 0xb5]
 
@@ -143,6 +156,46 @@ describe('covenants on a pre-Chronicle chain', function () {
     spend.inputs[0].setScript(unlock)
     verify(unlock, lock, spend, MAIN).ok.should.equal(true)
     verify(unlock, lock, spend, PRE).ok.should.equal(true)
+  })
+
+  it('does NOT travel below Genesis: the preimage cannot even be pushed', function () {
+    var lock = P.authenticator()
+    var spend = H.fundAndSpend(lock, SATS, { outputs: [p2pkhOut('55', SATS - FEE)] }).spend
+    P.grind(spend, 0, lock, SATS)
+    var preimage = H.rawPreimage(spend, 0, lock, SATS)
+    preimage.length.should.be.above(520, 'the pre-Genesis element limit is 520 bytes')
+    var unlock = new bsv.Script().add(Buffer.from(preimage))
+    spend.inputs[0].setScript(unlock)
+    verify(unlock, lock, spend, MAIN).ok.should.equal(true)
+    var pre = verify(unlock, lock, spend, PRE_GENESIS)
+    pre.ok.should.equal(false)
+    pre.err.should.equal('SCRIPT_ERR_PUSH_SIZE')
+  })
+
+  it('and both Genesis limits the gate depends on are era-gated, isolated', function () {
+    var tx = new bsv.Transaction()
+    tx.from(new bsv.Transaction.UnspentOutput({
+      txId: 'e'.repeat(64), outputIndex: 0, script: '51', satoshis: SATS
+    }))
+    tx.to(p2pkhOut('44', 500).script, 500)
+    function raw (hex, flags) {
+      var interp = new I()
+      interp.verify(new bsv.Script(), bsv.Script.fromHex(hex), tx, 0, flags,
+        new bsv.crypto.BN(SATS))
+      return interp.errstr || 'no error'
+    }
+    // a 536-byte element, the size the gate's preimage actually is
+    var bigPush = '4d' + '1802' + 'aa'.repeat(536) + '51'
+    raw(bigPush, PRE_GENESIS).should.equal('SCRIPT_ERR_PUSH_SIZE')
+    raw(bigPush, MAIN).should.equal('no error')
+    // OP_CAT producing 528 bytes: the limit applies to a CONSTRUCTED element too
+    var cat528 = '4d' + '0801' + 'bb'.repeat(264) + '4d' + '0801' + 'cc'.repeat(264) + '7e' + '51'
+    raw(cat528, PRE_GENESIS).should.equal('SCRIPT_ERR_PUSH_SIZE')
+    raw(cat528, MAIN).should.equal('no error')
+    // and the 32-byte arithmetic the s-value computation needs
+    var bigArith = '20' + 'dd'.repeat(32) + '20' + 'ee'.repeat(32) + '93' + '75' + '51'
+    raw(bigArith, PRE_GENESIS).should.equal('SCRIPT_ERR_SCRIPTNUM_OVERFLOW')
+    raw(bigArith, MAIN).should.equal('no error')
   })
 
   it('FAILS CLOSED for a value covenant, which reads the preimage by slicing', function () {
