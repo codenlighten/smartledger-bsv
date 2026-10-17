@@ -509,6 +509,25 @@ Three traps, all measured:
   "32 zero bytes" and "no commitment" are the same state. Both are pinned in
   `test/transaction/sighash_commitment_table.js`, and the construction-side hazard they create
   is the vacuous pin described above under covenants.
+- **This library cannot model the pre-2018 era, so it is not evidence about one.** The Monolith
+  and Magnetic opcodes — `OP_SPLIT`, `OP_CAT`, `OP_AND`/`OR`/`XOR`, `OP_DIV`, `OP_MOD`, `OP_MUL`,
+  `OP_LSHIFT`/`RSHIFT`, `OP_INVERT`, `OP_BIN2NUM`, `OP_NUM2BIN` — are **always enabled and cannot
+  be turned off**. `SCRIPT_ENABLE_MONOLITH_OPCODES` and `SCRIPT_ENABLE_MAGNETIC_OPCODES` are still
+  exported, and still accepted, but setting them changes nothing: they are redundant. Measured,
+  `OP_SPLIT` performs its split and raises no error under **every** flag set that can be
+  constructed, including `SCRIPT_VERIFY_NONE` (zero) and a pre-Genesis, pre-Chronicle set.
+
+  They are unconditional on purpose. Gating the Magnetic group behind its flag refused **77 rows
+  of the node's own corpus** as `DISABLED_OPCODE` — fail-closed, so nothing was wrongly accepted,
+  but they were spends the network accepts. The consequence to rely on is narrow and matters for
+  any chain that is not BSV mainnet: **a `verify` result from this library says nothing about
+  whether a pre-Monolith rule set would accept the script**, because the question cannot be put to
+  it. It will evaluate such a script confidently and the answer is not era-evidence. Use a node
+  that can express that era. By contrast the Genesis and Chronicle eras *can* be expressed, with
+  `SCRIPT_UTXO_AFTER_GENESIS` and `SCRIPT_UTXO_AFTER_CHRONICLE`, and `OP_SUBSTR`/`OP_LEFT`/
+  `OP_RIGHT` really do change behaviour across the Chronicle line — they are silent **no-ops**
+  before it, which is why a covenant that slices the preimage fails closed on a pre-Chronicle
+  chain rather than running with the wrong stack.
 - **Post-Genesis `OP_CHECKLOCKTIMEVERIFY` is a NOP.** Measured: `OP_CHECKLOCKTIMEVERIFY` and
   `OP_NOP2` are the same opcode, `177`. **CLTV alone does not lock anything.** A working timelock
   needs three things together: a non-final sequence number, the HEIGHT-vs-TIMESTAMP unit guard

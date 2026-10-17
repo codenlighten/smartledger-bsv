@@ -163,6 +163,23 @@ authenticated preimage by slicing is not. The security-relevant half is that the
 closed**: a covenant cannot be spent with its output pin or its owner check unevaluated. That is
 measured rather than reasoned, because the alternative would be catastrophic.
 
+**And the limit of what this library can answer, now stated in §5.** The Monolith and Magnetic
+opcodes — `OP_SPLIT`, `OP_CAT`, `OP_DIV`, `OP_BIN2NUM`, `OP_NUM2BIN` and the rest of the 2018
+group — are **always enabled and cannot be turned off**. `SCRIPT_ENABLE_MONOLITH_OPCODES` and
+`SCRIPT_ENABLE_MAGNETIC_OPCODES` are still exported and accepted but setting them changes nothing;
+measured, `OP_SPLIT` performs its split and raises no error under every constructible flag set
+including `SCRIPT_VERIFY_NONE`. They are unconditional on purpose — gating the Magnetic group
+refused **77 rows of the node's own corpus** as `DISABLED_OPCODE`, spends the network accepts.
+
+The consequence is narrow and matters for any chain that is not BSV mainnet: **a `verify` result
+from this library says nothing about whether a pre-Monolith rule set would accept the script**,
+because the question cannot be put to it. It answers confidently about an era it does not model.
+Raised by a peer whose covenant-portability argument rested on `OP_SPLIT` "failing closed below
+Genesis" — it does not fail at all here, and `OP_SPLIT` dates from 2018, which **precedes**
+Genesis, so the true lower bound for that kind of field extraction is Monolith and not Genesis.
+A no-op is worse than a rejection; an implementation that cannot express an era is worse than
+either, because it is confidently wrong rather than silent.
+
 `test/covenant/pre_chronicle_portability.js` carries it, with the control that decides whether a
 "passes pre-Chronicle" result is good news or a skipped constraint: it asserts **which**
 constructions contain a gated opcode rather than inferring it from the name. That control exists

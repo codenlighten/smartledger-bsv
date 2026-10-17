@@ -531,6 +531,29 @@ describe('relied-upon properties', function () {
     })
   })
 
+  describe('5. the Monolith opcodes cannot be disabled, so this is not era-evidence', function () {
+    it('runs OP_SPLIT under every flag set, including zero', function () {
+      var I = bsv.Script.Interpreter
+      var hex = '06616263646566' + '52' + '7f'
+      var tx = new bsv.Transaction()
+      tx.from(new bsv.Transaction.UnspentOutput({
+        txId: 'e'.repeat(64), outputIndex: 0, script: '51', satoshis: 1000
+      }))
+      tx.to(bsv.PrivateKey.fromBuffer(Buffer.from('44'.repeat(32), 'hex')).toAddress(), 500)
+      ;[I.SCRIPT_VERIFY_NONE,
+        I.currentConsensusFlags(),
+        I.currentConsensusFlags() & ~I.SCRIPT_ENABLE_MONOLITH_OPCODES,
+        I.currentConsensusFlags() & ~I.SCRIPT_ENABLE_MAGNETIC_OPCODES
+      ].forEach(function (flags) {
+        var interp = new I()
+        interp.verify(new bsv.Script(), bsv.Script.fromHex(hex), tx, 0, flags, new BN(1000))
+        ;(interp.errstr || '').should.equal('')
+      })
+      documented('This library cannot model the pre-2018 era')
+      documented('setting them changes nothing')
+    })
+  })
+
   describe('5. a Token authorization must be SIGHASH_ALL', function () {
     // The behaviour itself is measured in test/smart_contract/token_sighash_pin.js, including
     // the theft as a positive control. This pairs the document with the shipped option, so the

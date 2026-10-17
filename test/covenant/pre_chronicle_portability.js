@@ -96,6 +96,34 @@ describe('covenants on a pre-Chronicle chain', function () {
 
   // The control for everything below: assert which constructions actually contain a gated
   // opcode, so a "passes pre-Chronicle" result cannot be misread as a skipped constraint.
+  // The limit of what this file can establish, and of what the library can: the Monolith and
+  // Magnetic group cannot be turned off, so a verify() here is not evidence about a chain at
+  // pre-2018 rules. A peer's portability argument rested on OP_SPLIT "failing closed below
+  // Genesis"; in this library it does not fail at all, under any flag set.
+  it('cannot disable OP_SPLIT, so it is not evidence about a pre-Monolith chain', function () {
+    var hex = '06616263646566' + '52' + '7f' // <"abcdef"> 2 OP_SPLIT
+    var tx = new bsv.Transaction()
+    tx.from(new bsv.Transaction.UnspentOutput({
+      txId: 'e'.repeat(64), outputIndex: 0, script: '51', satoshis: SATS
+    }))
+    tx.to(p2pkhOut('44', 500).script, 500)
+    var sets = [
+      ['SCRIPT_VERIFY_NONE', I.SCRIPT_VERIFY_NONE],
+      ['mainnet', MAIN],
+      ['mainnet minus MONOLITH', MAIN & ~I.SCRIPT_ENABLE_MONOLITH_OPCODES],
+      ['mainnet minus MONOLITH and MAGNETIC',
+        MAIN & ~(I.SCRIPT_ENABLE_MONOLITH_OPCODES | I.SCRIPT_ENABLE_MAGNETIC_OPCODES)],
+      ['pre-Chronicle', PRE]
+    ]
+    sets.forEach(function (pair) {
+      var interp = new I()
+      interp.verify(new bsv.Script(), bsv.Script.fromHex(hex), tx, 0, pair[1],
+        new bsv.crypto.BN(SATS))
+      ;(interp.errstr || '').should.equal('', 'OP_SPLIT must run under ' + pair[0])
+      interp.stack[interp.stack.length - 1].toString('hex').should.equal('63646566')
+    })
+  })
+
   it('says which constructions depend on Chronicle, rather than assuming it', function () {
     var k = bsv.PrivateKey.fromBuffer(Buffer.from('59'.repeat(32), 'hex'))
     var auth = A.singleKey({ pinSighash: true })
