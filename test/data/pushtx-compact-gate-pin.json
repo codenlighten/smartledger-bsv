@@ -1,8 +1,14 @@
 {
   "schema": "smartledger-bsv/op-push-tx-gate-pin/1",
   "variant": "compact",
-  "generatedBy": "@smartledger/bsv working tree at version 9.41.0 (authenticatorCompact lands in the next release; reproduce from that version onward)",
+  "generatedBy": "@smartledger/bsv@9.42.0 installed from registry.npmjs.org",
   "generatedAt": "2026-10-17",
+  "reproducedFrom": {
+    "package": "@smartledger/bsv@9.42.0",
+    "registryShasum": "c82da9b084876e33657db40ea567e9d963014fc0",
+    "date": "2026-10-17",
+    "what": "Every value in this file was re-derived from a clean registry install of the published 9.42.0 and matched: the emitted gate hex and its SHA-256, the byte length, aScalar, compactPubKey as a*G, the preimage length and its HASH256, the pinned spend VERIFYING, and the pre-Genesis demonstration together with its own 536-byte-push control failing SCRIPT_ERR_PUSH_SIZE. The vector was NOT regenerated \u2014 the published package reproduces this exact one, which is the stronger statement."
+  },
   "construction": "SmartContract.PushTx.authenticatorCompact() === pushTxCoreCompact(new Script())",
   "note": "k = 1 and a = 2^248 * Gx^-1 mod n, so Gx*a = 2^248 and s = e + 2^248, which in a 32-byte big-endian string is incrementing byte[0]. No reversal, no 256-bit arithmetic.",
   "aScalar": "d475289d7db690543c1ecbd9ed0d6c9a2e5920ecebf361bdcca0d61f77af4839",

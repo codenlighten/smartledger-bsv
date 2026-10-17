@@ -7,7 +7,8 @@ the 2026-10-13 state (see the note below). Re-run `npm run check:npm-inventory` 
 any of it, and the suite fails if the package table below drifts from the registry.
 
 **The live set today, read from the registry on 2026-10-17:** `@smartledger/bsv` has seven
-undeprecated versions — **9.36.0, 9.37.0, 9.38.0, 9.39.0, 9.39.1, 9.40.0 and 9.41.0** — and
+undeprecated versions — **9.36.0, 9.37.0, 9.38.0, 9.39.0, 9.39.1, 9.40.0, 9.41.0 and
+9.42.0** — and
 everything up to and including 9.35.0 is deprecated. All five are at or above every fix in the defect table
 below. Three fixes landed after that table was written and are therefore NOT in it: the
 original-algorithm sighash digest over a truncated `OP_RETURN` push (9.37.0, public advisory
@@ -40,7 +41,7 @@ already printed into someone's CI log is not.
 
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
-| `@smartledger/bsv` | 136 | 129 | 7 | 9.41.0 | 2025-10-18 | 2026-10-17 |
+| `@smartledger/bsv` | 137 | 129 | 8 | 9.42.0 | 2025-10-18 | 2026-10-17 |
 | `@smartledger/bsv-core` | 17 | 0 | 17 | 1.8.1 | 2026-09-30 | 2026-10-17 |
 | `@smartledger/keys` | 24 | 0 | 24 | 4.1.0 | 2025-11-28 | 2026-10-15 |
 | `@smartledger/notaryhash` | 17 | 0 | 17 | 2.5.0 | 2026-06-27 | 2026-10-16 |
@@ -859,12 +860,21 @@ reproduced against the working tree before the publish:
 |---|---|---|---|---|
 | 9.34.0 | `6bf25b9` | `440c41ee98738fb95b75fe01437fc63ea9544aaf` | 283 | confirmed by direct read |
 | 9.35.0 | `5e57819` | `fbfa8dcca5e1d903337d8fb4ed7fb40d03d95a65` | 284 | confirmed, deprecated |
-| 9.36.0 | `3d5390e` | `866aa1ddbc01a26aee5136fb2f456601160d1d59` | 285 | confirmed, `latest` |
+| 9.36.0 | `3d5390e` | `866aa1ddbc01a26aee5136fb2f456601160d1d59` | 285 | confirmed |
 
 `NPM_TOKEN3` is the credential that authenticates from this machine; the other two returned a
 **stable** 403 across three reads each, and stable means the credential rather than the
 transport. Egress was a cellular address (`172.56.32.181`) and an anonymous registry read
 returned 200 before anything was attempted.
+
+**Correction, 2026-10-17 — that sentence is true of that episode only, and reading it as a
+standing fact sends you to the wrong token.** The credential that authenticates now is
+**`NPM_TOKEN`**, and it is CIDR-restricted, so it works only from the static-IP path
+(`static-ip npm …`) and not from an arbitrary egress address. Which token succeeds is therefore
+a property of the ROUTE as much as the secret, which is exactly what the cellular episode above
+could not distinguish: a stable 403 means "this credential from this address", not "this
+credential". 9.37.0 through 9.42.0 were all published with `NPM_TOKEN` over `static-ip`, each
+confirmed by a registry digest read.
 
 **The `v9.35.0` tag was moved before publishing**, from `d26b74b` to `5e57819`. `d26b74b`
 carried a CHANGELOG claim that two implementations' flag words had been checked against each
