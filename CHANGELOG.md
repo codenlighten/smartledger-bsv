@@ -225,10 +225,23 @@ gating it conditionally would all break the gate without changing the count. Thr
 hazards are listed in the source, worst first, the worst being **never use `COMPACT_PUBKEY` as an
 authorization key anywhere**.
 
-Also corrected: low-S is **not** decorative. `n/2` sits slightly *below* 2^255, so a negligibly
-small tail of the `z[0] <= 0x7e` range still yields a high-S signature the first-byte condition
-alone would admit — the check earns its place. And the 7-of-7 mutation sweep is **coverage, not a
-theorem**: rejection rests on the same ~2^128 assumption.
+Also corrected, and then corrected again in the other direction, which is worth recording because
+it is the same failure twice. The review said low-S is "still needed for a guarantee", so this
+entry first said the check was **needed and not decorative**. Measuring it shows that overstates
+as badly as the wording it replaced: the tail is REAL — `n/2` sits 2^127.0 below 2^255, so an `s`
+with leading byte 0x7f (what `z[0] = 0x7e` produces) can exceed `n/2` — but it is 2^127 wide
+inside a 2^248 band, giving **P(high-S | z[0] = 0x7e) = 2^-121** and **P(high-S) = 2^-129**
+overall, with **0 rejections in 24,811 in-band samples**. So the check is correct-by-construction
+insurance that will never fire, and the ORIGINAL wording ("binds with probability about 2^-126 and
+is therefore free") was nearer the truth than the correction. Keep the check — it costs the
+spender nothing and the band's top genuinely crosses `n/2` — but do not claim it guards anything
+observable.
+
+Acceptance is **49.61%** (127/256), measured 49.62% over 50,000 random preimages. An earlier
+400-sample run read 55%, which was noise, not a discrepancy.
+
+And the 7-of-7 mutation sweep is **coverage, not a theorem**: rejection rests on the same ~2^128
+assumption.
 
 `test/data/pushtx-compact-gate-pin.json` is the vendorable artifact, in the same schema as the
 classic gate's pin, carrying the pre-Genesis demonstration **with its own control inside it**: a
