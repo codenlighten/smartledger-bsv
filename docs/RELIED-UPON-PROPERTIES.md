@@ -497,6 +497,18 @@ Three traps, all measured:
   digest, so a signature valid on the network did not verify locally and vice versa. This is
   reachable at hash type `0x61` (`FORKID|CHRONICLE`), which is current; BIP-143 never walks the
   script and was never affected.
+- **`Sighash.sighashPreimage` does not always return a preimage.** On the **original**
+  (pre-FORKID) algorithm with `SIGHASH_SINGLE` and an input index past the last output, it
+  returns the 32-byte sentinel `0x00…01` — the 2013 SIGHASH_SINGLE bug, which the node's
+  `SignatureHashOriginal` returns as `uint256(1)` — and `sighash` passes it through
+  **unhashed** so the digest matches the node. A caller that SHA-256s whatever
+  `sighashPreimage` returns computes, in that one case, a digest the network never produces.
+  Special-case the sentinel; do not hash it. On the FORKID path at the same point you get a
+  real preimage with **32 zero bytes** in the `hashOutputs` slot, which is a different
+  mechanism: BIP-143's three digests are default-constructed and simply left unassigned, so
+  "32 zero bytes" and "no commitment" are the same state. Both are pinned in
+  `test/transaction/sighash_commitment_table.js`, and the construction-side hazard they create
+  is the vacuous pin described above under covenants.
 - **Post-Genesis `OP_CHECKLOCKTIMEVERIFY` is a NOP.** Measured: `OP_CHECKLOCKTIMEVERIFY` and
   `OP_NOP2` are the same opcode, `177`. **CLTV alone does not lock anything.** A working timelock
   needs three things together: a non-final sequence number, the HEIGHT-vs-TIMESTAMP unit guard

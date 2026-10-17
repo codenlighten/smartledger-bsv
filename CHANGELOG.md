@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — §5 of the properties page: `sighashPreimage` does not always return a preimage
+
+No behaviour change, and the one consumer-facing consequence of the sighash work below. The
+trap is only discoverable by reading our source, so it belongs where consumers look: on the
+original (pre-FORKID) algorithm with `SIGHASH_SINGLE` and an input index past the last output,
+`Sighash.sighashPreimage` returns the 32-byte sentinel `0x00…01` rather than a preimage, and
+`sighash` passes it through **unhashed** so the digest matches the node. A caller that SHA-256s
+whatever `sighashPreimage` returns computes, in that one case, a digest the network never
+produces — special-case the sentinel. The FORKID path at the same point returns a real
+preimage with 32 zero bytes in the `hashOutputs` slot, which is the other mechanism entirely.
+Paired with a test in `test/properties/relied_upon.js`, so removing the sentence fails the
+suite.
+
 ### Added — what each sighash mode commits to, pinned against the node's own rule
 
 No behaviour change. BIP-143's three digests are not always digests: `uint256`

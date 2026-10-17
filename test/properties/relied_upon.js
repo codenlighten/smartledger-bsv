@@ -531,6 +531,35 @@ describe('relied-upon properties', function () {
     })
   })
 
+  describe('5. sighashPreimage does not always return a preimage', function () {
+    it('returns the legacy sentinel, unhashed, exactly where the document says', function () {
+      var Sighash = bsv.Transaction.Sighash
+      var S = bsv.crypto.Signature
+      var priv = bsv.PrivateKey.fromBuffer(Buffer.from('7c'.repeat(32), 'hex'))
+      var spk = bsv.Script.buildPublicKeyHashOut(priv.toAddress())
+      var tx = new bsv.Transaction()
+      ;[0, 1].forEach(function (i) {
+        tx.from(new bsv.Transaction.UnspentOutput({
+          txId: 'b'.repeat(63) + i, outputIndex: i, script: spk.toHex(), satoshis: 5000
+        }))
+      })
+      tx.to(priv.toAddress(), 1000) // two inputs, ONE output: index 1 is out of range
+      var SENTINEL = '00'.repeat(31) + '01'
+      // original algorithm: no FORKID in the type and no FORKID in the flags
+      Sighash.sighashPreimage(tx, S.SIGHASH_SINGLE, 1, spk, new BN(5000), 0)
+        .toString('hex').should.equal(SENTINEL)
+      Sighash.sighash(tx, S.SIGHASH_SINGLE, 1, spk, new BN(5000), 0)
+        .toString('hex').should.equal(SENTINEL, 'the sentinel must not be hashed')
+      // the FORKID path at the same point is a real preimage with a zeroed hashOutputs
+      var forkid = Sighash.sighashPreimage(tx, S.SIGHASH_SINGLE | S.SIGHASH_FORKID, 1, spk,
+        new BN(5000))
+      forkid.length.should.be.above(100)
+      forkid.slice(142, 174).toString('hex').should.equal('0'.repeat(64))
+      documented('`Sighash.sighashPreimage` does not always return a preimage')
+      documented('Special-case the sentinel; do not hash it')
+    })
+  })
+
   describe('7. cost: outputs are cheap and linear', function () {
     // The timings in the document are measurements, not properties, so they are not asserted
     // here — a timing assertion on a shared machine fails for reasons that have nothing to do
