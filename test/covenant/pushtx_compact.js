@@ -4,8 +4,7 @@
 
 // The compact OP_PUSH_TX gate: the same guarantee in 89 bytes instead of 377.
 //
-// Derived by the newsatoshi, polymath-62 and meta-scientist-94 sessions and reproduced here
-// before being shipped — `a` and `Q` re-derived from the curve constants, the script re-assembled
+// Derived in-lab, elsewhere than this package, and reproduced here before being shipped — `a` and `Q` re-derived from the curve constants, the script re-assembled
 // from its structure rather than copied, byte-identical to theirs, verifying under mainnet flags.
 //
 // Choosing a = 2^248 · Gx⁻¹ (mod n) makes Gx·a ≡ 2^248, so s = e + 2^248, and in a 32-byte
@@ -58,6 +57,8 @@ function countedOpcodes (script) {
   }
   return c
 }
+
+var PIN = require('../data/pushtx-compact-gate-pin.json')
 
 describe('the compact OP_PUSH_TX gate', function () {
   this.timeout(30000)
@@ -183,6 +184,53 @@ describe('the compact OP_PUSH_TX gate', function () {
   // Out of range it fails CLOSED, by two different paths. Knowing them apart matters: half the
   // out-of-range space is not an abort but a wrong `s` that the signature check catches, so a
   // builder who expects an error for every bad z[0] is wrong for half of them.
+  // The vendorable pin, in the same schema as the classic gate's, so an external implementation
+  // can become a witness from the file alone. It carries the pre-Genesis demonstration WITH its
+  // own control inside it: a 536-byte element push that must fail under the same flags and
+  // limits, so a consumer can tell the cap was active rather than silently disabled.
+  describe('the vendorable compact pin', function () {
+    it('describes the gate this library emits today', function () {
+      PIN.variant.should.equal('compact')
+      PIN.lockingScriptHex.should.equal(P.authenticatorCompact().toHex())
+      PIN.lockingScriptBytes.should.equal(89)
+      PIN.countedOpcodes.should.equal(countedOpcodes(P.authenticatorCompact()))
+      require('crypto').createHash('sha256').update(Buffer.from(PIN.lockingScriptHex, 'hex'))
+        .digest('hex').should.equal(PIN.lockingScriptSha256)
+      // the key it embeds must be the published deterministic one
+      PIN.aScalar.should.equal(P.A_SCALAR.toString(16))
+      PIN.compactPubKey.should.equal(P.COMPACT_PUBKEY.toString('hex'))
+    })
+
+    it('carries a spend that verifies and a mutation that does not', function () {
+      var savedL = I.getLimits()
+      I.useGenesisLimits()
+      try {
+        var lock = bsv.Script.fromHex(PIN.lockingScriptHex)
+        var good = new bsv.Transaction(PIN.spendTxHex)
+        H.rawPreimage(good, PIN.inputIndex, lock, PIN.inputSatoshis).toString('hex')
+          .should.equal(PIN.preimageHex)
+        Hash.sha256sha256(Buffer.from(PIN.preimageHex, 'hex')).toString('hex')
+          .should.equal(PIN.hash256OfPreimage)
+        H.verify(good.inputs[0].script, lock, { tx: good, satoshis: PIN.inputSatoshis }).ok
+          .should.equal(PIN.mustVerify)
+        var bad = new bsv.Transaction(PIN.negativeControl.spendTxHex)
+        H.verify(bad.inputs[0].script, lock, { tx: bad, satoshis: PIN.inputSatoshis }).ok
+          .should.equal(false)
+      } finally { I.setLimits(savedL) }
+    })
+
+    it('states the pre-Genesis result and ships the control that makes it sound', function () {
+      PIN.preGenesisDemonstration.genuineSpendVerifies.should.equal(true)
+      PIN.preGenesisDemonstration.control.mustFailWith.should.equal('SCRIPT_ERR_PUSH_SIZE')
+      PIN.preGenesisDemonstration.limits.maxScriptElementSize.should.equal(520)
+      PIN.eraRequirements.genesis.should.match(/NOT required/)
+      PIN.eraRequirements.monolith.should.match(/REQUIRED/)
+      PIN.preimageBytes.should.be.below(520)
+      Object.keys(PIN.failClosedPaths).should.have.length(2)
+      PIN.securityPrecondition.should.match(/Do not add a spend path/)
+    })
+  })
+
   describe('the increment at its boundaries', function () {
     function increment (z0) {
       var s = new Script().add(Buffer.from([z0])).add(Opcode.OP_BIN2NUM).add(Opcode.OP_1ADD)

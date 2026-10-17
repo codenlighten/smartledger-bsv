@@ -142,10 +142,10 @@ must fail, or the file proves nothing.
 ### Added — a compact OP_PUSH_TX gate: 89 bytes instead of 377, and it runs where the other cannot
 
 `PushTx.authenticatorCompact()` / `pushTxCoreCompact()` give the same guarantee as the classic
-gate in **89 bytes and 12 counted opcodes**, against **377 bytes and 202**. Derived by the
-`newsatoshi`, `polymath-62` and `meta-scientist-94` sessions; reproduced here before being
-shipped — `a` and `Q` re-derived from the curve constants, the script re-assembled from its
-structure rather than copied, **byte-identical** to their artifact, verifying under mainnet flags.
+gate in **89 bytes and 12 counted opcodes**, against **377 bytes and 202**. Derived in-lab,
+elsewhere than this package, and reproduced here before being shipped — `a` and `Q` re-derived
+from the curve constants, the script re-assembled from its structure rather than copied,
+**byte-identical** to the original, verifying under mainnet flags.
 
 Both 124-byte reversals vanish by choosing the private key instead of fixing it at 1. With
 `a = 2^248 · Gx⁻¹ (mod n)` we get `Gx·a ≡ 2^248`, so `s = e + 2^248` — and in a 32-byte
@@ -181,10 +181,16 @@ contains **exactly one** CHECKSIG-family opcode, so a future edit adding a spend
 against `COMPACT_PUBKEY` — whose private half is published — fails the suite instead of silently
 turning the covenant into a known-key signature check.
 
-`test/covenant/pushtx_compact.js` (10 tests) covers all of it. The classic gate is untouched:
+`test/data/pushtx-compact-gate-pin.json` is the vendorable artifact, in the same schema as the
+classic gate's pin, carrying the pre-Genesis demonstration **with its own control inside it**: a
+536-byte element push that must fail under the same flags and limits, so a consumer can confirm
+the 520-byte cap was active rather than silently disabled. `test/covenant/pushtx_compact.js`
+(13 tests) covers all of it. The classic gate is untouched:
 `authenticator()` is still 377 bytes, `test/data/pushtx-gate-pin.json` still matches it, and it
-keeps its three independent witnesses. The compact form has two — the originating session's
-oracle and this library — and is documented as such.
+keeps its three independent witnesses. The compact form now has three as well — its origin, this
+library, and a compiled `bitcoin-sv` v1.2.3 `VerifyScript`, which accepted the genuine spend under
+pre-Genesis flags while rejecting a 536-byte element push in the same run, so the 520-byte cap was
+demonstrably active rather than silently disabled.
 
 
 

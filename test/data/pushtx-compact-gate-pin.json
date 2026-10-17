@@ -1,0 +1,70 @@
+{
+  "schema": "smartledger-bsv/op-push-tx-gate-pin/1",
+  "variant": "compact",
+  "generatedBy": "@smartledger/bsv working tree at version 9.41.0 (authenticatorCompact lands in the next release; reproduce from that version onward)",
+  "generatedAt": "2026-10-17",
+  "construction": "SmartContract.PushTx.authenticatorCompact() === pushTxCoreCompact(new Script())",
+  "note": "k = 1 and a = 2^248 * Gx^-1 mod n, so Gx*a = 2^248 and s = e + 2^248, which in a 32-byte big-endian string is incrementing byte[0]. No reversal, no 256-bit arithmetic.",
+  "aScalar": "d475289d7db690543c1ecbd9ed0d6c9a2e5920ecebf361bdcca0d61f77af4839",
+  "aDerivation": "a = 2^248 * modInverse(Gx, n) mod n — public and deterministic; verify COMPACT_PUBKEY === a*G",
+  "compactPubKey": "02b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0",
+  "sighashType": "0x41",
+  "lockingScriptHex": "aa517f7c818b51807c7e263044022079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179802207c7e01417e2102b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0ac",
+  "lockingScriptBytes": 89,
+  "lockingScriptSha256": "d81ed6cc08b1d7583fbe6cb8c2cdd10201a7900aa51b21f55e6d4edd8d9f4a35",
+  "lockingScriptASM": "OP_HASH256 OP_1 OP_SPLIT OP_SWAP OP_BIN2NUM OP_1ADD OP_1 OP_NUM2BIN OP_SWAP OP_CAT 3044022079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817980220 OP_SWAP OP_CAT 41 OP_CAT 02b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0 OP_CHECKSIG",
+  "countedOpcodes": 12,
+  "spendTxHex": "0100000001675ea7b2cfaa669ee9718f18e34b699f8d42ad1a3cf318d08564d2279bea107800000000f84cf601000000bc65b6338d8d51740d51021009c1a2386cff551edc5b29469150c350ae2fbc1c3bb13029ce7b1f559ef5e747fcac439f1455a2ec7c5f09b72290795e70665044675ea7b2cfaa669ee9718f18e34b699f8d42ad1a3cf318d08564d2279bea10780000000059aa517f7c818b51807c7e263044022079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179802207c7e01417e2102b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0ac50c3000000000000ffffffff1f5d333b6bf1fe7eea2eee3902b0faa981cd364d7e4daa3768d0ebbe75bd25960000000041000000ffffffff015cc10000000000001976a914fc7250a211deddc70ee5a2738de5f07817351cef88ac00000000",
+  "inputIndex": 0,
+  "inputSatoshis": 50000,
+  "nLockTime": 0,
+  "nSequence": 4294967295,
+  "grind": {
+    "field": "nLockTime",
+    "nonce": 0,
+    "tries": 1,
+    "condition": "z[0] <= 0x7e and low-S; about 127/256 accept"
+  },
+  "preimageHex": "01000000bc65b6338d8d51740d51021009c1a2386cff551edc5b29469150c350ae2fbc1c3bb13029ce7b1f559ef5e747fcac439f1455a2ec7c5f09b72290795e70665044675ea7b2cfaa669ee9718f18e34b699f8d42ad1a3cf318d08564d2279bea10780000000059aa517f7c818b51807c7e263044022079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179802207c7e01417e2102b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0ac50c3000000000000ffffffff1f5d333b6bf1fe7eea2eee3902b0faa981cd364d7e4daa3768d0ebbe75bd25960000000041000000",
+  "preimageBytes": 246,
+  "hash256OfPreimage": "5242b0d896d63f775fd9df516bafecf3b21ae6dde60bac6af9e195f55f222d96",
+  "mustVerify": true,
+  "negativeControl": {
+    "description": "preimage byte 0 XORed by 0x01 — MUST be refused",
+    "preimageHex": "00000000bc65b6338d8d51740d51021009c1a2386cff551edc5b29469150c350ae2fbc1c3bb13029ce7b1f559ef5e747fcac439f1455a2ec7c5f09b72290795e70665044675ea7b2cfaa669ee9718f18e34b699f8d42ad1a3cf318d08564d2279bea10780000000059aa517f7c818b51807c7e263044022079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179802207c7e01417e2102b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0ac50c3000000000000ffffffff1f5d333b6bf1fe7eea2eee3902b0faa981cd364d7e4daa3768d0ebbe75bd25960000000041000000",
+    "spendTxHex": "0100000001675ea7b2cfaa669ee9718f18e34b699f8d42ad1a3cf318d08564d2279bea107800000000f84cf600000000bc65b6338d8d51740d51021009c1a2386cff551edc5b29469150c350ae2fbc1c3bb13029ce7b1f559ef5e747fcac439f1455a2ec7c5f09b72290795e70665044675ea7b2cfaa669ee9718f18e34b699f8d42ad1a3cf318d08564d2279bea10780000000059aa517f7c818b51807c7e263044022079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179802207c7e01417e2102b405d7f0322a89d0f9f3a98e6f938fdc1c969a8d1382a2bf66a71ae74a1e83b0ac50c3000000000000ffffffff1f5d333b6bf1fe7eea2eee3902b0faa981cd364d7e4daa3768d0ebbe75bd25960000000041000000ffffffff015cc10000000000001976a914fc7250a211deddc70ee5a2738de5f07817351cef88ac00000000",
+    "mustVerify": false,
+    "observedError": "SCRIPT_ERR_SIG_DER_INVALID_FORMAT"
+  },
+  "preGenesisDemonstration": {
+    "description": "this gate verifies pre-Genesis, unlike the 377-byte form, because its 246-byte preimage fits the 520-byte element cap and it uses no 32-byte arithmetic",
+    "flagsHex": "0x1586f",
+    "limits": {
+      "maxScriptElementSize": 520,
+      "maxScriptSize": 10000,
+      "maxOpsPerScript": 500,
+      "maxScriptNumLength": 4
+    },
+    "genuineSpendVerifies": true,
+    "control": {
+      "description": "a 536-byte element push under the SAME flags and limits must fail, proving the cap was active rather than silently disabled",
+      "mustFailWith": "SCRIPT_ERR_PUSH_SIZE"
+    }
+  },
+  "eraRequirements": {
+    "monolith": "REQUIRED (OP_SPLIT/OP_CAT/OP_BIN2NUM/OP_NUM2BIN), and not switchable in this library, so it cannot attest to any earlier rule set",
+    "genesis": "NOT required for this gate — see preGenesisDemonstration. A larger per-path covenant can re-cross the 520-byte cap; test the complete script.",
+    "chronicle": "NOT required: no Chronicle-gated opcode"
+  },
+  "failClosedPaths": {
+    "z[0] == 0x7f": "ABORTS, SCRIPT_ERR_IMPOSSIBLE_ENCODING — OP_NUM2BIN cannot fit 128 in one signed byte",
+    "z[0] >= 0x80": "COMPLETES with a wrong s that OP_CHECKSIG rejects — OP_BIN2NUM reads 0x80 as negative zero and 0xff as -127"
+  },
+  "securityPrecondition": "a is public, which is safe ONLY because the sole OP_CHECKSIG consumes a signature the LOCKING script assembles. Do not add a spend path that checks a spender signature against compactPubKey.",
+  "limitsInForceWhenGenerated": {
+    "maxScriptElementSize": 2147483647,
+    "maximumElementSize": 4,
+    "maxOpsPerScript": 2147483647,
+    "maxScriptSize": 2147483647
+  }
+}

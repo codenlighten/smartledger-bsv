@@ -1415,8 +1415,8 @@ declare module '@smartledger/bsv' {
              * `COMPACT_PUBKEY`**: its private half is published, so that path would bypass the
              * covenant entirely.
              *
-             * Derived by the newsatoshi, polymath-62 and meta-scientist-94 sessions and
-             * reproduced independently here before being shipped.
+             * Derived in-lab, elsewhere than this package, and reproduced independently here
+             * before being shipped.
              */
             const A_SCALAR: crypto.BN;
             const COMPACT_PUBKEY: Buffer;
