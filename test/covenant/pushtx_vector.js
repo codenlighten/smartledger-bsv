@@ -32,6 +32,7 @@ var H = bsv.SmartContract.CovenantHelpers
 var Hash = bsv.crypto.Hash
 var V = require('../data/pushtx-authenticator-vector.json')
 var VSEQ = require('../data/pushtx-authenticator-vector-seqgrind.json')
+var PIN = require('../data/pushtx-gate-pin.json')
 
 describe('OP_PUSH_TX published vector', function () {
   it('is the script this library emits today', function () {
@@ -62,6 +63,51 @@ describe('OP_PUSH_TX published vector', function () {
     H.verify(tx.inputs[0].script, lock, { tx: tx, satoshis: V.inputSatoshis }).ok
       .should.equal(true)
     V.verifiesUnderMainnetFlags.should.equal(true)
+  })
+
+  // `pushtx-gate-pin.json` is the same gate as vector A, in a self-contained schema'd form for
+  // an EXTERNAL implementation to vendor: it carries the locking script with its SHA-256 and
+  // ASM, the spend, the preimage and digest, the grind record, the era requirements, the
+  // pre-Genesis limits for reference, the interpreter limits in force when it was generated, and
+  // — the part prose cannot carry — the one-byte-mutated preimage as an inline NEGATIVE CONTROL
+  // with the error it must produce. A consumer can therefore run accept-genuine and
+  // reject-mutated from the file alone, without constructing the mutation itself.
+  //
+  // It was generated against @smartledger/bsv@9.41.0 installed FROM THE REGISTRY rather than
+  // from this working tree, so the pin is to the published package. These assertions check it
+  // still describes the library, which is what stops a vendored copy drifting silently.
+  describe('the vendorable gate pin', function () {
+    it('describes the gate this library emits today', function () {
+      PIN.schema.should.equal('smartledger-bsv/op-push-tx-gate-pin/1')
+      PIN.lockingScriptHex.should.equal(P.authenticator().toHex())
+      PIN.lockingScriptHex.should.equal(V.lockingScriptHex) // same gate as vector A
+      PIN.lockingScriptBytes.should.equal(377)
+      require('crypto').createHash('sha256').update(Buffer.from(PIN.lockingScriptHex, 'hex'))
+        .digest('hex').should.equal(PIN.lockingScriptSha256)
+    })
+
+    it('carries a spend that verifies and a mutation that does not', function () {
+      var lock = bsv.Script.fromHex(PIN.lockingScriptHex)
+      var good = new bsv.Transaction(PIN.spendTxHex)
+      H.rawPreimage(good, PIN.inputIndex, lock, PIN.inputSatoshis).toString('hex')
+        .should.equal(PIN.preimageHex)
+      Hash.sha256sha256(Buffer.from(PIN.preimageHex, 'hex')).toString('hex')
+        .should.equal(PIN.hash256OfPreimage)
+      H.verify(good.inputs[0].script, lock, { tx: good, satoshis: PIN.inputSatoshis }).ok
+        .should.equal(PIN.mustVerify)
+
+      var bad = new bsv.Transaction(PIN.negativeControl.spendTxHex)
+      PIN.negativeControl.mustVerify.should.equal(false)
+      H.verify(bad.inputs[0].script, lock, { tx: bad, satoshis: PIN.inputSatoshis }).ok
+        .should.equal(false)
+    })
+
+    it('states the era requirements it was measured under', function () {
+      PIN.eraRequirements.genesis.should.match(/REQUIRED/)
+      PIN.eraRequirements.chronicle.should.match(/NOT required/)
+      PIN.preGenesisLimitsForReference.maxOpsPerScript.should.equal(500)
+      PIN.preGenesisLimitsForReference.maxScriptElementSize.should.equal(520)
+    })
   })
 
   // The companion vector grinds the input SEQUENCE instead, because a covenant whose

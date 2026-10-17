@@ -304,6 +304,36 @@ that session's own grind reached **the same published nonce, 103**, rather than 
 working nonce — which confirms the `s = (e + Gx) mod n` arithmetic and the three conditions, not
 just the outcome.
 
+### Added — a vendorable gate pin, and four cases for an external oracle to judge
+
+No behaviour change. Both files are generated against **9.41.0 installed from the registry**, not
+from this working tree, so what they pin is the published package.
+
+`test/data/pushtx-gate-pin.json` is the OP_PUSH_TX gate in a self-contained schema'd form for
+another implementation to **vendor**: the locking script with its SHA-256 and ASM, the spend, the
+preimage and digest, the grind field and nonce, the era requirements, the pre-Genesis limits for
+reference, the interpreter limits in force when it was generated — and, the part prose cannot
+carry, **the one-byte-mutated preimage inline as a negative control** with the error it must
+produce. So a consumer runs accept-genuine and reject-mutated from the file alone, without
+building the mutation itself. Three tests hold it to the library, so a vendored copy cannot drift
+silently.
+
+`test/data/oracle-cases-for-external-witness.json` carries four cases in the line format a peer's
+compiled `bitcoin-sv` v1.2.3 runner takes — `<txhex> <nIn> <amountSats> <prevoutScriptHex>
+<flagsHex>` — each with the verdict **this** implementation gives, so a disagreement is visible
+in which direction:
+
+| case | expected | this library |
+|---|---|---|
+| `valueCovenantSingle`, honest spend | ACCEPT | ACCEPT |
+| `valueCovenantSingle`, pinned output value changed by 1 satoshi | REJECT | `SCRIPT_ERR_EVAL_FALSE_IN_STACK` |
+| `Token` transfer, owner authorises | ACCEPT | ACCEPT |
+| `Token` transfer attempted by a non-owner | REJECT | `SCRIPT_ERR_EQUALVERIFY` |
+
+These two covenants have never been judged by anything outside this repository's own test suite,
+where the gate now has three independent witnesses. The flags are **this** implementation's
+encoding and the file says so: compare rule names, never the hex.
+
 ### Added — two published OP_PUSH_TX vectors, so an external implementation can diff instead of re-derive
 
 No behaviour change. A session building a covenant to a frozen spec refused to transcribe the
