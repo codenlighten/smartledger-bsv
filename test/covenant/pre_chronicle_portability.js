@@ -172,7 +172,38 @@ describe('covenants on a pre-Chronicle chain', function () {
     pre.err.should.equal('SCRIPT_ERR_PUSH_SIZE')
   })
 
-  it('and both Genesis limits the gate depends on are era-gated, isolated', function () {
+  // All four pre-Genesis limits, enumerated from the node's own constants
+  // (consensus.h / script.h) rather than from memory, with the gate measured against each. Two
+  // bind and two do not, so the exhaustiveness question is closed rather than hedged.
+  //
+  //   element size   520 bytes   BINDS: the preimage is 536
+  //   script numbers 4 bytes     BINDS: the s-value arithmetic is 32
+  //   op count       500         does not: the gate counts 202 opcodes above OP_16
+  //   script size    10,000 B    does not: the gate is 377 bytes
+  //
+  // The op-count figure is worth stating because the obvious wrong number is Bitcoin Core's
+  // 201, which the gate WOULD trip. BSV's MAX_OPS_PER_SCRIPT_BEFORE_GENESIS is 500.
+  it('counts 202 opcodes and 377 bytes, under the pre-Genesis op and size caps', function () {
+    var lock = P.authenticator()
+    lock.toBuffer().length.should.be.below(10000, 'pre-Genesis script-size cap')
+    var buf = lock.toBuffer()
+    var ops = 0
+    var i = 0
+    while (i < buf.length) {
+      var op = buf[i]
+      if (op >= 0x01 && op <= 0x4b) { i += 1 + op; continue }
+      if (op === 0x4c) { i += 2 + buf[i + 1]; continue }
+      if (op === 0x4d) { i += 3 + buf.readUInt16LE(i + 1); continue }
+      if (op === 0x4e) { i += 5 + buf.readUInt32LE(i + 1); continue }
+      if (op > 0x60) ops++ // the node counts opcodes above OP_16
+      i++
+    }
+    ops.should.be.above(201, 'so Bitcoin Core\'s 201 would have been tripped')
+    ops.should.be.below(500, 'but BSV\'s pre-Genesis cap is 500, so this is not what binds')
+    I.MAX_OPS_PER_SCRIPT.should.equal(500)
+  })
+
+  it('and the two Genesis limits that DO bind are era-gated, isolated', function () {
     var tx = new bsv.Transaction()
     tx.from(new bsv.Transaction.UnspentOutput({
       txId: 'e'.repeat(64), outputIndex: 0, script: '51', satoshis: SATS

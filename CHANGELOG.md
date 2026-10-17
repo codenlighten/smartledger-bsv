@@ -163,10 +163,22 @@ that *reads* the authenticated preimage by slicing is not.
 **But the gate is not portable below Genesis, and that correction came from a peer.** Its floor is
 `SCRIPT_UTXO_AFTER_GENESIS`, for a reason that has nothing to do with which opcodes exist:
 `PushTx.authenticator()` fails `SCRIPT_ERR_PUSH_SIZE` pre-Genesis because the preimage it must
-push is **536 bytes** against a 520-byte element limit. Both limits were isolated: a 536-byte
+push is **536 bytes** against a 520-byte element limit. Both binding limits were isolated: a 536-byte
 element push and an `OP_CAT` *producing* 528 bytes each give `SCRIPT_ERR_PUSH_SIZE` pre-Genesis,
 and `OP_ADD` on two 32-byte numbers gives `SCRIPT_ERR_SCRIPTNUM_OVERFLOW` — that last being the
-in-script `s = (e + Gx) mod n`. The peer reached the same floor from the other end: their regtest
+in-script `s = (e + Gx) mod n`.
+
+**And the exhaustiveness question is closed by measurement rather than hedged.** All four
+pre-Genesis limits were read from the node's own constants (`consensus.h`, `script.h`) and checked
+against the gate: element size **520 binds** (the preimage is 536), script numbers **4 bytes
+binds** (the arithmetic is 32), op count **500 does not** (the gate counts 202 opcodes above
+`OP_16`), script size **10,000 does not** (377 bytes). A peer suggested softening this to "at
+least these two" on the theory that the op-count cap might also bite — reasonable, and measuring
+it was better: the obvious wrong number is Bitcoin Core's **201**, which the gate *would* trip,
+while BSV's `MAX_OPS_PER_SCRIPT_BEFORE_GENESIS` is **500**. I had briefly adopted the 201 myself
+and was one message from reporting "the gate trips the op count by one opcode", which an existing
+test in `test/script/genesis_limits.js` — whose comment names the 500-op cap — contradicted. A
+larger covenant can of course reach the op or size cap; this one does not. The peer reached the same floor from the other end: their regtest
 spend failed "Push value size limit exceeded" until `genesisactivationheight=1`. So the ladder is
 **Monolith for the opcodes, Genesis for the gate, Chronicle for the slicing** — and an earlier
 summary of this work that called the gate portable to "any post-Monolith chain" was wrong. The security-relevant half is that the latter **fail

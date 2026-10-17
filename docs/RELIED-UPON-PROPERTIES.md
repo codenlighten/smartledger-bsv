@@ -520,7 +520,14 @@ Three traps, all measured:
 
   Measured: `PushTx.authenticator()` passes on mainnet and fails `SCRIPT_ERR_PUSH_SIZE` without
   `SCRIPT_UTXO_AFTER_GENESIS`, because the preimage it must push is **536 bytes** against a
-  pre-Genesis element limit of 520. Both limits it depends on were isolated separately: a 536-byte
+  pre-Genesis element limit of 520. All four pre-Genesis limits were checked against it, from the
+  node's own constants rather than from memory, so this is exhaustive for this script rather than
+  hedged: element size 520 **binds** (536), script numbers 4 bytes **binds** (32-byte
+  arithmetic), op count 500 does **not** (the gate counts 202 opcodes above `OP_16`), script size
+  10,000 does **not** (377 bytes). The op figure is worth knowing because the obvious wrong number
+  is Bitcoin Core's **201**, which the gate would trip — BSV's
+  `MAX_OPS_PER_SCRIPT_BEFORE_GENESIS` is **500**. A larger covenant can of course reach the op or
+  size cap; this one does not. Both limits it depends on were isolated separately: a 536-byte
   element push and an `OP_CAT` *producing* 528 bytes each give `SCRIPT_ERR_PUSH_SIZE` pre-Genesis
   and pass on mainnet, and `OP_ADD` on two 32-byte numbers gives `SCRIPT_ERR_SCRIPTNUM_OVERFLOW`
   pre-Genesis — which is the in-script `s = (e + Gx) mod n` arithmetic. So the gate is not
