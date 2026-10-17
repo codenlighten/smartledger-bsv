@@ -139,6 +139,35 @@ must fail, or the file proves nothing.
 
 ## [Unreleased]
 
+### Added — two published OP_PUSH_TX vectors, so an external implementation can diff instead of re-derive
+
+No behaviour change. A session building a covenant to a frozen spec refused to transcribe the
+preimage gate from a description — correctly, because a wrong byte there is the exploitable case.
+Prose describes a construction; these are artifacts.
+
+`test/data/pushtx-authenticator-vector.json` and its `-seqgrind` companion each carry the
+compiled `PushTx.authenticator()` locking script (377 bytes), a spending transaction, the preimage,
+its `HASH256`, and **the grind nonce and field that made the s-value canonical**. The first grinds
+`nLockTime` (nonce 103 of 104 tries); the second grinds the input **sequence** (nonce 34 of 35)
+with `nLockTime` pinned to height 800,000 and the sequence left non-final — the shape a covenant
+needs when its `nLockTime` is load-bearing for an absolute time-lock and therefore unavailable as
+the grind nonce.
+
+`test/covenant/pushtx_vector.js` recomputes every field from the others rather than comparing the
+file to itself: the script is rebuilt from its hex and must equal what `authenticator()` emits
+today, the preimage is recomputed from the serialized transaction, the digest from the preimage,
+and the spend is re-verified under mainnet consensus flags. A one-byte mutation of the preimage
+must fail, which is what makes it a vector rather than a snapshot. So a regenerated vector that no
+longer matches the library fails here instead of quietly becoming the new expectation.
+
+**The sibling reproduces them.** `@smartledger/bsv-core` now carries the same artifact and
+recomputes it with its own code: byte-identical 377-byte script from `Covenant.PushTx
+.authenticator()`, same preimage from its own `rawPreimage`, same s-value verdict, and it
+**verifies the bsv-built spend under its own interpreter**. Two implementations agreeing is worth
+nothing unless something fails when they drift; a copy in each repository is that something.
+
+
+
 ### Added — §5 of the properties page: `sighashPreimage` does not always return a preimage
 
 No behaviour change, and the one consumer-facing consequence of the sighash work below. The
