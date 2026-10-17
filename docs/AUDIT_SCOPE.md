@@ -150,14 +150,14 @@ this repository.
 | `lib/address.js`, `lib/networks.js`, `lib/opcode.js`, `lib/hdprivatekey.js`, `lib/hdpublickey.js` (2,391 lines) | Cut to pay for §2.1 | Formatting, network constants and BIP-32 derivation. No defect has originated here, and `networks.js` in particular defines addressing constants — pubkey hashes, xpub prefixes, ports, DNS seeds — and contains **no consensus-flag logic at all**. |
 | The rest of the application layer — `lib/gdaf/`, `lib/ltp/`, `lib/ordinals/`, `lib/block/`, `lib/didweb/`, `lib/vcjwt/`, `lib/statuslist/`, most of `lib/smart_contract/`, plus assorted top-level files | Excluded | ~26,000 lines. Worth a separate engagement; including it here would blur the question in §1. Note the parts of it with a demonstrated defect history have been pulled *into* Tier 1 rather than left here — see §2.1. |
 
-Totals reconcile against `lib/`, which is 42,116 lines across 133 files:
+Totals reconcile against `lib/`, which is 42,196 lines across 133 files:
 
 ```
 tier 1      13,288
 tier 2       1,623
-excluded    27,205
+excluded    27,285
             ------
-total       42,116
+total       42,196
 ```
 
 Measured 2026-10-15 at 9.39.0. These figures drift as the library changes — an

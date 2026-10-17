@@ -5,6 +5,83 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.40.0] - 2026-10-17
+
+### Added — `pinSighash`: the Token covenant can now enforce what its security argument rests on
+
+`SmartContract.Token`'s argument has always been that authorization is a signature over THIS
+spend, so `SIGHASH_ALL`'s `hashOutputs` commits to the recreated output and a watcher who alters
+the destination invalidates the proof. **The covenant never checked the mode.** The `0x41`
+assertion in its head applies to the OP_PUSH_TX **preimage**; the authorization signature the
+authorizer verifies is a separate signature, and `OP_CHECKSIG` takes its mode from the flag byte
+the **signer** chose.
+
+Measured on published 9.39.1, from the registry:
+
+- an authorization signed `SIGHASH_NONE|FORKID` **verifies** — so the covenant accepts a proof
+  that commits to no outputs;
+- and that signature is **reusable**. Keeping the input, `version`, `nSequence` and the victim's
+  `nLockTime` (every mode commits to `nLockTime`), an attacker grinds its **own destination keys**
+  — each key is a different owner id, hence a different single output, hence a different preimage
+  — until the OP_PUSH_TX s-value condition holds again, and the resulting transaction **verifies
+  under mainnet consensus flags with the victim's signature unchanged**. Two runs redirected the
+  token in **4** and **67** candidate keys, consistent with the ~2% acceptance rate of that
+  condition.
+
+**What that does and does not establish.** The measurement is interpreter acceptance under mainnet
+consensus flags, which is the right bar for "the covenant permits this spend" and is **not** a
+claim about the network. Stated precisely, because a looser version of this was corrected during
+review: the redirect and the victim's transaction spend the **same prevout**, so they are
+competing double-spends, and which one confirms depends on propagation and miner selection — BSV
+relay being first-seen is a policy that makes racing an already-broadcast transaction unreliable,
+not a consensus guarantee that it cannot happen. **Relayability is unverified**: interpreter
+acceptance and a MINIMALDATA-clean `s` do not establish that a deployed node's mempool policy
+would accept the whole redirect, and nothing here was submitted to a node.
+
+The scenario with **no race in it** is the one to design against: any workflow where an
+authorization signature exists **before** the transaction is broadcast — a holder signing and
+handing the signature to a service to assemble, a partially-signed hand-off, an escrow or
+marketplace facilitator, a retried broadcast. There whoever holds the signature chooses the
+destination and the covenant does not object.
+
+**An already-issued unpinned lineage cannot be migrated, and no library change can secure it.**
+Measured: a spend of an unpinned token whose successor output carries the **pinned** code is
+**refused**, because the covenant rebuilds the successor's `scriptCode` from the authenticated
+chunk and therefore forces its own code forward. A lineage cannot change its own rules. So the
+pin protects **newly created** tokens; for tokens already issued, the remedy is operational —
+sign the authorization `SIGHASH_ALL`, which this library's own API always does. Saying "opt-in
+now, default in 10.0.0" without that sentence would leave an integrator expecting existing tokens
+to be fixed later. They will not be. `test/smart_contract/token_sighash_pin.js` pins this.
+
+**The pattern already existed in this codebase**, which is the clearest evidence this was an
+oversight rather than a decision: `lib/ordinals/ordlock.js`'s purchase branch calls
+`P.assertSighashType(s, ORDLOCK_SIGHASH)` and labels it defence-in-depth. The newer covenant pins
+its flag; the older Token one never did.
+
+`Authorizers.singleKey({ pinSighash: true })` and `Authorizers.multisig(m, n, { pinSighash: true })`
+now require the flag byte to be `0x41` in script, before the signature check. For multisig **every
+one of the m** signatures is checked, not just the top one, since checking one would leave the rest
+free. Pinned, the `SIGHASH_NONE` transfer does not verify at all, so there is nothing to reuse.
+
+**Who was exposed.** Not users of the public API: `Authorizers.*.unlockArgs` signs with
+`H.signInput(spend, key, i, lock, sats)` and **no override**, i.e. `SIGHASH_ALL|FORKID`, so
+`Token.unlockTransfer` cannot produce the vulnerable shape — read from the source, not assumed.
+The exposure is a hand-built unlocking script, which is a documented and public way to use these
+schemes, or an explicit sighash type passed to `signInput`.
+
+**Why it is opt-in rather than the default.** The pin changes the locking script, and a token's
+successor output must carry the code the covenant rebuilds from the authenticated `scriptCode`.
+Flipping the default would make an **in-flight lineage unspendable**: the holder would build a
+successor with the new code while the covenant demands the old. So this release adds the option and
+warns once per process (`plan: authorizer-unpinned-sighash`, `removeIn: 10.0.0`), 10.0.0 makes it
+the default, and a lineage created before the flip finishes under the code it was created with.
+`docs/RELEASE-10.0.0.md` carries the row, and `test/properties/release_10_plan.js` pairs the plan
+and the code by that id in both directions.
+
+Found by red-teaming a *new* feature's design: the reviewer pointed out that the asserted `0x41`
+belongs to the preimage and not to the authorization signature. The new feature is not in this
+release — this is.
+
 ## [Unreleased]
 
 ### Added — §5 of the properties page: `sighashPreimage` does not always return a preimage

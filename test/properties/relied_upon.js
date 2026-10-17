@@ -531,6 +531,21 @@ describe('relied-upon properties', function () {
     })
   })
 
+  describe('5. a Token authorization must be SIGHASH_ALL', function () {
+    // The behaviour itself is measured in test/smart_contract/token_sighash_pin.js, including
+    // the theft as a positive control. This pairs the document with the shipped option, so the
+    // page cannot keep advising a flag that the authorizer no longer honours.
+    it('offers the pin the document tells consumers to use', function () {
+      var A = bsv.SmartContract.Authorizers
+      A.singleKey({ pinSighash: true }).pinSighash.should.equal(true)
+      A.singleKey().pinSighash.should.equal(false)
+      A.multisig(2, 3, { pinSighash: true }).pinSighash.should.equal(true)
+      documented('A Token authorization is only sound if its signature is `SIGHASH_ALL`')
+      documented('Authorizers.singleKey({ pinSighash: true })')
+      documented('the default in 10.0.0')
+    })
+  })
+
   describe('5. sighashPreimage does not always return a preimage', function () {
     it('returns the legacy sentinel, unhashed, exactly where the document says', function () {
       var Sighash = bsv.Transaction.Sighash

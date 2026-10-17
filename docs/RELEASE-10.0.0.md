@@ -4,7 +4,7 @@
 releases until then, after six majors in 82 days taught us what a major costs a consumer. Nothing
 here ships early.
 
-This file exists because the commitments were scattered across ten source files and three docs,
+This file exists because the commitments were scattered across eleven source files and three docs,
 which is how a major gets assembled instead of planned. Every breaking change the library has
 promised is listed here, and `test/properties/release_10_plan.js` asserts that **every
 `removeIn: '10.0.0'` registered in `lib/` appears below, and that every row below is backed by a
@@ -25,7 +25,7 @@ their logs.
 
 ## Registered deprecations — these warn today and throw or change in 10.0.0
 
-Ten, listed by the file that registers them. `since` is the version whose logs first carried the
+Eleven, listed by the file that registers them. `since` is the version whose logs first carried the
 notice; `lib/util/deprecate.js` warns once per API per process, respects
 `BSV_NO_DEPRECATION_WARNINGS=1` and **never throws**, because a deprecation that throws is a
 breaking change wearing a warning's name.
@@ -42,6 +42,35 @@ breaking change wearing a warning's name.
 | `ltp-token-path-syntax-field-name` | 9.32.0 | an **LTP token** field name containing `.`, `[` or `]` | field names without path syntax | `lib/ltp/proof.js` |
 | `message-verify-high-s-accept` | 9.38.0 | `Message#verify()` **accepting a non-canonical (high-s) signature** | `verify(address, sig, { lowS: true })` | `lib/message/message.js` |
 | `output-script-mutated-in-place` | 9.39.0 | **mutating a parsed output script in place** and expecting it to serialize | `output.setScript(output.script)` after mutating, or build the script before setting it | `lib/transaction/output.js` |
+| `authorizer-unpinned-sighash` | 9.40.0 | a **Token authorizer that does not pin the authorization signature to SIGHASH_ALL** | `Authorizers.singleKey({ pinSighash: true })` / `multisig(m, n, { pinSighash: true })` — it changes the locking script, so an in-flight lineage finishes under the code it was created with | `lib/smart_contract/authorizers.js` |
+
+### Why the authorizer pin is a default flip rather than a fix
+
+The Token covenant's security argument is that authorization is a signature over THIS spend, so
+`SIGHASH_ALL`'s `hashOutputs` commits to the recreated output and a watcher who alters the
+destination invalidates the proof. That is true only while the authorization signature IS
+`SIGHASH_ALL` — and the covenant never checked. The 0x41 assertion in its head applies to the
+OP_PUSH_TX **preimage**, not to the separate signature the authorizer verifies, and `OP_CHECKSIG`
+takes its mode from the flag byte the signer chose.
+
+Measured on 9.39.1: an authorization signed `SIGHASH_NONE|FORKID` verifies, and because it commits
+to no outputs a mempool observer can reuse it in a transaction redirecting the token to itself.
+The observer is pinned to the victim's `nLockTime` — every sighash mode commits to it — but is
+free to grind its **own destination keys** until the OP_PUSH_TX s-value condition holds again: two
+runs succeeded in 4 and 67 candidate keys. With `{ pinSighash: true }` the `SIGHASH_NONE` transfer
+does not verify at all, so there is nothing to reuse.
+
+It is a flip rather than a fix because the pin **changes the locking script**, and a token's
+successor output must carry the code the covenant rebuilds from the authenticated `scriptCode`.
+Turning it on by default would make an in-flight lineage unspendable: the holder would build a
+successor with the new code while the covenant demands the old. So 9.40.0 adds the option and
+warns, 10.0.0 makes it the default, and a lineage created before the flip finishes under the code
+it was created with.
+
+This library's own unlock path was never exposed. `Authorizers.*.unlockArgs` signs with
+`H.signInput(spend, key, i, lock, sats)` and no override, i.e. `SIGHASH_ALL|FORKID`, so a consumer
+using `Token.unlockTransfer` could not produce the vulnerable shape. The exposure is a hand-built
+unlocking script, which is a documented and public way to use these schemes.
 
 ### Why the low-s item is a default flip rather than a fix
 

@@ -539,6 +539,32 @@ Three traps, all measured:
   ones* (see `toASM` above), not the buffer form. Do not read this as a promise that
   re-serialising a parsed script is always safe — it is a measurement of this parser, and
   `test/transaction/output_inplace_mutation.js` keeps it honest.
+- **A Token authorization is only sound if its signature is `SIGHASH_ALL`, and before 9.40.0
+  nothing checked.** `SmartContract.Token`'s whole argument is that authorization is a signature
+  over this spend, so `hashOutputs` commits to the recreated output and altering the destination
+  invalidates the proof. The covenant's `0x41` assertion applies to the OP_PUSH_TX **preimage**,
+  not to that signature, and `OP_CHECKSIG` takes its mode from the flag byte the signer chose.
+  Measured on published 9.39.1: an authorization signed `SIGHASH_NONE|FORKID` **verifies**, and it
+  is **reusable** — holding the input, `version`, `nSequence` and the victim's `nLockTime` fixed,
+  an attacker grinds its own destination keys until the OP_PUSH_TX s-value condition holds, and
+  the redirect **verifies under mainnet consensus flags** with the victim's signature unchanged
+  (4 and 67 candidate keys on two runs; independently reproduced in 35 by a second
+  implementation of the harness). That is interpreter acceptance, not a network claim — the
+  redirect and the victim's transaction spend the same prevout, so they are competing
+  double-spends whose outcome depends on propagation and miner selection, and relayability was
+  not tested against a node. The case with **no race in it** is the one to design against: any
+  workflow where the authorization signature exists **before** the transaction is broadcast, such
+  as signing and handing the signature to a service to assemble. **An already-issued unpinned
+  lineage cannot be migrated** — measured: a successor carrying the pinned code is refused,
+  because the covenant rebuilds its own `scriptCode` forward, so a lineage cannot change its own
+  rules. For those tokens the remedy is operational: sign `SIGHASH_ALL`, as this library's API
+  always does. **Use `Authorizers.singleKey({ pinSighash: true })`** (or
+  `multisig(m, n, { pinSighash: true })`, which checks every one of the m signatures) — the pin
+  makes the `SIGHASH_NONE` transfer fail to verify at all. This library's own
+  `Token.unlockTransfer` always signs `SIGHASH_ALL|FORKID` and could never produce the vulnerable
+  shape; the exposure is a hand-built unlocking script. The pin changes the locking script, so it
+  is opt-in in 9.40.0 and the default in 10.0.0, and an in-flight lineage must finish under the
+  code it was created with.
 - **`valueCovenant` pins the whole output set, not one output.** If you want a single output
   pinned, use `valueCovenantSingle` (9.28.0+). Note that 32 zero bytes is the legitimate
   `hashOutputs` for an out-of-range index — a zero pin pins *nothing*.
