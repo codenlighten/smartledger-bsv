@@ -1,9 +1,21 @@
 # What is published, and what state it is in
 
 A complete inventory of every package and version this project has put on the public npm
-registry, what is still wrong with each, and a recommended disposition. Facts read from the
-registry on 2026-10-13; re-run `npm run check:npm-inventory` before acting on any of it, and
-the suite fails if the package table below drifts from the registry.
+registry, what is still wrong with each, and a recommended disposition. The package table was
+re-read from the registry on **2026-10-17**; the reasoning that follows it was written against
+the 2026-10-13 state (see the note below). Re-run `npm run check:npm-inventory` before acting on
+any of it, and the suite fails if the package table below drifts from the registry.
+
+**The live set today, read from the registry on 2026-10-17:** `@smartledger/bsv` has five
+undeprecated versions — **9.36.0, 9.37.0, 9.38.0, 9.39.0 and 9.39.1** — and everything up to
+and including 9.35.0 is deprecated. All five are at or above every fix in the defect table
+below. Three fixes landed after that table was written and are therefore NOT in it: the
+original-algorithm sighash digest over a truncated `OP_RETURN` push (9.37.0, public advisory
+GHSA-j884-5pmj-6wqp), `Message#verify({ lowS: true })` refusing the malleable twin (9.38.0,
+with the old acceptance deprecated rather than removed), and named ESM imports of the subpath
+exports (9.39.1). So 9.36.0 is the one live version below a published advisory's fix. Whether
+to deprecate any of 9.36.0–9.39.0 is a decision for Greg, not a bookkeeping step: it changes
+what existing installs are told.
 
 **The deprecation counts below are the state AFTER the run described at the end of this page.**
 Everything between here and there is written as it was decided — "71 live", "none deprecated" —
@@ -28,12 +40,12 @@ already printed into someone's CI log is not.
 
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
-| `@smartledger/bsv` | 130 | 129 | 1 | 9.36.0 | 2025-10-18 | 2026-10-14 |
-| `@smartledger/bsv-core` | 13 | 0 | 13 | 1.5.2 | 2026-09-30 | 2026-10-13 |
-| `@smartledger/keys` | 23 | 0 | 23 | 4.0.0 | 2025-11-28 | 2026-10-07 |
-| `@smartledger/notaryhash` | 16 | 0 | 16 | 2.4.2 | 2026-06-27 | 2026-10-10 |
-| `@smartledger/crypto` | 14 | 0 | 14 | 3.2.0 | 2025-11-28 | 2026-10-07 |
-| `@smartledger/envelope` | 5 | 0 | 5 | 3.0.0 | 2025-12-03 | 2026-10-07 |
+| `@smartledger/bsv` | 134 | 129 | 5 | 9.39.1 | 2025-10-18 | 2026-10-17 |
+| `@smartledger/bsv-core` | 17 | 0 | 17 | 1.8.1 | 2026-09-30 | 2026-10-17 |
+| `@smartledger/keys` | 24 | 0 | 24 | 4.1.0 | 2025-11-28 | 2026-10-15 |
+| `@smartledger/notaryhash` | 17 | 0 | 17 | 2.5.0 | 2026-06-27 | 2026-10-16 |
+| `@smartledger/crypto` | 15 | 0 | 15 | 3.3.0 | 2025-11-28 | 2026-10-15 |
+| `@smartledger/envelope` | 6 | 0 | 6 | 3.0.1 | 2025-12-03 | 2026-10-15 |
 | `smartledger-bsv` (unscoped) | 22 | 22 | 0 | **4.4.0** | 2025-10-18 | 2026-06-08 |
 | `@smartledger/sdk` | 0 installable | - | - | none | 2025-03-04 | 2025-03-04 |
 

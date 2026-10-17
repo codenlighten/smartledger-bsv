@@ -17,8 +17,8 @@
 //
 // Two invariants are enforced before a manifest is emitted, because both failures are silent:
 //
-//   * every published version is covered by exactly ONE tier, and `@smartledger/bsv@9.36.0` —
-//     the current release — by none;
+//   * every published version is covered by exactly ONE tier, or is listed in LIVE — the
+//     versions that are deliberately NOT deprecated — and never both;
 //   * every tier's range is an explicit `||` union of exact versions that selects exactly its
 //     own list and nothing else.  A comparator range such as `>=7.5.5 <9.32.0` would sweep up
 //     7.7.0 and 7.8.0, whose existing messages carry a fact no other version's does.
@@ -28,7 +28,15 @@ var path = require('path')
 var https = require('https')
 
 var SNAPSHOT = path.join(__dirname, '..', 'docs', 'npm-deprecations', 'snapshot-2026-10-14.json')
-var CURRENT = { '@smartledger/bsv': '9.36.0' } // must never be deprecated
+// Versions deliberately left undeprecated. This was one version per package until three
+// releases landed after 9.36.0 while the deprecation set stayed where it was, and the
+// one-live-version model then reported them as a coverage gap it could not express. Membership
+// here is a statement that a version is NOT deprecated — nothing more. WHETHER to deprecate a
+// release is Greg's decision, not this script's: it changes what existing installs are told, so
+// adding a version to a tier is never a bookkeeping step.
+var LIVE = {
+  '@smartledger/bsv': ['9.36.0', '9.37.0', '9.38.0', '9.39.0', '9.39.1']
+}
 var GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc'
 // The age-proof advisory. A deprecation message is the only security notice most consumers ever
 // see, so the one tier whose defect has no other description in the set carries its link.
@@ -277,9 +285,9 @@ function check (tiers, state) {
   Object.keys(state).forEach(function (pkg) {
     Object.keys(state[pkg]).forEach(function (v) {
       var covered = !!owner[pkg + '@' + v]
-      var isCurrent = CURRENT[pkg] === v
-      if (covered && isCurrent) errors.push('the current release must not be deprecated: ' + pkg + '@' + v)
-      if (!covered && !isCurrent) errors.push('published but in no tier: ' + pkg + '@' + v)
+      var isLive = (LIVE[pkg] || []).indexOf(v) !== -1
+      if (covered && isLive) errors.push('a version listed as live must not be deprecated: ' + pkg + '@' + v)
+      if (!covered && !isLive) errors.push('published but in no tier and not listed as live: ' + pkg + '@' + v)
     })
   })
 

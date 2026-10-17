@@ -5,6 +5,34 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed — the deprecation manifest models a SET of live versions, not one
+
+`scripts/npm-deprecations.js` held `CURRENT = { '@smartledger/bsv': '9.36.0' }` and required
+every other published version to sit in exactly one deprecation tier. Three releases then landed
+above 9.36.0 while the deprecation set stayed where it was, so `check:deprecation-texts` reported
+9.37.0, 9.38.0 and 9.39.0 as a coverage gap — a state the one-live-version model could not
+express, and which was neither a missing tier nor an error. `CURRENT` is now `LIVE`, a list per
+package, and the invariant reads: every published version is deprecated by exactly one tier **or**
+listed as live, and never both. Both halves were sabotage-checked: dropping a live version from
+the list fails with `published but in no tier and not listed as live`, and adding a live version
+to a tier fails with `a version listed as live must not be deprecated`.
+
+**No deprecation text changed and nothing was sent.** All 12 planned messages still appear
+verbatim in `docs/NPM_RELEASES.md`, and the upgrade target they name is untouched. Whether to
+deprecate 9.36.0–9.39.0 remains a decision for Greg: a deprecation changes what existing
+installs are told, so moving a version into a tier is never bookkeeping.
+
+### Fixed — `docs/NPM_RELEASES.md` did not state the registry's current counts
+
+`check:npm-inventory` had been failing for six packages at once: the package table still read
+130/129/1 for this package with `latest` at 9.36.0, and was equally stale for `bsv-core`, `keys`,
+`notaryhash`, `crypto` and `envelope`. All six rows are re-read from the registry, and the
+preamble now states the measured live set — 9.36.0, 9.37.0, 9.38.0, 9.39.0, 9.39.1, with
+everything through 9.35.0 deprecated — together with the three fixes that landed after the defect
+table was written, so a reader who stops at the table is not left with the pre-campaign picture.
+
 ## [9.39.1] - 2026-10-17
 
 ### Fixed — the subpath `import` condition: declared named exports that did not exist at run time
