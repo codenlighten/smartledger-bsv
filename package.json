@@ -1,6 +1,6 @@
 {
   "name": "@smartledger/bsv",
-  "version": "9.39.0",
+  "version": "9.39.1",
   "description": "Bitcoin SV library with an interpreter-verified script engine: OP_PUSH_TX covenants, BIP-143 preimage tooling, and consensus flags that match what miners actually enforce. Also ships DID:web / W3C VC-JWT credentials and the Legal Token Protocol.",
   "author": "SmartLedger Technology <hello@smartledger.technology> (https://smartledger.technology)",
   "homepage": "https://github.com/codenlighten/smartledger-bsv#readme",
@@ -20,50 +20,74 @@
     "./version": "./version.js",
     "./anchor": {
       "types": "./anchor-entry.d.ts",
+      "import": "./anchor-entry.mjs",
+      "require": "./anchor-entry.js",
       "default": "./anchor-entry.js"
     },
     "./covenant": {
       "types": "./covenant-entry.d.ts",
+      "import": "./covenant-entry.mjs",
+      "require": "./covenant-entry.js",
       "default": "./covenant-entry.js"
     },
     "./didweb": {
       "types": "./didweb-entry.d.ts",
+      "import": "./didweb-entry.mjs",
+      "require": "./didweb-entry.js",
       "default": "./didweb-entry.js"
     },
     "./gdaf": {
       "types": "./gdaf-entry.d.ts",
+      "import": "./gdaf-entry.mjs",
+      "require": "./gdaf-entry.js",
       "default": "./gdaf-entry.js"
     },
     "./jcs": {
       "types": "./jcs-entry.d.ts",
+      "import": "./jcs-entry.mjs",
+      "require": "./jcs-entry.js",
       "default": "./jcs-entry.js"
     },
     "./ltp": {
       "types": "./ltp-entry.d.ts",
+      "import": "./ltp-entry.mjs",
+      "require": "./ltp-entry.js",
       "default": "./ltp-entry.js"
     },
     "./script-helper": {
       "types": "./script-helper-entry.d.ts",
+      "import": "./script-helper-entry.mjs",
+      "require": "./script-helper-entry.js",
       "default": "./script-helper-entry.js"
     },
     "./security": {
       "types": "./security-entry.d.ts",
+      "import": "./security-entry.mjs",
+      "require": "./security-entry.js",
       "default": "./security-entry.js"
     },
     "./shamir": {
       "types": "./shamir-entry.d.ts",
+      "import": "./shamir-entry.mjs",
+      "require": "./shamir-entry.js",
       "default": "./shamir-entry.js"
     },
     "./smartcontract": {
       "types": "./smartcontract-entry.d.ts",
+      "import": "./smartcontract-entry.mjs",
+      "require": "./smartcontract-entry.js",
       "default": "./smartcontract-entry.js"
     },
     "./statuslist": {
       "types": "./statuslist-entry.d.ts",
+      "import": "./statuslist-entry.mjs",
+      "require": "./statuslist-entry.js",
       "default": "./statuslist-entry.js"
     },
     "./vcjwt": {
       "types": "./vcjwt-entry.d.ts",
+      "import": "./vcjwt-entry.mjs",
+      "require": "./vcjwt-entry.js",
       "default": "./vcjwt-entry.js"
     },
     "./lib/anchor": "./lib/anchor/index.js",
@@ -138,7 +162,7 @@
     "preimage:extract": "node examples/preimage/extract_preimage_bidirectional.js",
     "prepublishOnly": "npm run build-all && npm run check:readme && npm run check:api && npm run check:types && npm run check:dts && npm run check:package-name",
     "sync-cdn": "node scripts/sync-cdn-urls.js",
-    "version": "node scripts/sync-cdn-urls.js && node scripts/sync-version.js && node scripts/gen-esm-wrapper.js && git add README.md docs version.js index.mjs",
+    "version": "node scripts/sync-cdn-urls.js && node scripts/sync-version.js && node scripts/gen-esm-wrapper.js && git add README.md docs version.js index.mjs *-entry.mjs",
     "test:browser:ci": "node tests/browser-smoke-runner.js",
     "api:snapshot": "node scripts/api-surface.js",
     "check:api": "mocha test/api_surface.js --no-config",
@@ -170,6 +194,7 @@
     "build/",
     "tools/",
     "*-entry.js",
+    "*-entry.mjs",
     "*-entry.d.ts",
     "bsv.min.js",
     "bsv.bundle.js",

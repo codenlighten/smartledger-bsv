@@ -121,7 +121,7 @@ describe('the 10.0.0 plan', function () {
     var seen = {}
     items.forEach(function (it_) {
       should.exist(it_.id,
-        it_.file + ':' + it_.line + " registers removeIn 10.0.0 with no `plan:` id")
+        it_.file + ':' + it_.line + ' registers removeIn 10.0.0 with no `plan:` id')
       should.not.exist(seen[it_.id],
         'two registrations share the plan id ' + it_.id + ' (' + it_.file + ':' + it_.line + ')')
       seen[it_.id] = it_

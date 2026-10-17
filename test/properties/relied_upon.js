@@ -10,6 +10,7 @@
 var should = require('chai').should()
 var fs = require('fs')
 var path = require('path')
+var execFileSync = require('child_process').execFileSync
 var bsv = require('../..')
 var Hash = bsv.crypto.Hash
 var BN = bsv.crypto.BN
@@ -415,6 +416,24 @@ describe('relied-upon properties', function () {
       should.exist(pkg.exports['./jcs'], 'package.json no longer exports ./jcs')
       jcs.stringify.should.be.a('function')
       documented('`@smartledger/bsv/jcs` is a public subpath export')
+    })
+
+    // The claim consumers act on is about the PACKAGE, not the module: `{ stringify }` is
+    // reachable by `require` on every version, and by a named ESM import only from 9.39.1.
+    // Measured the only way it can be -- by running it -- because tsc accepts the import on
+    // every version. test/build/entry_named_exports.js covers all 113 names; this guards the
+    // sentence in the document.
+    it('serves { stringify } to a named ESM import of the subpath', function () {
+      var pkg = require('../../package.json')
+      pkg.exports['./jcs'].should.have.property('import', './jcs-entry.mjs')
+      var body = "import { stringify } from './jcs-entry.mjs'\n" +
+        "if (typeof stringify !== 'function') throw new Error('not a function')\n" +
+        'process.stdout.write(stringify({ b: 1, a: 2 }))'
+      var out = execFileSync(process.execPath, ['--input-type=module', '-e', body],
+        { cwd: path.join(__dirname, '..', '..'), stdio: 'pipe' }).toString()
+      out.should.equal('{"a":2,"b":1}')
+      documented('A named ESM import of a subpath needs 9.39.1 or later')
+      documented("import jcs from '@smartledger/bsv/jcs'")
     })
 
     it('canonicalises -0 to 0, so it is NOT injective over JS numbers', function () {

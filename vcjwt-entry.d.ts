@@ -6,10 +6,12 @@
  */
 import { VcJwt } from '@smartledger/bsv';
 
-declare namespace vcjwt {
+// A `declare namespace vcjwt` alongside this const was a duplicate identifier
+// (TS2300), which failed the whole subpath for consumers compiling with
+// skipLibCheck disabled. The intersection below already carries ALG_TO_CRV.
+declare const vcjwt: typeof VcJwt & {
   /** Maps a JWS algorithm to the JWK curve it requires. */
-  const ALG_TO_CRV: Readonly<Record<string, string>>;
-}
-declare const vcjwt: typeof VcJwt & { readonly ALG_TO_CRV: Readonly<Record<string, string>> };
+  readonly ALG_TO_CRV: Readonly<Record<string, string>>;
+};
 
 export = vcjwt;

@@ -439,6 +439,29 @@ production, so they are listed here.
 9.16.1 and 9.37.0 alike. At least one project vendored its own copy believing it was private. It
 scores 11/11 against the attest-spec conformance vectors.
 
+**A named ESM import of a subpath needs 9.39.1 or later.**
+`import { stringify } from '@smartledger/bsv/jcs'` type-checks against every version and, under
+Node's own ESM loader, *threw* on every version that has the subpath:
+`SyntaxError: Named export 'stringify' not found`. Measured directly against installed 9.2.0,
+9.20.0, 9.38.0 and 9.39.0, and true of the other 45 by construction — of all 133 published
+versions, not one declares an `import` condition for `./jcs`, `./covenant` or `./smartcontract`,
+so the loader has always resolved the CommonJS entry. The cause is packaging, not the module:
+each subpath entry is a bare `module.exports = require('./lib/util/jcs')`, and Node's CJS
+named-export detection is a static scan of that source, which cannot see through a re-export.
+TypeScript permits named imports from CommonJS, so no declaration shape reports it and no amount
+of type checking catches it. A **bundler** with its own CommonJS interop may have served the name
+regardless — esbuild 0.28.2 does, measured on published 9.39.0 — so this bit Node-native ESM
+consumers, not bundled ones.
+
+9.39.1 adds a generated ESM wrapper behind every subpath's `import` condition: 113 names across
+12 subpaths, each measured importable by name on Node 22.23.3. The CJS entry files are
+byte-identical to 9.39.0, so `require` still returns the module's own object, and the ESM default
+export is that same object — but a *named* ESM export captures its value when the wrapper
+evaluates, so it is not a live binding onto `module.exports`; the default export holds the same
+object reference, so mutations of that object are visible while a later reassignment of
+`module.exports` would not be. Against 9.39.0 or earlier, use the default import:
+`import jcs from '@smartledger/bsv/jcs'`.
+
 Three traps, all measured:
 
 - **`-0` canonicalises to `0`.** `stringify({x:-0})` and `stringify({x:0})` are the same bytes, so

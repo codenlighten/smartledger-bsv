@@ -5,7 +5,106 @@ All notable changes to SmartLedger-BSV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [9.39.1] - 2026-10-17
+
+### Fixed — the subpath `import` condition: declared named exports that did not exist at run time
+
+`import { stringify } from '@smartledger/bsv/jcs'` type-checked clean and threw
+`Named export 'stringify' not found` when it ran. The declaration was not wrong about the
+module; the entry file could not deliver it. Each `*-entry.js` is a bare re-export
+(`module.exports = require('./lib/util/jcs')`), Node's CJS named-export detection is a static
+scan of the source, and it served `default` alone. `./covenant` (`reconstructP2pkhScript`) and
+`./smartcontract` (its 78 members) had the same split; `./jcs` is the one whose declaration
+named the export at the top level, and `types-test/positive.ts` line 3 has been importing it
+that way, compiling green, since the gate was written.
+
+**How far back it goes, and for whom — measured, not inferred.** `./jcs` appears in 49 published
+versions (9.2.0 through 9.39.0) and `./covenant` and `./smartcontract` in 78 each; reading all 133
+versions' export maps from the registry packument, **not one** declares an `import` condition for
+any of them, so Node's loader has always resolved the CJS entry. Run against installed 9.2.0,
+9.20.0, 9.38.0 and 9.39.0, the static named import fails identically at all four
+(`SyntaxError: Named export 'stringify' not found`) and the default import works at all four.
+
+What broke was **Node's own ESM loader**, not every ESM consumer: a bundler that applies its own
+CommonJS interop was never affected. esbuild 0.28.2 bundles that same named import against
+published 9.39.0 and the result runs, so a bundled consumer already had the name. Against this
+release the bundle resolves the new `*-entry.mjs` instead — the resolution does change for a
+bundler — and the bundled program emits the same canonical bytes; the default import runs
+unchanged on both. esbuild is the only bundler exercised at run
+time; Webpack, Rollup and Vite are untested rather than confirmed.
+
+**No declaration shape can report this.** TypeScript permits named imports from CommonJS, so
+rewriting `jcs-entry.d.ts` into the `export = ` form the other entries use still accepted the
+import (measured on tsc 5.6.3 under `node16`, `nodenext` and `bundler`: all three clean, all
+three threw at run time). The names have to exist.
+
+Each public subpath now resolves its `import` condition to a generated `*-entry.mjs` that
+default-imports the CJS entry and re-exports its members as real ESM bindings — the mechanism
+`index.mjs` has used for the root entry, extended to the subpaths by
+`scripts/gen-esm-wrapper.js`. The `*-entry.js` files are **byte-identical** to 9.39.0, which is
+what keeps the change additive: assigning the names onto `exports` instead would have made
+`require` return a fresh wrapper object in place of the module itself.
+
+Measured against an installed tarball with the version asserted, on Node 22.23.3 and tsc
+5.6.3 under `module`/`moduleResolution` `node16` with `skipLibCheck` off — the figures below
+are for those versions and that export set, not a claim about every toolchain:
+
+- **113 of 113** declared wrapper names across the 12 subpaths import by name and are defined.
+- **All 12** keep identity: the ESM default **is** the object `require` returns, and that is
+  the underlying `lib/` module. Both hold identically on published 9.39.0, so routing the
+  `import` condition to the wrapper leaves existing default imports untouched; namespace
+  imports gain the names and lose nothing.
+- **0** subpaths where a declaration accepts an import that throws, down from 3.
+
+Where tsc still rejects a name the runtime now serves (`ltp`, `script-helper`, `shamir`, and 32
+of `smartcontract`'s 78 members, TS2305), the declaration is narrower than the module — the safe
+direction, a compile error rather than a run-time surprise — and it is the declaration-coverage
+debt `check:dts` already tracks at 51.2%. Nothing here widens it.
+
+Underscore-prefixed members are deliberately **not** re-exported. `shamir`'s five `_*Legacy`
+share readers exist only to recover pre-6.x shares and its declaration omits them on purpose;
+naming them in ESM would have promoted them to supported surface. They stay reachable through
+the default export, exactly as under `require`.
+
+### Fixed — the audit scope and the three vendor letters disagreed with the tree
+
+`check:audit-scope` is not part of `prepublishOnly`, so this drifted unseen: `lib/transaction/`
+measured 3,024 lines against a documented 2,907, and `lib/notaryhash/` 2,534 against 2,528.
+The totals were already correct, so only the two per-directory rows were restated. The three
+unsent RFQ letters still quoted Tier 1 as 13,165 lines and the excluded application layer as
+27,121, both superseded when the tier-1 figure moved to 13,288 and the excluded figure to
+27,205; a vendor would have been asked to price a scope the document no longer stated. All
+three now cite the measured figures. No scope decision changed — only the numbers, to match
+what is in the tree.
+
+### Fixed — `vcjwt-entry.d.ts` declared `vcjwt` twice (TS2300)
+
+A `declare namespace vcjwt` sat beside `declare const vcjwt`, which is a duplicate identifier.
+Any consumer compiling the subpath with `skipLibCheck` disabled got two errors from inside our
+own declaration file and no usable types for `./vcjwt` — including the default import that
+works at run time. The intersection type already carried `ALG_TO_CRV`, so the namespace is gone.
+
+### Changed — two blind spots in the types gate that let both of the above ship
+
+`types-test/tsconfig.json` set `skipLibCheck: true`, so errors inside our own `.d.ts` files
+were never reported: the duplicate identifier above was invisible to the gate that exists to
+catch exactly that. It is now `false`, and the suite is clean under it.
+
+`scripts/check-types.js` compiled `positive.ts` and stopped there. **A gate that only compiles
+cannot catch a declaration that lies about the runtime, because the lie is that it compiles** —
+line 3 of that file is the named `jcs` import, and it passed every release. The gate now also
+executes every import statement in `positive.ts` under native ESM and asserts each binding is
+defined: 13 specifiers, 13 bindings. Both tightenings were confirmed to fail on the shapes they
+describe before being kept.
+
+`test/build/entry_named_exports.js` (11 tests) guards the surface: an `import` condition and a
+shipped wrapper for every mapped subpath, `types` ordered first so TypeScript resolves the
+declaration for both conditions, no wrapper drift from the CJS surface, every wrapper name
+importable by name, a default export from every wrapper, no underscore leakage (asserting
+shamir still has such members, so the check cannot go vacuous), the CJS entries still bare
+re-exports, and the canonicalizer reached through the subpath agreeing byte-for-byte with the
+library's — `{"10":1,"2":2,...}` in code-unit order, as RFC 8785 requires.
+
 
 ### Added — the first separator-bearing scriptCode a node has judged for this library
 

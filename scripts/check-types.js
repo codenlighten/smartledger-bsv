@@ -19,6 +19,23 @@
  *   2. types-test/negative.ts errors on every line marked `@expect-error`. A
  *      declaration that quietly degrades to `any` makes these errors disappear,
  *      which is the regression this catches.
+ *   3. every import statement in positive.ts also RUNS under native ESM.
+ *      Compiling cannot establish this: TypeScript permits named imports from
+ *      CommonJS, while Node serves only the names its static scan finds, so
+ *      `import { stringify } from '@smartledger/bsv/jcs'` — line 3 of
+ *      positive.ts — type-checked clean here and threw
+ *      "Named export 'stringify' not found" under Node's ESM loader in every
+ *      published version carrying that subpath (measured at 9.2.0, 9.20.0,
+ *      9.38.0 and 9.39.0; none of the 133 published versions declares an
+ *      `import` condition for it). A bundler's own CJS interop could still
+ *      serve the name, so this bit Node-native consumers. A gate that only compiles
+ *      cannot catch a declaration that lies about the runtime, because the lie
+ *      is precisely that it compiles.
+ *
+ * tsconfig sets skipLibCheck:false so errors inside our OWN declarations are
+ * reported: with it on, a duplicate identifier in vcjwt-entry.d.ts (TS2300,
+ * shipped in 9.39.0) failed every consumer build that checked lib files while
+ * this gate stayed green.
  *
  * Resolution goes through a node_modules symlink rather than tsconfig `paths`,
  * so the package's own `exports` map is what is being exercised.
@@ -125,4 +142,62 @@ if (orphan.length) {
   fail(`type errors outside any @expect-error region, on lines ${orphan.join(', ')}:\n\n${negative}`)
 }
 console.log(`  negative.ts               ${regions.length}/${regions.length} misuses correctly rejected`)
-console.log('\nTypes: OK (subpath declarations resolve and still catch misuse)')
+
+// --- 3. every import in positive.ts must also RUN ----------------------
+//
+// Only the import statements are executed, not the file's body: the point is
+// whether each specifier and binding actually resolves in Node, which is the one
+// thing compiling cannot tell us. Resolution goes through the same symlink, so
+// the package's own `exports` map and its `import` condition are what is exercised.
+const posSrc = fs.readFileSync(path.join(DIR, 'positive.ts'), 'utf8')
+const importRe = /^import\s+(?!type\b)(.+?)\s+from\s+'([^']+)'/gm
+const imports = []
+let im
+while ((im = importRe.exec(posSrc)) !== null) {
+  const clause = im[1].trim()
+  const spec = im[2]
+  if (!spec.startsWith('@smartledger/bsv')) continue
+  const names = []
+  const named = /\{([^}]*)\}/.exec(clause)
+  if (named) {
+    named[1].split(',').forEach((part) => {
+      const n = part.split(/\sas\s/).pop().trim()
+      if (n) names.push(n)
+    })
+  }
+  const bare = clause.replace(/\{[^}]*\}/, '').replace(/,/g, '').trim()
+  if (bare && bare !== '*') names.push(bare)
+  imports.push({ clause, spec, names })
+}
+if (!imports.length) fail('no @smartledger/bsv imports found in positive.ts to execute.')
+
+const runner = imports.map((r, i) => {
+  const alias = r.clause.replace(/\{[^}]*\}/, '').replace(/,/g, '').trim()
+  const line = alias
+    ? `import ${r.clause} from '${r.spec}'`
+    : `import ${r.clause} from '${r.spec}'`
+  const checks = r.names
+    .map((n) => `if (typeof ${n} === 'undefined') missing.push(${JSON.stringify(r.spec + ' -> ' + n)})`)
+    .join('\n')
+  return `${line}\n${checks}`
+}).join('\n')
+
+const runnerFile = path.join(DIR, '.positive-imports.mjs')
+fs.writeFileSync(runnerFile, 'const missing = []\n' + runner +
+  "\nif (missing.length) { console.error('UNDEFINED_BINDINGS ' + missing.join(', ')); process.exit(2) }\n")
+const ran = spawnSync(process.execPath, [runnerFile], { cwd: DIR, encoding: 'utf8' })
+fs.unlinkSync(runnerFile)
+if (ran.status !== 0) {
+  fail(
+    'positive.ts compiles, but its imports do not run under native ESM:\n\n' +
+    ((ran.stderr || '') + (ran.stdout || '')).trim() +
+    '\n\nA subpath entry is serving fewer names than its declaration promises.\n' +
+    'Each `*-entry.js` is a bare re-export whose names Node cannot see; the named\n' +
+    'exports come from the generated `*-entry.mjs` behind the `import` condition\n' +
+    '(scripts/gen-esm-wrapper.js). Run it if a subpath was added or changed.'
+  )
+}
+const bindings = imports.reduce((n, r) => n + r.names.length, 0)
+console.log(`  positive.ts imports       ${imports.length} specifiers, ${bindings} bindings all resolve at run time`)
+
+console.log('\nTypes: OK (subpath declarations resolve, catch misuse, and match the runtime)')

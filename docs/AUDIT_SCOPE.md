@@ -38,10 +38,10 @@ defects this codebase has produced. See §2.1.
 
 | Module | Lines | Why it matters |
 | --- | ---: | --- |
-| `lib/transaction/` | 2,907 | Sighash construction and signing — both BIP-143 and the Original Transaction Digest Algorithm. |
+| `lib/transaction/` | 3,024 | Sighash construction and signing — both BIP-143 and the Original Transaction Digest Algorithm. |
 | `lib/script/interpreter.js` | 3,261 | **Scoped to the flag and era surface, not opcode execution.** Consensus-flag selection and defaults, era derivation (Genesis/Chronicle), the limits derived from them, and the semantics of the exported `verify()`. Opcode execution is excluded — see §2.2. |
 | `lib/crypto/` | 2,525 | ECDSA, nonce derivation, signature encoding, the script-number type. **Scope this for an architectural judgement as well as for bugs** — see §2.3. |
-| `lib/notaryhash/` | 2,528 | BRC-220 signing and verification. Publicly reachable and relied on downstream. |
+| `lib/notaryhash/` | 2,534 | BRC-220 signing and verification. Publicly reachable and relied on downstream. |
 | `lib/privatekey.js`, `lib/publickey.js` | 843 | Key construction, serialisation, WIF. Recent defects here produced a *different* key without error. |
 | `lib/smart_contract/` (targeted) | 472 | `locks.js` and the covenant-facing entrypoints in `index.js`: CLTV and HTLC locking semantics, flag plumbing, and any wrapper claiming mainnet-equivalent verification. Not the whole 6,908-line module. |
 | `lib/covenant/` | 524 | The verification harness. Its flag word is what made covenants verify under 2019 rules while claiming to mirror mainnet. |
