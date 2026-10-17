@@ -139,6 +139,55 @@ must fail, or the file proves nothing.
 
 ## [Unreleased]
 
+### Added — a compact OP_PUSH_TX gate: 89 bytes instead of 377, and it runs where the other cannot
+
+`PushTx.authenticatorCompact()` / `pushTxCoreCompact()` give the same guarantee as the classic
+gate in **89 bytes and 12 counted opcodes**, against **377 bytes and 202**. Derived by the
+`newsatoshi`, `polymath-62` and `meta-scientist-94` sessions; reproduced here before being
+shipped — `a` and `Q` re-derived from the curve constants, the script re-assembled from its
+structure rather than copied, **byte-identical** to their artifact, verifying under mainnet flags.
+
+Both 124-byte reversals vanish by choosing the private key instead of fixing it at 1. With
+`a = 2^248 · Gx⁻¹ (mod n)` we get `Gx·a ≡ 2^248`, so `s = e + 2^248` — and in a 32-byte
+**big-endian** string `2^248` is exactly `byte[0] = 0x01`. The whole addition is incrementing the
+most significant byte: one byte, where little- and big-endian coincide. No reversal, no 256-bit
+arithmetic. `A_SCALAR` and `COMPACT_PUBKEY` are exported so the embedded key is verifiable as
+`a·G` rather than taken on trust.
+
+**And the consequence nobody anticipated, which makes this more than a size win.** scriptCode
+rides inside the preimage, so a smaller gate produces a smaller preimage: **246 bytes against
+536**. That is *under* the 520-byte pre-Genesis element cap, and this form has no 32-byte
+arithmetic to trip the 4-byte script-number cap either. Measured with pre-Genesis flags **and**
+pre-Genesis limits together: the compact gate **verifies**, where `authenticator()` fails
+`SCRIPT_ERR_PUSH_SIZE`. **Shrinking the script shrank its own input back under the limit that
+excluded it** — so OP_PUSH_TX covenants become possible on a chain that has not activated
+Genesis, which this CHANGELOG said two entries ago they were not. That conclusion is corrected.
+
+Grinding is also cheaper: `grind(..., { form: 'compact' })` needs `z[0] <= 0x7e` plus low-S, so
+about **127/256** of candidates pass against roughly 2% for the classic conditions — two tries
+rather than fifty.
+
+Out of range it fails **closed**, by two paths that are worth telling apart and are both
+asserted: at `z[0] == 0x7f` the script **aborts**, because `OP_NUM2BIN` cannot fit 128 into one
+*signed* byte (`SCRIPT_ERR_IMPOSSIBLE_ENCODING`); at `z[0] >= 0x80` it **completes with a wrong
+`s`** that `OP_CHECKSIG` then rejects, because `OP_BIN2NUM` reads `0x80` as negative zero and
+`0xff` as −127. So half the out-of-range space is a wrong answer caught by the signature check
+rather than an error — grind past it, do not rely on an abort.
+
+The security precondition is **asserted rather than documented**: `a` is public, which is safe
+only because the sole `OP_CHECKSIG` consumes a signature the *locking* script assembles from
+constants plus the computed `s`, never a spender's. A test therefore pins that the script
+contains **exactly one** CHECKSIG-family opcode, so a future edit adding a spender-signature path
+against `COMPACT_PUBKEY` — whose private half is published — fails the suite instead of silently
+turning the covenant into a known-key signature check.
+
+`test/covenant/pushtx_compact.js` (10 tests) covers all of it. The classic gate is untouched:
+`authenticator()` is still 377 bytes, `test/data/pushtx-gate-pin.json` still matches it, and it
+keeps its three independent witnesses. The compact form has two — the originating session's
+oracle and this library — and is documented as such.
+
+
+
 ### Added — which covenants work on a pre-Chronicle chain, and that the rest fail CLOSED
 
 No behaviour change; this pins a portability property that matters for any chain which has not

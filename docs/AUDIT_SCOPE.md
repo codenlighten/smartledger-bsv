@@ -34,7 +34,7 @@ module sounds. That is a deliberate revision: an earlier version of this documen
 scoped Tier 1 as "the cryptographic core" and would have excluded four of the six real
 defects this codebase has produced. See §2.1.
 
-### Tier 1 — 13,323 lines
+### Tier 1 — 13,425 lines
 
 | Module | Lines | Why it matters |
 | --- | ---: | --- |
@@ -44,7 +44,7 @@ defects this codebase has produced. See §2.1.
 | `lib/notaryhash/` | 2,534 | BRC-220 signing and verification. Publicly reachable and relied on downstream. |
 | `lib/privatekey.js`, `lib/publickey.js` | 843 | Key construction, serialisation, WIF. Recent defects here produced a *different* key without error. |
 | `lib/smart_contract/` (targeted) | 472 | `locks.js` and the covenant-facing entrypoints in `index.js`: CLTV and HTLC locking semantics, flag plumbing, and any wrapper claiming mainnet-equivalent verification. Not the whole 6,908-line module. |
-| `lib/covenant/` | 559 | The verification harness. Its flag word is what made covenants verify under 2019 rules while claiming to mirror mainnet. |
+| `lib/covenant/` | 661 | The verification harness. Its flag word is what made covenants verify under 2019 rules while claiming to mirror mainnet. |
 | `lib/util/jcs.js` | 105 | RFC 8785 canonicalization, now a public export and the estate's single implementation. |
 
 ### Tier 2 — optional, 1,623 lines
@@ -150,14 +150,14 @@ this repository.
 | `lib/address.js`, `lib/networks.js`, `lib/opcode.js`, `lib/hdprivatekey.js`, `lib/hdpublickey.js` (2,391 lines) | Cut to pay for §2.1 | Formatting, network constants and BIP-32 derivation. No defect has originated here, and `networks.js` in particular defines addressing constants — pubkey hashes, xpub prefixes, ports, DNS seeds — and contains **no consensus-flag logic at all**. |
 | The rest of the application layer — `lib/gdaf/`, `lib/ltp/`, `lib/ordinals/`, `lib/block/`, `lib/didweb/`, `lib/vcjwt/`, `lib/statuslist/`, most of `lib/smart_contract/`, plus assorted top-level files | Excluded | ~26,000 lines. Worth a separate engagement; including it here would blur the question in §1. Note the parts of it with a demonstrated defect history have been pulled *into* Tier 1 rather than left here — see §2.1. |
 
-Totals reconcile against `lib/`, which is 42,267 lines across 133 files:
+Totals reconcile against `lib/`, which is 42,369 lines across 133 files:
 
 ```
-tier 1      13,323
+tier 1      13,425
 tier 2       1,623
 excluded    27,321
             ------
-total       42,267
+total       42,369
 ```
 
 Measured 2026-10-15 at 9.39.0. These figures drift as the library changes — an
@@ -232,7 +232,7 @@ seeking a quote for an independent security review.
 
 Scope, and we would like these priced separately:
 
-  Tier 1 — 13,323 lines. Sighash construction and signing; ECDSA, nonce
+  Tier 1 — 13,425 lines. Sighash construction and signing; ECDSA, nonce
   derivation and signature encoding; the consensus-flag and era-derivation
   surface of the script interpreter; BRC-220 signing and verification;
   key construction and serialisation; the covenant verification harness and

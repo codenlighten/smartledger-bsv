@@ -1357,7 +1357,7 @@ declare module '@smartledger/bsv' {
             function scriptNum(n: number): Buffer;
         }
 
-        interface GrindOpts { maxTries?: number; start?: number; field?: 'nLockTime' | 'sequence'; sighashType?: number; }
+        interface GrindOpts { maxTries?: number; start?: number; field?: 'nLockTime' | 'sequence'; sighashType?: number; form?: 'classic' | 'compact'; }
         interface GrindResult { preimage: Buffer; tries: number; field?: string; nonce?: number; }
 
         namespace PushTx {
@@ -1392,6 +1392,38 @@ declare module '@smartledger/bsv' {
              */
             function valueCovenantSingle(pinned: Transaction.Output | Buffer, opts?: { sighashType?: number }): Script;
             function sFromPreimage(preimage: Buffer): Buffer | null;
+
+            /**
+             * The COMPACT gate: the same guarantee in 89 bytes rather than 377, by choosing the
+             * private key so that `Gx·a ≡ 2^248 (mod n)`. Then `s = e + 2^248`, which in a
+             * big-endian 32-byte string is just incrementing the most significant byte — so both
+             * 32-byte reversals and the 256-bit arithmetic disappear.
+             *
+             * It also runs where the classic gate cannot. scriptCode rides inside the preimage,
+             * so a smaller gate means a smaller preimage: **246 bytes against 536**, under the
+             * 520-byte pre-Genesis element cap, with no 32-byte arithmetic to trip the 4-byte
+             * script-number cap. Measured: it verifies under pre-Genesis flags AND pre-Genesis
+             * limits, where `authenticator()` fails `SCRIPT_ERR_PUSH_SIZE`.
+             *
+             * Grind with `{ form: 'compact' }`: the condition is `z[0] <= 0x7e` plus low-S, so
+             * about 127/256 of candidates pass rather than ~2%.
+             *
+             * `A_SCALAR` is public and deterministic — `2^248 · Gx⁻¹ mod n` — so `COMPACT_PUBKEY`
+             * is verifiable as `a·G` rather than an arbitrary key. Publishing it is safe because
+             * the only `OP_CHECKSIG` consumes a signature the LOCKING script assembles, never a
+             * spender's. **Do not add a spend path that checks a spender signature against
+             * `COMPACT_PUBKEY`**: its private half is published, so that path would bypass the
+             * covenant entirely.
+             *
+             * Derived by the newsatoshi, polymath-62 and meta-scientist-94 sessions and
+             * reproduced independently here before being shipped.
+             */
+            const A_SCALAR: crypto.BN;
+            const COMPACT_PUBKEY: Buffer;
+            function pushTxCoreCompact(script: Script, opts?: { sighashType?: number }): Script;
+            function authenticatorCompact(): Script;
+            function sFromPreimageCompact(preimage: Buffer): Buffer | null;
+
             /** Grind a malleable field until the in-script signature is canonical. Legacy: a bare number is maxTries. */
             function grind(spend: Transaction, inputIndex: number, lockingScript: Script, satoshis: number, opts?: GrindOpts | number): GrindResult;
         }
