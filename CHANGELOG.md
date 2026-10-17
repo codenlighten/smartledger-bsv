@@ -139,6 +139,36 @@ must fail, or the file proves nothing.
 
 ## [Unreleased]
 
+### Added — a covenant with no era dependency at all: 135 bytes, no Genesis, no Chronicle
+
+`PushTx.valueCovenantPortable()` pins an output set on a chain that has activated **neither
+Genesis nor Chronicle** — only the 2018 Monolith opcodes. **135 bytes with a 292-byte preimage**,
+against the classic `valueCovenant`'s 419 bytes, which needs both upgrades.
+
+Two changes get there and both were forced by measurement:
+
+- **the gate** — `pushTxCoreCompact` (above) has a 246-byte preimage, under the 520-byte
+  pre-Genesis element cap, and one-byte arithmetic, under the 4-byte script-number cap;
+- **the field read** — `PushTx.extractHashOutputsPortable()` replaces `OP_RIGHT`/`OP_LEFT`, which
+  Chronicle restored and which are **silent no-ops** before it, with
+  `OP_SIZE <40> OP_SUB OP_SPLIT OP_NIP <32> OP_SPLIT OP_DROP`. Ten bytes instead of six: four
+  bytes to drop an era dependency.
+
+Measured in `test/covenant/portable_covenant.js` (7 tests): it verifies on mainnet, verifies
+pre-Chronicle **where the classic covenant fails `SCRIPT_ERR_EVAL_FALSE_IN_STACK`**, and verifies
+pre-Genesis-and-pre-Chronicle together under pre-Genesis limits — that last run carrying its own
+control, a 536-byte element push that must fail, so the caps are demonstrably active. It still
+binds: a different output set and a one-byte preimage mutation are both refused. And a structural
+check asserts the covenant contains **no** `OP_SUBSTR`/`OP_LEFT`/`OP_RIGHT` anywhere, so the
+portability claim cannot rot into prose.
+
+**Why this is more than a smaller covenant.** It changes the deployment answer from "covenants
+need Genesis" to "covenants need the 2018 opcodes" — two different sentences for any chain whose
+activation heights are not BSV mainnet's. Our own `newsatoshi`/SmartSats node is such a chain, and
+its public description lists "Programmable Bitcoin Script" as a design aim while stating no script
+limits and mentioning no covenants. This is the measured substance for that aim, independent of
+when that chain activates Genesis.
+
 ### Added — a compact OP_PUSH_TX gate: 89 bytes instead of 377, and it runs where the other cannot
 
 `PushTx.authenticatorCompact()` / `pushTxCoreCompact()` give the same guarantee as the classic

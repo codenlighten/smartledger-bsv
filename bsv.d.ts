@@ -1424,6 +1424,30 @@ declare module '@smartledger/bsv' {
             function authenticatorCompact(): Script;
             function sFromPreimageCompact(preimage: Buffer): Buffer | null;
 
+            /**
+             * `hashOutputs` extraction using **Monolith-era opcodes only** — `OP_SIZE`, `OP_SUB`,
+             * `OP_SPLIT`, `OP_NIP`, `OP_DROP` — so it works on a chain that has activated neither
+             * Genesis nor Chronicle. `extractHashOutputs` is 6 bytes but uses `OP_RIGHT`/`OP_LEFT`,
+             * which Chronicle restored and which are silent NO-OPS before it, so a covenant built
+             * on it fails closed pre-Chronicle. This costs 10 bytes instead.
+             */
+            function extractHashOutputsPortable(script: Script): Script;
+
+            /**
+             * `valueCovenant` with no era dependency: the compact gate plus the portable
+             * extraction. Measured **135 bytes** with a **292-byte preimage**, verifying on
+             * mainnet, pre-Chronicle, and pre-Genesis-and-pre-Chronicle together, and refusing a
+             * different output set. The classic `valueCovenant` is 419 bytes and needs both
+             * upgrades — its preimage exceeds the 520-byte element cap and its extraction no-ops
+             * without Chronicle.
+             *
+             * Same semantics as `valueCovenant`: it pins the digest of the ENTIRE output set under
+             * SIGHASH_ALL, so exactly one output set is admissible. Grind with
+             * `{ form: 'compact' }`, and carry the compact gate's caveats — above all, do not add
+             * a spend path that checks a spender signature against `COMPACT_PUBKEY`.
+             */
+            function valueCovenantPortable(expectedHashOutputs: Buffer): Script;
+
             /** Grind a malleable field until the in-script signature is canonical. Legacy: a bare number is maxTries. */
             function grind(spend: Transaction, inputIndex: number, lockingScript: Script, satoshis: number, opts?: GrindOpts | number): GrindResult;
         }
