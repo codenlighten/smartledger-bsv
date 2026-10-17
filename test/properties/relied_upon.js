@@ -531,6 +531,37 @@ describe('relied-upon properties', function () {
     })
   })
 
+  describe('7. cost: outputs are cheap and linear', function () {
+    // The timings in the document are measurements, not properties, so they are not asserted
+    // here — a timing assertion on a shared machine fails for reasons that have nothing to do
+    // with this library. What IS a property is the per-output size the figures rest on, and
+    // that a wide transaction survives the round trip at all: a consumer subdividing rights
+    // across a thousand outputs needs the txid to be stable and the signatures to hold.
+    it('costs a flat ~34 bytes per output, and a 1,000-output transaction round-trips', function () {
+      this.timeout(30000)
+      var priv = bsv.PrivateKey.fromRandom()
+      var addr = priv.toAddress()
+      var tx = new bsv.Transaction().from(new bsv.Transaction.UnspentOutput({
+        txId: 'a'.repeat(64),
+        outputIndex: 0,
+        script: bsv.Script.buildPublicKeyHashOut(addr).toHex(),
+        satoshis: 200000
+      }))
+      var n = 1000
+      for (var i = 0; i < n; i++) tx.to(bsv.PrivateKey.fromRandom().toAddress(), 1)
+      tx.change(addr).sign(priv)
+      var bytes = tx.toBuffer().length
+      ;(bytes / n).should.be.within(33, 36, 'bytes per output moved: ' + (bytes / n))
+      var hex = tx.toString()
+      new bsv.Transaction(hex).toString().should.equal(hex)
+      new bsv.Transaction(hex).hash.should.equal(tx.hash)
+      tx.verify().should.equal(true)
+      tx.isFullySigned().should.equal(true)
+      documented('34 bytes per output')
+      documented('and fan-in narrow:')
+    })
+  })
+
   describe('5. mutating a script in place does not change the transaction', function () {
     it('is stated, and both halves still measure as the document says', function () {
       documented('Mutating a script in place does not change the transaction')

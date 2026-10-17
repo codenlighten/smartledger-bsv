@@ -595,7 +595,16 @@ does not copy. If you accept untrusted scripts or build large transactions, boun
 
 - **Signing is superlinear in input count.** The midstate half was fixed in 9.22.1 (5,000 inputs
   went from 194s to 100s, byte-identical output), but the remaining term is the re-verification
-  inside `applySignature`.
+  inside `applySignature`. Measured on 9.39.1, one output, P2PKH inputs: 100 inputs 0.45s,
+  400 2.6s, 800 5.5s, 1,600 14.3s, 3,200 45.0s — 2.14×, 2.59× then 3.15× per doubling, where
+  linear is 2× and quadratic 4×, so the exponent **grows with the input count**. A few hundred
+  inputs is comfortable; past that, split the work across transactions.
+- **Outputs are cheap and linear, which is the opposite case.** One input, N one-satoshi P2PKH
+  outputs on 9.39.1: 34,193 bytes and 729ms at N=1,000, 170,194 bytes and 3.2s at N=5,000 —
+  a flat **34 bytes per output** from about N=100 up, and the 1,000-output transaction
+  round-trips with a stable txid, `verify()` true and `isFullySigned()` true. So fan-out wide
+  and fan-in narrow: building many outputs at once costs what the bytes cost, while consuming
+  many inputs at once does not.
 - **`OP_DIV` is quadratic** in both `bsv` and `bsv-core`, matching the node's own behaviour.
 
 ---

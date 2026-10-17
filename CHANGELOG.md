@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the cost asymmetry between building outputs and consuming inputs, measured
+
+No behaviour change. §7 of `docs/RELIED-UPON-PROPERTIES.md` said signing is superlinear in input
+count and left it there, which is half the picture a consumer building wide transactions needs.
+Both halves are now measured on 9.39.1:
+
+- **Outputs are linear and cheap.** One input, N one-satoshi P2PKH outputs: 34,193 bytes and
+  729ms at N=1,000; 170,194 bytes and 3.2s at N=5,000 — a flat **34 bytes per output** from
+  about N=100 up, under 2 satoshis each at 0.05 sat/KB.
+- **Inputs are superlinear, and the exponent grows.** One output, N P2PKH inputs: 0.45s at 100,
+  2.6s at 400, 5.5s at 800, 14.3s at 1,600, 45.0s at 3,200 — 2.14×, 2.59× then 3.15× per
+  doubling, where linear is 2× and quadratic 4×. A few hundred inputs is comfortable; past that
+  the work has to be split across transactions.
+
+So fan-out wide and fan-in narrow. Asked by a consumer designing a rights protocol whose central
+operation is subdividing one holding into many entitlements in a single transaction — the cheap
+direction, as it turns out, and atomic by construction.
+
+`test/properties/relied_upon.js` guards the **structural** half only: that a 1,000-output
+transaction costs 33–36 bytes per output, round-trips with a stable txid, and reports `verify()`
+and `isFullySigned()` true. The timings are deliberately not asserted — a timing assertion on a
+shared machine fails for reasons that have nothing to do with this library — and the sabotage that
+proves the guard is live is changing the documented per-output figure, which fails it.
+
 ### Changed — the deprecation manifest models a SET of live versions, not one
 
 `scripts/npm-deprecations.js` held `CURRENT = { '@smartledger/bsv': '9.36.0' }` and required
