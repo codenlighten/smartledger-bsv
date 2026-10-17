@@ -4,7 +4,7 @@
 releases until then, after six majors in 82 days taught us what a major costs a consumer. Nothing
 here ships early.
 
-This file exists because the commitments were scattered across eleven source files and three docs,
+This file exists because the commitments were scattered across twelve source files and three docs,
 which is how a major gets assembled instead of planned. Every breaking change the library has
 promised is listed here, and `test/properties/release_10_plan.js` asserts that **every
 `removeIn: '10.0.0'` registered in `lib/` appears below, and that every row below is backed by a
@@ -25,7 +25,7 @@ their logs.
 
 ## Registered deprecations — these warn today and throw or change in 10.0.0
 
-Eleven, listed by the file that registers them. `since` is the version whose logs first carried the
+Twelve, listed by the file that registers them. `since` is the version whose logs first carried the
 notice; `lib/util/deprecate.js` warns once per API per process, respects
 `BSV_NO_DEPRECATION_WARNINGS=1` and **never throws**, because a deprecation that throws is a
 breaking change wearing a warning's name.
@@ -42,7 +42,38 @@ breaking change wearing a warning's name.
 | `ltp-token-path-syntax-field-name` | 9.32.0 | an **LTP token** field name containing `.`, `[` or `]` | field names without path syntax | `lib/ltp/proof.js` |
 | `message-verify-high-s-accept` | 9.38.0 | `Message#verify()` **accepting a non-canonical (high-s) signature** | `verify(address, sig, { lowS: true })` | `lib/message/message.js` |
 | `output-script-mutated-in-place` | 9.39.0 | **mutating a parsed output script in place** and expecting it to serialize | `output.setScript(output.script)` after mutating, or build the script before setting it | `lib/transaction/output.js` |
+| `ordlock-cancel-sighash-override` | 9.41.0 | `cancelOrdLock({ sighashType })` with any mode other than plain `SIGHASH_ALL` (plus FORKID) | pass no `sighashType`; for a sponsored or multi-party cancel, a named construction that enforces input and output ordering | `lib/ordinals/ordlock.js` |
 | `authorizer-unpinned-sighash` | 9.40.0 | a **Token authorizer that does not pin the authorization signature to SIGHASH_ALL** | `Authorizers.singleKey({ pinSighash: true })` / `multisig(m, n, { pinSighash: true })` — it changes the locking script, so an in-flight lineage finishes under the code it was created with | `lib/smart_contract/authorizers.js` |
+
+### Why the cancel override is removed rather than filtered
+
+The OrdLock CANCEL branch is a plain P2PKH gate — it constrains no output — so where the ordinal
+lands is decided entirely by what the seller's signature commits to. For a satoshi-tracked asset
+that is **not** the same question as "which output did I sign": placement is positional, satoshis
+flowing from the input set into the output set in order, so the landing output depends on the
+cumulative values of the outputs **before** it.
+
+Measured in `test/ordinals/cancel_sighash_routing.js`: under `SIGHASH_SINGLE` an **earlier**
+output's value can be raised with the signature still valid. On a 3-in / 3-out shape signing the
+1-satoshi ordinal at input 1, raising output 0 from 2 to 3 satoshis makes output 0 swallow the
+ordinal satoshi while the owner's output at index 1 is untouched and still signed for. **No
+`SIGHASH_NONE` is required.** `ANYONECANPAY` is worse again: inputs can be prepended, which moves
+the asset's position in the input ordering.
+
+So "reject `SIGHASH_NONE`, keep the rest" — which is what an earlier draft of this note and the
+9.40.0 docstring implied — would have shipped a guard that still permits ordinal theft through
+`SIGHASH_SINGLE`. Only plain `SIGHASH_ALL` pins the layout that fixes placement, and the honest
+move is to stop offering a raw flag at all rather than to filter one value of it.
+
+Two things this is **not**. It is not a claim that every non-`ALL` signer is making a mistake: a
+signer may legitimately delegate output selection in another protocol, and no in-repo audit can
+bound downstream callers — refusing these modes is an intentional compatibility break because they
+cannot provide *this helper's* reclaim guarantee, with passing nothing as the migration. And it is
+**API protection, not an on-chain invariant**: existing listings keep their locking scripts and
+remain spendable, and raw tooling can still build a cancel in any mode. Matching the PURCHASE
+branch, which pins its flag in script with `assertSighashType`, would mean constraining the cancel
+branch in the locking script — which changes the script, so it would apply to new listings only,
+the same ceiling as the authorizer pin below.
 
 ### Why the authorizer pin is a default flip rather than a fix
 

@@ -82,6 +82,61 @@ Found by red-teaming a *new* feature's design: the reviewer pointed out that the
 belongs to the preimage and not to the authorization signature. The new feature is not in this
 release — this is.
 
+## [9.41.0] - 2026-10-17
+
+### Fixed — a correction to 9.40.0: "not SIGHASH_NONE" is the wrong rule for an OrdLock cancel
+
+9.40.0 added a note to `cancelOrdLock`'s `sighashType` parameter calling the hazard "the generic
+SIGHASH_NONE hazard every P2PKH shares, not a covenant defect". **That was wrong for this asset
+class, and the correction is the point of this release.** It implied `SIGHASH_NONE` is the thing to
+avoid. It is not the only thing.
+
+The CANCEL branch is a plain P2PKH gate — it constrains no output — so where the ordinal lands is
+decided entirely by what the seller's signature commits to. For a **satoshi-tracked** asset that is
+not the same question as "which output did I sign": placement is positional, satoshis flowing from
+the input set into the output set in order, so the landing output depends on the cumulative values
+of the outputs **before** it.
+
+Measured in `test/ordinals/cancel_sighash_routing.js`, on a 3-in / 3-out shape signing the
+1-satoshi ordinal at input 1 with the owner output at index 1:
+
+| mutation | `SIGHASH_SINGLE` | `SIGHASH_ALL` |
+|---|---|---|
+| nothing (control) | signature valid | signature valid |
+| **output 0 raised 2 → 3 sat** | **still valid** | invalidated |
+| the owner output itself changed | invalidated | invalidated |
+| a later output changed | still valid | invalidated |
+
+So raising output 0 makes it swallow the ordinal satoshi while the owner's output is untouched and
+still signed for — **an ordinal redirect with no `SIGHASH_NONE` anywhere in it.** `ANYONECANPAY` is
+worse again: inputs can be prepended, moving the asset's position in the input ordering. Only plain
+`SIGHASH_ALL` pins the layout that fixes placement.
+
+`cancelOrdLock({ sighashType })` is therefore **deprecated** for any mode other than plain
+`SIGHASH_ALL` (`plan: ordlock-cancel-sighash-override`, `removeIn: 10.0.0`), rather than filtered:
+a filter would have to encode this whole argument, and "reject NONE, keep the rest" would have
+shipped a guard that still permits theft through `SINGLE`. Pass no `sighashType` and the default is
+already correct.
+
+Two things this is **not**, both stated because the first draft overclaimed them. It is not a claim
+that every non-`ALL` signer is making a mistake — a signer may legitimately delegate output
+selection in another protocol, and no in-repo audit can bound downstream callers; refusing these
+modes is an intentional compatibility break because they cannot provide *this helper's* reclaim
+guarantee. And it is **API protection, not an on-chain invariant**: existing listings keep their
+locking scripts and stay spendable, and raw tooling can still build a cancel in any mode. Parity
+with the PURCHASE branch, which pins its flag in script with `assertSighashType`, would mean
+constraining the cancel branch in the locking script — new listings only, the same ceiling as
+9.40.0's authorizer pin.
+
+**How the correction happened**, because the process is the reusable part: a peer session started to
+recommend "reject NONE, keep SINGLE and ANYONECANPAY", red-teamed its own recommendation before
+sending it, and the review caught that the bright line was unsafe for a positional asset. They sent
+the stronger recommendation instead. I then reproduced the mechanism here — and my first harness was
+wrong in my own favour, rebuilding the owner output with a fresh random address on every call so
+that every comparison differed for its own reason and `SINGLE` looked safe. The controls in the
+test file exist because of that: an unmutated verify must pass, and the same mutation under `ALL`
+must fail, or the file proves nothing.
+
 ## [Unreleased]
 
 ### Added — §5 of the properties page: `sighashPreimage` does not always return a preimage

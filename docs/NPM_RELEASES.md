@@ -6,9 +6,9 @@ re-read from the registry on **2026-10-17**; the reasoning that follows it was w
 the 2026-10-13 state (see the note below). Re-run `npm run check:npm-inventory` before acting on
 any of it, and the suite fails if the package table below drifts from the registry.
 
-**The live set today, read from the registry on 2026-10-17:** `@smartledger/bsv` has five
-undeprecated versions — **9.36.0, 9.37.0, 9.38.0, 9.39.0 and 9.39.1** — and everything up to
-and including 9.35.0 is deprecated. All five are at or above every fix in the defect table
+**The live set today, read from the registry on 2026-10-17:** `@smartledger/bsv` has six
+undeprecated versions — **9.36.0, 9.37.0, 9.38.0, 9.39.0, 9.39.1 and 9.40.0** — and everything up
+to and including 9.35.0 is deprecated. All five are at or above every fix in the defect table
 below. Three fixes landed after that table was written and are therefore NOT in it: the
 original-algorithm sighash digest over a truncated `OP_RETURN` push (9.37.0, public advisory
 GHSA-j884-5pmj-6wqp), `Message#verify({ lowS: true })` refusing the malleable twin (9.38.0,
@@ -40,7 +40,7 @@ already printed into someone's CI log is not.
 
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
-| `@smartledger/bsv` | 134 | 129 | 5 | 9.39.1 | 2025-10-18 | 2026-10-17 |
+| `@smartledger/bsv` | 135 | 129 | 6 | 9.40.0 | 2025-10-18 | 2026-10-17 |
 | `@smartledger/bsv-core` | 17 | 0 | 17 | 1.8.1 | 2026-09-30 | 2026-10-17 |
 | `@smartledger/keys` | 24 | 0 | 24 | 4.1.0 | 2025-11-28 | 2026-10-15 |
 | `@smartledger/notaryhash` | 17 | 0 | 17 | 2.5.0 | 2026-06-27 | 2026-10-16 |
