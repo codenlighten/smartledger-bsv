@@ -139,6 +139,38 @@ must fail, or the file proves nothing.
 
 ## [Unreleased]
 
+### Added — which guard actually catches a high-S value, and the control that was missing
+
+No behaviour change. `covenants.js` asserted that a grind-accepted preimage verifies **with**
+`SCRIPT_VERIFY_LOW_S` enforced, and carried the sentence *"a high-S signature would be rejected
+here"* as a **comment**. That is prose, not a test — the same pattern this release cycle has been
+finding elsewhere. A peer pinning the gate against a compiled `bitcoin-sv` v1.2.3 `VerifyScript`
+reproduced accept-genuine and reject-mutated for both grind fields and deferred the low-S
+must-fail to "your suite". It was not in the suite. It is now, and measuring it corrected the
+claim.
+
+Over a 20,000-nonce sweep, classifying each candidate `s` without running the script:
+
+| outcome | count | what rejects it |
+|---|---|---|
+| usable (minimal encoding ok, low-S ok) | 420 | — (~2.1%, the published grind rate) |
+| high-S with `s >= 2^255` | 9,403 | **the script itself** |
+| high-S with `n/2 < s < 2^255` | **0** | would need `SCRIPT_VERIFY_LOW_S` |
+| minimal encoding failed | 10,177 | rejected before low-S matters |
+
+The guard that fires is **`OP_NUM2BIN`**, not the flag: `s >= 2^255` has its top byte `>= 0x80`, so
+it cannot be a 32-byte **signed** script number, and the script aborts with
+`SCRIPT_ERR_IMPOSSIBLE_ENCODING` while serialising `s` — before any signature is assembled or
+checked. So the construction cannot *emit* a high-S signature, which is a stronger property than
+"the interpreter would reject one". The isolating control is in the test: removing
+`SCRIPT_VERIFY_LOW_S` from the flags changes neither the verdict nor the error.
+
+The window where the flag *would* be the guard is about **2^127 wide out of 2^256**. Nothing landed
+in it and nothing will (~2^-129), so `test/covenant/pushtx_grind_conditions.js` asserts the count is
+zero and labels that branch **reasoned, not measured** — and the old comment in `covenants.js` is
+replaced by a pointer to the file that actually tests it. A sabotage removing the low-S check from
+`grind` fails the test.
+
 ### Added — two published OP_PUSH_TX vectors, so an external implementation can diff instead of re-derive
 
 No behaviour change. A session building a covenant to a frozen spec refused to transcribe the

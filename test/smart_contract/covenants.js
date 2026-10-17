@@ -99,7 +99,9 @@ describe('SmartContract covenants (v4.2.0)', function () {
       // The in-script signature s = (HASH256(preimage)+Gx) mod n is provably low-S.
       var s = BN.fromBuffer(Hash.sha256sha256(preimage)).add(BN.fromBuffer(PushTx.Gx)).mod(PushTx.N)
       s.gt(halfN).should.equal(false)
-      // And it verifies with LOW_S enforced (a high-S signature would be rejected here).
+      // And it verifies with LOW_S enforced. What rejects a HIGH-S value is not this flag but
+      // the script's own OP_NUM2BIN -- measured in test/covenant/pushtx_grind_conditions.js,
+      // which also carries the negative control this comment used to stand in for.
       spend.inputs[0].setScript(new Script().add(preimage))
       verify(spend.inputs[0].script, lock, { tx: spend, satoshis: SATS }).ok.should.equal(true)
     })
