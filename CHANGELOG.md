@@ -139,6 +139,42 @@ must fail, or the file proves nothing.
 
 ## [Unreleased]
 
+### Added — which covenants work on a pre-Chronicle chain, and that the rest fail CLOSED
+
+No behaviour change; this pins a portability property that matters for any chain which has not
+activated Chronicle, SmartSats being pre-Genesis today.
+
+Chronicle restored the splice opcodes, and **before it they are silent no-ops, not errors** —
+measured: `OP_SUBSTR` (0xb3), `OP_LEFT` (0xb4) and `OP_RIGHT` (0xb5) leave their operands on the
+stack and raise nothing, because those bytes were upgradable NOPs. `lib/script/interpreter.js`
+already implements the node's branch exactly and records why (running them unconditionally
+"consumed stack where the network does nothing, which is a wrong answer rather than an error").
+What was missing was a test for the consequence.
+
+| construction | Chronicle-gated opcodes | pre-Chronicle |
+|---|---|---|
+| `PushTx.authenticator()` | **none** | **works** — authenticates a preimage |
+| `PushTx.valueCovenant` / `valueCovenantSingle` | `OP_LEFT`, `OP_RIGHT` | fails `EVAL_FALSE_IN_STACK` |
+| `Token.ownershipToken` | `OP_LEFT`, `OP_RIGHT`, `OP_SUBSTR` | fails `EQUALVERIFY` |
+
+So the **OP_PUSH_TX gate is portable** — it needs only `HASH256`, the Genesis splice and
+concatenation opcodes, `ADD`/`MOD`/`NUM2BIN` and `CHECKSIG` — while everything that *reads* the
+authenticated preimage by slicing is not. The security-relevant half is that the latter **fail
+closed**: a covenant cannot be spent with its output pin or its owner check unevaluated. That is
+measured rather than reasoned, because the alternative would be catastrophic.
+
+`test/covenant/pre_chronicle_portability.js` carries it, with the control that decides whether a
+"passes pre-Chronicle" result is good news or a skipped constraint: it asserts **which**
+constructions contain a gated opcode rather than inferring it from the name. That control exists
+because of a near-miss — the first run read as though the authenticator were passing with its
+slices skipped, which would have been a serious finding. It has no slices.
+
+Falsifiability is graded and worth recording: removing the era gate from `OP_SUBSTR` alone fails
+only the no-op assertion, because the Token still has two more gates in front of it; removing
+**all three** fails both fail-closed assertions as well, with the covenants becoming spendable
+pre-Chronicle. So the fail-closed pair is live rather than vacuous, and the covenants are robust
+to losing one gate but not three.
+
 ### Added — the 9.40.0 affected range, measured on published tarballs, and a prepared advisory
 
 No behaviour change. 9.40.0 said the public API "could never produce the vulnerable shape" on the
