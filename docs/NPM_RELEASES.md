@@ -6,15 +6,19 @@ re-read from the registry on **2026-10-17**; the reasoning that follows it was w
 the 2026-10-13 state (see the note below). Re-run `npm run check:npm-inventory` before acting on
 any of it, and the suite fails if the package table below drifts from the registry.
 
-**The live set today, read from the registry on 2026-10-17:** `@smartledger/bsv` has seven
-undeprecated versions — **9.36.0, 9.37.0, 9.38.0, 9.39.0, 9.39.1, 9.40.0, 9.41.0 and
-9.42.0** — and
-everything up to and including 9.35.0 is deprecated. All five are at or above every fix in the defect table
-below. Three fixes landed after that table was written and are therefore NOT in it: the
+**The live set today, read from the registry on 2026-10-18:** `@smartledger/bsv` has nine
+undeprecated versions — **9.36.0, 9.37.0, 9.38.0, 9.39.0, 9.39.1, 9.40.0, 9.41.0, 9.42.0 and
+9.43.0** — and
+everything up to and including 9.35.0 is deprecated. All nine are at or above every fix in the defect table
+below. (The counts in this paragraph had drifted: it said "seven" above a list of eight and "all
+five" about the same set. They are re-read from the registry now, not incremented.) Three fixes
+landed after that table was written and are therefore NOT in it: the
 original-algorithm sighash digest over a truncated `OP_RETURN` push (9.37.0, public advisory
 GHSA-j884-5pmj-6wqp), `Message#verify({ lowS: true })` refusing the malleable twin (9.38.0,
 with the old acceptance deprecated rather than removed), and named ESM imports of the subpath
-exports (9.39.1). So 9.36.0 is the one live version below a published advisory's fix. Whether
+exports (9.39.1). 9.43.0 adds no behaviour change at all: it warns where a named key-material parser handed nothing
+generates a key the caller never supplied, and registers the refusal for 10.0.0. So 9.36.0 is the
+one live version below a published advisory's fix. Whether
 to deprecate any of 9.36.0–9.39.0 is a decision for Greg, not a bookkeeping step: it changes
 what existing installs are told.
 
@@ -41,8 +45,8 @@ already printed into someone's CI log is not.
 
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
-| `@smartledger/bsv` | 137 | 129 | 8 | 9.42.0 | 2025-10-18 | 2026-10-17 |
-| `@smartledger/bsv-core` | 18 | 0 | 18 | 1.9.0 | 2026-09-30 | 2026-10-18 |
+| `@smartledger/bsv` | 138 | 129 | 9 | 9.43.0 | 2025-10-18 | 2026-10-18 |
+| `@smartledger/bsv-core` | 19 | 0 | 19 | 1.10.0 | 2026-09-30 | 2026-10-18 |
 | `@smartledger/keys` | 24 | 0 | 24 | 4.1.0 | 2025-11-28 | 2026-10-15 |
 | `@smartledger/notaryhash` | 17 | 0 | 17 | 2.5.0 | 2026-06-27 | 2026-10-16 |
 | `@smartledger/crypto` | 15 | 0 | 15 | 3.3.0 | 2025-11-28 | 2026-10-15 |

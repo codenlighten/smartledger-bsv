@@ -36,7 +36,7 @@ var SNAPSHOT = path.join(__dirname, '..', 'docs', 'npm-deprecations', 'snapshot-
 // adding a version to a tier is never a bookkeeping step.
 var LIVE = {
   '@smartledger/bsv': ['9.36.0', '9.37.0', '9.38.0', '9.39.0', '9.39.1', '9.40.0', '9.41.0',
-    '9.42.0']
+    '9.42.0', '9.43.0']
 }
 var GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc'
 // The age-proof advisory. A deprecation message is the only security notice most consumers ever
