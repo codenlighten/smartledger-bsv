@@ -877,10 +877,13 @@ inherits it. Measured on 9.42.0: `Mnemonic.fromString` returns a fresh mnemonic 
 returns a fresh random key, while `PrivateKey.fromString`, `fromWIF` and `fromHex` refuse all of
 them. Two of those inputs are worse than random because the result is *derivable by anyone*:
 `Mnemonic.fromString([])` is twelve empty words every time, and `Mnemonic.fromString(Buffer.alloc(16))`
-is the canonical BIP-39 `abandon … about` vector. Until the guards land, validate before you parse
-(`Mnemonic.isValid`), and treat any key-material parser as requiring a non-empty string you
-checked. 10.0.0 splits the overloaded constructors into explicit named ones; the rule is in
-[RELEASE-10.0.0.md](RELEASE-10.0.0.md).
+is the canonical BIP-39 `abandon … about` vector. From **9.43.0** both entry points emit a deprecation notice and otherwise
+behave exactly as before, so nothing breaks; refusing is registered for 10.0.0 under
+`mnemonic-fromstring-generates` and `hdprivatekey-fromstring-empty`. Do not wait for it —
+validate before you parse (`Mnemonic.isValid`), use `Mnemonic.fromSeed(buffer)` for a seed, and
+treat any key-material parser as requiring a non-empty string you checked. 10.0.0 splits the
+overloaded constructors into explicit named ones rather than guarding parsers one at a time; the
+rule is in [RELEASE-10.0.0.md](RELEASE-10.0.0.md).
 
 **Signed formats: new ones are length-delimited and domain-separated.** A format that signs
 concatenated fields with no length markers authenticates the byte string and **not** where one
@@ -918,7 +921,10 @@ verified by that command rather than by `test/properties/relied_upon.js`.)
 **Deprecation plan ids are the stable name of a future break.** Every registered deprecation
 carries a `plan:` id that does not change between the warning and the removal
 ([RELEASE-10.0.0.md](RELEASE-10.0.0.md)). Key your own tracking on that id, not on the warning text
-or the version — the text is prose and gets rewritten, and `since` repeats across releases.
+or the version — the text is prose and gets rewritten, and `since` repeats across releases. From
+9.43.0 `deprecate.fired()` carries `plan` on each record, so the id is readable at runtime and not
+only in the plan document; before that the advice named something a caller could not actually
+read.
 
 ---
 

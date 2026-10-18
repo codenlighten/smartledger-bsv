@@ -206,4 +206,78 @@ describe('deprecated APIs', function () {
       warned.should.deep.equal([])
     })
   })
+  /**
+   * A NAMED PARSER handed nothing generated a key the caller never supplied. 10,000 sat were
+   * lost to it on 2026-10-09. The notice is on the parsers and NOT on the constructors, because
+   * `new Mnemonic()` generating is documented and intended — asserting "no key appears from
+   * nowhere" would fail on correct behaviour, so the two halves are tested apart.
+   */
+  describe('key-material parsers handed nothing — warn in 9.43.0, refuse in 10.0.0', function () {
+    var NOTHING = [undefined, null, '', 0, false, [], bsv.Mnemonic.Words.ENGLISH, Buffer.alloc(16)]
+
+    it('warns for every input that generates, and still generates (nothing breaks)', function () {
+      NOTHING.forEach(function (v) {
+        deprecate.reset()
+        warned = []
+        var m = bsv.Mnemonic.fromString(v)
+        m.should.be.an.instanceOf(bsv.Mnemonic)
+        m.toString().split(' ').length.should.equal(12)
+        warned.length.should.equal(1, 'no notice for ' + Object.prototype.toString.call(v))
+        warned[0].should.match(/Mnemonic\.fromString\(\) with anything but a non-empty string/)
+        warned[0].should.match(/removed in 10\.0\.0/)
+        deprecate.fired().length.should.equal(1)
+        deprecate.fired()[0].plan.should.equal('mnemonic-fromstring-generates')
+      })
+    })
+
+    it('says nothing for a valid phrase, and still round-trips it', function () {
+      var phrase = bsv.Mnemonic.fromRandom().toString()
+      bsv.Mnemonic.fromString(phrase).toString().should.equal(phrase)
+      bsv.Mnemonic.fromString(phrase, bsv.Mnemonic.Words.ENGLISH).toString().should.equal(phrase)
+      warned.length.should.equal(0)
+    })
+
+    it('does NOT warn for whitespace, which already throws — but DOES for a trimming call site', function () {
+      // The distinction a consumer got wrong: '   ' is a non-empty string and is refused as an
+      // invalid mnemonic. What reaches production is fromString(x.trim()), where '   ' becomes ''.
+      ;(function () { bsv.Mnemonic.fromString('   ') }).should.throw(/invalid/i)
+      warned.length.should.equal(0)
+      bsv.Mnemonic.fromString('   '.trim()).should.be.an.instanceOf(bsv.Mnemonic)
+      warned.length.should.equal(1)
+    })
+
+    it('the two derivable-by-anyone cases are still exactly that, so the notice is not cosmetic', function () {
+      var a = bsv.Mnemonic.fromString([]).toString()
+      var b = bsv.Mnemonic.fromString([]).toString()
+      a.should.equal(b)
+      a.trim().should.equal('', 'the [] phrase is no longer twelve empty words')
+      bsv.Mnemonic.fromString(Buffer.alloc(16)).toString()
+        .should.equal('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about')
+    })
+
+    it('HDPrivateKey.fromString: warns on the empty string, still throws on undefined, silent on a real xprv', function () {
+      var k = bsv.HDPrivateKey.fromString('')
+      k.should.be.an.instanceOf(bsv.HDPrivateKey)
+      warned.length.should.equal(1)
+      warned[0].should.match(/HDPrivateKey\.fromString\(\) with an empty string/)
+      deprecate.fired()[0].plan.should.equal('hdprivatekey-fromstring-empty')
+
+      deprecate.reset(); warned = []
+      ;(function () { bsv.HDPrivateKey.fromString(undefined) }).should.throw(/No valid string/)
+      warned.length.should.equal(0, 'undefined was already refused; it must not also warn')
+
+      var xprv = new bsv.HDPrivateKey().toString()
+      bsv.HDPrivateKey.fromString(xprv).toString().should.equal(xprv)
+      warned.length.should.equal(0)
+    })
+
+    it('the PrivateKey siblings already apply the rule, so they neither warn nor accept', function () {
+      ;['fromString', 'fromWIF', 'fromHex'].forEach(function (fn) {
+        NOTHING.forEach(function (v) {
+          ;(function () { bsv.PrivateKey[fn](v) }).should.throw()
+        })
+      })
+      warned.length.should.equal(0)
+    })
+  })
 })

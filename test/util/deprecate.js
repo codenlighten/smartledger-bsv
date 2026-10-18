@@ -174,4 +174,22 @@ describe('deprecate', function () {
       ;(function () { deprecate.fn(null, { what: 'x' }) }).should.throw(TypeError)
     })
   })
+  describe('the plan id is carried into the record', function () {
+    it('fired() exposes the stable plan id, not only the prose', function () {
+      deprecate.reset()
+      deprecate({ what: 'X#y', since: '9.43.0', removeIn: '10.0.0', plan: 'x-y-planned', use: 'X#z' })
+      var rec = deprecate.fired()[0]
+      rec.plan.should.equal('x-y-planned')
+      rec.what.should.equal('X#y')
+      // the properties page tells consumers to key migration tracking on the id precisely
+      // because the prose is rewritten and `since` repeats, so the id has to be readable here
+      rec.should.have.property('plan')
+    })
+
+    it('is null when a notice declares no plan, rather than absent', function () {
+      deprecate.reset()
+      deprecate({ what: 'A#b' })
+      ;(deprecate.fired()[0].plan === null).should.equal(true)
+    })
+  })
 })

@@ -25,7 +25,7 @@ their logs.
 
 ## Registered deprecations — these warn today and throw or change in 10.0.0
 
-Twelve, listed by the file that registers them. `since` is the version whose logs first carried the
+Fourteen, listed by the file that registers them. `since` is the version whose logs first carried the
 notice; `lib/util/deprecate.js` warns once per API per process, respects
 `BSV_NO_DEPRECATION_WARNINGS=1` and **never throws**, because a deprecation that throws is a
 breaking change wearing a warning's name.
@@ -44,6 +44,8 @@ breaking change wearing a warning's name.
 | `output-script-mutated-in-place` | 9.39.0 | **mutating a parsed output script in place** and expecting it to serialize | `output.setScript(output.script)` after mutating, or build the script before setting it | `lib/transaction/output.js` |
 | `ordlock-cancel-sighash-override` | 9.41.0 | `cancelOrdLock({ sighashType })` with any mode other than plain `SIGHASH_ALL` (plus FORKID) | pass no `sighashType`; for a sponsored or multi-party cancel, a named construction that enforces input and output ordering | `lib/ordinals/ordlock.js` |
 | `authorizer-unpinned-sighash` | 9.40.0 | a **Token authorizer that does not pin the authorization signature to SIGHASH_ALL** | `Authorizers.singleKey({ pinSighash: true })` / `multisig(m, n, { pinSighash: true })` — it changes the locking script, so an in-flight lineage finishes under the code it was created with | `lib/smart_contract/authorizers.js` |
+| `mnemonic-fromstring-generates` | 9.43.0 | `Mnemonic.fromString()` with **anything but a non-empty string** — it generates a fresh phrase instead of refusing, and `[]` and a Buffer give keys anyone can derive | `Mnemonic.isValid(phrase)` before parsing, `Mnemonic.fromSeed(buffer)` for a seed, `Mnemonic.fromRandom()` for a new phrase | `lib/mnemonic/mnemonic.js` |
+| `hdprivatekey-fromstring-empty` | 9.43.0 | `HDPrivateKey.fromString('')` — the type check passes an empty string and the constructor reads one as no argument, so it generates | a non-empty xprv you have checked, or `HDPrivateKey.fromRandom()` | `lib/hdprivatekey.js` |
 
 ### Why the cancel override is removed rather than filtered
 

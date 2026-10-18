@@ -21,7 +21,7 @@ Scope, and we would like these priced separately:
   8785 canonicalization; and the covenant-facing entrypoints of the smart
   contract module.
 
-  Tier 2 — 1,623 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
+  Tier 2 — 1,646 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
   decoding surface.
 
 JavaScript (CommonJS), Node >= 20.19. The code is public.
@@ -30,7 +30,7 @@ Explicitly out of scope: elliptic-curve and hash primitives, which are supplied
 by the Noble libraries and already audited; opcode EXECUTION in the script
 interpreter, which passes 1,483 of 1,483 of the reference node's own consensus
 vectors with zero false accepts and zero false rejects; and the remaining
-27,321-line application layer (credentials, tokens, ordinals), which we would
+27,343-line application layer (credentials, tokens, ordinals), which we would
 treat as a separate engagement.
 
 Note the shape of that first exclusion, because it is what we want priced. The

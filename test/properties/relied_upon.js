@@ -990,6 +990,18 @@ describe('relied-upon properties', function () {
       documented('canonical BIP-39')
     })
 
+    it('the plan id the document tells consumers to key on is readable at runtime', function () {
+      var dep = require('../../lib/util/deprecate')
+      dep.reset()
+      bsv.Mnemonic.fromString(undefined)
+      var rec = dep.fired()[0]
+      rec.plan.should.equal('mnemonic-fromstring-generates')
+      rec.removeIn.should.equal('10.0.0')
+      dep.reset()
+      documented('carries `plan` on each record')
+      documented('`mnemonic-fromstring-generates`')
+    })
+
     it('the forward rules are stated, not just the hazards', function () {
       documented('length-delimited and domain-separated')
       documented('compare flag **names**, never hex')

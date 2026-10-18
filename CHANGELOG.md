@@ -620,6 +620,57 @@ preamble now states the measured live set — 9.36.0, 9.37.0, 9.38.0, 9.39.0, 9.
 everything through 9.35.0 deprecated — together with the three fixes that landed after the defect
 table was written, so a reader who stops at the table is not left with the pre-campaign picture.
 
+## [9.43.0] - 2026-10-18
+
+### Deprecated — a named key-material parser handed nothing GENERATES a key the caller never supplied
+
+`Mnemonic.fromString(undefined)` returns a fresh random mnemonic. It does not throw, does not
+warn, and the caller holds a phrase nobody gave them. An unset `PLATFORM_MNEMONIC` reached it on
+2026-10-09, an address was derived from a key nobody kept, and 10,000 sat were sent to it and
+lost. Reported by the onesatserver session, which guards with `Mnemonic.isValid` first; an
+unguarded caller got no signal at all.
+
+Swept rather than patched at the one call, which found a second entry point and two cases worse
+than a lost key. Measured on published 9.26.2 and 9.42.0, identically — **nothing changed between
+them**:
+
+| call | result |
+|---|---|
+| `Mnemonic.fromString` with `undefined`, `null`, `''`, `0`, `false`, `[]`, a wordlist array, or a Buffer | generates a fresh phrase |
+| `HDPrivateKey.fromString('')` | generates a fresh random key |
+| `HDPrivateKey.fromString(undefined)` | throws — the guard exists and is one condition short |
+| `PrivateKey.fromString` / `fromWIF` / `fromHex`, all eight inputs | refuse |
+
+The `PrivateKey` row is why this is a defect and not a design choice: the rule is already applied
+in sibling methods in the same library, and these two are inconsistent with it.
+
+**Two inputs are worse than a random key, because the result is derivable by anyone.** `[]` is
+caught by the constructor's array branch and read as a WORDLIST, so lookups into an empty array
+give twelve empty words on every call — constant across 50 runs, `m/0/0` is
+`19Gsiwqj8YJCjJH7eiW2SkpvtUP6uL8Kos`. A Buffer is read as a SEED, so `Buffer.alloc(16)` gives the
+canonical BIP-39 `abandon … about` vector. Funds sent to either are takeable, not merely lost.
+
+**Whitespace is not in that set, and the distinction matters.** `fromString('   ')` throws as an
+invalid mnemonic on every version. What reaches production is a call site that trims first:
+`'   '.trim()` is `''`, which generates. A consumer reported whitespace as silently generating and
+was right about their own code and wrong about the function.
+
+### What this release does, and why it warns rather than throws
+
+Both entry points now emit a deprecation notice and otherwise behave exactly as before, so no
+working call changes. `lib/util/deprecate.js` states the doctrine this follows: *a deprecation
+that throws is just a breaking change wearing a warning's name*. Refusing is registered for
+10.0.0 under `mnemonic-fromstring-generates` and `hdprivatekey-fromstring-empty`.
+
+Honest about what that is: a caller using `fromString(undefined)` as a shortcut for a random key,
+or passing a Buffer seed deliberately, does work today, so refusing it later is a justified
+BREAKING security change and not a free one. The constructors are untouched — `new Mnemonic()` and
+`new HDPrivateKey()` generating on no argument is documented and intended, and 10.0.0 splits the
+overloaded forms into explicit named ones rather than guarding parsers one at a time.
+
+Until then: `Mnemonic.isValid(phrase)` before parsing, `Mnemonic.fromSeed(buffer)` for a seed,
+`Mnemonic.fromRandom()` if a new phrase is what you wanted.
+
 ## [9.39.1] - 2026-10-17
 
 ### Fixed — the subpath `import` condition: declared named exports that did not exist at run time

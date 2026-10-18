@@ -47,12 +47,12 @@ defects this codebase has produced. See §2.1.
 | `lib/covenant/` | 749 | The verification harness. Its flag word is what made covenants verify under 2019 rules while claiming to mirror mainnet. |
 | `lib/util/jcs.js` | 105 | RFC 8785 canonicalization, now a public export and the estate's single implementation. |
 
-### Tier 2 — optional, 1,623 lines
+### Tier 2 — optional, 1,646 lines
 
 | Module | Lines | Why it may belong in scope |
 | --- | ---: | --- |
 | `lib/encoding/` | 708 | Base58Check, varint and buffer readers — the parsing surface untrusted bytes hit first. |
-| `lib/mnemonic/` | 591 | BIP-39 seed derivation. Small, but a weakness here compromises every key beneath it. |
+| `lib/mnemonic/` | 614 | BIP-39 seed derivation. Small, but a weakness here compromises every key beneath it. |
 | `lib/ecies/` | 324 | Encryption built on audited primitives; the composition is ours. |
 
 Tier 2 is cryptographic rather than application code, so excluding it is a **budget
@@ -150,21 +150,21 @@ this repository.
 | `lib/address.js`, `lib/networks.js`, `lib/opcode.js`, `lib/hdprivatekey.js`, `lib/hdpublickey.js` (2,391 lines) | Cut to pay for §2.1 | Formatting, network constants and BIP-32 derivation. No defect has originated here, and `networks.js` in particular defines addressing constants — pubkey hashes, xpub prefixes, ports, DNS seeds — and contains **no consensus-flag logic at all**. |
 | The rest of the application layer — `lib/gdaf/`, `lib/ltp/`, `lib/ordinals/`, `lib/block/`, `lib/didweb/`, `lib/vcjwt/`, `lib/statuslist/`, most of `lib/smart_contract/`, plus assorted top-level files | Excluded | ~26,000 lines. Worth a separate engagement; including it here would blur the question in §1. Note the parts of it with a demonstrated defect history have been pulled *into* Tier 1 rather than left here — see §2.1. |
 
-Totals reconcile against `lib/`, which is 42,457 lines across 133 files:
+Totals reconcile against `lib/`, which is 42,502 lines across 133 files:
 
 ```
 tier 1      13,513
-tier 2       1,623
-excluded    27,321
+tier 2       1,646
+excluded    27,343
             ------
-total       42,457
+total       42,502
 ```
 
-Measured 2026-10-15 at 9.39.0. These figures drift as the library changes — an
+Measured 2026-10-18 at 9.43.0. These figures drift as the library changes — an
 earlier set was 445 lines light by the time it was read, most of it in
 `lib/script/interpreter.js`, which is priced against. `test/docs/audit_scope_figures.js` now recomputes all five figures and fails if this
 document disagrees with `lib/` or with itself — the enquiry text in §6 had drifted to a
-Tier 2 of 1,607 against the 1,623 in this table, which is exactly the failure this
+Tier 2 of 1,607 against the 1,623 the table stated at the time, which is exactly the failure this
 document exists to prevent, and §7 could not catch it because §7 reproduces the figures
 without checking the prose that quotes them. **Re-run §7 immediately before
 sending**, and update the date above with the commit measured.
@@ -238,7 +238,7 @@ Scope, and we would like these priced separately:
   key construction and serialisation; the covenant verification harness and
   the locking-script semantics built on it; RFC 8785 canonicalization.
 
-  Tier 2 — 1,623 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
+  Tier 2 — 1,646 lines. BIP-39 mnemonics, ECIES, and the Base58Check/varint
   decoding surface.
 
 JavaScript (CommonJS), Node >= 20.19. The code is public.
