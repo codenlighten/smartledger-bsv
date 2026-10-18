@@ -35,14 +35,30 @@ var SNAPSHOT = path.join(__dirname, '..', 'docs', 'npm-deprecations', 'snapshot-
 // release is Greg's decision, not this script's: it changes what existing installs are told, so
 // adding a version to a tier is never a bookkeeping step.
 var LIVE = {
-  '@smartledger/bsv': ['9.36.0', '9.37.0', '9.38.0', '9.39.0', '9.39.1', '9.40.0', '9.41.0',
-    '9.42.0', '9.43.0']
+  '@smartledger/bsv': ['9.37.0', '9.38.0', '9.39.0', '9.39.1', '9.40.0', '9.41.0', '9.42.0',
+    '9.43.0']
 }
+// Four of the eight above are inside a PUBLISHED advisory's vulnerable range and are still
+// listed here deliberately: GHSA-jpm2-r6jf-2h78 covers `>= 5.5.0, < 9.40.0`, so 9.37.0, 9.38.0,
+// 9.39.0 and 9.39.1 are in it. It declares NO patched version, because 9.40.0 adds only an
+// OPT-IN pin and the default changes in 10.0.0 - the advisory's own words are "there is no
+// version where the default is safe", and an already-issued lineage cannot be migrated at all.
+// `checkLiveAgainstAdvisories` below holds this list to that reasoning, so a new advisory
+// cannot quietly make a member of LIVE wrong the way GHSA-j884 did to 9.36.0 for three days.
 var GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc'
 // The age-proof advisory. A deprecation message is the only security notice most consumers ever
 // see, so the one tier whose defect has no other description in the set carries its link.
 var AGEPROOF_GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-2j2f-5v2f-pvpq'
+// STALE, AND KNOWINGLY SO: 150 of the 151 messages on the registry carry this clause, and
+// 9.36.0 went inside a published advisory's range on 2026-10-15 (GHSA-j884, `< 9.37.0`). Moving
+// it to 9.43.0 means overwriting all 151 messages, which is a separate decision for Greg and is
+// NOT covered by publish authority - the registry does not version a deprecation message, so
+// `docs/npm-deprecations/snapshot-*.json` is the only record of what is being replaced. Until
+// then this constant stays exactly as sent, because this file's job is to describe what the
+// registry actually says. New tiers use UPGRADE_LATEST.
 var UPGRADE = 'upgrade to @smartledger/bsv@9.36.0 or later'
+var UPGRADE_LATEST = 'upgrade to @smartledger/bsv@9.43.0 or later'
+var SIGHASH_GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-j884-5pmj-6wqp'
 // The one clause every version from 3.3.2 to 9.33.2 needs, since all of them have
 // lib/ltp/proof and all of them derive the salt from the published nonce.
 var SALT = 'An undisclosed field in an LTP selective-disclosure proof can also be ' +
@@ -184,6 +200,30 @@ function buildTiers (state) {
         'takes the birth date itself and refuses a credential. ' +
         UPGRADE.charAt(0).toUpperCase() + UPGRADE.slice(1) + '. ' + AGEPROOF_GHSA },
 
+    // 9.36.0 was the last live version below a fix that an UPGRADE actually delivers, which is
+    // the line this set is drawn on: GHSA-j884 is patched by 9.37.0, so a consumer who moves
+    // off 9.36.0 is genuinely better off. The four versions above it that are inside
+    // GHSA-jpm2's range are NOT deprecated, because no version's default is safe there and a
+    // message recommending an upgrade would be recommending a non-remedy. The message names
+    // both advisories anyway: a consumer on 9.36.0 is inside both, and the install warning is
+    // the only security notice most of them ever see.
+    { id: 'S_sighashtail',
+      pkg: '@smartledger/bsv',
+      versions: ['9.36.0'],
+      why: 'the original-algorithm digest over a prevout script the node stops decoding, fixed ' +
+        'in 9.37.0 - the one live version whose defect an upgrade actually closes. Deprecated ' +
+        'on 2026-10-18 at Greg\'s instruction',
+      msg: 'Security (GHSA-j884-5pmj-6wqp): a signature made with a hash type that selects the ' +
+        'ORIGINAL transaction digest algorithm serializes the whole prevout script, where the ' +
+        'reference node stops at a push it cannot decode, so such a signature disagrees with ' +
+        'the network about whether the spend is valid. Fixed in 9.37.0. It needs both a prevout ' +
+        'script ending in an undecodable push and a hash type without FORKID, so 0x41 - what ' +
+        'current BSV wallets sign with - is unaffected. This version is also inside ' +
+        'GHSA-jpm2-r6jf-2h78: the Token covenant accepts an authorization signed SIGHASH_NONE, ' +
+        '9.40.0 is the first version offering the opt-in { pinSighash: true } that refuses it, ' +
+        'no version is safe by default, and an already-issued lineage cannot be migrated. ' +
+        UPGRADE_LATEST.charAt(0).toUpperCase() + UPGRADE_LATEST.slice(1) + '. ' + SIGHASH_GHSA },
+
     { id: 'U_anchor',
       pkg: 'smartledger-bsv',
       versions: UNSCOPED_ANCHOR,
@@ -272,6 +312,108 @@ function cmp (a, b) {
 
 // ---------------------------------------------------------------- invariants
 
+// ------------------------------------------------- live versions vs the advisory ranges
+
+// The vulnerable ranges are NOT retyped here. They are read from the advisory payloads in
+// docs/advisories/*.json — the exact bodies sent to GitHub, which `npm run check:advisories`
+// holds to their markdown. One source, so a range cannot drift between two files.
+//
+// Why this exists: on 2026-10-15 GHSA-j884 published with the range `< 9.37.0`, which put
+// 9.36.0 — then a member of LIVE, and the version 150 registry messages named as the safe
+// minimum — inside a published advisory. Nothing failed. The inventory page went on saying all
+// live versions were at or above every fix for three days, because the only checks were
+// "does the table match the registry" and "does the page match the messages", and neither
+// looks at an advisory. A new advisory could silently make this file wrong, and did.
+//
+// Drafts and published advisories are treated the SAME. A draft describes a defect that has
+// been measured; a live version inside its range needs a written reason either way, and reading
+// the published/draft state would add a bookkeeping axis that can itself go stale.
+function advisories () {
+  var dir = path.join(__dirname, '..', 'docs', 'advisories')
+  return fs.readdirSync(dir).filter(function (f) { return /\.json$/.test(f) }).map(function (f) {
+    var j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'))
+    return { id: f.replace(/^(draft-|GHSA-gw63-)/, '').replace(/\.json$/, ''), file: f, vulns: j.vulnerabilities || [] }
+  })
+}
+
+// A live version inside an advisory range whose `patched_versions` is NULL. No upgrade closes
+// it, so deprecating it would recommend a non-remedy — the message would name a version that
+// does not fix what the message describes. Leaving it live is the honest option, but it must be
+// a STATED one: an entry here, naming the advisory and why, or the check fails.
+var ACCEPTED = {
+  'token-sighash-authorization': {
+    why: 'declares no patched version: 9.40.0 adds only an OPT-IN { pinSighash: true } and the ' +
+      'default changes in 10.0.0, so in the advisory\'s own words "there is no version where ' +
+      'the default is safe" — and an already-issued lineage cannot be migrated at all, because ' +
+      'the covenant rebuilds its successor scriptCode from the authenticated chunk and forces ' +
+      'its own code forward. Being precise about the upgrade, because the loose version of this ' +
+      'is wrong: moving to 9.40.0 or later is NECESSARY to get the pin at all and NOT SUFFICIENT ' +
+      'for anything, since the default stays unchanged until 10.0.0 and no upgrade touches a ' +
+      'lineage already issued. A deprecation message is one line that a consumer reads as ' +
+      '"upgrade and you are fine", and here that is false in both directions. The remedy is API ' +
+      'use - sign 0x41, which this library\'s own helpers always do and offer no way not to - ' +
+      'plus 9.40.0+ WITH { pinSighash: true } for new lineages.',
+    versions: ['@smartledger/bsv@9.37.0', '@smartledger/bsv@9.38.0', '@smartledger/bsv@9.39.0',
+      '@smartledger/bsv@9.39.1']
+  }
+}
+
+function checkLiveAgainstAdvisories (semver) {
+  var errors = []
+  if (!semver) return ['NOTE: semver not resolvable, LIVE was not checked against the advisories']
+  var advs = advisories()
+  var excused = {}
+
+  Object.keys(LIVE).forEach(function (pkg) {
+    LIVE[pkg].forEach(function (v) {
+      advs.forEach(function (a) {
+        a.vulns.forEach(function (vuln) {
+          if (vuln.package.name !== pkg) return
+          var range = vuln.vulnerable_version_range.replace(/,/g, ' ')
+          if (!semver.validRange(range)) {
+            errors.push(a.id + ': vulnerable_version_range "' + vuln.vulnerable_version_range +
+              '" is not a semver range this check can read')
+            return
+          }
+          if (!semver.satisfies(v, range)) return
+          var k = pkg + '@' + v
+          if (typeof vuln.patched_versions === 'string' && vuln.patched_versions) {
+            errors.push(k + ' is listed as LIVE but is inside ' + a.id + ' (' +
+              vuln.vulnerable_version_range + '), which IS fixed by upgrading to ' +
+              vuln.patched_versions + '. A version below a fix an upgrade delivers must be ' +
+              'deprecated or Greg must decide otherwise in writing — it cannot just sit in LIVE.')
+            return
+          }
+          var acc = ACCEPTED[a.id]
+          if (!acc || acc.versions.indexOf(k) < 0) {
+            errors.push(k + ' is listed as LIVE but is inside ' + a.id + ' (' +
+              vuln.vulnerable_version_range + '), which names NO patched version. That may be ' +
+              'the right call, but it needs an ACCEPTED entry in this file saying why.')
+            return
+          }
+          excused[a.id + ' ' + k] = true
+        })
+      })
+    })
+  })
+
+  // and the exceptions must not rot either: an ACCEPTED entry that no longer excuses anything is
+  // a stale claim, which is the same failure one level up.
+  Object.keys(ACCEPTED).forEach(function (id) {
+    if (!advs.some(function (a) { return a.id === id })) {
+      errors.push('ACCEPTED names "' + id + '", which is not an advisory payload in docs/advisories/')
+    }
+    ACCEPTED[id].versions.forEach(function (k) {
+      if (!excused[id + ' ' + k]) {
+        errors.push('ACCEPTED[' + id + '] excuses ' + k + ', but that version is not live and ' +
+          'inside that advisory any more — drop the entry rather than leave it stating a fact ' +
+          'that has stopped being true.')
+      }
+    })
+  })
+  return errors
+}
+
 function check (tiers, state) {
   var errors = []
   var owner = {}
@@ -308,6 +450,8 @@ function check (tiers, state) {
     }
   })
   if (!semver) errors.push('NOTE: semver not resolvable, range selection was not checked')
+
+  errors = errors.concat(checkLiveAgainstAdvisories(semver))
   return errors
 }
 
@@ -418,8 +562,16 @@ function main () {
   process.exit(2)
 }
 
-main().catch(function (e) {
-  console.error('failed: ' + e.message)
-  console.error('A network failure here is not a verdict about the deprecation set.')
-  process.exit(1)
-})
+// The LIVE-vs-advisories invariant needs no network — it reads docs/advisories/*.json — so it is
+// exported and pinned by test/docs/live_set_vs_advisories.js, which runs on every `npm test`
+// rather than only when someone runs the registry gates. Everything else here does need the
+// registry and stays behind the CLI.
+module.exports = { LIVE: LIVE, ACCEPTED: ACCEPTED, advisories: advisories, checkLiveAgainstAdvisories: checkLiveAgainstAdvisories }
+
+if (require.main === module) {
+  main().catch(function (e) {
+    console.error('failed: ' + e.message)
+    console.error('A network failure here is not a verdict about the deprecation set.')
+    process.exit(1)
+  })
+}

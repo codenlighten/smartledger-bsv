@@ -1,8 +1,12 @@
 # Prepared security advisories
 
-Six advisories: **five live on the repository, and one a private draft awaiting a decision to
-publish.** Each is built by `node scripts/build-advisories.js` into the `.json` payload beside its
-markdown file, and `npm run check:advisories` holds the payloads to the markdown.
+Seven advisories, **all seven published on the repository.** Each is built by
+`node scripts/build-advisories.js` into the `.json` payload beside its markdown file, and
+`npm run check:advisories` holds the payloads to the markdown. The state column below was
+re-read from the API on **2026-10-18** (`gh api repos/codenlighten/smartledger-bsv/security-advisories`),
+which is the only authority for it: the payloads carry no published/draft field, so nothing in
+this repository can fail when one of them is published. This table said `GHSA-j884` was a private
+draft for three days after it went public, and did not list `GHSA-jpm2` at all.
 
 | file | advisory | state |
 |---|---|---|
@@ -11,15 +15,19 @@ markdown file, and `npm run check:advisories` holds the payloads to the markdown
 | `draft-ltp-disclosure-commitment.md` | [`GHSA-xc2p-cffw-qm3j`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-xc2p-cffw-qm3j) | **published**, high (CVSS 7.5) |
 | `draft-ltp-salt-derivation.md` | [`GHSA-5f36-cmq3-37xg`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-5f36-cmq3-37xg) | **published**, high (CVSS 7.5) |
 | `draft-ageproof-hardcoded-birthdate.md` | [`GHSA-2j2f-5v2f-pvpq`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-2j2f-5v2f-pvpq) | **published**, high (CVSS 7.5) — 2026-10-14 |
-| `draft-sighash-scriptcode-tail.md` | [`GHSA-j884-5pmj-6wqp`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-j884-5pmj-6wqp) | **DRAFT — not published**, medium (CVSS 5.9) — 2026-10-15 |
+| `draft-sighash-scriptcode-tail.md` | [`GHSA-j884-5pmj-6wqp`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-j884-5pmj-6wqp) | **published**, medium (CVSS 5.9) — 2026-10-15. `@smartledger/bsv@9.36.0` was deprecated on 2026-10-18 as the one live version inside it |
+| `draft-token-sighash-authorization.md` | [`GHSA-jpm2-r6jf-2h78`](https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-jpm2-r6jf-2h78) | **published**, medium — 2026-10-17. Vulnerable `>= 5.5.0, < 9.40.0` with **no patched version**: 9.40.0 adds only an opt-in pin, so 9.37.0–9.39.1 stay undeprecated with a written exception in `scripts/npm-deprecations.js` |
 
-Each was created from the committed payload and then read back from the API: all six store a
+Each was created from the committed payload and then read back from the API: all seven store a
 description **byte-identical** to what was sent, and affected products matching exactly. None
-has a CVE.
+has a CVE. (The two counts further down — "none of the five advisories exists in the GitHub
+Advisory Database", "publishing already enqueued all five" — are left at five: they are the
+measurement as taken on 2026-10-15, when five existed, and re-reading them as seven would be
+asserting a result for two advisories that measurement never covered.)
 
-**`GHSA-j884-5pmj-6wqp` is a draft, which is private to maintainers, and publishing it is a
-separate deliberate step** — it is the only one that names `@smartledger/bsv-core`, and the only
-one whose range covers *every version ever published* on all three package names. GitHub computed
+**`GHSA-j884-5pmj-6wqp` was published on 2026-10-15.** It is the only one that names
+`@smartledger/bsv-core`, and the only one whose range covers *every version ever published* on
+all three package names. GitHub computed
 5.9 medium from the vector sent, which matches the score derived by hand before sending. The
 deliberate `AC:H` is the shape of the defect: it needs a prevout script ending in a push the node
 cannot decode **and** a hash type that selects the original digest algorithm, so `0x41` — what

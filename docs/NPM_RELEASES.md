@@ -6,21 +6,42 @@ re-read from the registry on **2026-10-17**; the reasoning that follows it was w
 the 2026-10-13 state (see the note below). Re-run `npm run check:npm-inventory` before acting on
 any of it, and the suite fails if the package table below drifts from the registry.
 
-**The live set today, read from the registry on 2026-10-18:** `@smartledger/bsv` has nine
-undeprecated versions — **9.36.0, 9.37.0, 9.38.0, 9.39.0, 9.39.1, 9.40.0, 9.41.0, 9.42.0 and
-9.43.0** — and
-everything up to and including 9.35.0 is deprecated. All nine are at or above every fix in the defect table
-below. (The counts in this paragraph had drifted: it said "seven" above a list of eight and "all
-five" about the same set. They are re-read from the registry now, not incremented.) Three fixes
-landed after that table was written and are therefore NOT in it: the
-original-algorithm sighash digest over a truncated `OP_RETURN` push (9.37.0, public advisory
-GHSA-j884-5pmj-6wqp), `Message#verify({ lowS: true })` refusing the malleable twin (9.38.0,
-with the old acceptance deprecated rather than removed), and named ESM imports of the subpath
-exports (9.39.1). 9.43.0 adds no behaviour change at all: it warns where a named key-material parser handed nothing
-generates a key the caller never supplied, and registers the refusal for 10.0.0. So 9.36.0 is the
-one live version below a published advisory's fix. Whether
-to deprecate any of 9.36.0–9.39.0 is a decision for Greg, not a bookkeeping step: it changes
-what existing installs are told.
+**The live set today, read from the registry on 2026-10-18:** `@smartledger/bsv` has eight
+undeprecated versions — **9.37.0, 9.38.0, 9.39.0, 9.39.1, 9.40.0, 9.41.0, 9.42.0 and 9.43.0** —
+and everything up to and including **9.36.0** is deprecated. (The counts in this paragraph had
+drifted twice: it said "seven" above a list of eight and "all five" about the same set, and then
+claimed all nine were at or above every fix, which stopped being true while it was being
+written. They are re-read from the registry, not incremented.) Three fixes landed after the
+defect table below was written and are therefore NOT in it: the original-algorithm sighash digest
+over a truncated `OP_RETURN` push (9.37.0, public advisory GHSA-j884-5pmj-6wqp),
+`Message#verify({ lowS: true })` refusing the malleable twin (9.38.0, with the old acceptance
+deprecated rather than removed), and named ESM imports of the subpath exports (9.39.1). 9.43.0
+adds no behaviour change at all: it warns where a named key-material parser handed nothing
+generates a key the caller never supplied, and registers the refusal for 10.0.0.
+
+**9.36.0 was deprecated on 2026-10-18**, on Greg's instruction, as the one live version whose
+defect an upgrade actually closes: GHSA-j884-5pmj-6wqp is patched by 9.37.0. **Four of the eight
+versions still live are inside a published advisory's vulnerable range, and are live
+deliberately.** GHSA-jpm2-r6jf-2h78 covers `>= 5.5.0, < 9.40.0`, so 9.37.0, 9.38.0, 9.39.0 and
+9.39.1 fall in it — and it names **no patched version**, because 9.40.0 adds only an opt-in
+`{ pinSighash: true }` and the default changes in 10.0.0. Moving to 9.40.0 or later is
+*necessary* to have the pin at all and *sufficient* for nothing, and no upgrade whatsoever
+reaches a lineage already issued. A deprecation message is one line that a consumer reads as
+"upgrade and you are fine", and here that is false in both directions, so the honest remedy is
+API use — sign `0x41`, which this library's own helpers always do and offer no way not to —
+plus 9.40.0+ **with** the option for new lineages. That reasoning is now a checked invariant rather than a
+sentence: `scripts/npm-deprecations.js` reads the vulnerable ranges straight out of
+`docs/advisories/*.json` and refuses a manifest where a live version sits inside an advisory
+range either without a written exception or, worse, below a fix an upgrade would deliver. It
+rejects the state this page described for three days — 9.36.0 live after GHSA-j884 published on
+2026-10-15 — which is what nothing was checking.
+
+**A deprecation message still points at 9.36.0, and that is now wrong.** 150 of the 152 messages
+on the registry name `@smartledger/bsv@9.36.0 or later` as the safe minimum, and the 151st
+(9.34.0) names 9.35.0, which is also deprecated. Re-pointing them at 9.43.0 means overwriting
+all 151 — a separate decision for Greg, and not covered by publish authority, since the registry
+does not version a deprecation message and
+`docs/npm-deprecations/snapshot-2026-10-14.json` is the only record of what would be replaced.
 
 **The deprecation counts below are the state AFTER the run described at the end of this page.**
 Everything between here and there is written as it was decided — "71 live", "none deprecated" —
@@ -45,7 +66,7 @@ already printed into someone's CI log is not.
 
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
-| `@smartledger/bsv` | 138 | 129 | 9 | 9.43.0 | 2025-10-18 | 2026-10-18 |
+| `@smartledger/bsv` | 138 | 130 | 8 | 9.43.0 | 2025-10-18 | 2026-10-18 |
 | `@smartledger/bsv-core` | 19 | 0 | 19 | 1.10.0 | 2026-09-30 | 2026-10-18 |
 | `@smartledger/keys` | 24 | 0 | 24 | 4.1.0 | 2025-11-28 | 2026-10-15 |
 | `@smartledger/notaryhash` | 17 | 0 | 17 | 2.5.0 | 2026-06-27 | 2026-10-16 |
@@ -336,6 +357,12 @@ Cannot parse three output scripts the reference node accepts and mines (an OP_RE
 
 ```
 GDAF generateAgeProof ignores the credential it is given and commits to a hardcoded birth date of 1995-06-15, so a proof that a subject meets an age threshold can be obtained for a subject who does not - measured on this version, a credential for a subject born 2015-03-01 verified true at every minimum age from 1 to 31. It was a constant function of its first argument: ten input shapes, including undefined and null, returned one commitment between them. A relying party that treats a true from verifyAgeProof as evidence about the credential subject is affected; verification needs the opening, which carries the birth date in plaintext. Fixed in 9.36.0, which takes the birth date itself and refuses a credential. Upgrade to @smartledger/bsv@9.36.0 or later. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-2j2f-5v2f-pvpq
+```
+
+9.36.0:
+
+```
+Security (GHSA-j884-5pmj-6wqp): a signature made with a hash type that selects the ORIGINAL transaction digest algorithm serializes the whole prevout script, where the reference node stops at a push it cannot decode, so such a signature disagrees with the network about whether the spend is valid. Fixed in 9.37.0. It needs both a prevout script ending in an undecodable push and a hash type without FORKID, so 0x41 - what current BSV wallets sign with - is unaffected. This version is also inside GHSA-jpm2-r6jf-2h78: the Token covenant accepts an authorization signed SIGHASH_NONE, 9.40.0 is the first version offering the opt-in { pinSighash: true } that refuses it, no version is safe by default, and an already-issued lineage cannot be migrated. Upgrade to @smartledger/bsv@9.43.0 or later. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-j884-5pmj-6wqp
 ```
 
 9.33.2 and 9.34.0 were added on the second run. 9.33.2 had been the one live version with no
