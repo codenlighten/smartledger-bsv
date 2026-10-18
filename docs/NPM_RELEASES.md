@@ -36,12 +36,50 @@ range either without a written exception or, worse, below a fix an upgrade would
 rejects the state this page described for three days — 9.36.0 live after GHSA-j884 published on
 2026-10-15 — which is what nothing was checking.
 
-**A deprecation message still points at 9.36.0, and that is now wrong.** 150 of the 152 messages
-on the registry name `@smartledger/bsv@9.36.0 or later` as the safe minimum, and the 151st
-(9.34.0) names 9.35.0, which is also deprecated. Re-pointing them at 9.43.0 means overwriting
-all 151 — a separate decision for Greg, and not covered by publish authority, since the registry
-does not version a deprecation message and
-`docs/npm-deprecations/snapshot-2026-10-14.json` is the only record of what would be replaced.
+**Every message was re-pointed to 9.43.0 on 2026-10-18, in the same session.** Deprecating
+9.36.0 left 150 of the 152 messages naming `@smartledger/bsv@9.36.0 or later` as the safe
+minimum — a security notice sending a consumer to a version that now carries its own warning —
+and the 151st (9.34.0) named 9.35.0, also deprecated, with no upgrade clause of its own at all.
+That was already wrong before 9.36.0 was deprecated: the minimum had been inside GHSA-j884's
+range since 2026-10-15. So 12 tiers covering 151 versions were re-sent and read back byte for
+byte: **160 versions checked, 152 changed, 0 mismatches**, and every one of the 152 messages now
+names 9.43.0. The state they replaced is in `docs/npm-deprecations/snapshot-2026-10-18.json`,
+which is the only record of it — the registry does not version a deprecation message.
+
+This is the **third** time the recommended minimum has gone stale: 9.33.2 carried a live
+confidentiality defect, 9.36.0 went inside an advisory range, and before that the GHSA tier
+pointed at 7.5.3 from inside the fund-loss window. Each time a person noticed by re-reading the
+text. The cause was structural and is fixed: the minimum lived in a constant that **five tiers
+bypassed with a literal**, so it could rot unevenly, and nothing checked it at all. There is one
+`UPGRADE_MIN` now, and `checkUpgradeTargets` fails the manifest if any version named in a
+recommendation is unpublished, deprecated, or inside an advisory range — while deliberately
+ignoring the versions a message names as *history* ("Fixed in 9.35.0"), which are true statements
+about where a defect closed and are deprecated on purpose. A message with no recommendation at
+all fails too, which is what 9.34.0's text had been.
+
+**On choosing 9.43.0 rather than 9.40.0.** 9.40.0 is the *lowest* release outside every published
+advisory range; 9.43.0 is the latest and also outside all of them. 9.43.0 is named as the current
+recommended release, which is a different claim from "safe minimum" and a much weaker one than
+future-proof: a later release can acquire its own advisory, and `9.40.0`–`9.43.0` do not change
+the Token covenant's default either way. The reason for preferring latest is narrow — the
+oldest-still-acceptable version is the one carrying the most unfixed-but-undisclosed surface — and
+the real protection is that `checkUpgradeTargets` now fails the moment the named version stops
+qualifying, whichever version it is.
+
+**A second pass the same day, after a review.** Five messages said a defect was "fixed in 9.34.0"
+or "Fixed in 9.36.0" without mentioning that those versions are themselves deprecated — a clause
+sitting two sentences from the real recommendation and readable as a second destination. They now
+say so, and `checkFixReferences` holds the rule: a version named as a fix must either be live or
+be described as deprecated in the same sentence. It is a prose check and therefore a backstop, not
+a proof — it recognises "fixed in X" and "fixes this in X", and a different phrasing would escape
+it. Its own first run failed the real file, because the window was a fixed 70 characters and cut
+off mid-word before the qualifier in the longest clause; it reads to the end of the sentence now.
+
+Measured across both passes, against the pre-run snapshot: of the 152 messages that moved, **145
+changed in the upgrade clause and nothing else**, 6 changed in the upgrade clause plus the added
+deprecated-qualifier, 1 (9.36.0) had no message before, and **0 changed in any other way**. That
+matters because "the registry matches the manifest" does not by itself establish that no
+per-version prose was lost in 151 overwrites; this does.
 
 **The deprecation counts below are the state AFTER the run described at the end of this page.**
 Everything between here and there is written as it was decided — "71 live", "none deprecated" —
@@ -204,13 +242,13 @@ transaction but does not broadcast it, so the key reaches the chain when the cal
 message says so.
 
 ```
-Critical (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential and anchorBatch return a signed transaction whose OP_RETURN contains the caller's private key, measured in this version and recoverable to the same WIF, so broadcasting it exposes the key in chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently published smartledger-bsv version fixes either; migrate to @smartledger/bsv@9.36.0 or later - review migration requirements before switching - and ROTATE any key passed to those methods. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
+Critical (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential and anchorBatch return a signed transaction whose OP_RETURN contains the caller's private key, measured in this version and recoverable to the same WIF, so broadcasting it exposes the key in chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently published smartledger-bsv version fixes either; migrate to @smartledger/bsv@9.43.0 or later - review migration requirements before switching - and ROTATE any key passed to those methods. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
 ```
 
 and for the eight without the anchor module:
 
 ```
-Critical: JSON.stringify(privateKey) includes the secret scalar, measured in this version, so any log, error report or request body built from that output carries the key to whoever can read it. No currently published smartledger-bsv version fixes this; migrate to @smartledger/bsv@9.36.0 or later - review migration requirements before switching - and rotate any key that may have been stringified.
+Critical: JSON.stringify(privateKey) includes the secret scalar, measured in this version, so any log, error report or request body built from that output carries the key to whoever can read it. No currently published smartledger-bsv version fixes this; migrate to @smartledger/bsv@9.43.0 or later - review migration requirements before switching - and rotate any key that may have been stringified.
 ```
 
 Deliberately *not* said: that migrating is drop-in. "Migrate", not "upgrade", across a
@@ -266,7 +304,7 @@ is established and the severity is categorically different, a distinct message i
 where it is inferred from an incomplete table, it is not.
 
 ```
-Critical: PrivateKey.fromObject on a JSON round-trip can silently return a different private key that anyone can derive, so funds sent to its address can be taken. Fixed in 7.5.5, which does not address later security fixes; upgrade to @smartledger/bsv@9.36.0 or later.
+Critical: PrivateKey.fromObject on a JSON round-trip can silently return a different private key that anyone can derive, so funds sent to its address can be taken. Fixed in 7.5.5, which does not address later security fixes; upgrade to @smartledger/bsv@9.43.0 or later.
 ```
 
 "Can be taken", not "may be unrecoverable": the substituted key is deterministic and derivable
@@ -302,7 +340,7 @@ an incomplete enumeration is worse than deliberate imprecision**, because it is 
 A single message naming the current version is correct whether or not the table is complete:
 
 ```
-Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to); other fixes were made earlier. Upgrade to @smartledger/bsv@9.36.0 or later.
+Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to); other fixes were made earlier. Upgrade to @smartledger/bsv@9.43.0 or later.
 ```
 
 This names a defect without needing the table to be complete, because **one forgery is
@@ -326,37 +364,37 @@ these three is now measured rather than derived from the changelog.
 9.32.0:
 
 ```
-May accept scripts that network consensus rejects, and may throw an untyped error when reading some chain transactions. An undisclosed field in an LTP selective-disclosure proof can also be recovered from the proof alone, because each field salt is derived from the nonce the proof carries; fixed in 9.34.0. Upgrade to @smartledger/bsv@9.36.0 or later.
+May accept scripts that network consensus rejects, and may throw an untyped error when reading some chain transactions. An undisclosed field in an LTP selective-disclosure proof can also be recovered from the proof alone, because each field salt is derived from the nonce the proof carries; fixed in 9.34.0, itself deprecated. Upgrade to @smartledger/bsv@9.43.0 or later.
 ```
 
 9.33.0:
 
 ```
-Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone; fixed in 9.34.0. Also reports a different script error than the reference node for some invalid scripts (both reject), and may throw an untyped error when reading some chain transactions. Upgrade to @smartledger/bsv@9.36.0 or later.
+Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone; fixed in 9.34.0, itself deprecated. Also reports a different script error than the reference node for some invalid scripts (both reject), and may throw an untyped error when reading some chain transactions. Upgrade to @smartledger/bsv@9.43.0 or later.
 ```
 
 9.33.1:
 
 ```
-Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone, because each field salt is derived from the nonce the proof carries; fixed in 9.34.0. May also throw an untyped error when reading some chain transactions. Upgrade to @smartledger/bsv@9.36.0 or later.
+Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone, because each field salt is derived from the nonce the proof carries; fixed in 9.34.0, itself deprecated. May also throw an untyped error when reading some chain transactions. Upgrade to @smartledger/bsv@9.43.0 or later.
 ```
 
 9.33.2:
 
 ```
-Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone, because each field salt is derived from the nonce the proof carries - measured on this version, a date of birth in under 100,000 hashes. Fixed in 9.34.0. Upgrade to @smartledger/bsv@9.36.0 or later.
+Security: an undisclosed field in an LTP selective-disclosure proof can be recovered from the proof alone, because each field salt is derived from the nonce the proof carries - measured on this version, a date of birth in under 100,000 hashes. Fixed in 9.34.0, itself deprecated. Upgrade to @smartledger/bsv@9.43.0 or later.
 ```
 
 9.34.0:
 
 ```
-Cannot parse three output scripts the reference node accepts and mines (an OP_RETURN followed by a push whose length field is cut off), so a transaction carrying one has no script verdict here. This is a false reject: no script is accepted that the node refuses. Fixed in 9.35.0.
+Cannot parse three output scripts the reference node accepts and mines (an OP_RETURN followed by a push whose length field is cut off), so a transaction carrying one has no script verdict here. This is a false reject: no script is accepted that the node refuses. Fixed in 9.35.0, which is itself deprecated. Upgrade to @smartledger/bsv@9.43.0 or later.
 ```
 
 9.35.0:
 
 ```
-GDAF generateAgeProof ignores the credential it is given and commits to a hardcoded birth date of 1995-06-15, so a proof that a subject meets an age threshold can be obtained for a subject who does not - measured on this version, a credential for a subject born 2015-03-01 verified true at every minimum age from 1 to 31. It was a constant function of its first argument: ten input shapes, including undefined and null, returned one commitment between them. A relying party that treats a true from verifyAgeProof as evidence about the credential subject is affected; verification needs the opening, which carries the birth date in plaintext. Fixed in 9.36.0, which takes the birth date itself and refuses a credential. Upgrade to @smartledger/bsv@9.36.0 or later. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-2j2f-5v2f-pvpq
+GDAF generateAgeProof ignores the credential it is given and commits to a hardcoded birth date of 1995-06-15, so a proof that a subject meets an age threshold can be obtained for a subject who does not - measured on this version, a credential for a subject born 2015-03-01 verified true at every minimum age from 1 to 31. It was a constant function of its first argument: ten input shapes, including undefined and null, returned one commitment between them. A relying party that treats a true from verifyAgeProof as evidence about the credential subject is affected; verification needs the opening, which carries the birth date in plaintext. Fixed in 9.36.0, which takes the birth date itself and refuses a credential, now deprecated too. Upgrade to @smartledger/bsv@9.43.0 or later. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-2j2f-5v2f-pvpq
 ```
 
 9.36.0:
@@ -396,7 +434,7 @@ All 54 share one byte-identical message, which was checked rather than assumed �
 sent, so any old text is recoverable.
 
 ```
-SECURITY (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential/anchorBatch put the caller's private key into the OP_RETURN of the signed transaction they return, so broadcasting it exposes the key in chain data, recoverable to the same WIF. ROTATE any key passed to those methods. Upgrade to @smartledger/bsv@9.36.0 or later - the minimum previously recommended here, 7.5.3, has a separate private-key round-trip defect. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
+SECURITY (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential/anchorBatch put the caller's private key into the OP_RETURN of the signed transaction they return, so broadcasting it exposes the key in chain data, recoverable to the same WIF. ROTATE any key passed to those methods. Upgrade to @smartledger/bsv@9.43.0 or later - the minimum previously recommended here, 7.5.3, has a separate private-key round-trip defect. https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-gw63-x79h-mhjc
 ```
 
 The advisory id, the link and the rotation instruction are all preserved; the upgrade target
@@ -410,7 +448,7 @@ deprecated. See "the bundle claim was inherited rather than checked" below: 7.6.
 same mismatch and was never flagged for it.
 
 ```
-Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to). Its browser bundle was also built from bn.js 4.12.3 while package.json pins 4.12.5, confirmed in the published bundle; the 7.6.2 release reports no behaviour difference between those builds across 11,071 differential checks. Upgrade to @smartledger/bsv@9.36.0 or later.
+Security: this version predates a verification-forgery fix in 9.32.0 (a verifier can accept a disclosed value the issuer never committed to). Its browser bundle was also built from bn.js 4.12.3 while package.json pins 4.12.5, confirmed in the published bundle; the 7.6.2 release reports no behaviour difference between those builds across 11,071 differential checks. Upgrade to @smartledger/bsv@9.43.0 or later.
 ```
 
 "differential testing ... found none in behaviour" replaces the original's flat "No source,

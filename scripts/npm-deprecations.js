@@ -27,7 +27,9 @@ var fs = require('fs')
 var path = require('path')
 var https = require('https')
 
-var SNAPSHOT = path.join(__dirname, '..', 'docs', 'npm-deprecations', 'snapshot-2026-10-14.json')
+// The state the LAST run replaced, and the only record of an overwritten message, since the
+// registry does not version them. snapshot-2026-10-13 and -10-14 stay committed as history.
+var SNAPSHOT = path.join(__dirname, '..', 'docs', 'npm-deprecations', 'snapshot-2026-10-18.json')
 // Versions deliberately left undeprecated. This was one version per package until three
 // releases landed after 9.36.0 while the deprecation set stayed where it was, and the
 // one-live-version model then reported them as a coverage gap it could not express. Membership
@@ -49,21 +51,22 @@ var GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/
 // The age-proof advisory. A deprecation message is the only security notice most consumers ever
 // see, so the one tier whose defect has no other description in the set carries its link.
 var AGEPROOF_GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-2j2f-5v2f-pvpq'
-// STALE, AND KNOWINGLY SO: 150 of the 151 messages on the registry carry this clause, and
-// 9.36.0 went inside a published advisory's range on 2026-10-15 (GHSA-j884, `< 9.37.0`). Moving
-// it to 9.43.0 means overwriting all 151 messages, which is a separate decision for Greg and is
-// NOT covered by publish authority - the registry does not version a deprecation message, so
-// `docs/npm-deprecations/snapshot-*.json` is the only record of what is being replaced. Until
-// then this constant stays exactly as sent, because this file's job is to describe what the
-// registry actually says. New tiers use UPGRADE_LATEST.
-var UPGRADE = 'upgrade to @smartledger/bsv@9.36.0 or later'
-var UPGRADE_LATEST = 'upgrade to @smartledger/bsv@9.43.0 or later'
+// THE RECOMMENDED MINIMUM, in one place. It has now gone stale twice: it named 9.33.2, which
+// turned out to carry a live confidentiality defect, and then 9.36.0, which went inside
+// GHSA-j884's range on 2026-10-15 and was deprecated on 2026-10-18 — leaving 150 security
+// messages recommending a deprecated version. Five tiers used to spell the version out as a
+// literal and bypass this constant entirely, which is how a target goes stale UNEVENLY; they
+// all route through it now, and `checkUpgradeTargets` fails the manifest if any recommended
+// minimum is deprecated or inside an advisory range, so the third time cannot be silent.
+var UPGRADE_MIN = '@smartledger/bsv@9.43.0'
+var UPGRADE = 'upgrade to ' + UPGRADE_MIN + ' or later'
+var UPGRADE_CAP = 'Upgrade to ' + UPGRADE_MIN + ' or later'
 var SIGHASH_GHSA = 'https://github.com/codenlighten/smartledger-bsv/security/advisories/GHSA-j884-5pmj-6wqp'
 // The one clause every version from 3.3.2 to 9.33.2 needs, since all of them have
 // lib/ltp/proof and all of them derive the salt from the published nonce.
 var SALT = 'An undisclosed field in an LTP selective-disclosure proof can also be ' +
   'recovered from the proof alone, because each field salt is derived from the nonce the ' +
-  'proof carries; fixed in 9.34.0. '
+  'proof carries; fixed in 9.34.0, itself deprecated. '
 
 // ---------------------------------------------------------------- registry
 
@@ -150,7 +153,7 @@ function buildTiers (state) {
     'verifier can accept a disclosed value the issuer never committed to). Its browser ' +
     'bundle was also built from bn.js 4.12.3 while package.json pins 4.12.5, confirmed in ' +
     'the published bundle; the 7.6.2 release reports no behaviour difference between those ' +
-    'builds across 11,071 differential checks. Upgrade to @smartledger/bsv@9.36.0 or later.'
+    'builds across 11,071 differential checks. ' + UPGRADE_CAP + '.'
 
   return [
     { id: 'S_crash',
@@ -160,8 +163,9 @@ function buildTiers (state) {
         'salt defect fixed in 9.34.0 - the message named only the first and understated the rest',
       msg: 'Security: an undisclosed field in an LTP selective-disclosure proof can be ' +
         'recovered from the proof alone, because each field salt is derived from the nonce ' +
-        'the proof carries; fixed in 9.34.0. May also throw an untyped error when reading ' +
-        'some chain transactions. ' + UPGRADE.charAt(0).toUpperCase() + UPGRADE.slice(1) + '.' },
+        'the proof carries; fixed in 9.34.0, itself deprecated. May also throw an untyped ' +
+        'error when reading ' +
+        'some chain transactions. ' + UPGRADE_CAP + '.' },
 
     { id: 'S_salt',
       pkg: '@smartledger/bsv',
@@ -172,7 +176,7 @@ function buildTiers (state) {
       msg: 'Security: an undisclosed field in an LTP selective-disclosure proof can be ' +
         'recovered from the proof alone, because each field salt is derived from the nonce ' +
         'the proof carries - measured on this version, a date of birth in under 100,000 ' +
-        'hashes. Fixed in 9.34.0. ' + UPGRADE.charAt(0).toUpperCase() + UPGRADE.slice(1) + '.' },
+        'hashes. Fixed in 9.34.0, itself deprecated. ' + UPGRADE_CAP + '.' },
 
     { id: 'S_parser',
       pkg: '@smartledger/bsv',
@@ -182,7 +186,8 @@ function buildTiers (state) {
       msg: 'Cannot parse three output scripts the reference node accepts and mines (an ' +
         'OP_RETURN followed by a push whose length field is cut off), so a transaction ' +
         'carrying one has no script verdict here. This is a false reject: no script is ' +
-        'accepted that the node refuses. Fixed in 9.35.0.' },
+        'accepted that the node refuses. Fixed in 9.35.0, which is itself deprecated. ' +
+        UPGRADE_CAP + '.' },
 
     { id: 'S_ageproof',
       pkg: '@smartledger/bsv',
@@ -197,8 +202,8 @@ function buildTiers (state) {
         'null, returned one commitment between them. A relying party that treats a true from ' +
         'verifyAgeProof as evidence about the credential subject is affected; verification ' +
         'needs the opening, which carries the birth date in plaintext. Fixed in 9.36.0, which ' +
-        'takes the birth date itself and refuses a credential. ' +
-        UPGRADE.charAt(0).toUpperCase() + UPGRADE.slice(1) + '. ' + AGEPROOF_GHSA },
+        'takes the birth date itself and refuses a credential, now deprecated too. ' +
+        UPGRADE_CAP + '. ' + AGEPROOF_GHSA },
 
     // 9.36.0 was the last live version below a fix that an UPGRADE actually delivers, which is
     // the line this set is drawn on: GHSA-j884 is patched by 9.37.0, so a consumer who moves
@@ -222,7 +227,7 @@ function buildTiers (state) {
         'GHSA-jpm2-r6jf-2h78: the Token covenant accepts an authorization signed SIGHASH_NONE, ' +
         '9.40.0 is the first version offering the opt-in { pinSighash: true } that refuses it, ' +
         'no version is safe by default, and an already-issued lineage cannot be migrated. ' +
-        UPGRADE_LATEST.charAt(0).toUpperCase() + UPGRADE_LATEST.slice(1) + '. ' + SIGHASH_GHSA },
+        UPGRADE_CAP + '. ' + SIGHASH_GHSA },
 
     { id: 'U_anchor',
       pkg: 'smartledger-bsv',
@@ -233,7 +238,7 @@ function buildTiers (state) {
         'this version and recoverable to the same WIF, so broadcasting it exposes the key in ' +
         'chain data. JSON.stringify(privateKey) also emits the secret scalar. No currently ' +
         'published smartledger-bsv version fixes either; migrate to ' +
-        '@smartledger/bsv@9.36.0 or later - review migration requirements before switching - ' +
+        UPGRADE_MIN + ' or later - review migration requirements before switching - ' +
         'and ROTATE any key passed to those methods. ' + GHSA },
 
     { id: 'U_stringify',
@@ -243,7 +248,7 @@ function buildTiers (state) {
       msg: 'Critical: JSON.stringify(privateKey) includes the secret scalar, measured in ' +
         'this version, so any log, error report or request body built from that output ' +
         'carries the key to whoever can read it. No currently published smartledger-bsv ' +
-        'version fixes this; migrate to @smartledger/bsv@9.36.0 or later - review migration ' +
+        'version fixes this; migrate to ' + UPGRADE_MIN + ' or later - review migration ' +
         'requirements before switching - and rotate any key that may have been stringified.' },
 
     { id: 'S_fundloss',
@@ -261,7 +266,7 @@ function buildTiers (state) {
         'of which 7.6.2 is carried by S_bundle instead',
       msg: 'Security: this version predates a verification-forgery fix in 9.32.0 (a verifier ' +
         'can accept a disclosed value the issuer never committed to); other fixes were made ' +
-        'earlier. Upgrade to @smartledger/bsv@9.36.0 or later.' },
+        'earlier. ' + UPGRADE_CAP + '.' },
 
     { id: 'S_falseaccept',
       pkg: '@smartledger/bsv',
@@ -278,10 +283,11 @@ function buildTiers (state) {
       why: 'NOT a false accept: the truncated-push error name, where both sides reject. ' +
         'Plus the salt defect fixed in 9.34.0, which IS a security item and leads the message',
       msg: 'Security: an undisclosed field in an LTP selective-disclosure proof can be ' +
-        'recovered from the proof alone; fixed in 9.34.0. Also reports a different script ' +
+        'recovered from the proof alone; fixed in 9.34.0, itself deprecated. Also reports a ' +
+        'different script ' +
         'error than the reference node for some invalid scripts (both reject), and may throw ' +
         'an untyped error when reading some chain transactions. ' +
-        UPGRADE.charAt(0).toUpperCase() + UPGRADE.slice(1) + '.' },
+        UPGRADE_CAP + '.' },
 
     { id: 'S_ghsa54',
       pkg: '@smartledger/bsv',
@@ -290,7 +296,7 @@ function buildTiers (state) {
       msg: 'SECURITY (GHSA-gw63-x79h-mhjc): GDAF.anchorCredential/anchorBatch put the ' +
         "caller's private key into the OP_RETURN of the signed transaction they return, so " +
         'broadcasting it exposes the key in chain data, recoverable to the same WIF. ROTATE ' +
-        'any key passed to those methods. Upgrade to @smartledger/bsv@9.36.0 or later - the ' +
+        'any key passed to those methods. ' + UPGRADE_CAP + ' - the ' +
         'minimum previously recommended here, 7.5.3, has a separate private-key round-trip ' +
         'defect. ' + GHSA },
 
@@ -414,6 +420,98 @@ function checkLiveAgainstAdvisories (semver) {
   return errors
 }
 
+// ------------------------------------------------- the version each message RECOMMENDS
+
+// A deprecation message's last job is to say where to go instead, and that is the part of it
+// that rots: the registry does not version a message, so a minimum that goes bad is 151
+// irreversible overwrites to correct. It has gone bad twice — 9.33.2 (a live confidentiality
+// defect) and 9.36.0 (inside GHSA-j884 from 2026-10-15, deprecated 2026-10-18) — and both times
+// the only thing that noticed was a person re-reading the text.
+//
+// So: every version named in a RECOMMENDATION must be published, undeprecated, and outside every
+// advisory range. Only recommendations are checked, which is the whole subtlety here. A message
+// also states history — "Fixed in 9.35.0", "Fixed in 7.5.5, which does not address later
+// security fixes" — and those versions are deprecated ON PURPOSE. They are true statements about
+// where a defect was closed, not advice, so a check that swept up every version number in the
+// text would fail on facts and force them to be deleted, making the messages worse. The
+// recommendation is exactly what follows "upgrade to" or "migrate to".
+function checkUpgradeTargets (tiers, state, semver) {
+  var errors = []
+  if (!semver) return ['NOTE: semver not resolvable, upgrade targets were not checked']
+  var advs = advisories()
+  var seen = {}
+
+  tiers.forEach(function (t) {
+    var re = /(?:upgrade|migrate) to (@?[\w@/.-]*?)@(\d+\.\d+\.\d+)/gi
+    var m
+    var found = 0
+    while ((m = re.exec(t.msg)) !== null) {
+      found++
+      var pkg = m[1]
+      var v = m[2]
+      var key = t.id + ' ' + pkg + '@' + v
+      if (seen[key]) continue
+      seen[key] = true
+      if (!state[pkg] || !(v in state[pkg])) {
+        errors.push(t.id + ' recommends ' + pkg + '@' + v + ', which is not published')
+        continue
+      }
+      if ((state[pkg][v] || '').length) {
+        errors.push(t.id + ' recommends ' + pkg + '@' + v + ', which is DEPRECATED. A security ' +
+          'notice that sends a consumer to a version carrying its own warning is the error this ' +
+          'set has already made twice.')
+      }
+      advs.forEach(function (a) {
+        a.vulns.forEach(function (vuln) {
+          if (vuln.package.name !== pkg) return
+          var range = vuln.vulnerable_version_range.replace(/,/g, ' ')
+          if (!semver.validRange(range) || !semver.satisfies(v, range)) return
+          errors.push(t.id + ' recommends ' + pkg + '@' + v + ', which is inside ' + a.id +
+            ' (' + vuln.vulnerable_version_range + ')')
+        })
+      })
+    }
+    // a message with no recommendation at all is the quieter version of the same failure: the
+    // consumer is told something is wrong and not told where to go. 9.34.0's text was like this.
+    if (!found) {
+      errors.push(t.id + ' names no version to upgrade or migrate to, so a consumer reading it ' +
+        'learns there is a defect and nothing about where to go')
+    }
+  })
+  return errors
+}
+
+// A version a message names as where a defect CLOSED is history, not advice — which is why
+// `checkUpgradeTargets` deliberately ignores it. But several of those versions are themselves
+// deprecated, and "fixed in 9.34.0" sitting two sentences from "upgrade to 9.43.0 or later"
+// still reads to some people as a second destination. So if a message names a deprecated version
+// as a fix, the clause has to say it is deprecated.
+//
+// Honest about what this is: a prose check, and therefore a BACKSTOP rather than a proof. It
+// recognises "fixed in X" and "fixes this in X"; a future message could phrase it some other way
+// and escape it. It cannot be made airtight without constraining how messages are written, which
+// would be a worse trade. It catches the phrasing we actually use.
+function checkFixReferences (tiers, state, semver) {
+  var errors = []
+  tiers.forEach(function (t) {
+    // to the end of the sentence, not a fixed character count: the rule is that the clause says
+    // it, and a 70-character window cut off one tier's qualifier mid-word on the first run.
+    var re = /(?:fixed in|fixes this in) (\d+\.\d+\.\d+)([^.]*)/gi
+    var m
+    while ((m = re.exec(t.msg)) !== null) {
+      var v = m[1]
+      var pkg = '@smartledger/bsv'
+      if (!state[pkg] || !(v in state[pkg])) continue
+      if (!(state[pkg][v] || '').length) continue            // names a live version: nothing to say
+      if (/deprecated|does not address/i.test(m[2])) continue // already qualified
+      errors.push(t.id + ' names ' + v + ' as a fix without saying it is deprecated: "' +
+        m[0].slice(0, 60) + '" — a reader two sentences from the real recommendation can take ' +
+        'that as a second destination')
+    }
+  })
+  return errors
+}
+
 function check (tiers, state) {
   var errors = []
   var owner = {}
@@ -452,6 +550,8 @@ function check (tiers, state) {
   if (!semver) errors.push('NOTE: semver not resolvable, range selection was not checked')
 
   errors = errors.concat(checkLiveAgainstAdvisories(semver))
+  errors = errors.concat(checkUpgradeTargets(tiers, state, semver))
+  errors = errors.concat(checkFixReferences(tiers, state, semver))
   return errors
 }
 
@@ -515,6 +615,19 @@ function main () {
 
   if (cmd === 'verify') {
     var applied = process.argv.slice(3)
+    // Refusing beats defaulting here. With no tier named this used to assume NOTHING had been
+    // applied, so straight after a successful 151-version run it printed 151 mismatches with
+    // every expected/actual pair truncated to 80 identical-looking characters — a report that
+    // cannot be told apart from a run that failed completely. I read it as catastrophe for
+    // several minutes. The question the command answers has to be stated by the caller.
+    if (!applied.length) {
+      console.error('verify needs the tiers to treat as applied, or `all`.\n' +
+        'With none named it would check that NOTHING has changed since ' + path.basename(SNAPSHOT) +
+        ', and report every message you just sent as a mismatch.\n' +
+        'Usage:  node scripts/npm-deprecations.js verify all\n' +
+        '        node scripts/npm-deprecations.js verify S_ghsa54 U_anchor')
+      process.exit(2)
+    }
     var before = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'))
     var attempt = 0
     var pass = function () {
@@ -566,7 +679,16 @@ function main () {
 // exported and pinned by test/docs/live_set_vs_advisories.js, which runs on every `npm test`
 // rather than only when someone runs the registry gates. Everything else here does need the
 // registry and stays behind the CLI.
-module.exports = { LIVE: LIVE, ACCEPTED: ACCEPTED, advisories: advisories, checkLiveAgainstAdvisories: checkLiveAgainstAdvisories }
+module.exports = {
+  LIVE: LIVE,
+  ACCEPTED: ACCEPTED,
+  UPGRADE_MIN: UPGRADE_MIN,
+  advisories: advisories,
+  buildTiers: buildTiers,
+  checkLiveAgainstAdvisories: checkLiveAgainstAdvisories,
+  checkUpgradeTargets: checkUpgradeTargets,
+  checkFixReferences: checkFixReferences
+}
 
 if (require.main === module) {
   main().catch(function (e) {
