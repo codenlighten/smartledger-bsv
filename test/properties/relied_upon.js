@@ -917,4 +917,84 @@ describe('relied-upon properties', function () {
       documented('spendable with an empty scriptSig')
     })
   })
+  describe('10. Extension points', function () {
+    // The flag word is the one number in this library that consumers copy, and copying it is the
+    // defect: the era flags inside it were ADDED as a fix, so a pinned integer cannot receive the
+    // next era. Measuring equality here is what makes "call the function" more than advice.
+    var Interpreter = bsv.Script.Interpreter
+
+    it('mainnetFlags() is 4020335 and carries all four era flags', function () {
+      Interpreter.mainnetFlags().should.equal(4020335)
+      var f = Interpreter.mainnetFlags()
+      var era = ['SCRIPT_GENESIS', 'SCRIPT_UTXO_AFTER_GENESIS', 'SCRIPT_ENABLE_CHRONICLE', 'SCRIPT_UTXO_AFTER_CHRONICLE']
+      era.forEach(function (n) {
+        ;(f & Interpreter[n]).should.equal(Interpreter[n], 'mainnetFlags() no longer carries ' + n)
+      })
+      documented('`4020335`')
+      documented('call the function, never copy the integer')
+    })
+
+    it('useMainnetConsensus() returns the same word (measured in a child process, since it mutates process-wide limits)', function () {
+      // Deliberately not called in-process: it sets the Genesis limits globally and this suite
+      // asserts pre-Genesis bounds elsewhere. The doc says it mutates process-wide state; a test
+      // that proved that by doing it would corrupt its own neighbours.
+      var out = execFileSync(process.execPath, ['-e',
+        "var I=require('" + path.join(__dirname, '..', '..').replace(/\\/g, '/') + "').Script.Interpreter;" +
+        'process.stdout.write(String(I.useMainnetConsensus()) + " " + String(I.mainnetFlags()))'
+      ], { encoding: 'utf8' }).trim().split(' ')
+      out[0].should.equal('4020335')
+      out[1].should.equal('4020335')
+      documented('It mutates process-wide state')
+    })
+
+    it('a named key-material parser handed nothing still generates, while the PrivateKey siblings refuse', function () {
+      var nothing = [undefined, null, '', 0, false, [], bsv.Mnemonic.Words.ENGLISH, Buffer.alloc(16)]
+      var generated = 0
+      nothing.forEach(function (v) {
+        var m
+        try { m = bsv.Mnemonic.fromString(v) } catch (e) { return }
+        // The claim is that it GENERATES instead of refusing. Not that what it generates is
+        // usable: the [] case is twelve EMPTY words, which is the next test and the worse case.
+        m.should.be.an.instanceOf(bsv.Mnemonic)
+        m.toString().split(' ').length.should.equal(12)
+        generated++
+      })
+      generated.should.equal(8, 'Mnemonic.fromString no longer generates for all eight — update the document')
+      // the siblings that already apply the rule
+      ;['fromString', 'fromWIF', 'fromHex'].forEach(function (fn) {
+        nothing.forEach(function (v) {
+          var threw = false
+          try { bsv.PrivateKey[fn](v) } catch (e) { threw = true }
+          threw.should.equal(true, 'PrivateKey.' + fn + ' accepted ' + Object.prototype.toString.call(v))
+        })
+      })
+      var hd = false
+      try { bsv.HDPrivateKey.fromString('') } catch (e) { hd = true }
+      hd.should.equal(false, "HDPrivateKey.fromString('') now refuses — update the document")
+      var hdu = false
+      try { bsv.HDPrivateKey.fromString(undefined) } catch (e) { hdu = true }
+      hdu.should.equal(true)
+      documented('`HDPrivateKey.fromString(\'\')`')
+      documented('validate before you parse')
+    })
+
+    it('two of those inputs are DERIVABLE BY ANYONE, which is worse than a lost key', function () {
+      var a = bsv.Mnemonic.fromString([]).toString()
+      var b = bsv.Mnemonic.fromString([]).toString()
+      a.should.equal(b)
+      a.split(' ').length.should.equal(12)
+      a.trim().should.equal('', 'the [] phrase is no longer twelve empty words')
+      var abandon = bsv.Mnemonic.fromString(Buffer.alloc(16)).toString()
+      abandon.should.equal('abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about')
+      documented('twelve empty words every time')
+      documented('canonical BIP-39')
+    })
+
+    it('the forward rules are stated, not just the hazards', function () {
+      documented('length-delimited and domain-separated')
+      documented('compare flag **names**, never hex')
+      documented('a new verifier returns the structured form')
+      documented('stable name of a future break')
+    })
+  })
 })

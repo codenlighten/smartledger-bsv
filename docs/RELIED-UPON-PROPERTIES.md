@@ -838,7 +838,90 @@ are easy to misread:
 
 ---
 
-## 10. Reading this file safely
+## 10. Extension points: how each surface grows without breaking you
+
+The sections above say what holds today. This one says **where a surface is designed to grow**, so
+that a consumer can depend on it in a way that survives the growth — and names the places where
+depending on the obvious thing pins you to a moment in time instead.
+
+Every factual claim here is measured in the section named beside it, or by the command given.
+The *rules* are design commitments for this library, not measurements.
+
+**Consensus flag words: call the function, never copy the integer.** On 9.42.0
+`Interpreter.useMainnetConsensus()` and `Interpreter.mainnetFlags()` both return `4020335`
+(`0x3d586f`). That integer is not the API. The era flags inside it were **added** to
+`mainnetFlags()` as a fix, because a helper named after mainnet had been omitting them and so
+applied pre-Genesis bounds; a future era adds another bit the same way. A caller holding `4020335`
+cannot receive that, and the failure is the dangerous direction: a stale word makes a validator
+*stricter* than consensus for the eras it predates, which looks like a passing gate while it
+rejects correct scripts and cannot discriminate the cases it was built to catch. Prefer
+`useMainnetConsensus()` over `mainnetFlags()` unless you manage the limits yourself — the
+script-number and element-size bounds are process-wide statics that no flag word carries, so flags
+alone can leave a validator on 2019 limits. It mutates process-wide state, so call it once at
+startup, not per item in a loop. See §5.
+
+**Options objects: a new option is invisible to a consumer pinned below it.** An unrecognised key
+is ignored, not rejected (§1, measured at 9.16.1 and 9.37.0). So adding an option is non-breaking
+for us and *silently inert* for anyone on an older build, with the call sitting in their code as
+evidence the hazard was handled. The rule: every option this library adds must be observable at
+runtime, and §1 carries the shape of the behavioural probe — test the behaviour, never the arity.
+Refusing unknown keys is a 10.0.0 candidate, recorded in
+[RELEASE-10.0.0.md](RELEASE-10.0.0.md).
+
+**Named parsers versus constructors: ask for the explicit one.** Several constructors here accept
+an overloaded argument and **generate** when it is absent, which is documented and intended for
+`new Mnemonic()` and `new HDPrivateKey()`. The hazard is that a named parser forwarding to one
+inherits it. Measured on 9.42.0: `Mnemonic.fromString` returns a fresh mnemonic for `undefined`,
+`null`, `''`, `0`, `false`, `[]`, a wordlist array and a Buffer, and `HDPrivateKey.fromString('')`
+returns a fresh random key, while `PrivateKey.fromString`, `fromWIF` and `fromHex` refuse all of
+them. Two of those inputs are worse than random because the result is *derivable by anyone*:
+`Mnemonic.fromString([])` is twelve empty words every time, and `Mnemonic.fromString(Buffer.alloc(16))`
+is the canonical BIP-39 `abandon … about` vector. Until the guards land, validate before you parse
+(`Mnemonic.isValid`), and treat any key-material parser as requiring a non-empty string you
+checked. 10.0.0 splits the overloaded constructors into explicit named ones; the rule is in
+[RELEASE-10.0.0.md](RELEASE-10.0.0.md).
+
+**Signed formats: new ones are length-delimited and domain-separated.** A format that signs
+concatenated fields with no length markers authenticates the byte string and **not** where one
+field ends and the next begins, so a different split of the same bytes verifies under the same
+signature. Measured outside this library on a mainnet Author Identity Protocol output: moving the
+media-type/encoding and encoding/filename boundaries produced two field sets that are
+byte-identical as a message and verify under one unchanged signature. Nothing can fix that for a
+format already in use — a verifier can only disclose what it covers. So any signing format this
+library introduces separates its domain and delimits its fields by length, and any verifier it
+ships reports *which fields* a signature authenticates rather than a bare boolean. Compare §4,
+where JCS is chosen precisely because it fixes one encoding per document.
+
+**Era semantics: read the era through the named helper.** The era ladder is additive and strict —
+Chronicle-without-Genesis is rejected at compile time in the node — so a new era arrives as a new
+flag bit and a new bound, not as a changed meaning for an old one. Read it with
+`Interpreter#isAfterGenesis()` / `isAfterChronicle()` and build flags with the helpers above. Two
+implementations' flag words are not comparable even for the same rule set, so when you cross-check
+against another library or a node, compare flag **names**, never hex. See §5.
+
+**Verification results: a new verifier returns the structured form.** The existing functions do not
+share a convention and §2 has the measured table; that inconsistency is frozen until 10.0.0. The
+forward rule is that anything new returns `{ valid, errors }` and is awaited, so the safe habit —
+gate on `valid`, never on the truthiness of the returned object — keeps working as the surface
+grows.
+
+**Conformance vectors: new classes are additive, and the version field is not yet enforced.**
+`@smartledger/attest-vectors` carries one JSON file and one runner flag per vector class, so a new
+class is a new file and a new flag and breaks no existing consumer. Both vector files carry `version: 1`
+and the published 0.1.0 runner never reads it — `grep -c version runner.mjs` in the published
+tarball returns 0 — so a consumer cannot currently detect drift between the vectors they have and
+the spec text they are reading, and should pin an exact version rather than a range if that
+matters. Enforcement is planned for 0.2.0. (This bullet is about a separate package, so it is
+verified by that command rather than by `test/properties/relied_upon.js`.)
+
+**Deprecation plan ids are the stable name of a future break.** Every registered deprecation
+carries a `plan:` id that does not change between the warning and the removal
+([RELEASE-10.0.0.md](RELEASE-10.0.0.md)). Key your own tracking on that id, not on the warning text
+or the version — the text is prose and gets rewritten, and `since` repeats across releases.
+
+---
+
+## 11. Reading this file safely
 
 Everything above is a measurement of a **named published version**. Two habits make the difference
 between using it and being misled by it:

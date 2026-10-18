@@ -178,6 +178,23 @@ makes this list the only record — treat it accordingly.
 - **LTP canonicalization defaults to JCS.** The current default is not RFC 8785, so other
   implementations compute a different claim hash from the same claim. (`lib/ltp/claim.js`)
 - **The field-commit encoding changes.** (`lib/util/field-commit.js`)
+- **An overloaded constructor with a generating default is split into explicit named
+  constructors.** This is a standing design rule for the major, not one call's fix. Generating
+  when no argument is given is documented and intended for `new Mnemonic()` and
+  `new HDPrivateKey()`; the defect is structural — a *named parser* that forwards to such a
+  constructor inherits "absent means generate", and no amount of guarding one entry point stops
+  the next one inheriting it. Measured on 9.42.0: `Mnemonic.fromString` returns a fresh mnemonic
+  for `undefined`, `null`, `''`, `0`, `false`, `[]`, a wordlist array and a `Buffer`, and
+  `HDPrivateKey.fromString('')` returns a fresh random key, while `PrivateKey.fromString`,
+  `fromWIF` and `fromHex` refuse all eight — so the rule is already applied in sibling methods and
+  these are inconsistent with it. Two of the inputs are worse than a random key because the result
+  is derivable by anyone: `[]` yields twelve empty words every time, and `Buffer.alloc(16)` yields
+  the canonical BIP-39 `abandon … about` vector. In 10.0.0 the generating path gets its own name
+  (`fromRandom`, which already exists for `Mnemonic`) and the overloads stop accepting an absent
+  argument. Reported 2026-10-18 by the onesatserver session after an unset environment variable
+  reached `Mnemonic.fromString` and 10,000 sat were sent to a key nobody held; the near-term
+  guards on the two named parsers are a separate decision and are not covered by this rule.
+  (`lib/mnemonic/mnemonic.js`) (`lib/hdprivatekey.js`) (`lib/privatekey.js`)
 
 ## Candidates — not decided, recorded so the decision is deliberate
 
