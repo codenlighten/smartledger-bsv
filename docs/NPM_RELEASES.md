@@ -42,7 +42,7 @@ already printed into someone's CI log is not.
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
 | `@smartledger/bsv` | 137 | 129 | 8 | 9.42.0 | 2025-10-18 | 2026-10-17 |
-| `@smartledger/bsv-core` | 17 | 0 | 17 | 1.8.1 | 2026-09-30 | 2026-10-17 |
+| `@smartledger/bsv-core` | 18 | 0 | 18 | 1.9.0 | 2026-09-30 | 2026-10-18 |
 | `@smartledger/keys` | 24 | 0 | 24 | 4.1.0 | 2025-11-28 | 2026-10-15 |
 | `@smartledger/notaryhash` | 17 | 0 | 17 | 2.5.0 | 2026-06-27 | 2026-10-16 |
 | `@smartledger/crypto` | 15 | 0 | 15 | 3.3.0 | 2025-11-28 | 2026-10-15 |

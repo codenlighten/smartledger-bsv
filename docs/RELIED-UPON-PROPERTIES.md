@@ -110,6 +110,7 @@ succeeds, the argument is ignored, and the twin verifies anyway. Measured on ins
 | `bsv-core` 1.7.0 | 2 | 3 | `true` | **`true`** |
 | `bsv-core` 1.8.0 | 3 | 4 | `true` | `false` |
 | `bsv-core` 1.8.1 | 3 | 4 | `true` | `false` |
+| `bsv-core` 1.9.0 | 3 | 4 | `true` | `false` |
 
 **`@smartledger/bsv-core` only gained the option in 1.8.0**, which means it was a no-op in the
 *newest* release of that package until this page's advice was checked against it rather than
