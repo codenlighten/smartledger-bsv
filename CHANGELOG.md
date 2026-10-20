@@ -620,6 +620,71 @@ preamble now states the measured live set — 9.36.0, 9.37.0, 9.38.0, 9.39.0, 9.
 everything through 9.35.0 deprecated — together with the three fixes that landed after the defect
 table was written, so a reader who stops at the table is not left with the pre-campaign picture.
 
+## [9.44.0] - 2026-10-20
+
+### Fixed — post-Chronicle, a signature check inside the unlocking script did not sign the locking script
+
+A `OP_CHECKSIG` or `OP_CHECKMULTISIG` that executes in the **unlocking** script signs, after
+Chronicle, everything from the most recent code separator to the end of that script **plus the
+locking script**. This library appended nothing, in any era.
+
+`bitcoin-sv` v1.2.3, `src/script/interpreter.cpp` 1475-1480 and the same block at 1571-1576:
+
+```cpp
+// checksigData contains scriptPubKey if we are executing within a scriptSig
+if(checksigData && IsChronicle(flags))
+{
+    // Post-Chronicle, a CHECKSIG in the scriptSig signs everything
+    // from the most recent codeseparator to the end of this
+    // scriptSig + scriptPubKey
+    scriptCode += *checksigData;
+}
+```
+
+`VerifyScript` supplies it: line 2338 evaluates the scriptSig passing `&scriptPubKey`, while
+2358 (the locking script) and 2402 (a P2SH redeem script) pass `nullptr`. Seven lines mention
+`checksigData` and that is the whole mechanism.
+
+**Measured against a compiled reference, in both directions.** Of 40 reference-judged rows,
+**24 disagreed** before this fix and 0 do after: we accepted spends the network rejects *and*
+rejected spends it accepts. The two groups that already agreed are the two where the rule does
+not apply, which is the right shape for a defect of this kind.
+
+**The gate is `SCRIPT_CHRONICLE` (bit 20) alone, not the output-era bit.** `script_flags.h`
+117-120 defines `IsChronicle(flags)` as that bit; `SCRIPT_UTXO_AFTER_CHRONICLE` (bit 21) has
+its own accessor and is **not consulted here**. This is the trap, and it cuts against this
+project's own earlier finding: the Chronicle *relaxations* gate on the output era alone, which
+is what took 571 of 24,568 disagreements to zero in 9.30.0. Two Chronicle questions, two
+different bits, opposite answers. A fix that reuses the relaxation helper passes every row of
+the first 24-row conformance set and still disagrees with the reference on 16 of 40 — a
+post-Chronicle block spending a pre-Chronicle output. The `-era` vectors exist to separate
+them and were built after that blind spot was pointed out.
+
+**Who was exposed.** Only code that puts a signature check in an unlocking script. Ordinary
+P2PKH and P2SH spending is unaffected, because a locking-script `CHECKSIG` is passed `nullptr`
+and diverges not at all; and post-Chronicle the shape also needs a transaction version above 1
+to clear the SIGPUSHONLY rule. That is a covenant and contract pattern rather than a wallet
+one. Chronicle activated at height 943,816, so this is live rather than prospective.
+
+**Why 9.44.0 is a minor.** The test this project applies to a breaking correctness fix is
+whether any *working* call can break. A caller relying on the old acceptance was relying on a
+verdict the network already refuses, so nothing that worked stops working — the same ground
+9.11.0 stood on, which was this defect's twin: signatures removed from the script code where
+the node keeps them. The new behaviour is reachable only with the Chronicle flag set.
+
+Both halves of the fix are falsifiable and were shown to fail: gating on bit 21 instead of
+bit 20 puts 16 of the 40 rows back into disagreement, and appending in every phase rather than
+only the unlocking one breaks **86** tests in this suite, because a locking-script `CHECKSIG`
+would then hash the lock twice. `test/script/chronicle_scriptsig_checksig.js` pins all 40 rows
+and carries the bit-separation control, which it runs by swapping bits 20 and 21 in the input
+flags — observationally identical to swapping which bit the gate reads, and it needs no access
+to internals. The helper is deliberately module-private: an internal mechanism should not
+become a public member callers can bind to.
+
+Vectors: oracle vectors in the BSV opcode lab repo, with reference verdicts from a compiled
+bitcoin-sv v1.2.3 oracle and an independent Rust node. The same gap exists in
+`@smartledger/bsv-core` and in an independent Rust implementation, found by this run.
+
 ## [9.43.0] - 2026-10-18
 
 ### Deprecated — a named key-material parser handed nothing GENERATES a key the caller never supplied
