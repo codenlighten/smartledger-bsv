@@ -139,9 +139,26 @@ passes `nullptr` for the redeem-script evaluation, and P2SH does not apply post-
 **What that does and does not establish.** It establishes that nothing we ship constructs the
 affected shape, so a consumer using the documented covenant APIs was never exposed. It does
 **not** establish that no consumer is exposed: a consumer hand-building an unlocking script
-containing a signature check, and validating post-Chronicle, was. That is the population worth
-telling, and it is identifiable by one grep on their side — a signature-check opcode in a
-script assigned to an input — rather than by a version number.
+containing a signature check, and validating post-Chronicle, was. That population is
+identifiable by one grep on their side — a signature-check opcode in a script assigned to an
+input — rather than by a version number, which is how it was put to them.
+
+**Both identifiable consumers checked and are clear**, each with evidence rather than a reply
+of "probably fine":
+
+- The covenant consumer most likely to be affected reports every `CHECKSIG`, `CHECKSIGVERIFY`
+  and `CHECKMULTISIG` in its **locking** scripts, with unlocking scripts push-only by
+  construction — data and number pushes only. Its current protocol does not depend on this
+  library at all; the earlier prototype pins 9.39.1 and contains no signature opcode in any
+  script.
+- The wallet consumer searched its server, web, test and compatibility trees for the opcodes
+  *and* for `input.script`, `setScript`, `Transaction`, `Interpreter` and `Script.fromASM`:
+  **0 hits**. It builds no transactions and evaluates no scripts.
+
+Worth recording the distinction the second one drew, because it is the better way to hold this:
+what protects them is *"no scripts at all"*, not their pinned version. A pin that is safe for
+the wrong reason stops being safe when the reason changes. Both have the upgrade written into
+their notes against the day a transfer or spending path is added.
 
 Chronicle activated at height 943,816 and mainnet is well past it, so this is live rather than
 prospective.
