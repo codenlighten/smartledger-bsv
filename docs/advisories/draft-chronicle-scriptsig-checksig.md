@@ -22,14 +22,42 @@ Signature)
 
 | ecosystem | package | vulnerable | patched |
 |---|---|---|---|
-| npm | `@smartledger/bsv` | `>= 9.15.0, < 9.44.0` | `9.44.0` |
+| npm | `@smartledger/bsv` | `< 9.44.0` | `9.44.0` |
 | npm | `@smartledger/bsv-core` | `< 1.11.0` | `1.11.0` |
 
-The lower bound on `@smartledger/bsv` is the release that introduced Chronicle flag handling;
-before it there was no era in which the rule could apply. **This bound is asserted from the
-changelog and has NOT been measured version by version** — it must be measured before filing,
-because a range stated loosely is the one thing an advisory cannot be loose about.
-`smartledger-bsv` (unscoped) predates Chronicle entirely and is not listed.
+**The ranges are measured, and an earlier draft of this file had the bsv bound wrong.** It said
+`>= 9.15.0` on the reasoning that 9.15.0 introduced Chronicle flag handling. That was asserted
+from the changelog and is false by about seventy releases: `SCRIPT_CHRONICLE` has existed since
+**v8.0.0**, and no version before 9.44.0 ever appended the locking script.
+
+Measured by running the 40 reference-judged vectors against published artifacts, reporting
+agreement per group so this defect is distinguishable from any other cause — the signature of
+*this* defect alone is `chronicle-off 8/8, output-era-only 8/8, chronicle-on 0/8,
+block-era-only 0/8`:
+
+| version | off | out-era | chr-on | chr+spo | blk-era |
+|---|---|---|---|---|---|
+| bsv 8.0.0, 9.0.0, 9.11.0 | 8/8 | 8/8 | 0/8 | **4/8** | 0/8 |
+| bsv 9.15.0, 9.20.0, 9.30.0, 9.37.0, 9.43.0 | 8/8 | 8/8 | 0/8 | 0/8 | 0/8 |
+| core 1.0.0, 1.3.0, 1.6.0, 1.10.0 | 8/8 | 8/8 | 0/8 | 0/8 | 0/8 |
+
+Two things that table says and prose would hide. The `chronicle-on-sigpushonly` group scores
+4/8 below 9.15.0 and 0/8 from 9.15.0, so SIGPUSHONLY handling changed there and that group is
+not a clean probe of this defect at older versions — the other four groups are. And core shows
+the identical signature at **every version from 1.0.0**, with every flag name present, so its
+`< 1.11.0` is exact.
+
+**Below bsv 8.0.0 the comparison is NOT equivalent and is deliberately not claimed as
+measured.** At 3.3.2, 5.4.0, 7.5.5 and 7.8.1, four flag constants do not exist at all —
+`SCRIPT_GENESIS`, `SCRIPT_UTXO_AFTER_GENESIS`, `SCRIPT_CHRONICLE`,
+`SCRIPT_UTXO_AFTER_CHRONICLE` — so asking those versions by name sets four fewer bits than the
+reference was given. Their numbers happen to look the same, and that is a coincidence of a
+different question, not evidence. The append is absent there too, so a caller passing the raw
+flag integer would still diverge; that is reasoning rather than measurement and the range stays
+`< 9.44.0` on the strength of the append being absent, not on those rows.
+
+`smartledger-bsv` (unscoped) is not listed: it predates all of this and is already deprecated
+in full.
 
 **Severity** `AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N` — 5.9, medium, pending review. `AC:H` is
 deliberate: it needs a signature check inside an *unlocking* script, and post-Chronicle it also
@@ -92,8 +120,28 @@ pre-Chronicle output.
 
 Only code that puts `OP_CHECKSIG` or `OP_CHECKMULTISIG` in an **unlocking** script. A
 locking-script signature check is passed `nullptr` and does not diverge at all, so ordinary
-P2PKH and P2SH spending — which is to say nearly all wallet traffic — is unaffected. The
-pattern that is affected is a covenant or contract one.
+P2PKH and P2SH spending — which is to say nearly all wallet traffic — is unaffected.
+
+**Measured, rather than argued: no feature this library ships was affected.** The interpreter
+was instrumented to record every signature check that executes while an unlocking script is
+being evaluated, and the whole suite was run. Excluding the new conformance test, the entire
+corpus reaches that shape **8 times**, and **0 of them are post-Chronicle**:
+
+    4x  bitcoind transaction evaluation fixtures, tx_valid vectors 33-36   pre-Chronicle
+    4x  SV Node sighash vectors, "still exercises both algorithms"         pre-Chronicle
+
+All eight are inherited fixtures. Our own covenant surfaces put their checks on the other side:
+`SmartContract.Authorizers.singleKey().emit()` writes `OP_CHECKSIGVERIFY` into the **locking**
+script and `unlockArgs()` returns signatures and keys as data, not a check; `lib/ordinals/ordlock.js`
+puts its `OP_CHECKSIG` in the cancel branch of the lock. P2SH is doubly unaffected — the node
+passes `nullptr` for the redeem-script evaluation, and P2SH does not apply post-Genesis at all.
+
+**What that does and does not establish.** It establishes that nothing we ship constructs the
+affected shape, so a consumer using the documented covenant APIs was never exposed. It does
+**not** establish that no consumer is exposed: a consumer hand-building an unlocking script
+containing a signature check, and validating post-Chronicle, was. That is the population worth
+telling, and it is identifiable by one grep on their side — a signature-check opcode in a
+script assigned to an input — rather than by a version number.
 
 Chronicle activated at height 943,816 and mainnet is well past it, so this is live rather than
 prospective.
