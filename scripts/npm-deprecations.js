@@ -38,7 +38,7 @@ var SNAPSHOT = path.join(__dirname, '..', 'docs', 'npm-deprecations', 'snapshot-
 // adding a version to a tier is never a bookkeeping step.
 var LIVE = {
   '@smartledger/bsv': ['9.37.0', '9.38.0', '9.39.0', '9.39.1', '9.40.0', '9.41.0', '9.42.0',
-    '9.43.0']
+    '9.43.0', '9.44.0']
 }
 // Four of the eight above are inside a PUBLISHED advisory's vulnerable range and are still
 // listed here deliberately: GHSA-jpm2-r6jf-2h78 covers `>= 5.5.0, < 9.40.0`, so 9.37.0, 9.38.0,

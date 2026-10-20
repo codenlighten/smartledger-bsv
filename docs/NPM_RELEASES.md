@@ -6,9 +6,13 @@ re-read from the registry on **2026-10-17**; the reasoning that follows it was w
 the 2026-10-13 state (see the note below). Re-run `npm run check:npm-inventory` before acting on
 any of it, and the suite fails if the package table below drifts from the registry.
 
-**The live set today, read from the registry on 2026-10-18:** `@smartledger/bsv` has eight
-undeprecated versions — **9.37.0, 9.38.0, 9.39.0, 9.39.1, 9.40.0, 9.41.0, 9.42.0 and 9.43.0** —
-and everything up to and including **9.36.0** is deprecated. (The counts in this paragraph had
+**The live set today, read from the registry on 2026-10-20:** `@smartledger/bsv` has nine
+undeprecated versions — **9.37.0, 9.38.0, 9.39.0, 9.39.1, 9.40.0, 9.41.0, 9.42.0, 9.43.0 and
+9.44.0** — and everything up to and including **9.36.0** is deprecated. 9.44.0 fixes a
+Chronicle-era consensus divergence confirmed against a compiled reference: a signature check
+inside an unlocking script did not sign the locking script, so 24 of 40 reference-judged rows
+disagreed in both directions. `@smartledger/bsv-core@1.11.0` carries the same fix, and the two
+scored the identical 16/24 split before it. (The counts in this paragraph had
 drifted twice: it said "seven" above a list of eight and "all five" about the same set, and then
 claimed all nine were at or above every fix, which stopped being true while it was being
 written. They are re-read from the registry, not incremented.) Three fixes landed after the
@@ -104,8 +108,8 @@ already printed into someone's CI log is not.
 
 | package | versions | deprecated | live | `latest` | first | last |
 |---|---|---|---|---|---|---|
-| `@smartledger/bsv` | 138 | 130 | 8 | 9.43.0 | 2025-10-18 | 2026-10-18 |
-| `@smartledger/bsv-core` | 19 | 0 | 19 | 1.10.0 | 2026-09-30 | 2026-10-18 |
+| `@smartledger/bsv` | 139 | 130 | 9 | 9.44.0 | 2025-10-18 | 2026-10-18 |
+| `@smartledger/bsv-core` | 20 | 0 | 20 | 1.11.0 | 2026-09-30 | 2026-10-18 |
 | `@smartledger/keys` | 24 | 0 | 24 | 4.1.0 | 2025-11-28 | 2026-10-15 |
 | `@smartledger/notaryhash` | 17 | 0 | 17 | 2.5.0 | 2026-06-27 | 2026-10-16 |
 | `@smartledger/crypto` | 15 | 0 | 15 | 3.3.0 | 2025-11-28 | 2026-10-15 |
