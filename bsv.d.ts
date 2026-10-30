@@ -523,6 +523,14 @@ declare module '@smartledger/bsv' {
              * spelling. Read `nodeErrstr` for the node's name.
              */
             errstr: string;
+            /**
+             * The era diagnostic after a failing `verify()`, or `null` when the failure was not
+             * caused by an era-derived limit. Populated even when `Interpreter.eraDiagnostics` is
+             * false (only the console notice is silenced), so a caller can treat a `false` with a
+             * non-null hint as "no verdict" rather than as "the script cannot be spent". `undefined` until
+             * `verify()` has run.
+             */
+            eraHint?: string | null;
             flags: number;
             script?: Script;
             tx?: Transaction;

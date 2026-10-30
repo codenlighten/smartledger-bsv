@@ -101,6 +101,21 @@ and stays silent unless it trips an era-derived limit; set
 `Interpreter.eraDiagnostics = false` or `BSV_NO_ERA_HINT=1` to turn the notice
 off entirely.
 
+**`verify()` returns `false`; it does not throw, and `false` is not a verdict by itself.** A caller
+that treats `false` as "this script cannot be spent without a signature" will be wrong whenever the
+failure came from an era limit it did not mean to apply (a push over 520 bytes, a script over
+10,000 bytes, a script number over 4 bytes). `interp.eraHint` is the machine-readable form of the
+diagnostic: after a failing `verify()` it holds the explanation, or `null` when the failure was not
+era-derived, and it is set even when `Interpreter.eraDiagnostics = false` silences the console
+notice. A consumer making a security decision from the result should treat `verify() === false`
+with a non-null `eraHint` as **no verdict**, and re-run with `Interpreter.mainnetFlags()`.
+
+`mainnetFlags()` is a *relay-policy* set as well as a consensus one: it also sets MINIMALDATA,
+SIGPUSHONLY, LOW_S, STRICTENC and DERSIG, which can only add reasons to fail. "Would my node relay
+this spend?" and "can an attacker spend this coin without the owner's signature?" are different
+questions. For the second, also evaluate `mainnetFlags()` with those policy bits cleared, and warn
+if either run lets the signature be skipped.
+
 ## Core Bitcoin API
 
 Drop-in compatible with the classic `bsv` 1.5.6 surface.
