@@ -102,7 +102,7 @@ describe('docs: the version each deprecation message recommends', function () {
   it('rejects a recommendation that points at a deprecated version', function () {
     var min = dep.UPGRADE_MIN.split('@').pop()
     var state = JSON.parse(JSON.stringify(FIXTURE))
-    state['@smartledger/bsv'][min] = 'deprecated'   // the exact shape shipped until 2026-10-18
+    state['@smartledger/bsv'][min] = 'deprecated' // the exact shape shipped until 2026-10-18
     var errors = dep.checkUpgradeTargets(dep.buildTiers(state), state, semver)
     assert.ok(errors.some(function (e) { return e.indexOf('is DEPRECATED') >= 0 }),
       'recommending a deprecated version must be an error, got:\n  ' + errors.join('\n  '))
@@ -110,7 +110,7 @@ describe('docs: the version each deprecation message recommends', function () {
 
   it('rejects a recommendation inside an advisory range', function () {
     var state = JSON.parse(JSON.stringify(FIXTURE))
-    state['@smartledger/bsv']['9.38.0'] = ''       // undeprecated, but inside GHSA-jpm2
+    state['@smartledger/bsv']['9.38.0'] = '' // undeprecated, but inside GHSA-jpm2
     var tiers = dep.buildTiers(state).map(function (t) {
       return { id: t.id, pkg: t.pkg, versions: t.versions, msg: t.msg.replace(/@smartledger\/bsv@\d+\.\d+\.\d+ or later/g, '@smartledger/bsv@9.38.0 or later') }
     })
@@ -150,7 +150,9 @@ describe('docs: a deprecated version named as a fix says that it is deprecated',
   })
 
   it('rejects the unqualified phrasing that shipped until 2026-10-18', function () {
-    var tiers = [{ id: 'T', pkg: '@smartledger/bsv', versions: ['9.33.2'],
+    var tiers = [{ id: 'T',
+      pkg: '@smartledger/bsv',
+      versions: ['9.33.2'],
       msg: 'A defect, fixed in 9.34.0. Upgrade to @smartledger/bsv@9.43.0 or later.' }]
     var errors = dep.checkFixReferences(tiers, STATE, semver)
     assert.ok(errors.some(function (e) { return e.indexOf('names 9.34.0 as a fix') >= 0 }),
@@ -160,14 +162,18 @@ describe('docs: a deprecated version named as a fix says that it is deprecated',
   it('reads to the end of the sentence, not a fixed character count', function () {
     // The first version of the check used a 70-character window and cut off mid-word before the
     // qualifier in the longest clause, failing the real file. A long clause must still pass.
-    var tiers = [{ id: 'T', pkg: '@smartledger/bsv', versions: ['9.35.0'],
+    var tiers = [{ id: 'T',
+      pkg: '@smartledger/bsv',
+      versions: ['9.35.0'],
       msg: 'Fixed in 9.36.0, which takes the birth date itself and refuses a credential ' +
         'outright rather than guessing, now deprecated too. Upgrade to @smartledger/bsv@9.43.0 or later.' }]
     assert.deepStrictEqual(dep.checkFixReferences(tiers, STATE, semver), [])
   })
 
   it('says nothing about a fix version that is still live', function () {
-    var tiers = [{ id: 'T', pkg: '@smartledger/bsv', versions: ['9.33.2'],
+    var tiers = [{ id: 'T',
+      pkg: '@smartledger/bsv',
+      versions: ['9.33.2'],
       msg: 'A defect, fixed in 9.43.0. Upgrade to @smartledger/bsv@9.43.0 or later.' }]
     assert.deepStrictEqual(dep.checkFixReferences(tiers, STATE, semver), [])
   })

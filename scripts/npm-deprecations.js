@@ -502,7 +502,7 @@ function checkFixReferences (tiers, state, semver) {
       var v = m[1]
       var pkg = '@smartledger/bsv'
       if (!state[pkg] || !(v in state[pkg])) continue
-      if (!(state[pkg][v] || '').length) continue            // names a live version: nothing to say
+      if (!(state[pkg][v] || '').length) continue // names a live version: nothing to say
       if (/deprecated|does not address/i.test(m[2])) continue // already qualified
       errors.push(t.id + ' names ' + v + ' as a fix without saying it is deprecated: "' +
         m[0].slice(0, 60) + '" — a reader two sentences from the real recommendation can take ' +
