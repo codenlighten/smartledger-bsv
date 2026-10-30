@@ -3,9 +3,9 @@
 **NOT FILED. Drafted 2026-10-20; filing and publishing are Greg's decision.**
 
 This file is the source a payload would be built from. Two things make the disclosure
-decision his rather than a formality: the same gap exists in an **independent Rust
-implementation**, found by the same run, so timing is a coordination question and not only
-ours; and the affected pattern is narrow enough that a loud disclosure may do less good than
+decision his rather than a formality: the same gap existed in an **independent Rust
+implementation**, found by the same run (now fixed there; see the 2026-10-30 update), so timing
+was a coordination question and not only ours; and the affected pattern is narrow enough that a loud disclosure may do less good than
 a quiet upgrade note. Both arguments are laid out under **Disclosure considerations** below.
 
 ---
@@ -103,6 +103,29 @@ The 16 that already agreed are the groups where the rule does not apply — Chro
 the output-era bit set alone — which is the right shape for a defect of this kind and is also
 why a smaller vector set would have missed it.
 
+### Update 2026-10-30: independent re-measurement
+
+Recorded without changing the measurement above. Both runs read the same 40 vector files
+(`test/data/chronicle-scriptsig/vectors-*.jsonl`, 24 + 16 rows) and were run blind, before the
+recorded reference columns were opened:
+
+- **Compiled bitcoin-sv v1.2.3 oracle** (`verify_script`, sha256 `c387e5aeeb6a51f9`): agrees with
+  the recorded verdicts on **40 / 40** (20 accept, 20 reject; `EVAL_FALSE` and `SIG_NULLFAIL`
+  names match one to one). Clearing bits 20 and 21 moves 20 of the 40 verdicts, so the set
+  discriminates the Chronicle bits. Measured by the newsatoshi session, 2026-10-27.
+- **Rust node at commit `01d98e2`**: **40 / 40** against the oracle and against the recorded
+  verdicts, in all five flag groups (8 rows each). Control: the same node built at `517a2fb^`,
+  the commit before its lock-append fix of 2026-10-20, fails exactly **24** rows, every row in
+  the three groups where bit 20 is set. Reported by the newsatoshi session, 2026-10-30, with
+  these limits: the script interpreter's verdict only, not full block or transaction
+  validation, and only this fixture.
+- **This library**: `test/script/chronicle_scriptsig_checksig.js` passes 40 / 40 at 9.44.0, and
+  `@smartledger/bsv-core` 1.11.0 as well.
+
+Wording the Rust session confirmed for quoting: "the Rust node at 01d98e2 matches the compiled
+v1.2.3 reference on all 40 rows; the build before 517a2fb (2026-10-20) did not, on the 24 rows
+where the block-era Chronicle bit is set."
+
 ### The bit that decides it
 
 The gate is `SCRIPT_CHRONICLE` (bit 20) **alone**. `script_flags.h` 117-120 defines
@@ -174,8 +197,11 @@ old acceptance was relying on a verdict the network already refuses.
 Three facts the filing decision should turn on, recorded so the decision is made on them
 rather than on momentum:
 
-1. **An independent Rust implementation has the same gap**, found by the same run, and its
-   maintainers were notified through the session that holds the node. Filing a public advisory
+1. **An independent Rust implementation had the same gap**, found by the same run, and its
+   maintainers were notified through the session that holds the node. **As of 2026-10-30 that
+   implementation is fixed** (commit `517a2fb`, 2026-10-20, deployed 2026-10-23 per the session
+   that holds it; I have not verified the deployment myself), which removes most of the weight
+   of this argument. Its text below is kept as written on 2026-10-20. Filing a public advisory
    that names the mechanism tells everyone how to construct the divergence, including against
    an implementation that has not shipped a fix. That argues for coordinating rather than
    filing immediately.
@@ -190,7 +216,7 @@ rather than on momentum:
 4. **Filing implies a deprecation decision about seven live versions, by our own gate.**
    `checkLiveAgainstAdvisories` in `scripts/npm-deprecations.js` refuses a manifest where a
    version left undeprecated sits inside a published advisory's range *and* that advisory names
-   a patched version. This draft's range is `>= 9.15.0, < 9.44.0` with `9.44.0` patched, so the
+   a patched version. This draft's range is `< 9.44.0` (an earlier version of this file said `>= 9.15.0`; the Affected section above has the measured bound) with `9.44.0` patched, so the
    moment a payload is built from it, **9.37.0 through 9.43.0 — every live version but the
    newest — become a hard error** until they are either deprecated or given a written
    exception. That is the gate working as designed, and it is a real cost: deprecating seven
