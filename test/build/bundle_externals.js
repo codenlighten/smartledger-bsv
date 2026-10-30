@@ -82,7 +82,7 @@ describe('feature bundles externalise the shared primitives', function () {
     // bytes per bundle and avoids making every bundle depend on the core.
     // If a bundle starts needing another, this line should change in the same
     // commit that causes it.
-    var SHARED = ['lib/util/_.js', 'lib/util/deprecate.js']
+    var SHARED = ['lib/util/_.js', 'lib/util/deprecate.js', 'lib/util/own-option.js']
     var EXPECTED = {
       'bsv-ecies.min.js': ['lib/ecies/'],
       'bsv-message.min.js': ['lib/message/'],
@@ -124,10 +124,16 @@ describe('feature bundles externalise the shared primitives', function () {
     //   * the alternative was to warn from the main bundle only, which would leave browser
     //     users of the feature bundle with no notice at all before 10.0.0 flips the default.
     //     That is strictly worse: the notice exists to give them the year's warning.
+    //
+    // lib/util/own-option.js joined the list when security options began to be read as OWN
+    // properties only. It is 26 lines, pure and stateless, with no `process` or `require` of
+    // anything, so a second copy in a feature bundle changes nothing observable: there is no
+    // per-process state for the copies to disagree about.
     var ACCEPTED_DUPLICATES = [
       'lib/util/_.js',
       'lib/smart_contract/covenant.js',
-      'lib/util/deprecate.js'
+      'lib/util/deprecate.js',
+      'lib/util/own-option.js'
     ]
     var seen = {}
     Object.keys(inputsByBundle).forEach(function (file) {
