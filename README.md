@@ -10,9 +10,12 @@ Its defaults describe BSV as the network actually runs it. `verify()` with no
 flags means current mainnet consensus, not "no rules"; the interpreter is
 measured against the reference node's own vectors (1483/1483, zero false
 accepts) rather than the Bitcoin Core vectors inherited from the upstream fork;
-and all secp256k1 work runs on the audited, constant-time
+and all secp256k1 work runs on the third-party
 [`@noble`](https://github.com/paulmillr/noble-curves) suite with `elliptic`
-removed.
+removed. Noble publishes independent audit reports of itself (they cover noble, not
+this library) and targets algorithmic constant time; it states that JavaScript runtimes
+make strict timing resistance hard to guarantee, so read its security notes before
+relying on it against timing attacks.
 
 > **9.x will not break your code until at least 2027-09-01.** Patch and minor
 > releases only. This library published six majors in the 82 days before that
